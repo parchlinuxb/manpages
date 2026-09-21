@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: archmanweb
+      POSTGRES_USER: archmanweb
+      POSTGRES_PASSWORD: parch_secret_db_2026
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U archmanweb -d archmanweb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: gunicorn wsgi:application --bind 0.0.0.0:8000 --workers 4 --threads 2 --worker-class gthread --timeout 120
+    ports:
+      - "127.0.0.1:8008:8000"
+    volumes:
+      - .:/app
+    environment:
+      POSTGRES_DB: archmanweb
+      POSTGRES_USER: archmanweb
+      POSTGRES_PASSWORD: parch_secret_db_2026
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

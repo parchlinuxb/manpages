@@ -1,0 +1,132 @@
+.TH "OPENLDAP_TO_DS" "8" "2026\-09\-07" "lib389 3.3.1" "راهنمای پایتون تولیدشده"
+.SH "نام (NAME)"
+openldap_to_ds \- اسکریپت مهاجرت از OpenLDAP به 389 Directory Server
+.SH "خلاصه دستور (SYNOPSIS)"
+.B openldap_to_ds
+[-h] [-v] [--confirm] [--ignore-overlay [IGNORE_OVERLAY ...]] [--ignore-schema-oid [IGNORE_SCHEMA_OID ...]] [--ignore-attribute [IGNORE_ATTRIBUTE ...]] [-D BINDDN] [-w BINDPW] [-W] [-y PWDFILE] [-Z] instance slapd_config [slapd_ldif ...]
+.SH "توضیحات (DESCRIPTION)"
+مهاجرت از OpenLDAP به 389 Directory Server.
+.PP
+این دستور فرایند تبدیل یک کارساز OpenLDAP به یک نمونه 389 Directory Server را خودکار می‌کند. این عملیات بر اساس «بیشترین تلاش» (best effort) انجام می‌شود زیرا OpenLDAP و 389 Directory Server کاملاً یکسان نیستند، بنابراین برخی ویژگی‌ها ممکن است همچنان نیازمند مهاجرت دستی باشند، یا اصلاً امکان مهاجرت آن‌ها وجود نداشته باشد. هدف این ابزار مهاجرت بخش عمده‌ای از محتوای اصلی نظیر داده‌های پایگاه‌داده، پیکربندی نمایه‌ها (indexes)، اسکِما (schema) و برخی اورلی‌ها (پلاگین‌ها) است.
+.PP
+محتوایی که می‌توانیم مهاجرت دهیم:
+.PP
+* اسکِما (Schema)
+.br
+* محتوای پایگاه‌داده (از نسخه پشتیبان ldif)
+.br
+* نمایه‌های پایگاه‌داده (Database indexes)
+.br
+* اورلی MemberOf (پلاگین memberof)
+.br
+* اورلی Referential Integrity (پلاگین refint)
+.br
+* اورلی Attribute Unique (پلاگین unique)
+.PP
+برخی از محتواهایی که \fBنمی‌توانند\fR مهاجرت داده شوند شامل برخی اورلی‌ها (پلاگین‌ها)، کنترل‌های دسترسی و پیکربندی همگام‌سازی (replication) هستند. نمونه‌هایی از پلاگین‌هایی که قابل مهاجرت نیستند:
+.PP
+* ثبت وقایع دسترسی/حسابرسی (Access/Audit logging) (به‌طور پیش‌فرض در 389\-ds توکار است)
+.br
+* زنجیره‌سازی (Chaining) (نیازمند مهاجرت دستی، ممکن است معادل نباشد)
+.br
+* محدودیت‌ها (Constraints) (پلاگین معادل ندارد)
+.br
+* سرویس‌های دایرکتوری پویا (Dynamic Directory Services) (نیازمند مهاجرت دستی به پلاگین Class of Service)
+.br
+* گروه‌ها/فهرست‌های پویا (Dynamic Groups/Lists) (نیازمند مهاجرت دستی به پلاگین Roles)
+.br
+* حافظه موقت پروکسی (Proxy Cache) (پلاگین معادل ندارد، 389\-ds از رونوشت‌های فقط‌خواندنی پشتیبانی می‌کند)
+.br
+* سیاست گذرواژه (Password Policy) (توکار در 389\-ds، نیازمند مهاجرت دستی)
+.br
+* بازنویسی/نگاشت مجدد (Rewrite/Remap) (پلاگین معادل ندارد)
+.br
+* ارائه‌دهنده همگام‌سازی (Sync Provider) (نیازمند مهاجرت دستی به پلاگین Replication یا Content Sync)
+.br
+* مرتب‌سازی مقادیر (Value Sorting) (پلاگین معادل ندارد)
+.PP
+این دستور باید روی کارسازی که نمونه 389 Directory در آن اجرا می‌شود اجرا گردد چرا که نیازمند دسترسی به سیستم‌فایل است. باید این ابزار را به عنوان کاربر root یا dirsrv اجرا کنید.
+.PP
+موارد زیر از نمونه OpenLDAP شما مورد نیاز است:
+.PP
+* دایرکتوری پیکربندی slapd.d در قالب ldif/پویا
+.br
+* (اختیاری) پرونده پشتیبان ldif از پایگاه‌داده با استفاده از slapcat
+.PP
+این موارد را می‌توان روی میزبان OpenLDAP ایجاد کرد و به میزبان 389 Directory Server منتقل نمود. هیچ عمل مخربی روی نمونه OpenLDAP اعمال نمی‌شود.
+.PP
+اگر هم‌اکنون از قالب ldif/پویا در مسیر /etc/openldap/slapd.d استفاده می‌کنید، باید یک رونوشت از آن تهیه کرده تا در فرایند مهاجرت به کار ببرید:
+.PP
+.nf
+    cp \-a /etc/openldap/slapd.d /root/slapd.d
+.fi
+.PP
+اگر از پرونده پیکربندی slapd.conf استفاده می‌کنید، می‌توانید بدون تأثیر بر نمونه در حال اجرای خود، آن را به پیکربندی پویا تبدیل کنید:
+.PP
+.nf
+    slaptest \-f /etc/openldap/slapd.conf \-F /root/slapd.d
+.fi
+.PP
+برای اینکه به صورت اختیاری اجازه دهید محتوای پایگاه‌داده شما مهاجرت داده شود، می‌توانید یک نسخه پشتیبان ldif از محتوایی که 389 Directory Server می‌تواند وارد کند ایجاد نمایید. باید این دستور را برای هر بک‌اند (suffix) از نمونه خود اجرا کنید:
+.PP
+.nf
+    # If using slapd.conf config format
+    slapcat \-f /etc/openldap/slapd.conf \-b SUFFIX \-l /root/suffix.ldif
+    # If using slapd.d config format
+    slapcat \-F /etc/openldap/slapd.d \-b SUFFIX \-l /root/suffix.ldif
+.fi
+.PP
+شما باید از قبل یک 389 Directory Server داشته باشید که می‌خواهید داده‌ها به آن وارد شوند. می‌توانید این نمونه را با ابزار \fBdscreate\fR بسازید. داده‌ها و پیکربندی‌های موجود در این نمونه تغییر خواهند یافت یا حذف خواهند شد (یعنی اعمال بالقوه مخرب).
+.PP
+اکیداً توصیه می‌شود این ابزار را ابتدا روی یک سیستم غیرعملیاتی (non-production) آزمایش کنید تا از درک درست فرایند و تغییرات مطمئن شوید.
+.PP
+این ابزار تنها باید روی نخستین نمونه (first-instance) در یک ساختار هم‌بندی (topology) در 389 Directory Server اجرا شود. تمام رونوشت‌های (replicas) دیگر باید پس از مهاجرت از روی این نمونه پیکربندی شوند.
+.TP
+\fBinstance\fR
+نام نمونه 389\-ds که داده‌های openldap به آن مهاجرت داده می‌شوند.
+.TP
+\fBslapd_config\fR
+مسیر پیکربندی slapd.d در openldap که مهاجرت داده خواهد شد.
+.TP
+\fBslapd_ldif\fR
+مسیر پرونده‌های ldif خروجی گرفته‌شده از پایگاه‌داده برای واردسازی.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+نمایش جزئیات ردگیری عملیات در حین اجرای دستور.
+.TP
+\fB\-\-confirm\fR
+تأیید اعمال این اقدامات مهاجرت بر روی نمونه 389\-ds. به‌طور پیش‌فرض هیچ اقدامی انجام نمی‌شود.
+.TP
+\fB\-\-ignore\-overlay\fR \fI\,[IGNORE_OVERLAY ...]\/\fR
+صرف‌نظر از مهاجرت پیکربندی اورلی‌های مشخص‌شده openldap به پلاگین‌های معادل 389\-ds. گزینه‌های معتبر عبارتند از memberof، refint و unique.
+.TP
+\fB\-\-ignore\-schema\-oid\fR \fI\,[IGNORE_SCHEMA_OID ...]\/\fR
+صرف‌نظر از مهاجرت OIDهای مشخصه یا کلاس اسکما در openldap به 389\-ds. این کار \fBممکن است\fR اسکمای ناسازگاری ایجاد کند که موجب شکست مهاجرت شود. با احتیاط استفاده کنید.
+.TP
+\fB\-\-ignore\-attribute\fR \fI\,[IGNORE_ATTRIBUTE ...]\/\fR
+نادیده گرفتن مشخصه‌های مشخص‌شده از ورودی‌هایی که از ldif بارگذاری می‌شوند. برای مثال، ممکن است نخواهید مقادیر درهم‌ساز userPassword وارد شوند.
+.TP
+\fB\-D\fR \fI\,BINDDN\/\fR, \fB\-\-binddn\fR \fI\,BINDDN\/\fR
+حساب کاربری 389 Directory Server برای اتصال (bind) جهت اجرای عملیات مهاجرت.
+.TP
+\fB\-w\fR \fI\,BINDPW\/\fR, \fB\-\-bindpw\fR \fI\,BINDPW\/\fR
+گذرواژه برای binddn.
+.TP
+\fB\-W\fR, \fB\-\-prompt\fR
+درخواست تعاملی گذرواژه برای bind DN.
+.TP
+\fB\-y\fR \fI\,PWDFILE\/\fR, \fB\-\-pwdfile\fR \fI\,PWDFILE\/\fR
+مشخص کردن پرونده‌ای حاوی گذرواژه برای binddn.
+.TP
+\fB\-Z\fR, \fB\-\-starttls\fR
+اتصال به 389 Directory Server با استفاده از پروتکل امنیتی StartTLS.
+.SH "نویسنده (AUTHOR)"
+.nf
+"Red Hat, Inc., and William Brown" <389-devel@lists.fedoraproject.org>
+.fi
+.SH "همچنین ببینید (SEE ALSO)"
+.BR slapd (8),
+.BR slapcat (8),
+.BR slaptest (8),
+.BR dscreate (8)

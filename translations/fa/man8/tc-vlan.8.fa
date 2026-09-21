@@ -1,0 +1,158 @@
+.TH "VLAN manipulation action in tc" 8 "12 Jan 2015" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-vlan \- ماژول دستکاری vlan در کنترل ترافیک لینوکس
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR tc " ... " "action vlan" " { " pop " | " pop_eth " |"
+.IR PUSH " | " MODIFY " | " PUSH_ETH " } [ " CONTROL " ]"
+
+.ti -8
+.IR PUSH " := "
+.BR push " [ " protocol
+.IR VLANPROTO " ]"
+.BR " [ " priority
+.IR VLANPRIO " ] "
+.BI id " VLANID"
+
+.ti -8
+.IR MODIFY " := "
+.BR modify " [ " protocol
+.IR VLANPROTO " ]"
+.BR " [ " priority
+.IR VLANPRIO " ] "
+.BI id " VLANID"
+
+.ti -8
+.IR PUSH_ETH " := "
+.B push_eth
+.BI dst_mac " LLADDR " src_mac " LLADDR "
+
+.ti -8
+.IR CONTROL " := { "
+.BR reclassify " | " pipe " | " drop " | " continue " | " pass " | " goto " " chain " " CHAIN_INDEX " }"
+.SH "توضیحات (DESCRIPTION)"
+اکشن
+.B vlan
+امکان کپسوله‌سازی (encapsulation) یا کپسوله‌زدایی (decapsulation) استاندارد 802.1Q را روی بسته فراهم می‌کند که از طریق حالت‌های عملیاتی
+.IR POP "، " PUSH
+و
+.I MODIFY
+مشخص می‌شود.
+حالت
+.I POP
+ساده است، زیرا برای حذف بیرونی‌ترین کپسوله‌سازی VLAN به اطلاعات بیشتری نیاز ندارد. حالت‌های
+.IR PUSH " و " MODIFY
+حداقل نیازمند یک
+.I VLANID
+هستند و به کاربر اجازه می‌دهند به صورت اختیاری
+.I VLANPROTO
+مورد نظر را انتخاب کند.
+.PP
+اکشن
+.B vlan
+همچنین می‌تواند برای افزودن یا حذف سرآیند پایه اترنت استفاده شود. حالت
+.B pop_eth
+که هیچ آرگومانی دریافت نمی‌کند، برای حذف سرآیند پایه اترنت به کار می‌رود. تمام VLANهای موجود باید پیش از این حذف شده باشند. عملیات معکوس، یعنی افزودن سرآیند پایه اترنت، با حالت
+.B push_eth
+انجام می‌شود. در این حالت، بسته نباید سرآیند MAC داشته باشد (پشته‌سازی سرآیندهای MAC مجاز نیست). این حالت بیشتر زمانی مفید است که یک اکشن قبلی کل فریم اصلی را پشت یک سرآیند شبکه کپسوله‌سازی کرده باشد و پیش از هدایت بسته حاصل، نیاز به افزودن یک سرآیند اترنت به ابتدای آن باشد.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B pop
+حالت کپسوله‌زدایی (decapsulation)؛ هیچ آرگومان دیگری مجاز نیست.
+.TP
+.B push
+حالت کپسوله‌سازی (encapsulation). حداقل به گزینه
+.B id
+نیاز دارد.
+.TP
+.B modify
+حالت جایگزینی (replace). تگ موجود 802.1Q جایگزین می‌شود. حداقل به گزینه
+.B id
+نیاز دارد.
+.TP
+.B pop_eth
+حالت کپسوله‌زدایی سرآیند اترنت. فقط روی یک سرآیند اترنت خالص کار می‌کند: در صورت وجود VLAN، ابتدا باید حذف شوند.
+.TP
+.B push_eth
+حالت کپسوله‌سازی سرآیند اترنت. مقدار Ethertype به طور خودکار با استفاده از نوع سرآیند شبکه تنظیم می‌شود. زنجیره‌سازی سرآیندهای اترنت مجاز نیست: هنگام استفاده از این حالت بسته نباید هیچ سرآیند MAC داشته باشد. نیازمند گزینه‌های
+.BR dst_mac " و " src_mac
+است.
+.TP
+.BI id " VLANID"
+شناسه VLAN (یا همان VLAN ID) را برای کپسوله‌سازی مشخص می‌کند.
+.I VLANID
+یک عدد صحیح ۱۶ بیتی بدون علامت است که قالب آن به صورت خودکار تشخیص داده می‌شود (برای نمونه پیشوند
+.RB ' 0x '
+برای تفسیر هگزادسیمال و غیره).
+.TP
+.BI protocol " VLANPROTO"
+پروتکل VLAN مورد استفاده را انتخاب می‌کند. در زمان نگارش این مستند، هسته لینوکس فقط
+.BR 802.1Q " یا " 802.1ad
+را می‌پذیرد.
+.TP
+.BI priority " VLANPRIO"
+اولویت VLAN مورد استفاده را انتخاب می‌کند. عددی ده‌دهی در بازه 0 تا 7 است.
+.TP
+.BI dst_mac " LLADDR"
+آدرس MAC مقصد را تعیین می‌کند.
+.TP
+.BI src_mac " LLADDR"
+آدرس MAC مبدأ را تعیین می‌کند.
+.TP
+.I CONTROL
+نحوه ادامه فرآیند پس از اجرای این اکشن را مشخص می‌کند.
+.RS
+.TP
+.B reclassify
+دسته‌بندی را با بازگشت به نخستین فیلتر متصل به والد این اکشن مجدداً آغاز می‌کند.
+.TP
+.B pipe
+عملیات را با اکشن بعدی ادامه می‌دهد؛ این حالت پیش‌فرض است.
+.TP
+.B drop
+بسته بدون اجرای اکشن‌های بعدی دور انداخته می‌شود.
+.TP
+.B continue
+دسته‌بندی را با فیلتر بعدی موجود در صف ادامه می‌دهد.
+.TP
+.B pass
+بسته را برای پردازش به qdisc فراخواننده بازمی‌گرداند. این کار به فرآیند دسته‌بندی پایان می‌دهد.
+.RE
+.SH "مثال‌ها (EXAMPLES)"
+مثال زیر بسته‌های ICMP ورودی روی eth0 از مبدأ 10.0.0.2 را درون VLAN با شناسه 123 کپسوله‌سازی می‌کند:
+
+.RS
+.EX
+#tc qdisc add dev eth0 handle ffff: ingress
+#tc filter add dev eth0 parent ffff: pref 11 protocol ip \\
+	u32 match ip protocol 1 0xff flowid 1:1 \\
+	    match ip src 10.0.0.2 flowid 1:1 \\
+	action vlan push id 123
+.EE
+.RE
+
+در اینجا نمونه‌ای از عملکرد
+.B pop
+آورده شده است: بسته‌های ورودی VLAN روی eth0 کپسوله‌زدایی شده و سپس فرآیند دسته‌بندی برای بسته خالص مجدداً آغاز می‌شود:
+
+.RS
+.EX
+#tc qdisc add dev eth0 handle ffff: ingress
+#tc filter add dev $ETH parent ffff: pref 1 protocol 802.1Q \\
+	u32 match u32 0 0 flowid 1:1 \\
+	action vlan pop reclassify
+.EE
+.RE
+
+برای مشاهده مثالی از حالت‌های
+.BR pop_eth " و " push_eth ،
+صفحه راهنمای
+.BR tc-mpls (8)
+را ببینید.
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-mpls (8)

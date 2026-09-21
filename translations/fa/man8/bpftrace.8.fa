@@ -1,0 +1,672 @@
+'\" t
+.\"     Title: bpftrace
+.\"    Author: [بخش "نویسندگان (AUTHORS)" را ببینید]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-06-14
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: Persian
+.\"
+.TH "BPFTRACE" "8" "2026-06-14" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+bpftrace \- زبان ردیابی سطح بالا برای eBPF لینوکس
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBbpftrace\fP [\fIگزینه‌ها\fP] \fIFILENAME\fP
+.br
+\fBbpftrace\fP [\fIگزینه‌ها\fP] \-e \*(Aqکد برنامه\*(Aq
+.sp
+هنگامی که \fIFILENAME\fP برابر با "\fI\-\fP" باشد، bpftrace کد برنامه را از ورودی استاندارد (stdin) می‌خواند.
+.sp
+برنامه تا زمانی که کلیدهای Ctrl\-C فشرده شوند، یا تابع \f(CRexit\fP فراخوانی شود به اجرا ادامه خواهد داد.
+هنگامی که برنامه خارج می‌شود، تمام نگاشت‌های (maps) مقداردهی‌شده چاپ می‌شوند (جزئیات بیشتر در ادامه آمده است).
+.SH "توضیحات (DESCRIPTION)"
+.sp
+دستور bpftrace یک زبان ردیابی سطح بالا برای لینوکس است. bpftrace از LLVM به عنوان
+بک‌اند برای کامپایل اسکریپت‌ها به بایت‌کد eBPF استفاده می‌کند و از libbpf و bcc
+جهت تعامل با زیرسیستم BPF لینوکس، و همچنین قابلیت‌های ردیابی موجود لینوکس بهره می‌برد.
+.SH "مثالها (EXAMPLES)"
+.sp
+ردیابی فرآیندهایی که تابع sleep را فراخوانی می‌کنند
+.RS 4
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-e \*(Aqkprobe:do_nanosleep { printf("%d sleeping\(rsn", pid); }\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+ردیابی فرآیندهایی که sleep را فراخوانی می‌کنند هم‌زمان با اجرای \f(CRsleep 5\fP به عنوان یک فرآیند فرزند
+.RS 4
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-e \*(Aqkprobe:do_nanosleep { printf("%d sleeping\(rsn", pid); }\*(Aq \-c \*(Aqsleep 5\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+فهرست کردن تمام پروب‌هایی که عبارت "sleep" در نام آن‌ها وجود دارد
+.RS 4
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-l \*(Aq*sleep*\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+فهرست کردن تمام پروب‌های متصل‌شده در برنامه
+.RS 4
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-l \-e \*(Aqkprobe:do_nanosleep { printf("%d sleeping\(rsn", pid); }\*(Aq
+.fam
+.fi
+.if n .RE
+.SH "گزینهها (OPTIONS)"
+.SS "\fB\-B\fP \fIMODE\fP"
+.sp
+تنظیم حالت بافر خروجی (قابل اعمال بر خروجی ترمینال و فایل
+.BR \-o ).
+.sp
+مقادیر معتبر عبارتند از:
+.RS 4
+\fBnone\fP بدون بافر. هر عملیات I/O در سریع‌ترین زمان ممکن نوشته می‌شود
+.br
+\fBline\fP داده‌ها با اولین خط جدید یا زمانی که بافر پر شود نوشته می‌شوند. این حالت پیش‌فرض است.
+.br
+\fBfull\fP داده‌ها تنها زمانی که بافر پر شود نوشته می‌شوند.
+.RE
+.SS "\fB\-c\fP \fICOMMAND\fP"
+.sp
+اجرای \fICOMMAND\fP به عنوان یک فرآیند فرزند.
+هنگامی که فرزند خاتمه یابد bpftrace نیز متوقف خواهد شد، گویی \*(Aqexit()\*(Aq فراخوانی شده باشد.
+اگر bpftrace پیش از فرآیند فرزند خاتمه یابد، فرآیند فرزند با یک سیگنال SIGTERM متوقف خواهد شد.
+در صورت استفاده، پروب‌های \*(AqUSDT\*(Aq تنها به فرآیند فرزند متصل خواهند شد.
+برای جلوگیری از شرایط رقابتی (race condition) در زمان استفاده از \*(AqUSDTs\*(Aq، فرآیند فرزند پس از \*(Aqexecve\*(Aq با استفاده از \*(Aqptrace(2)\*(Aq متوقف شده و پس از اتصال تمام پروب‌های \*(AqUSDT\*(Aq به کار خود ادامه می‌دهد.
+فرآیند فرزند با همان مجوزهای خود bpftrace (معمولاً کاربر ریشه root) اجرا می‌شود.
+.sp
+مگر در مواردی که مشخص شده باشد، bpftrace هیچ فیلترگذاری ضمنی انجام نمی‌دهد. بنابراین، اگر فقط به
+رویدادهای درون \fICOMMAND\fP علاقه‌مند هستید، ممکن است بخواهید بر اساس PID فرآیند فرزند فیلتر کنید. مقدار PID فرزند از طریق متغیر توکار \*(Aqcpid\*(Aq در دسترس برنامه‌ها قرار دارد.
+به عنوان مثال، می‌توانید گزاره فیلتر \f(CR/pid == cpid/\fP را به پروب‌های دارای بافت فضای کاربری اضافه کنید.
+.SS "\fB\-d STAGE\fP"
+.sp
+فعال‌سازی حالت اشکال‌زدایی (دیباگ).
+برای جزئیات بیشتر به بخش «گزینه‌های تفصیلی» (Debug Output) مراجعه کنید.
+.SS "\fB\-\-debuginfo\fP \fIDIR[:DIR]\fP"
+.sp
+افزودن دایرکتوری DIR به مسیر جستجو برای اطلاعات اشکال‌زدایی DWARF.
+مسیرها می‌توانند مطلق یا نسبی نسبت به مکان باینری ردیابی‌شده باشند.
+مسیرهای چندگانه را می‌توان با جدا کردن آن‌ها با دونقطه (\f(CR:\fP) یا با تکرار این گزینه مشخص کرد؛
+به عنوان مثال \f(CR\-\-debuginfo=/bin/debug:./lib/debug:..\fP و \f(CR\-\-debuginfo=/bin/debug \-\-debuginfo=./lib/debug\fP به ترتیب.
+فایل‌های اشکال‌زدایی در این مسیرها در صورت در دسترس بودن بر اساس شناسه ساخت (build ID) تطبیق داده می‌شوند؛ برای فعال کردن اعتبارسنجی CRC32 در صورت نیاز، پیشوند \f(CR+\fP را به مسیر اضافه کنید.
+فایل‌هایی که تطبیق ندارند نادیده گرفته می‌شوند.
+به طور پیش‌فرض، bpftrace مسیرهای استاندارد اشکال‌زدایی را جستجو می‌کند، از جمله \f(CR.debug\fP به صورت نسبی نسبت به باینری ردیابی‌شده و \f(CR/usr/lib/debug\fP؛ همچنین ممکن است از سرورهای debuginfod در دسترس نیز استعلام بگیرد.
+.sp
+فرمت اشکال‌زدایی تفکیک‌شده (\f(CR.dwo\fP، \f(CR.dwp\fP) هنوز برای این گزینه پشتیبانی نمی‌شود، اما همچنان با مسیر پیش‌فرض باینری پروب کار می‌کند.
+.SS "\fB\-\-dry\-run\fP"
+.sp
+خاتمه دادن به اجرا بلافاصله پس از اتصال تمام پروب‌ها. برای آزمایش این که
+اسکریپت می‌تواند بدون اجرای واقعی، تجزیه، بارگذاری و متصل شود بسیار مفید است.
+.SS "\fB\-e\fP \fIPROGRAM\fP"
+.sp
+اجرای \fIPROGRAM\fP به جای خواندن برنامه از یک فایل یا ورودی استاندارد (stdin).
+.SS "\fB\-f\fP \fIFORMAT\fP"
+.sp
+تنظیم قالب خروجی.
+.sp
+مقادیر معتبر عبارتند از:
+.RS 4
+\fBjson\fP
+.br
+\fBtext\fP
+.RE
+.sp
+خروجی JSON با NDJSON و JSON Lines سازگار است، به این معنی که هر خط از خروجی جریانی یک بلوک داده مجزا از JSON معتبر است.
+.SS "\fB\-\-fmt\fP \fIFILENAME\fP"
+.sp
+چاپ قالب استاندارد برای فایل bpftrace با نام \fIFILENAME\fP.
+.SS "\fB\-h, \-\-help\fP"
+.sp
+چاپ خلاصه راهنما.
+.SS "\fB\-I\fP \fIDIR\fP"
+.sp
+افزودن دایرکتوری \fIDIR\fP به مسیر جستجوی هدرهای C.
+این گزینه می‌تواند چندین بار استفاده شود.
+برای جزئیات بیشتر به بخش «گزینه‌های پیش‌پردازنده» مراجعه کنید.
+.SS "\fB\-\-include\fP \fIFILENAME\fP"
+.sp
+افزودن \fIFILENAME\fP به عنوان یک include برای پیش‌پردازنده.
+این کار معادل قرار دادن \*(Aq#include \fIFILENAME\fP\*(Aq در بالای برنامه است.
+این گزینه می‌تواند چندین بار استفاده شود.
+برای جزئیات بیشتر به بخش «گزینه‌های پیش‌پردازنده» مراجعه کنید.
+.SS "\fB\-\-info\fP"
+.sp
+چاپ اطلاعات تفصیلی درباره قابلیت‌های پشتیبانی‌شده توسط هسته و نسخه ساخت bpftrace.
+.SS "\fB\-k\fP"
+.sp
+این فلگ هشدارهای زمان اجرا را برای خطاهای ناشی از توابع کمکی BPF مربوط به \*(Aqprobe_read_*\*(Aq و جستجوی نگاشت (map lookup) فعال می‌کند.
+هنگام وقوع خطا، bpftrace خطایی حاوی مکان در کد مبدا و کد خطا را ثبت خواهد کرد:
+.sp
+.if n .RS 4
+.nf
+.fam C
+stdin:48\-57: WARNING: Failed to probe_read_user_str: Bad address (\-14)
+u:lib.so:"fn(char const*)" { printf("arg0:%s\(rsn", str(arg0));}
+                                                 ~~~~~~~~~
+.fam
+.fi
+.if n .RE
+.SS "\fB\-l\fP [\fISEARCH\fP|\fIFILENAME\fP]"
+.sp
+فهرست کردن تمام پروب‌هایی که با الگوی \fISEARCH\fP مطابقت دارند.
+اگر الگو حذف شود، تمام پروب‌ها فهرست می‌شوند.
+این الگو به همان شیوه پروب‌ها از نویسه‌های عام (wildcard) پشتیبانی می‌کند.
+به عنوان مثال، \*(Aq\-l kprobe:*file*\*(Aq تمام پروب‌های \*(Aqkprobes\*(Aq با عبارت \*(Aqfile\*(Aq در نام را فهرست می‌کند.
+این گزینه می‌تواند به همراه یک برنامه استفاده شود که تمام پروب‌های موجود در آن برنامه را فهرست می‌کند.
+برای جزئیات بیشتر به بخش «فهرست کردن پروب‌ها» مراجعه کنید.
+.SS "\fB\-\-no\-feature\fP \fIfeature,feature,.\|.\|.\fP"
+.sp
+غیرفعال کردن استفاده از قابلیت‌های شناسایی‌شده، مقادیر معتبر عبارتند از:
+.RS 4
+\fBuprobe_multi\fP برای غیرفعال کردن پیوند uprobe_multi
+.br
+\fBkprobe_multi\fP برای غیرفعال کردن پیوند kprobe_multi
+.br
+\fBkprobe_session\fP برای غیرفعال کردن ادغام خودکار kprobe/kretprobe در نشست kprobe session
+.RE
+.SS "\fB\-\-no\-warnings\fP"
+.sp
+نادیده گرفتن تمام پیام‌های هشدار ایجاد شده توسط bpftrace.
+.SS "\fB\-\-probe\-filter\fP \fIREGEX\fP"
+.sp
+اتصال و اجرای تنها پروب‌هایی که نام آن‌ها با عبارت باقاعده \fIREGEX\fP مطابقت دارد.
+پروب‌هایی که مطابقت ندارند در هسته بارگذاری نمی‌شوند.
+پروب‌های ویژه (\f(CRBEGIN\fP و \f(CREND\fP) تحت تأثیر این فیلتر قرار نمی‌گیرند.
+اگر هیچ پروبی مطابقت نداشته باشد، bpftrace با یک خطا خارج می‌شود.
+.SS "\fB\-\-traceable\-functions\fP \fIFILENAME\fP"
+.sp
+مشخص کردن فایل حاوی فهرست توابع هسته با قابلیت ردیابی. اگر تعیین نشود،
+دستور bpftrace از مسیر \f(CR/sys/kernel/tracing/available_filter_functions\fP استفاده می‌کند که به
+ftrace پویا وابسته است. قالب آن مشابه \f(CRavailable_filter_functions\fP است: هر
+خط یا "symbol" است یا "symbol [module]".
+.SS "\fB\-o\fP \fIFILENAME\fP"
+.sp
+نوشتن خروجی ردیابی bpftrace در \fIFILENAME\fP به جای خروجی استاندارد (stdout).
+این خروجی شامل خروجی فرآیند فرزند (گزینه
+.BR \-c )
+نمی‌شود.
+خطاها همچنان در خروجی خطای استاندارد (stderr) نوشته می‌شوند.
+.SS "\fB\-p\fP \fIPID\fP"
+.sp
+اتصال به فرآیند با شناسه \fIPID\fP یا فیلتر کردن اقدامات بر اساس آن.
+اگر فرآیند خاتمه یابد، bpftrace نیز خاتمه می‌یابد.
+هنگام استفاده از پروب‌های USDT، uprobes، uretprobes، سخت‌افزاری (hardware)، نرم‌افزاری (software)، profile، interval یا watchpoint، آن‌ها فقط به این فرآیند متصل خواهند شد.
+برای همه پروب‌های دیگر، به جز begin/end، مقدار pid مانند یک گزاره فیلتر عمل می‌کند تا رویدادهایی که از آن pid نیستند فیلتر شوند.
+برای فهرست کردن uprobes/uretprobes، هدف را به \*(Aq*\*(Aq تنظیم کنید تا فضای آدرس فرآیند برای یافتن نمادها جستجو شود.
+.SS "\fB\-q\fP"
+.sp
+حالت بی‌صدا (جلوگیری از چاپ پیام‌های اضافی).
+.SS "\fB\-\-unsafe\fP"
+.sp
+برخی فراخوانی‌ها، مانند \*(Aqsystem\*(Aq، به دلیل احتمال ایجاد عوارض جانبی خطرناک (\*(Aqsystem("rm \-rf")\*(Aq) به عنوان ناامن علامت‌گذاری شده و به طور پیش‌فرض غیرفعال هستند.
+این فلگ اجازه استفاده از آن‌ها را می‌دهد.
+.sp
+علاوه بر این، سخت‌گیری بررسی‌های kprobe/kretprobe را کاهش می‌دهد.
+این گزینه می‌تواند برای پروب کردن توابعی که bpftrace آن‌ها را غیرقابل ردیابی گزارش می‌کند به کار رود، اما در صورتی که هسته برای مجاز دانستن پروب توابع notrace پیکربندی شده باشد، پشتیبانی می‌شوند.
+.SS "\fB\-\-usdt\-file\-activation\fP"
+.sp
+فعال‌سازی سمافورهای usdt بر اساس مسیر فایل.
+.SS "\fB\-V, \-\-version\fP"
+.sp
+چاپ اطلاعات نسخه bpftrace.
+.SS "\fB\-v\fP"
+.sp
+فعال‌سازی پیام‌های مشروح (verbose).
+برای جزئیات بیشتر به بخش «خروجی مشروح» مراجعه کنید.
+.SS "گزینه‌های برنامه (Program Options)"
+.sp
+شما همچنین می‌توانید گزینه‌های سفارشی را از طریق پارامترهای مکانی یا نام‌دار به خود برنامه یا اسکریپت bpftrace ارسال کنید.
+پارامترهای مکانی می‌توانند قبل یا بعد از خط تیره دوگانه (\-\-) قرار گیرند، اما پارامترهای نام‌دار تنها می‌توانند بعد از خط تیره دوگانه بیایند؛ مانند:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-e \*(Aqbegin { print(($1, $2, getopt("aa", 1), getopt("bb"))); }\*(Aq p1 \-\- \-\-aa=20 \-\-bb p2
+
+// (p1, p2, 20, true) is printed
+.fam
+.fi
+.if n .RE
+.sp
+یا
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace myscript.bt \-\- p1 \-\-aa=20 \-\-bb p2
+.fam
+.fi
+.if n .RE
+.sp
+در این مثال‌ها دو پارامتر مکانی (\f(CRp1\fP، \f(CRp2\fP) و دو پارامتر نام‌دار (\f(CRaa\fP که روی \f(CR20\fP تنظیم شده، و \f(CRbb\fP که روی \f(CRtrue\fP تنظیم شده) وجود دارد.
+پارامترهای نام‌دار برنامه برای تعیین مقدار خود به علامت \f(CR=\fP نیاز دارند، مگر اینکه از نوع بولی باشند (مانند \*(Aqbb\*(Aq در بالا).
+درباره نحوه دسترسی به پارامترهای مکانی و نام‌دار در \c
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/language.md#command\-line\-parameters" "اینجا" " بخوانید."
+.SH "زبان (THE LANGUAGE)"
+.sp
+سینتکس، انواع و مفاهیم برای bpftrace در \c
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/language.md" "اینجا در دسترس است" "."
+.SH "پروب‌ها (PROBES)"
+.sp
+دستور bpftrace از انواع پروب پشتیبانی می‌کند که به کاربر امکان می‌دهد برنامه‌های BPF را به انواع رویدادها متصل کند.
+هر پروب با یک ارائه‌دهنده (مانند \f(CRkprobe\fP) آغاز می‌شود که به دنبال آن فهرستی از گزینه‌ها که با دونقطه (\f(CR:\fP) از هم جدا شده‌اند می‌آید.
+تعداد گزینه‌ها و معنای آن‌ها به ارائه‌دهنده بستگی دارد.
+به صورت اختیاری، نقطه اتصال مشخص‌شده می‌تواند با یک نام ارائه‌شده توسط کاربر و یک علامت مساوی پیشوند شود (مانند \f(CRmyname=kprobe:.\|.\|.\fP)؛ این قابلیت برای برخی ویژگی‌های پیشرفته کاربرد دارد و معمولاً استفاده نمی‌شود.
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/language.md#probes" "فهرست کامل انواع پروب‌ها" "."
+.SH "کتابخانه استاندارد (STANDARD LIBRARY)"
+.sp
+کتابخانه استاندارد تمامی \c
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/stdlib.md#builtins" "توابع توکار" "،"
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/stdlib.md#functions" "توابع" "،"
+و
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/stdlib.md#map\-functions" "توابع نگاشت" ""
+در
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/stdlib.md" "اینجا در دسترس است" "."
+.SH "پیکربندی (CONFIGURATION)"
+.SS "متغیرهای پیکربندی (Config Variables)"
+.sp
+برخی رفتارها فقط از طریق متغیرهای پیکربندی قابل کنترل هستند که در \c
+.URL "https://github.com/bpftrace/bpftrace/blob/master/docs/language.md#config\-variables" "اینجا در دسترس هستند" "."
+این متغیرها را می‌توان مستقیماً در اسکریپت (پیش از هر پروب) از طریق بلوک پیکربندی، یا از طریق متغیر محیطی معادل آن‌ها تنظیم کرد که با حروف بزرگ و پیشوند \f(CRBPFTRACE_\fP هستند؛ برای مثال متغیر محیطی \f(CRstack_mode\fP برابر با \f(CRBPFTRACE_STACK_MODE\fP خواهد بود.
+.SS "متغیرهای محیطی (Environment Variables)"
+.sp
+این متغیرها بخشی از مجموعه استاندارد متغیرهای پیکربندی بالا نیستند و فقط می‌توان آن‌ها را به عنوان متغیرهای محیطی تنظیم کرد.
+.SS "BPFTRACE_BTF"
+.sp
+پیش‌فرض: None
+.sp
+مسیر فایل BTF. به طور پیش‌فرض، bpftrace چندین مکان را برای یافتن فایل BTF جستجو می‌کند.
+برای جزئیات بیشتر به src/btf.cpp مراجعه کنید.
+.SS "BPFTRACE_KERNEL_BUILD"
+.sp
+پیش‌فرض: \f(CR/lib/modules/$(uname \-r)\fP
+.sp
+فقط با \f(CRBPFTRACE_KERNEL_SOURCE\fP استفاده می‌شود در صورتی که ساخت هسته لینوکس خارج از درخت منبع (out\-of\-tree) باشد.
+.SS "BPFTRACE_KERNEL_SOURCE"
+.sp
+پیش‌فرض: \f(CR/lib/modules/$(uname \-r)\fP
+.sp
+دستور bpftrace برای برخی قابلیت‌ها به هدرهای هسته نیاز دارد که در این دایرکتوری جستجو می‌شوند.
+.SS "BPFTRACE_VMLINUX"
+.sp
+پیش‌فرض: None
+.sp
+این متغیر مسیر vmlinux مورد استفاده برای تفکیک نمادهای هسته هنگام اتصال kprobe به یک آفست را مشخص می‌کند.
+اگر این مقدار داده نشود، bpftrace مسیر vmlinux را از مکان‌های از پیش تعریف‌شده جستجو می‌کند.
+برای جزئیات بیشتر به src/attached_probe.cpp:find_vmlinux() مراجعه کنید.
+.SS "BPFTRACE_COLOR"
+.sp
+پیش‌فرض: auto
+.sp
+رنگی‌سازی خروجی لاگ bpftrace. مقادیر معتبر auto، always و never هستند.
+.SH "گزینه‌های تفصیلی (OPTIONS EXPANDED)"
+.SS "خروجی اشکال‌زدایی (Debug Output)"
+.sp
+گزینه \f(CR\-d STAGE\fP خروجی اشکال‌زدایی تولید می‌کند. این گزینه خروجی مرحله اجرای bpftrace مشخص‌شده توسط آرگومان \fISTAGE\fP را چاپ می‌کند. این گزینه می‌تواند چندین بار (با نام مراحل مختلف) استفاده شود و مقدار ویژه \f(CRall\fP خروجی تمام مراحل پشتیبانی‌شده را چاپ می‌کند. این گزینه همچنین می‌تواند چند مرحله را در یک بار فراخوانی با مقادیر جدا شده با کاما دریافت کند.
+.sp
+توجه: این قابلیت در درجه اول برای توسعه‌دهندگان bpftrace استفاده می‌شود.
+.sp
+گزینه‌های پشتیبانی‌شده عبارتند از:
+.TS
+allbox tab(:);
+lt lt.
+T{
+.sp
+\f(CRast\fP
+T}:T{
+.sp
+چاپ درخت نحو انتزاعی (AST) پس از هر مرحله عبور (pass).
+T}
+T{
+.sp
+\f(CRcodegen\fP
+T}:T{
+.sp
+چاپ LLVM IR بهینه‌نشده تولید شده توسط \f(CRCodegenLLVM\fP.
+T}
+T{
+.sp
+\f(CRcodegen\-opt\fP
+T}:T{
+.sp
+چاپ LLVM IR بهینه‌شده، یعنی کدی که به بایت‌کد BPF کامپایل خواهد شد.
+T}
+T{
+.sp
+\f(CRdis\fP
+T}:T{
+.sp
+دیس‌اسمبل کردن و چاپ بایت‌کد تولیدشده‌ای که \f(CRlibbpf\fP خواهد دید.
+تنها در ساخت‌های اشکال‌زدایی (debug) موجود است.
+T}
+T{
+.sp
+\f(CRlibbpf\fP
+T}:T{
+.sp
+ثبت و چاپ لاگ libbpf برای تمام عملیات‌های libbpf که bpftrace استفاده می‌کند.
+T}
+T{
+.sp
+\f(CRverifier\fP
+T}:T{
+.sp
+ثبت و چاپ لاگ اعتبارسنج (verifier) مربوط به BPF.
+T}
+T{
+.sp
+\f(CRall\fP
+T}:T{
+.sp
+چاپ خروجی تمام مراحل بالا.
+T}
+.TE
+.sp
+.SS "فهرست کردن پروب‌ها (Listing Probes)"
+.sp
+فهرست کردن پروب‌ها روشی برای کشف پروب‌های پشتیبانی‌شده در سیستم فعلی است.
+فهرست‌کردن از همان نحو اتصال معمولی پشتیبانی می‌کند و همچنین می‌تواند با \f(CR\-e\fP یا آرگومان‌های نام فایل ترکیب شود تا تمام پروب‌هایی را که یک برنامه به آن‌ها متصل می‌شود مشاهده کرد.
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-l \*(Aqkprobe:*\*(Aq
+# bpftrace \-l \*(Aqt:syscalls:*openat*
+# bpftrace \-l \*(Aqkprobe:tcp*,trace
+# bpftrace \-l \*(Aqk:*socket*,tracepoint:syscalls:*tcp*\*(Aq
+# bpftrace \-l \-e \*(Aqtracepoint:xdp:mem_* { exit(); }\*(Aq
+# bpftrace \-l my_script.bt
+# bpftrace \-lv \*(Aqenum cpu_usage_stat\*(Aq
+.fam
+.fi
+.if n .RE
+.sp
+فلگ پرجزئیات (\f(CR\-v\fP) می‌تواند برای بررسی آرگومان‌ها (\f(CRargs\fP) در ارائه‌دهندگانی که از آن پشتیبانی می‌کنند مشخص شود:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-l \*(Aqfexit:tcp_reset,tracepoint:syscalls:sys_enter_openat\*(Aq \-v
+fexit:tcp_reset
+    struct sock * sk
+    struct sk_buff * skb
+tracepoint:syscalls:sys_enter_openat
+    int __syscall_nr
+    int dfd
+    const char * filename
+    int flags
+    umode_t mode
+
+# bpftrace \-l \*(Aquprobe:/bin/bash:rl_set_prompt\*(Aq \-v\&    # works only if /bin/bash has DWARF
+uprobe:/bin/bash:rl_set_prompt
+    const char *prompt
+
+# bpftrace \-lv \*(Aqstruct css_task_iter\*(Aq
+struct css_task_iter {
+        struct cgroup_subsys *ss;
+        unsigned int flags;
+        struct list_head *cset_pos;
+        struct list_head *cset_head;
+        struct list_head *tcset_pos;
+        struct list_head *tcset_head;
+        struct list_head *task_pos;
+        struct list_head *cur_tasks_head;
+        struct css_set *cur_cset;
+        struct css_set *cur_dcset;
+        struct task_struct *cur_task;
+        struct list_head iters_node;
+};
+.fam
+.fi
+.if n .RE
+.SS "گزینه‌های پیش‌پردازنده (Preprocessor Options)"
+.sp
+گزینه \f(CR\-I\fP می‌تواند برای افزودن دایرکتوری‌ها به فهرست دایرکتوری‌هایی که bpftrace برای جستجوی هدرها استفاده می‌کند به کار رود.
+می‌تواند چندین بار تعریف شود.
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cat program.bt
+#include <foo.h>
+
+begin { @ = FOO }
+
+# bpftrace program.bt
+
+definitions.h:1:10: fatal error: \*(Aqfoo.h\*(Aq file not found
+
+# /tmp/include
+foo.h
+
+# bpftrace \-I /tmp/include program.bt
+
+Attached 1 probe
+.fam
+.fi
+.if n .RE
+.sp
+گزینه \f(CR\-\-include\fP می‌تواند برای گنجاندن هدرها به صورت پیش‌فرض استفاده شود.
+می‌تواند چندین بار تعریف شود.
+هدرها به همان ترتیبی که تعریف شده‌اند اضافه می‌شوند، و قبل از هر include دیگری در برنامه در حال اجرا اضافه خواهند شد.
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-\-include linux/path.h \-\-include linux/dcache.h \(rs
+    \-e \*(Aqkprobe:vfs_open { printf("open path: %s\(rsn", str(((struct path *)arg0).dentry.d_name.name)); }\*(Aq
+
+Attached 1 probe
+open path: .com.google.Chrome.ASsbu2
+open path: .com.google.Chrome.gimc10
+open path: .com.google.Chrome.R1234s
+.fam
+.fi
+.if n .RE
+.SS "خروجی مشروح (Verbose Output)"
+.sp
+گزینه \f(CR\-v\fP اطلاعات بیشتری درباره برنامه هنگام اجرای آن چاپ می‌کند:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace \-v \-e \*(Aqtracepoint:syscalls:sys_enter_nanosleep { printf("%s is sleeping.\(rsn", comm); }\*(Aq
+AST node count: 7
+Attached 1 probe
+
+load tracepoint:syscalls:sys_enter_nanosleep, with BTF, with func_infos: Success
+
+Program ID: 111
+Attaching tracepoint:syscalls:sys_enter_nanosleep
+iscsid is sleeping.
+iscsid is sleeping.
+[...]
+.fam
+.fi
+.if n .RE
+.SH "اصطلاحات (TERMINOLOGY)"
+.TS
+allbox tab(:);
+lt lt.
+T{
+.sp
+BPF
+T}:T{
+.sp
+فیلتر بسته‌های برکلی (Berkeley Packet Filter): یک فناوری هسته که در ابتدا برای بهینه‌سازی پردازش فیلترهای بسته (مانند عبارات tcpdump) توسعه یافته است.
+T}
+T{
+.sp
+BPF map
+T}:T{
+.sp
+یک شیء حافظه BPF که توسط bpftrace برای ایجاد بسیاری از اشیاء سطح بالاتر استفاده می‌شود.
+T}
+T{
+.sp
+BTF
+T}:T{
+.sp
+قالب نوع BPF (کوتاه‌شده BPF Type Format): قالب متاداده‌ای که اطلاعات اشکال‌زدایی مربوط به برنامه یا نگاشت BPF را کدگذاری می‌کند.
+T}
+T{
+.sp
+dynamic tracing
+T}:T{
+.sp
+ردیابی پویا که با نام ابزارسازی پویا (dynamic instrumentation) نیز شناخته می‌شود: فناوری‌ای که می‌تواند هر رویداد نرم‌افزاری مانند فراخوانی و بازگشت توابع را از طریق تغییر زنده متن دستورالعمل‌ها ابزارسازی کند. نرم‌افزار هدف معمولاً برای پشتیبانی از ردیابی پویا به هیچ قابلیت خاصی به جز یک جدول نمادها که bpftrace قادر به خواندن آن باشد نیاز ندارد. از آنجا که این فرآیند تمام متن نرم‌افزار را ابزارسازی می‌کند، یک API پایدار در نظر گرفته نمی‌شود و توابع هدف ممکن است در خارج از کد منبع خود مستند نشده باشند.
+T}
+T{
+.sp
+eBPF
+T}:T{
+.sp
+نسخه ارتقایافته BPF (کوتاه‌شده Enhanced BPF): یک فناوری هسته که BPF را گسترش می‌دهد تا بتواند برنامه‌های عمومی‌تری را روی هر رویدادی، مانند برنامه‌های bpftrace ذکر شده در زیر، اجرا کند. این فناوری از محیط ماشین مجازی جعبه‌شنی (sandboxed) BPF استفاده می‌کند. همچنین توجه داشته باشید که اغلب به eBPF صرفاً BPF گفته می‌شود.
+T}
+T{
+.sp
+kprobes
+T}:T{
+.sp
+یک فناوری هسته لینوکس برای ارائه ردیابی پویای توابع هسته.
+T}
+T{
+.sp
+probe
+T}:T{
+.sp
+پروب: یک نقطه ابزارسازی در نرم‌افزار یا سخت‌افزار که رویدادهایی تولید می‌کند که می‌توانند برنامه‌های bpftrace را اجرا نمایند.
+T}
+T{
+.sp
+static tracing
+T}:T{
+.sp
+ردیابی ایستا: نقاط ابزارسازی ثابت و سخت‌کد شده در کد برنامه. از آنجا که این نقاط ثابت هستند، ممکن است به عنوان بخشی از یک API پایدار ارائه شده و مستند باشند.
+T}
+T{
+.sp
+tracepoints
+T}:T{
+.sp
+یک فناوری هسته لینوکس برای ارائه ردیابی ایستا.
+T}
+T{
+.sp
+uprobes
+T}:T{
+.sp
+یک فناوری هسته لینوکس برای ارائه ردیابی پویای توابع سطح کاربر.
+T}
+T{
+.sp
+USDT
+T}:T{
+.sp
+ردیابی ایستا تعریف‌شده توسط کاربر (User Statically\-Defined Tracing): نقاط ردیابی ایستا برای نرم‌افزارهای سطح کاربر. برخی برنامه‌ها از USDT پشتیبانی می‌کنند.
+T}
+.TE
+.sp
+.SH "فایل‌های برنامه (PROGRAM FILES)"
+.sp
+برنامه‌های ذخیره‌شده به عنوان فایل اغلب اسکریپت نامیده می‌شوند و می‌توان با مشخص کردن نام فایل آن‌ها را اجرا کرد.
+مرسوم است که از پسوند فایل \f(CR.bt\fP استفاده شود، اما الزامی نیست.
+.sp
+به عنوان مثال، نمایش فایل sleepers.bt با استفاده از \f(CRcat\fP:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cat sleepers.bt
+
+tracepoint:syscalls:sys_enter_nanosleep {
+  printf("%s is sleeping.\(rsn", comm);
+}
+.fam
+.fi
+.if n .RE
+.sp
+و سپس فراخوانی آن:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# bpftrace sleepers.bt
+
+Attached 1 probe
+iscsid is sleeping.
+iscsid is sleeping.
+.fam
+.fi
+.if n .RE
+.sp
+همچنین می‌توان آن را برای اجرای مستقل به یک فایل اجرایی تبدیل کرد.
+با افزودن خط مفسر در ابتدا (\f(CR#!\fP) همراه با مسیر نصب bpftrace (مسیر پیش‌فرض /usr/local/bin است) یا مسیر \f(CRenv\fP (معمولاً \f(CR/usr/bin/env\fP) و به دنبال آن \f(CRbpftrace\fP شروع کنید (تا بتواند bpftrace را در \f(CR$PATH\fP شما پیدا کند):
+.sp
+.if n .RS 4
+.nf
+.fam C
+#!/usr/local/bin/bpftrace
+
+tracepoint:syscalls:sys_enter_nanosleep {
+  printf("%s is sleeping.\(rsn", comm);
+}
+.fam
+.fi
+.if n .RE
+.sp
+سپس آن را اجرایی کنید:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# chmod 755 sleepers.bt
+# ./sleepers.bt
+
+Attached 1 probe
+iscsid is sleeping.
+iscsid is sleeping.
+.fam
+.fi
+.if n .RE

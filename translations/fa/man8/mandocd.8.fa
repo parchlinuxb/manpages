@@ -1,0 +1,200 @@
+.\"	$Id: mandocd.8,v 1.2 2017/03/18 19:56:01 schwarze Exp $
+.\"
+.\" Copyright (c) 2017 Ingo Schwarze <schwarze@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: March 18 2017 $
+.Dt MANDOCD 8
+.Os
+.Sh "نام (NAME)"
+.Nm mandocd
+.Nd سرور فرمت‌بندی صفحات راهنما در سوکت
+.Sh "خلاصه دستور (SYNOPSIS)"
+.Nm mandocd
+.Op Fl I Cm os Ns = Ns Ar name
+.Op Fl T Ar output
+.Ar socket_fd
+.Sh "توضیحات (DESCRIPTION)"
+ابزار
+.Nm
+تعداد زیادی از صفحات راهنما را بدون نیاز به سربار
+.Xr fork 2
+و
+.Xr exec 3
+در این میان فرمت‌بندی می‌کند.
+این ابزار نیازی به فهرست کردن همه راهنماهای مورد نظر برای فرمت‌بندی در خط فرمان ندارد و از نوشتن هر راهنمای فرمت‌شده در توصیف‌کننده فایل اختصاصی خود پشتیبانی می‌کند.
+.Pp
+این سرور نیاز دارد که یک
+.Xr socket 2
+دامنه یونیکس متصل از قبل در زمان
+.Xr exec 3
+وجود داشته باشد.
+در نتیجه، نمی‌توان آن را از خط فرمان
+.Xr sh 1
+شروع کرد زیرا پوسته نمی‌تواند چنین سوکتی را فراهم کند.
+به طور معمول، سوکت توسط فرایند والد با استفاده از
+.Xr socketpair 2
+پیش از فراخوانی
+.Xr fork 2
+و
+.Xr exec 3
+روی
+.Nm
+ایجاد می‌شود.
+فرایند والد شماره توصیف‌کننده فایل را به عنوان یک آرگومان به
+.Xr exec 3
+ارسال می‌کند که به صورت یک عدد صحیح ده‌دهی با کدگذاری اسکی فرمت‌بندی شده است.
+برای یک پیاده‌سازی متداول از فرایند والد،
+.Xr catman 8
+را ببینید.
+.Pp
+.Nm
+به صورت حلقه‌ای پیام‌های یک‌بایتی را با
+.Xr recvmsg 2
+از شماره توصیف‌کننده فایل
+.Ar socket_fd
+می‌خواند.
+بایت خوانده‌شده را نادیده می‌گیرد و فقط از داده‌های کنترلی کمکی خارج از باند
+.Vt struct cmsghdr
+استفاده می‌کند که معمولاً توسط فرایند فراخواننده با استفاده از
+.Xr CMSG_FIRSTHDR 3
+فراهم می‌شود.
+انتظار می‌رود فرایند والد همراه با هر بایت ساختگی، سه توصیف‌کننده فایل را ارسال کند.
+اولی برای ورودی
+.Xr mdoc 7
+یا
+.Xr man 7
+استفاده می‌شود، دومی برای خروجی فرمت‌بندی‌شده، و سومی برای خروجی خطا.
+.Pp
+گزینه‌ها به شرح زیر هستند:
+.Bl -tag -width Ds
+.It Fl I Cm os Ns = Ns Ar name
+سیستم‌عامل پیش‌فرض
+.Ar name
+را برای ماکروی
+.Ic \&Os
+در
+.Xr mdoc 7
+و برای ماکروی
+.Ic TH
+در
+.Xr man 7
+بازنویسی می‌کند.
+.It Fl T Ar output
+قالب خروجی.
+آرگومان
+.Ar output
+می‌تواند
+.Cm ascii
+،
+.Cm utf8
+یا
+.Cm html
+باشد؛
+.Xr mandoc 1
+را ببینید.
+در حالت خروجی
+.Cm html
+، گزینه خروجی
+.Cm fragment
+ضمنی است.
+سایر گزینه‌های خروجی پشتیبانی نمی‌شوند.
+.El
+.Pp
+پس از اتمام کامل یک توصیف‌کننده فایل ورودی، هر سه توصیف‌کننده فایل قبل از خواندن بایت ساختگی و پیام کنترلی بعدی بسته می‌شوند.
+.Pp
+هنگامی که یک پیام صفر بایتی خوانده شود، زمانی که
+.Ar socket_fd
+توسط فرایند والد بسته شود، یا هنگامی که خطایی رخ دهد،
+.Nm
+خارج می‌شود.
+.Sh "وضعیت خروج (EXIT STATUS)"
+.Ex -std
+.Pp
+یک پیام صفر بایتی یا یک
+.Ar socket_fd
+بسته‌شده به عنوان موفقیت در نظر گرفته می‌شود.
+خطاهای احتمالی عبارتند از:
+.Bl -bullet
+.It
+آرگومان‌های ناموجود، نامعتبر یا بیش از حد برای
+.Xr exec 3
+.It
+شکست
+.Xr recvmsg 2
+، برای مثال به دلیل
+.Er EMSGSIZE
+.It
+داده‌های کنترلی ناموجود یا غیرمنتظره، به ویژه یک
+.Fa cmsg_level
+در
+.Vt struct cmsghdr
+که با
+.Dv SOL_SOCKET
+متفاوت باشد،
+یک
+.Fa cmsg_type
+که با
+.Dv SCM_RIGHTS
+متفاوت باشد،
+یا یک
+.Fa cmsg_len
+که سه برابر اندازه یک
+.Vt int
+نباشد
+.It
+توصیف‌کننده‌های فایل نامعتبر ارسال‌شده در
+.Xr CMSG_DATA 3
+.It
+اتمام منابع، به ویژه شکست
+.Xr dup 2
+یا
+.Xr malloc 3
+.El
+.Pp
+به جز کمبود حافظه و خرابی‌های مشابه در سطح سیستم، خطاهای تجزیه و فرمت‌بندی باعث نمی‌شوند که
+.Nm
+وضعیت خروج خطا بازگرداند.
+حتی پس از خطاهای شدید تجزیه،
+.Nm
+به سادگی توصیف‌کننده فایل ورودی بعدی را پذیرفته و پردازش می‌کند.
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr mandoc 1 ,
+.Xr mandoc 3 ,
+.Xr catman 8
+.Sh "تاریخچه (HISTORY)"
+ابزار
+.Nm
+در نسخه 1.14.1 از جعبه‌ابزار
+.Sy mandoc
+ظاهر شد.
+.Sh "نویسندگان (AUTHORS)"
+.An -nosplit
+طرح مفهومی توسط
+.An Michael Stapelberg Aq Mt stapelberg@debian.org
+طراحی و پیاده‌سازی شد.
+کد رابط
+.Xr mandoc 3
+مورد نیاز برای تبدیل آن به یک فرایند مستقل توسط
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org
+اضافه شد.
+.Sh "هشدارها (CAVEATS)"
+اگر صفحات راهنمای تجزیه‌شده شامل درخواست‌های
+.Pf . Ic so
+در
+.Xr roff 7
+باشند،
+.Nm
+باید با دایرکتوری کاری فعلی تنظیم‌شده روی ریشه درخت صفحات راهنما اجرا شود.
+از اجرای آن در دایرکتوری‌هایی که شامل فایل‌های محرمانه در هر یک از زیردایرکتوری‌ها هستند خودداری کنید، به‌ویژه اگر کاربری که آن را اجرا می‌کند دسترسی خواندن به این فایل‌های محرمانه را داشته باشد.

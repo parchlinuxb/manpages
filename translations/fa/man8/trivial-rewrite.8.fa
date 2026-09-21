@@ -1,0 +1,296 @@
+.TH TRIVIAL-REWRITE 8
+.ad
+.fi
+.SH "نام (NAME)"
+trivial\-rewrite \- دیمن بازنویسی و تفکیک نشانی در Postfix
+.SH "خلاصه دستور (SYNOPSIS)"
+.na
+.nf
+\fBtrivial\-rewrite\fR [گزینه‌های عمومی دیمن Postfix]
+.SH "توضیحات (DESCRIPTION)"
+.ad
+.fi
+دیمن
+\fBtrivial\-rewrite\fR(8)
+سه نوع درخواست خدمت کلاینت را پردازش می‌کند:
+.IP "\fBrewrite \fIcontext address\fR"
+بازنویسی یک نشانی به قالب استاندارد، با توجه به بافتار بازنویسی نشانی:
+.RS
+.IP \fBlocal\fR
+افزودن نام‌های دامنه مشخص‌شده با
+\fB$myorigin\fR
+یا
+\fB$mydomain\fR
+به نشانی‌های ناقص؛ انجام پردازش‌های
+\fBswap_bangpath\fR
+و
+\fBallow_percent_hack\fR
+همان‌طور که در زیر شرح داده شده است، و ساده‌سازی نشانی‌های دارای مسیریابی مبدأ (\fI@site,@site:user@domain\fR)
+به قالب
+\fIuser@domain\fR.
+.IP \fBremote\fR
+افزودن نام دامنه مشخص‌شده با
+\fB$remote_header_rewrite_domain\fR
+به نشانی‌های ناقص. در غیر این صورت نتیجه دقیقاً مشابه بافتار بازنویسی نشانی
+\fBlocal\fR
+است. این کار مانع از آن می‌شود که Postfix دامنه محلی را به هرزنامه‌های دریافتی از کلاینت‌های راه‌دور با پیاده‌سازی ضعیف اضافه کند.
+.RE
+.IP "\fBresolve \fIsender\fR \fIaddress\fR"
+تفکیک نشانی به یک چهارگانه (\fItransport\fR, \fInexthop\fR, \fIrecipient\fR, \fIflags\fR). مفهوم نتایج به‌صورت زیر است:
+.RS
+.IP \fItransport\fR
+عامل تحویل مورد استفاده. این مقدار اولین فیلد از یک مدخل در فایل
+\fBmaster.cf\fR
+است.
+.IP \fInexthop\fR
+میزبان مقصد برای ارسال و اطلاعات اختیاری روش تحویل.
+.IP \fIrecipient\fR
+نشانی گیرنده پاکت که به
+\fInexthop\fR
+ارسال می‌شود.
+.IP \fIflags\fR
+کلاس نشانی، اینکه آیا نشانی نیازمند رله است، آیا نشانی مشکلی دارد، و اینکه آیا درخواست ناموفق بوده است یا خیر.
+.RE
+.IP "\fBverify \fIsender\fR \fIaddress\fR"
+تفکیک نشانی به‌منظور اعتبارسنجی نشانی.
+.SH "مدیریت فرایند کارساز (SERVER PROCESS MANAGEMENT)"
+.na
+.nf
+.ad
+.fi
+کارسازهای
+\fBtrivial\-rewrite\fR(8)
+تحت کنترل کارساز
+master(8)
+در Postfix اجرا می‌شوند. هر کارساز می‌تواند چندین اتصال هم‌زمان را مدیریت کند.
+هنگامی که همه کارسازها مشغول هستند و کلاینت جدیدی متصل می‌شود، کارساز master یک فرایند کارساز جدید ایجاد می‌کند، مشروط بر اینکه از محدودیت فرایندهای کارساز trivial\-rewrite فراتر نرفته باشد.
+هر کارساز trivial\-rewrite پس از پاسخ‌گویی به حداقل
+\fB$max_use\fR
+کلاینت یا پس از
+\fB$max_idle\fR
+ثانیه زمان بیکاری، خاتمه می‌یابد.
+.SH "استانداردها (STANDARDS)"
+.na
+.nf
+.ad
+.fi
+هیچ. این دستور با دنیای بیرون ارتباط برقرار نمی‌کند.
+.SH "امنیت (SECURITY)"
+.na
+.nf
+.ad
+.fi
+دیمن
+\fBtrivial\-rewrite\fR(8)
+از نظر امنیتی حساس نیست. به‌طور پیش‌فرض، این دیمن با کاربران راه‌دور یا محلی ارتباط برقرار نمی‌کند. می‌تواند با سطح دسترسی پایین ثابت در یک محیط chroot اجرا شود.
+.SH "عیب‌یابی (DIAGNOSTICS)"
+.ad
+.fi
+مشکلات و تراکنش‌ها در
+\fBsyslogd\fR(8)
+یا
+\fBpostlogd\fR(8)
+ثبت می‌شوند.
+.SH "پارامترهای پیکربندی (CONFIGURATION PARAMETERS)"
+.na
+.nf
+.ad
+.fi
+در سیستم‌های پستی شلوغ، ممکن است زمان زیادی طول بکشد تا تغییر اعمال‌شده در
+\fBmain.cf\fR
+که بر
+\fBtrivial\-rewrite\fR(8)
+تأثیر می‌گذارد، اعمال شود. برای تسریع اعمال تغییرات، از دستور
+"\fBpostfix reload\fR"
+استفاده کنید.
+.PP
+متن زیر تنها خلاصه‌ای از پارامترها را ارائه می‌دهد. برای جزئیات بیشتر شامل مثال‌ها، به
+\fBpostconf\fR(5)
+مراجعه کنید.
+.SH "کنترل‌های سازگاری (COMPATIBILITY CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBresolve_dequoted_address (yes)\fR"
+تفکیک امن نشانی گیرنده به‌جای تفکیک صحیح، از طریق بررسی داخل نقل‌قول‌ها.
+.PP
+موجود در نسخه 2.1 و بالاتر Postfix:
+.IP "\fBresolve_null_domain (no)\fR"
+تفکیک نشانی‌هایی که به دامنه پوچ "@" ختم می‌شوند به‌گونه‌ای که گویی نام میزبان محلی مشخص شده است، به‌جای رد نشانی به‌عنوان نامعتبر.
+.PP
+موجود در نسخه 2.3 و بالاتر Postfix:
+.IP "\fBresolve_numeric_domain (no)\fR"
+تفکیک "user@ipaddress" به‌صورت "user@[ipaddress]"، به‌جای رد نشانی به‌عنوان نامعتبر.
+.PP
+موجود در نسخه 2.5 و بالاتر Postfix:
+.IP "\fBallow_min_user (no)\fR"
+مجاز دانستن وجود نویسه `\-' به‌عنوان نخستین نویسه نشانی فرستنده یا گیرنده.
+.SH "کنترل‌های بازنویسی نشانی (ADDRESS REWRITING CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBmyorigin ($myhostname)\fR"
+نام دامنه‌ای که به نظر می‌رسد نامه‌های ارسال‌شده محلی از آن می‌آیند، و نامه‌های ارسال‌شده محلی به آن تحویل داده می‌شوند.
+.IP "\fBallow_percent_hack (yes)\fR"
+فعال‌سازی بازنویسی قالب "user%domain" به "user@domain".
+.IP "\fBappend_at_myorigin (yes)\fR"
+در نامه‌های ثبت‌شده به‌صورت محلی، رشته "@$myorigin" به نشانی‌های فاقد اطلاعات دامنه افزوده شود.
+.IP "\fBappend_dot_mydomain (Postfix >= 3.0: no, Postfix < 3.0: yes)\fR"
+در نامه‌های ثبت‌شده به‌صورت محلی، رشته ".$mydomain" به نشانی‌هایی که فاقد اطلاعات ".domain" هستند افزوده شود.
+.IP "\fBrecipient_delimiter (empty)\fR"
+مجموعه نویسه‌هایی که می‌توانند بخش محلی یک نشانی ایمیل، نام کاربری، یا نام فایل .forward را از پسوند آن جدا کنند.
+.IP "\fBswap_bangpath (yes)\fR"
+فعال‌سازی بازنویسی "site!user" به "user@site".
+.PP
+موجود در نسخه 2.2 و بالاتر Postfix:
+.IP "\fBremote_header_rewrite_domain (empty)\fR"
+بازنویسی یا افزودن سرایندها در نامه‌های کلاینت‌های راه‌دور در صورتی که مقدار پارامتر remote_header_rewrite_domain خالی نباشد، به‌روزرسانی نشانی‌های ناقص با دامنه مشخص‌شده در پارامتر remote_header_rewrite_domain، و افزودن سرایندهای مفقود.
+.SH "کنترل‌های مسیریابی (ROUTING CONTROLS)"
+.na
+.nf
+.ad
+.fi
+موارد زیر برای نسخه 2.0 و بالاتر Postfix قابل اعمال است.
+نسخه‌های قدیمی‌تر از این موارد پشتیبانی نمی‌کنند: virtual_transport،
+relay_transport، virtual_alias_domains، virtual_mailbox_domains
+یا proxy_interfaces.
+.IP "\fBlocal_transport (local:$myhostname)\fR"
+حمل‌ونقل پیش‌فرض تحویل نامه و مقصد گام بعدی برای تحویل نهایی به دامنه‌های فهرست‌شده در mydestination، و برای مقصدهای [ipaddress] که با $inet_interfaces یا $proxy_interfaces تطابق دارند.
+.IP "\fBvirtual_transport (virtual)\fR"
+حمل‌ونقل پیش‌فرض تحویل نامه و مقصد گام بعدی برای تحویل نهایی به دامنه‌های فهرست‌شده در $virtual_mailbox_domains.
+.IP "\fBrelay_transport (relay)\fR"
+حمل‌ونقل پیش‌فرض تحویل نامه و مقصد گام بعدی برای کلاس نشانی دامنه رله: دامنه‌های گیرنده‌ای که با $relay_domains تطابق دارند.
+.IP "\fBdefault_transport (smtp)\fR"
+حمل‌ونقل پیش‌فرض تحویل نامه و مقصد گام بعدی برای کلاس دامنه پیش‌فرض: دامنه‌های گیرنده‌ای که با
+$mydestination، $inet_interfaces،
+$proxy_interfaces، $virtual_alias_domains، $virtual_mailbox_domains
+یا $relay_domains تطابق ندارند.
+.IP "\fBparent_domain_matches_subdomains (see 'postconf -d' output)\fR"
+فهرستی از قابلیت‌های Postfix که در آن‌ها الگوی "example.com" با زیردامنه‌های example.com نیز تطابق می‌یابد، به‌جای اینکه نیازمند الگوی صریح ".example.com" باشد.
+.IP "\fBrelayhost (empty)\fR"
+مقصد(های) گام بعدی برای نامه‌های غیرمحلی؛ اولویت بالاتری نسبت به دامنه‌های غیرمحلی در نشانی‌های گیرنده دارد.
+.IP "\fBtransport_maps (empty)\fR"
+جدول‌های جستجوی اختیاری با نگاشت‌هایی از نشانی گیرنده به (حمل‌ونقل تحویل پیام، مقصد گام بعدی).
+.PP
+موجود در نسخه 2.3 و بالاتر Postfix:
+.IP "\fBsender_dependent_relayhost_maps (empty)\fR"
+یک لغو وابسته به فرستنده برای مقدار پارامتر سراسری relayhost.
+.PP
+موجود در نسخه 2.5 و بالاتر Postfix:
+.IP "\fBempty_address_relayhost_maps_lookup_key (<>)\fR"
+کلید جستجوی sender_dependent_relayhost_maps که به‌جای نشانی فرستنده تهی استفاده خواهد شد.
+.PP
+موجود در نسخه 2.7 و بالاتر Postfix:
+.IP "\fBempty_address_default_transport_maps_lookup_key (<>)\fR"
+کلید جستجوی sender_dependent_default_transport_maps که به‌جای نشانی فرستنده تهی استفاده خواهد شد.
+.IP "\fBsender_dependent_default_transport_maps (empty)\fR"
+یک لغو وابسته به فرستنده برای مقدار پارامتر سراسری default_transport.
+.SH "کنترل‌های اعتبارسنجی نشانی (ADDRESS VERIFICATION CONTROLS)"
+.na
+.nf
+.ad
+.fi
+نسخه 2.1 از Postfix قابلیت اعتبارسنجی نشانی‌های فرستنده و گیرنده را ارائه می‌دهد. این قابلیت با ارسال پیام‌های کاوشگر ایمیل که در واقعیت تحویل داده نمی‌شوند پیاده‌سازی شده است.
+به‌طور پیش‌فرض، کاوشگرهای اعتبارسنجی نشانی از همان مسیری استفاده می‌کنند که برای نامه‌های معمولی به کار می‌رود. برای بازنویسی جنبه‌های خاصی از مسیریابی پیام برای کاوشگرهای اعتبارسنجی نشانی، یک یا چند مورد از موارد زیر را مشخص کنید:
+.IP "\fBaddress_verify_local_transport ($local_transport)\fR"
+لغو تنظیمات پارامتر local_transport برای کاوشگرهای اعتبارسنجی نشانی.
+.IP "\fBaddress_verify_virtual_transport ($virtual_transport)\fR"
+لغو تنظیمات پارامتر virtual_transport برای کاوشگرهای اعتبارسنجی نشانی.
+.IP "\fBaddress_verify_relay_transport ($relay_transport)\fR"
+لغو تنظیمات پارامتر relay_transport برای کاوشگرهای اعتبارسنجی نشانی.
+.IP "\fBaddress_verify_default_transport ($default_transport)\fR"
+لغو تنظیمات پارامتر default_transport برای کاوشگرهای اعتبارسنجی نشانی.
+.IP "\fBaddress_verify_relayhost ($relayhost)\fR"
+لغو تنظیمات پارامتر relayhost برای کاوشگرهای اعتبارسنجی نشانی.
+.IP "\fBaddress_verify_transport_maps ($transport_maps)\fR"
+لغو تنظیمات پارامتر transport_maps برای کاوشگرهای اعتبارسنجی نشانی.
+.PP
+موجود در نسخه 2.3 و بالاتر Postfix:
+.IP "\fBaddress_verify_sender_dependent_relayhost_maps ($sender_dependent_relayhost_maps)\fR"
+لغو تنظیمات پارامتر sender_dependent_relayhost_maps برای کاوشگرهای اعتبارسنجی نشانی.
+.PP
+موجود در نسخه 2.7 و بالاتر Postfix:
+.IP "\fBaddress_verify_sender_dependent_default_transport_maps ($sender_dependent_default_transport_maps)\fR"
+لغو تنظیمات پارامتر sender_dependent_default_transport_maps برای کاوشگرهای اعتبارسنجی نشانی.
+.SH "کنترل‌های گوناگون (MISCELLANEOUS CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBconfig_directory (see 'postconf -d' output)\fR"
+مکان پیش‌فرض فایل‌های پیکربندی main.cf و master.cf در Postfix.
+.IP "\fBdaemon_timeout (18000s)\fR"
+مدت زمانی که یک فرایند دیمن Postfix مجاز است برای رسیدگی به یک درخواست صرف کند، پیش از آنکه توسط تایمر نگهبان داخلی خاتمه یابد.
+.IP "\fBempty_address_recipient (MAILER\-DAEMON)\fR"
+گیرنده نامه‌های ارسال‌شده به نشانی تهی.
+.IP "\fBipc_timeout (3600s)\fR"
+محدودیت زمانی برای ارسال یا دریافت اطلاعات از طریق یک کانال ارتباطی داخلی.
+.IP "\fBmax_idle (100s)\fR"
+حداکثر مدت زمانی که یک فرایند دیمن بیکار Postfix پیش از خاتمه داوطلبانه، در انتظار یک اتصال ورودی می‌ماند.
+.IP "\fBmax_use (100)\fR"
+حداکثر تعداد اتصالات ورودی که یک فرایند دیمن Postfix پیش از خاتمه داوطلبانه به آن‌ها سرویس می‌دهد.
+.IP "\fBrelocated_maps (empty)\fR"
+جدول‌های جستجوی اختیاری حاوی اطلاعات تماس جدید برای کاربران یا دامنه‌هایی که دیگر وجود ندارند.
+.IP "\fBprocess_id (read\-only)\fR"
+شناسه فرایند یک دستور یا فرایند دیمن Postfix.
+.IP "\fBprocess_name (read\-only)\fR"
+نام فرایند یک دستور یا فرایند دیمن Postfix.
+.IP "\fBqueue_directory (see 'postconf -d' output)\fR"
+مکان دایرکتوری سطح بالای صف در Postfix.
+.IP "\fBshow_user_unknown_table_name (yes)\fR"
+نمایش نام جدول گیرنده در پاسخ‌های "User unknown".
+.IP "\fBsyslog_facility (mail)\fR"
+تسهیلات لاگ‌گیری سیستم برای لاگ‌های Postfix.
+.IP "\fBsyslog_name (see 'postconf -d' output)\fR"
+پیشوندی که به ابتدای نام فرایند در رکوردهای syslog افزوده می‌شود، به‌طوری که برای مثال "smtpd" به "prefix/smtpd" تبدیل می‌شود.
+.PP
+موجود در نسخه 2.0 و بالاتر Postfix:
+.IP "\fBhelpful_warnings (yes)\fR"
+ثبت هشدارهای لاگ درباره تنظیمات پیکربندی مشکل‌ساز، و ارائه پیشنهادهای مفید.
+.PP
+موجود در نسخه 3.3 و بالاتر Postfix:
+.IP "\fBservice_name (read\-only)\fR"
+نام سرویس در master.cf برای یک فرایند دیمن Postfix.
+.SH "همچنین ببینید (SEE ALSO)"
+.na
+.nf
+postconf(5), پارامترهای پیکربندی
+transport(5), قالب جدول حمل‌ونقل
+relocated(5), قالب جدول "کاربر منتقل شده است"
+master(8), مدیر فرایند
+postlogd(8), ثبت لاگ Postfix
+syslogd(8), ثبت لاگ سیستم
+.SH "فایل‌های README (README FILES)"
+.na
+.nf
+.ad
+.fi
+برای یافتن این اطلاعات از
+"\fBpostconf readme_directory\fR"
+یا
+"\fBpostconf html_directory\fR"
+استفاده کنید.
+.na
+.nf
+ADDRESS_CLASS_README, راهنمای کلاس‌های نشانی Postfix
+ADDRESS_VERIFICATION_README, اعتبارسنجی نشانی Postfix
+.SH "مجوز (LICENSE)"
+.na
+.nf
+.ad
+.fi
+مجوز Secure Mailer باید همراه با این نرم‌افزار توزیع شود.
+.SH "نویسندگان (AUTHORS)"
+.na
+.nf
+Wietse Venema
+IBM T.J. Watson Research
+P.O. Box 704
+Yorktown Heights, NY 10598, USA
+
+Wietse Venema
+Google, Inc.
+111 8th Avenue
+New York, NY 10011, USA

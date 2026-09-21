@@ -1,0 +1,261 @@
+.lf 1 "-
+.TH SLAPO-RETCODE 5 "2026/03/09" "OpenLDAP 2.6.13"
+.\" Copyright 1998-2026 The OpenLDAP Foundation, All Rights Reserved.
+.\" Copying restrictions apply.  See the COPYRIGHT file.
+.\" Copyright 2001, Pierangelo Masarati, All rights reserved. <ando@sys-net.it>
+.\" $OpenLDAP$
+.SH "نام (NAME)"
+slapo-retcode \- لایه روکش شبیهسازی کدهای برگشتی خطا برای slapd
+.SH "خلاصه دستور (SYNOPSIS)"
+/etc/openldap/slapd.conf
+.SH "توضیحات (DESCRIPTION)"
+روکش
+.B retcode
+برای
+.BR slapd (8)
+جهت آزمایش رفتار کلاینت‌ها هنگام وقوع پاسخ‌های نادرست و/یا غیرمعمول تولیدشده توسط سرور مانند کدهای خطا، ارجاعات (referrals)، زمان‌های پاسخ‌دهی بیش از حد و موارد مشابه مفید است.
+
+پاسخ‌های خطا بر اساس راهبردهای متفاوتی تولید می‌شوند.
+.LP
+در حالت اول، تمام عملیاتی که زیردرخت پیکربندی‌پذیر خاصی را هدف قرار می‌دهند باعث می‌شوند شیء مرتبط با DN درخواست جستجو شده و از نظر داده‌های کد بازگشتی بررسی شود: یک کد پاسخ، به همراه یک پیام متنی اختیاری، یک تأخیر پیکربندی‌پذیر اختیاری، یک فیلد DN تطبیق‌یافته اختیاری و هنگامی که کد پاسخ «referral» است، (فهرستی از) ارجاع(ها).
+.LP
+کدهای پاسخ شناخته‌شده از اسناد استاندارد در
+\fBretcode.conf\fP
+ارائه شده‌اند که می‌توان آن را پس از نمونه‌سازی روکش، پیوست (include) کرد.
+.LP
+در حالت دوم، اشیای کلاس‌های مشتق‌شده از
+\fBerrAbsObject\fP،
+مانند
+\fBerrObject\fP
+یا
+\fBerrAuxObject\fP،
+هنگامی که به عنوان پاسخ‌های میانی یک درخواست جستجو بازگردانده می‌شوند، به پاسخی که توسط محتوای آن‌ها دیکته شده تغییر می‌یابند.
+.LP
+حالت سوم باعث می‌شود اشیاء از پایگاه داده زیرین جستجو شوند تا مشخص شود آیا کلاس آن‌ها از
+\fBerrAbsObject\fP
+ارث‌بری می‌کند یا خیر؛ در این صورت، از محتوای آن‌ها برای محاسبه پاسخ مربوطه استفاده می‌شود.
+.LP
+این رفتار با استفاده از کنترل
+\fBmanageDSAit\fP
+(RFC 3296)
+غیرفعال می‌شود؛ در این صورت، شیء حاصل (چه در دایرکتوری موجود باشد، چه به صورت پویا توسط روکش تولید شده باشد، یا در درخواست گنجانده شده باشد) طبق روال معمول مدیریت می‌شود.
+.LP
+دستورالعمل‌های پیکربندی ویژه روکش
+.B retcode
+باید دارای پیشوند
+.BR retcode\-
+باشند تا از تداخل با دستورالعمل‌های خاص پایگاه داده زیرین یا سایر روکش‌های روی هم چیده‌شده (stacked) جلوگیری شود. دستورالعمل‌های خاص زیر می‌توانند برای پیکربندی روکش retcode استفاده شوند:
+.TP
+.B retcode\-parent <DN>
+این دستورالعمل DN والد را مشخص می‌کند که مدخل‌های تولیدشده به‌صورت پویا در آن قرار می‌گیرند. اگر تعریف نشده باشد، از پسوند پایگاه داده استفاده می‌شود.
+.HP
+.hy 0
+.B retcode\-item <RDN> <errCode> [op=<oplist>] [text=<message>]
+.B [ref=<referral>] [sleeptime=<sec>] [matched=<DN>]
+.B [unsolicited=<OID>[:<data>]] [flags=[\{pre|post\}\-]disconnect[,...]]
+.RS
+یک مدخل تولیدشده به‌صورت پویا که زیر
+\fBretcode\-parent\fP
+قرار دارد.
+مقدار
+\fBerrCode\fP
+شماره کد پاسخ است؛ می‌تواند در هر قالبی که توسط
+.BR strtol (3)
+پشتیبانی می‌شود باشد.
+پارامتر اختیاری
+\fBoplist\fP
+فهرستی از عملیات است که باعث تولید کد پاسخ می‌شوند؛ در صورت عدم وجود، تمام عملیات تحت تأثیر قرار می‌گیرند.
+فیلد
+\fBmatched\fP
+همان DN تطبیق‌یافته‌ای است که همراه با خطا بازگردانده می‌شود، در حالی که فیلد
+\fBtext\fP
+یک پیام تشخیصی اختیاری است.
+فیلد
+\fBref\fP
+تنها برای کد پاسخ
+\fBreferral\fP
+مجاز است.
+فیلد
+\fBsleeptime\fP
+باعث می‌شود
+.BR slapd (8)
+پیش از ادامه عملیات، به تعداد ثانیه‌های مشخص‌شده به حالت خواب برود (مکث کند).
+فیلد
+\fBunsolicited\fP
+می‌تواند برای بازگرداندن یک پیام پاسخ ناخواسته طبق RFC 4511 استفاده شود؛ اگر
+\fBOID\fP
+برابر با «0» نباشد، یک پاسخ گسترش‌یافته به همراه داده‌های اختیاری
+\fBdata\fP
+پیوست‌شده تولید می‌شود.
+اگر
+\fBflags\fP
+شامل
+\fBdisconnect\fP
+یا
+\fBpre\-disconnect\fP
+باشد،
+.BR slapd (8)
+به صورت ناگهانی و بدون اطلاع قبلی اتصال را قطع می‌کند؛ مقدار
+\fBpost\-disconnect\fP
+باعث قطع اتصال بلافاصله پس از ارسال پاسخ مناسب می‌شود.
+.RE
+.TP
+.B retcode\-indir
+بهره‌برداری از errAbsObject ذخیره‌شده در دایرکتوری را فعال می‌کند. ممکن است منجر به بار پردازشی اضافی غیرضروری زیادی شود.
+.TP
+.B retcode\-sleep [\-]<n>
+مدت زمان خواب بر حسب ثانیه را مشخص می‌کند که پیش از رسیدگی واقعی به هر عملیاتی سپری می‌شود. اگر منفی باشد، یک زمان تصادفی بین ۰ و مقدار قدر مطلق آرگومان استفاده می‌شود.
+
+.SH "طرح‌واره (SCHEMA)"
+روکش
+.B retcode
+از طرح‌واره «کد بازگشتی» که در اینجا شرح داده شده استفاده می‌کند. این طرح‌واره به‌طور خاص برای استفاده با این روکش طراحی شده و برای کاربردهای دیگر در نظر گرفته نشده است. همچنین باید توجه داشت که طرح‌واره شرح داده شده در اینجا
+.I در حال
+.IR توسعه
+است و بنابراین ممکن است بدون اطلاع قبلی تغییر کند. طرح‌واره به‌طور خودکار توسط روکش بارگذاری می‌شود.
+
+این طرح‌واره شامل تعدادی کلاس شیء و انواع مشخصه‌های مرتبط است که در زیر شرح داده شده‌اند:
+
+.LP
+کد خطا:
+.RS 4
+(  1.3.6.1.4.1.4203.666.11.4.1.1
+    NAME ( 'errCode' )
+    DESC 'LDAP error code'
+    EQUALITY integerMatch
+    ORDERING integerOrderingMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+    SINGLE\-VALUE )
+.RE
+.LP
+عملیاتی که محرک کد پاسخ هستند:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.1.2
+    NAME ( 'errOp' )
+    DESC 'Operations the errObject applies to'
+    EQUALITY caseIgnoreMatch
+    SUBSTR caseIgnoreSubstringsMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+.RE
+.LP
+پیام متنی:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.1.3
+    NAME ( 'errText' )
+    DESC 'LDAP error textual description'
+    EQUALITY caseIgnoreMatch
+    SUBSTR caseIgnoreSubstringsMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+    SINGLE\-VALUE )
+.RE
+.LP
+مدت زمان خواب پیش از بازگرداندن واقعی پاسخ به کلاینت:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.1.4
+    NAME ( 'errSleepTime' )
+    DESC 'Time to wait before returning the error'
+    EQUALITY integerMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.27
+    SINGLE\-VALUE )
+.RE
+.LP
+مقدار DN تطبیق‌یافته بازگردانده‌شده به کلاینت:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.1.5
+    NAME ( 'errMatchedDN' )
+    DESC 'Value to be returned as matched DN'
+    EQUALITY distinguishedNameMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.12
+    SINGLE\-VALUE )
+.RE
+.LP
+شناسه OID برای بازگرداندن به عنوان OID پاسخ گسترش‌یافته در پاسخ‌های ناخواسته RFC 4511
+(مقدار «0» یک پاسخ عادی با msgid تنظیم‌شده روی 0 تولید می‌کند):
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.1.6
+    NAME ( 'errUnsolicitedOID' )
+    DESC 'OID to be returned within unsolicited response'
+    EQUALITY objectIdentifierMatch
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.38
+    SINGLE\-VALUE )
+.RE
+.LP
+رشته هشت‌بیتی (octet string) برای بازگرداندن به عنوان داده‌های پاسخ گسترش‌یافته در پاسخ ناخواسته RFC 4511:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.1.7
+    NAME ( 'errUnsolicitedData' )
+    DESC 'Data to be returned within unsolicited response'
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
+    SINGLE\-VALUE )
+.RE
+.LP
+در صورت TRUE،
+.BR slapd (8)
+بدون اطلاع قبلی به صورت ناگهانی اتصال را قطع می‌کند؛ در صورت FALSE، پس از ارسال پاسخ مقتضی، اتصال را قطع می‌نماید:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.1.8
+    NAME ( 'errDisconnect' )
+    DESC 'Disconnect without notice'
+    SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
+    SINGLE\-VALUE )
+.RE
+.LP
+کلاس انتزاعی (abstract class) که روکش را فعال می‌کند:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.3.0
+    NAME ( 'errAbsObject' )
+    SUP top ABSTRACT
+    MUST ( errCode )
+    MAY ( cn $ description $ errOp $ errText $ errSleepTime
+        $ errMatchedDN ) )
+.RE
+.LP
+کلاس شیء ساختاری مستقل برای داده‌های اختصاصی ایجادشده:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.3.1
+    NAME ( 'errObject' )
+    SUP errAbsObject STRUCTURAL )
+.RE
+.LP
+کلاس شیء کمکی برای تغییر رفتار اشیاء موجود:
+.RS 4
+( 1.3.6.1.4.1.4203.666.11.4.3.2
+    NAME ( 'errAuxObject' )
+    SUP errAbsObject AUXILIARY )
+.RE
+
+.SH "مثال‌ها (EXAMPLE)"
+.LP
+.RS
+.nf
+overlay         retcode
+retcode\-parent  "ou=RetCodes,dc=example,dc=com"
+
+# فایل retcode.conf در tests/data/ از درخت کد منبع یافت می‌شود
+include         ./retcode.conf
+
+# ۱۰ ثانیه صبر کرده، سپس وضعیت موفقیت (0x00) را بازمی‌گرداند
+retcode\-item    "cn=Success after 10 seconds" 0x00 sleeptime=10
+# ۱۰ ثانیه صبر کرده، سپس وضعیت timelimitExceeded (0x03) را بازمی‌گرداند
+retcode\-item    "cn=Timelimit after 10 seconds" 0x03 sleeptime=10
+.fi
+.RE
+.LP
+
+.SH "فایل‌ها (FILES)"
+.TP
+/etc/openldap/slapd.conf
+فایل پیکربندی پیش‌فرض slapd
+.SH "همچنین ببینید (SEE ALSO)"
+.BR slapd.conf (5),
+.BR slapd\-config (5),
+.BR slapd (8).
+.PP
+روکش
+.BR slapo\-retcode (5)
+از پیکربندی پویا از طریق
+.B back\-config
+پشتیبانی می‌کند.
+.SH "قدردانی (ACKNOWLEDGEMENTS)"
+.P
+این ماژول در سال ۲۰۰۵ توسط Pierangelo Masarati برای SysNet s.n.c نوشته شده است.

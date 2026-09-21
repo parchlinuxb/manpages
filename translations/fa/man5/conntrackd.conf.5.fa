@@ -1,0 +1,1165 @@
+.\"
+.\" (C) Copyright 2015-2018, Arturo Borrero Gonzalez <arturo@netfilter.org>
+.\"
+.\" %%%LICENSE_START(GPLv2+_DOC_FULL)
+.\" This is free documentation; you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" The GNU General Public License's references to "object code"
+.\" and "executables" are to be interpreted as the output of any
+.\" document formatting or typesetting system, including
+.\" intermediate and printed output.
+.\"
+.\" This manual is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public
+.\" License along with this manual; if not, see
+.\" <http://www.gnu.org/licenses>.
+.\" %%%LICENSE_END
+.\"
+.TH CONNTRACKD.CONF 5 "20 ژانویه 2021" "Netfilter" "راهنمای لینوکس پارچ"
+
+.SH "نام (NAME)"
+conntrackd.conf \- پرونده پیکربندی دیمن ردیابی اتصالات conntrackd
+
+.SH "توضیحات (DESCRIPTION)"
+پرونده
+\fBconntrackd.conf\fP
+پرونده پیکربندی اصلی دیمن
+\fBconntrackd(8)\fP
+است. این پرونده با فراخوانی دستور
+`\fIconntrackd -C conntrackd.conf\fP`
+بارگذاری می‌شود.
+
+قالب این پرونده ساده است و از کروشه‌ها (brackets) برای بخش‌ها و جفت‌های کلید-مقدار برای دستورالعمل‌های مشخص پیکربندی استفاده می‌کند:
+
+.nf
+	section1 {
+		option1 value1
+		option2 value2
+	}
+	section2 {
+		option3 value3
+		subsection1 {
+			option4 value4
+		}
+	}
+.fi
+
+این پرونده به کوچک و بزرگ بودن حروف حساس (case-sensitive) است.
+سطرهای خالی و سطرهایی که با نویسه '#' آغاز می‌شوند نادیده گرفته می‌شوند.
+
+پیش از آغاز نگارش یک پیکربندی تازه، شاید مایل باشید مفاهیم پشتیبان این فناوری را در
+\fIhttp://conntrack-tools.netfilter.org/manual.html\fP
+مطالعه کنید.
+
+نمونه‌های پیکربندی کامل در انتهای این صفحه راهنما قرار دارند.
+
+.SH "همگام‌سازی (SYNC)"
+
+این بخش سطح‌بالا تعیین می‌کند که چگونه
+\fBconntrackd(8)\fP
+باید همگام‌سازی با دیگر گره‌های کلاستر را مدیریت کند.
+
+سه حالت یا پروتکل همگام‌سازی اصلی وجود دارد:
+\fBNOTRACK\fP ،
+\fBALARM\fP
+و
+\fBFTFW\fP .
+
+همچنین سه پروتکل انتقال وجود دارد:
+\fBTCP\fP ،
+\fBMulticast\fP
+و
+\fBUDP\fP .
+
+شما باید یک حالت همگام‌سازی و یک پروتکل انتقال را انتخاب کنید.
+
+همچنین، گزینه‌های عمومی چندی نیز در این بخش وجود دارد.
+
+.SS "حالت FTFW (Mode FTFW)"
+
+این حالت بر پایه یک پروتکل مطمئن (reliable) است که ردیابی پیام‌ها را انجام می‌دهد.
+از این رو، پروتکل می‌تواند از دست رفتن پیام‌ها، تغییر ترتیب و خرابی داده‌ها را بازیابی کند.
+
+در این حالت همگام‌سازی می‌توانید
+\fBResendQueueSize\fP ،
+\fBCommitTimeout\fP ،
+\fBPurgeTimeout\fP ،
+\fBACKWindowSize\fP ،
+\fBDisableExternalCache\fP
+و
+\fBStartupResync\fP
+را پیکربندی کنید.
+
+.TP
+.BI "ResendQueueSize <مقدار>"
+اندازه صف ارسال دوباره (بر حسب شیء). این بیشینه تعداد اشیایی است که می‌توانند در انتظار تایید از طریق دریافت acknowledgment ذخیره شوند.
+اگر این مقدار را پایین نگه دارید، دیمن شانس کمتری برای بازیابی تغییرات وضعیت در صورت از دست رفتن پیام‌ها خواهد داشت. از سوی دیگر، اگر این مقدار را بالا ببرید، دیمن حافظه بیشتری برای ذخیره اشیاء مرده مصرف خواهد کرد.
+
+مثال: ResendQueueSize 131072
+
+پیش‌فرض 131072 شیء است.
+
+.TP
+.BI "CommitTimeout <ثانیه>"
+این پارامتر به شما امکان می‌دهد تا زمانی که این گره از وضعیت پشتیبان (backup) به اصلی (primary) تغییر می‌کند، یک مهلت زمانی (timeout) ثابت اولیه برای مدخل‌های اعمال‌شده تعیین کنید. این سازوکار روشی را برای پاکسازی مدخل‌هایی فراهم می‌کند که پس از مهلت زمانی ثابت مشخص‌شده به درستی بازیابی نشده‌اند. اگر مقدار پایینی تنظیم کنید، مدخل‌های TCP در وضعیت Established بدون ترافیک ممکن است معلق بمانند؛ به عنوان مثال، یک اتصال SSH که KeepAlive روی آن فعال نشده است.
+
+مثال: CommitTimeout 180
+
+به طور پیش‌فرض، این گزینه تنظیم نشده است (دیمن از سازوکار محاسبه تقریبی مقدار مهلت زمانی استفاده می‌کند).
+
+.TP
+.BI "PurgeTimeout <ثانیه>"
+اگر کپی فایروال از اصلی به پشتیبان تغییر کند، دستور
+`\fIconntrackd -t\fP`
+در اسکریپت فراخوانی می‌شود. این دستور یک تخلیه جدول را در N ثانیه زمان‌بندی می‌کند.
+
+این کار برای پاکسازی جدول ردیابی اتصال از مدخل‌های زامبی (zombie) و جلوگیری از برخورد با مدخل‌های قدیمی در صورت رخ دادن چند جابه‌جایی پی‌درپی (hand-over) سودمند است.
+
+پیش‌فرض 60 ثانیه است.
+
+.TP
+.BI "ACKWindowSize <مقدار>"
+اندازه پنجره تایید دریافت (acknowledgment) را تنظیم می‌کند. اگر این مقدار را کاهش دهید، تعداد تاییدها افزایش می‌یابد. تاییدیه‌های بیشتر به معنای بار اضافی (overhead) بیشتر است زیرا
+\fBconntrackd(8)\fP
+باید پیام‌های کنترلی بیشتری را مدیریت کند. از سوی دیگر، اگر این مقدار را افزایش دهید، صف ارسال مجدد پرتر می‌شود. این امر منجر به بار اضافی بیشتر در آزادسازی صف خواهد شد.
+
+مثال: ACKWindowSize 300
+
+در صورت عدم تنظیم، اندازه پیش‌فرض پنجره 300 است (مقدار بر اساس آزمایش‌های عملی سنجش چرخه‌های صرف‌شده برای پردازش acknowledgment با oprofile به دست آمده است).
+
+.TP
+.BI "DisableExternalCache <yes|no>"
+این بند به شما اجازه می‌دهد حافظه موقت خارجی (external cache) را غیرفعال کنید. بدین ترتیب، مدخل‌های وضعیت مستقیماً به جدول conntrack هسته تزریق می‌شوند. در نتیجه، حافظه فضای کاربری صرفه‌جویی می‌شود، اما اسلات‌هایی از جدول conntrack هسته برای مدخل‌های وضعیت پشتیبان مصرف می‌گردند. افزون بر این، غیرفعال کردن کش خارجی به معنای مصرف بیشتر پردازنده است. برای استفاده از این قابلیت به
+\fBLinux kernel >= 2.6.29\fP
+نیاز دارید.
+
+اگر برای نخستین بار
+\fBconntrackd(8)\fP
+را نصب می‌کنید، لطفاً راهنمای کاربر را بخوانید؛ به شما توصیه می‌شود به جای فعال‌سازی این گزینه، از اسکریپت‌های fail-over استفاده کنید!
+
+پیش‌فرض no است، به این معنی که کش خارجی فعال است.
+
+.TP
+.BI "StartupResync <yes|no>"
+به conntrackd دستور می‌دهد که در زمان راه‌اندازی، درخواست یک همگام‌سازی کامل جدول conntrack را از گره دیگر ارسال کند. تنها یک درخواست ارسال خواهد شد.
+
+این گزینه برای همگام شدن با گره دیگری که در زمان خاموش بودن این گره فعال بوده است، بسیار سودمند است.
+
+مثال: StartupResync yes
+
+پیش‌فرض این بند no است.
+
+.SS "حالت ALARM (Mode ALARM)"
+
+این حالت پرپیام و پرحجم (spamming) است. این حالت بر پایه پروتکلی مبتنی بر آلارم است که به طور دوره‌ای وضعیت جریان را به رونوشت‌های فایروال پشتیبان بازفرست می‌کند. این پروتکل پهنای باند زیادی مصرف می‌کند اما مشکلات همگام‌سازی را به سرعت برطرف می‌سازد.
+
+در این حالت همگام‌سازی می‌توانید
+\fBRefreshTime\fP ،
+\fBCacheTimeout\fP ،
+\fBCommitTimeout\fP
+و
+\fBPurgeTimeout\fP
+را پیکربندی کنید.
+
+.TP
+.BI "RefreshTime <ثانیه>"
+اگر یک مدخل conntrack در کمتر از یا برابر با N ثانیه تغییر نکند، پیامی همه‌پخشی (broadcast) می‌شود. به عنوان مثال، این سازوکار می‌تواند برای همگام‌سازی مجدد گره‌هایی که به تازگی به گروه چندپخشی پیوسته‌اند استفاده شود.
+
+مثال: RefreshTime 15
+
+.TP
+.BI "CacheTimeout <ثانیه>"
+اگر پس از N ثانیه اعلانی درباره وضعیت یک مدخل در حافظه موقت خارجی دریافت نکنیم، آن را حذف می‌کنیم.
+
+مثال: CacheTimeout 180
+
+.TP
+.BI "CommitTimeout <ثانیه>"
+مشابه حالت
+\fBFTFW\fP .
+
+.TP
+.BI "PurgeTimeout <ثانیه>"
+مشابه حالت
+\fBFTFW\fP .
+
+.SS "حالت NOTRACK (Mode NOTRACK)"
+
+ساده‌ترین حالت است زیرا بر پایه یک پروتکل تکثیر با بهترین تلاش (best effort)، یعنی پروتکلی نامطمئن (unreliable) کار می‌کند. این پروتکل بدون انجام هرگونه بررسی ویژه، اطلاعات وضعیت را ارسال و دریافت می‌کند.
+
+در این حالت همگام‌سازی می‌توانید
+\fBDisableInternalCache\fP ،
+\fBDisableExternalCache\fP ،
+\fBCommitTimeout\fP ،
+\fBPurgeTimeout\fP
+و
+\fBStartupResync\fP
+را پیکربندی کنید.
+
+.TP
+.BI "DisableInternalCache <yes|no>"
+این بند به شما اجازه می‌دهد حافظه موقت داخلی را غیرفعال کنید. بدین ترتیب، پیام‌های همگام‌سازی مستقیماً از طریق پیوند اختصاصی فرستاده می‌شوند.
+
+این گزینه به طور پیش‌فرض روی no تنظیم است.
+
+.TP
+.BI "DisableExternalCache <yes|no>"
+مشابه حالت
+\fBFTFW\fP .
+
+.TP
+.BI "CommitTimeout <ثانیه>"
+مشابه حالت
+\fBFTFW\fP .
+
+.TP
+.BI "PurgeTimeout <ثانیه>"
+مشابه حالت
+\fBFTFW\fP .
+
+.TP
+.BI "StartupResync <yes|no>"
+مشابه حالت
+\fBFTFW\fP .
+
+.SS "چندپخشی (MULTICAST)"
+
+این بخش به
+\fBconntrackd(8)\fP
+دستور می‌دهد از چندپخشی (multicast) به عنوان سازوکار انتقال بین گره‌های کلاستر فایروال استفاده کند.
+
+توجه داشته باشید که می‌توانید بیش از یک پیوند اختصاصی تعیین کنید. بدین ترتیب، اگر یک پیوند اختصاصی با خطا مواجه شود، دیمن می‌تواند به پیوند دیگری سوئیچ (fail-over) کند. توجه کنید که افزودن بیش از یک پیوند اختصاصی به این معنی نیست که به‌روزرسانی‌های وضعیت به همه آن‌ها فرستاده خواهد شد. در هر لحظه تنها یک پیوند اختصاصی فعال وجود دارد.
+
+کلیدواژه
+\fIDefault\fP
+نشان می‌دهد که این رابط به عنوان پیوند اختصاصی اولیه برگزیده خواهد شد. شما می‌توانید تا ۴ پیوند اختصاصی افزونه (redundant) داشته باشید.
+
+نکته: برای هر پیوند افزونه از گروه‌های چندپخشی متفاوتی استفاده کنید.
+
+مثال:
+.nf
+	Multicast Default {
+		IPv4_address 225.0.0.51
+		Group 3781
+		IPv4_interface 192.168.100.101
+		Interface eth3
+		SndSocketBuffer 1249280
+		RcvSocketBuffer 1249280
+		Checksum on
+	}
+	Multicast {
+		IPv4_address 225.0.0.51
+		Group 3782
+		IPv4_interface 192.168.100.102
+		Interface eth4
+		SndSocketBuffer 1249280
+		RcvSocketBuffer 1249280
+		Checksum on
+	}
+.fi
+
+.TP
+.BI "IPv4_address <نشانی>"
+نشانی چندپخشی: نشانی‌ای که به عنوان مقصد در پیام‌های همگام‌سازی استفاده می‌کنید. نیازی نیست این IP را به هیچ‌یک از رابط‌های شبکه موجود خود اضافه کنید.
+
+مثال: IPv4_address 255.0.0.50
+
+.TP
+.BI "Group <شماره>"
+گروه چندپخشی که کلاستر را مشخص می‌کند.
+
+مثال: Group 3780
+
+در صورت شک، این مقدار را تغییر ندهید.
+
+.TP
+.BI "IPv4_interface <نشانی>"
+نشانی IP رابط شبکه‌ای که قرار است برای ارسال پیام‌های همگام‌سازی از آن استفاده کنید. به یاد داشته باشید که باید از یک پیوند اختصاصی برای پیام‌های همگام‌سازی استفاده نمایید.
+
+مثال: IPv4_interface 192.168.100.100
+
+.TP
+.BI "Interface <نام>"
+نام رابط شبکه‌ای که قرار است برای ارسال پیام‌های همگام‌سازی استفاده کنید.
+
+مثال: Interface eth2
+
+.TP
+.BI "SndSocketBuffer <شماره>"
+فرستنده این پروتکل انتقال از یک بافر برای صف‌بندی بسته‌هایی که قرار است ارسال شوند استفاده می‌کند. اندازه پیش‌فرض این بافر سوکت در
+\fB/proc/sys/net/core/wmem_default\fP
+در دسترس است.
+
+این مقدار احتمال سرریز (overrun) در صف فرستنده را مشخص می‌کند. سرریز منجر به از دست رفتن بسته و در نتیجه از بین رفتن اطلاعات وضعیتی می‌شود که باید دوباره ارسال شوند. اگر متوجه از دست رفتن بسته‌ها شدید، ممکن است بخواهید اندازه بافر را افزایش دهید. اندازه پیش‌فرض سیستم معمولاً حدود ۱۰۰ کیلوبایت است که برای فایروال‌های شلوغ بسیار اندک است.
+
+نکته: پروتکل
+\fBNOTRACK\fP
+بر پایه بهترین تلاش (best effort) است، اکیداً توصیه می‌شود اندازه بافر را افزایش دهید.
+
+مثال: SndSocketBuffer 1249280
+
+.TP
+.BI "RcvSocketBuffer <شماره>"
+گیرنده این پروتکل انتقال از یک بافر برای صف‌بندی بسته‌هایی که سوکت در انتظار پردازش آن‌ها است استفاده می‌کند. اندازه پیش‌فرض این بافر سوکت در
+\fB/proc/sys/net/core/rmem_default\fP
+در دسترس است.
+
+این مقدار احتمال سرریز در صف گیرنده را تعیین می‌کند. سرریز منجر به از دست رفتن بسته و در نتیجه از دست رفتن اطلاعات وضعیتی می‌شود که باید دوباره ارسال شوند. اگر متوجه از دست رفتن بسته‌ها شدید، ممکن است بخواهید اندازه بافر را افزایش دهید. اندازه پیش‌فرض سیستم معمولاً حدود ۱۰۰ کیلوبایت است که برای فایروال‌های شلوغ بسیار اندک است.
+
+نکته: پروتکل
+\fBNOTRACK\fP
+بر پایه بهترین تلاش است، اکیداً توصیه می‌شود اندازه بافر را افزایش دهید.
+
+مثال: RcvSocketBuffer 1249280
+
+.TP
+.BI "Checksum <yes|no>"
+فعال/غیرفعال کردن محاسبه جمع کنترلی (checksum) پیام. این ویژگی خوبی برای دستیابی به تحمل خطا (fault-tolerance) است. در صورت شک، از آن استفاده کنید.
+
+.SS "پروتکل UDP (UDP)"
+این بخش به
+\fBconntrackd(8)\fP
+دستور می‌دهد از UDP به عنوان سازوکار انتقال بین گره‌های کلاستر فایروال استفاده کند.
+
+همانند پیکربندی
+\fBMulticast\fP ،
+می‌توانید با استفاده از کلیدواژه
+\fIDefault\fP
+چندین پیوند اختصاصی آماده‌باش (fail-over) تعیین کنید.
+
+مثال:
+.nf
+	UDP {
+		IPv4_address 172.16.0.1
+		IPv4_Destination_Address 172.16.0.2
+		Port 3781
+		Interface eth3
+		SndSocketBuffer 1249280
+		RcvSocketBuffer 1249280
+		Checksum on
+	}
+.fi
+
+.TP
+.BI "IPv4_address <نشانی>"
+نشانی IPv4 مربوط به UDP که این فایروال برای گوش دادن به رویدادها استفاده می‌کند.
+
+مثال: IPv4_address 192.168.2.100
+
+.TP
+.BI "IPv6_address <نشانی>"
+نشانی IPv6 مربوط به UDP که این فایروال برای گوش دادن به رویدادها استفاده می‌کند.
+
+مثال: IPv6_address fe80::215:58ff:fe28:5a27
+
+.TP
+.BI "IPv4_Destination_Address <نشانی>"
+نشانی IPv4 مقصد در UDP که رویدادها را دریافت می‌کند، یعنی نشانی پیوند اختصاصی فایروال دیگر.
+
+مثال: IPv4_Destination_Address 192.168.2.101
+
+.TP
+.BI "IPv6_Destionation_Address <نشانی>"
+نشانی IPv6 مقصد در UDP که رویدادها را دریافت می‌کند، یعنی نشانی پیوند اختصاصی فایروال دیگر.
+
+مثال: IPv6_Destination_Address fe80::2d0:59ff:fe2a:775c
+
+.TP
+.BI "Port <شماره>"
+درگاه UDP مورد استفاده.
+
+مثال: Port 3780
+
+.TP
+.BI "Interface <نام>"
+مشابه پیکربندی پروتکل انتقال
+\fBMulticast\fP .
+
+.TP
+.BI "SndSocketBuffer <شماره>"
+مشابه پیکربندی پروتکل انتقال
+\fBMulticast\fP .
+
+.TP
+.BI "RcvSocketBuffer <شماره>"
+مشابه پیکربندی پروتکل انتقال
+\fBMulticast\fP .
+
+.TP
+.BI "Checksum <yes|no>"
+مشابه پیکربندی پروتکل انتقال
+\fBMulticast\fP .
+
+.SS "پروتکل TCP (TCP)"
+شما همچنین می‌توانید از تک‌پخشی (Unicast) تحت TCP برای انتشار رویدادها استفاده کنید.
+
+اگر این پروتکل انتقال را با حالت
+\fBNOTRACK\fP
+ترکیب کنید، به یک سازوکار مطمئن (reliable) تبدیل می‌شود.
+
+پروتکل انتقال TCP را می‌توان دقیقاً به همان شیوه پروتکل انتقال
+\fBUDP\fP
+پیکربندی کرد.
+
+همانند پیکربندی
+\fBMulticast\fP ،
+می‌توانید با استفاده از کلیدواژه
+\fIDefault\fP
+چندین پیوند اختصاصی fail-over تعیین کنید.
+
+مثال:
+.nf
+	TCP {
+		IPv6_address fe80::215:58ff:fe28:5a27
+		IPv6_Destination_Address fe80::215:58ff:fe28:5a27
+		Port 3781
+		Interface eth2
+		SndSocketBuffer 1249280
+		RcvSocketBuffer 1249280
+		Checksum yes
+	}
+.fi
+
+.SS "گزینه‌ها (OPTIONS)"
+
+دیگر گزینه‌های متفرقه‌ای که به پروتکل همگام‌سازی یا سازوکار انتقال مربوط می‌شوند.
+
+.TP
+.BI "TCPWindowTracking <yes|no>"
+مدخل‌های وضعیت TCP به طور پیش‌فرض ردیابی پنجره (window tracking) را غیرفعال دارند، می‌توانید آن را با این گزینه فعال کنید. همان‌طور که گفته شد، پیش‌فرض خاموش (off) است.
+این ویژگی به
+\fBLinux kernel >= 2.6.36\fP
+نیاز دارد.
+
+.TP
+.BI "ExpectationSync <on|{ list }>"
+اگر می‌خواهید همگام‌سازی انتظارات (expectations) را فعال کنید، این گزینه را روی on بگذارید. باید فهرستی از کمک‌کننده‌ها (helpers) را که می‌خواهید فعال شوند مشخص نمایید.
+
+این ویژگی به
+\fBLinux kernel >= 3.5\fP
+نیاز دارد.
+
+مثال، همگام‌سازی همه انتظارات:
+.nf
+	ExpectationSync on
+.fi
+
+مثال، همگام‌سازی انتظارات مشخص‌شده:
+.nf
+	ExpectationSync {
+		ftp
+		ras
+		q.931
+		h.245
+		sip
+	}
+.fi
+
+به طور پیش‌فرض، این گزینه غیرفعال است.
+
+.SH "عمومی (GENERAL)"
+
+این بخش سطح‌بالا شامل دستورالعمل‌های پیکربندی عمومی دیمن
+\fBconntrackd(8)\fP
+است.
+
+.TP
+.BI "Systemd <yes|no>"
+در صورتی که
+\fBconntrackd(8)\fP
+با پیکربندی مناسب کامپایل شده باشد، پشتیبانی زمان اجرای
+\fBsystemd(1)\fP
+را فعال می‌کند. در این صورت می‌توانید از یک واحد سرویس با
+\fIType=notify\fP
+استفاده کنید.
+
+بدیهی است که این مورد مستلزم این است که سیستم آغازین (init) شما
+\fBsystemd(1)\fP
+باشد.
+
+نکته: سگ نگهبان (watchdog) در
+\fBsystemd(1)\fP
+نیز پشتیبانی می‌شود.
+
+مثال: Systemd yes
+
+به طور پیش‌فرض، اگر conntrackd با ویژگی systemd ساخته شده باشد، پشتیبانی زمان اجرا فعال است؛ در غیر این صورت خاموش است.
+
+.TP
+.BI "Nice <مقدار>"
+منسوخ شده است. conntrackd این گزینه را نادیده می‌گیرد و در آینده حذف خواهد شد. توجه داشته باشید که می‌توانید
+\fBnice(1)\fP
+و
+\fBrenice(1)\fP
+را به صورت بیرونی اجرا کنید. همچنین توجه داشته باشید که
+\fBconntrackd(8)\fP
+اکنون به طور پیش‌فرض از یک زمان‌بند بلادرنگ (RT) استفاده می‌کند.
+
+.TP
+.BI "HashSize <مقدار>"
+تعداد باکت‌ها (buckets) در جدول هش حافظه موقت (cache hashtable). هرچه بزرگ‌تر باشد، به بهای مصرف حافظه بیشتر به
+\fIO(1)\fP
+نزدیک‌تر می‌شود. برای ارجاع بیشتر، اسناد مربوط به تنظیم جداول هش را بخوانید.
+
+مثال: HashSize 32768
+
+.TP
+.BI "HashLimit <مقدار>"
+بیشینه تعداد conntrackها؛ این مقدار باید دو برابر مقدار
+\fB/proc/sys/net/netfilter/nf_conntrack_max\fP
+باشد، زیرا دیمن ممکن است برخی از مدخل‌های مرده را برای ارسال مجدد احتمالی در حین همگام‌سازی وضعیت در حافظه موقت نگه دارد.
+
+مثال: HashLimit 131072
+
+.TP
+.BI "LogFile <yes|no|نام‌فایل>"
+به
+\fBconntrackd(8)\fP
+اجازه می‌دهد گزارش‌ها را در یک فایل ثبت کند.
+
+مثال: LogFile no
+
+پیش‌فرض no است. فایل لاگ پیش‌فرض
+\fB/var/log/conntrackd.log\fP
+است.
+
+.TP
+.BI "Syslog <yes|no|محیط>"
+ثبت وقایع اتصالات از طریق Syslog را فعال می‌کند. اگر محیط (facility) را تعیین می‌کنید، از همان مقداری که در بخش
+\fBStats\fP
+آمده استفاده کنید؛ در غیر این صورت پیام هشداری دریافت خواهید کرد.
+
+مثال: Syslog local0
+
+پیش‌فرض off است.
+
+.TP
+.BI "Lockfile <نام‌فایل>"
+فایل قفل (lockfile) مورد استفاده توسط
+\fBconntrackd(8)\fP
+(مسیر مطلق).
+
+مثال: LockFile /var/lock/conntrack.lock
+
+پیش‌فرض
+\fB/var/lock/conntrack.lock\fP
+است.
+
+.TP
+.BI "NetlinkBufferSize <مقدار>"
+اندازه بافر سوکت رویداد نت‌لینک (Netlink). اگر این بند را مشخص نکنید، اندازه پیش‌فرض بافر موجود در
+\fB/proc/sys/net/core/rmem_default\fP
+استفاده می‌شود. این مقدار پیش‌فرض معمولاً حدود
+\fB100 Kbytes\fP
+است که برای فایروال‌های پرکاربرد بسیار کوچک است. این موضوع منجر به دور ریخته شدن پیام‌های رویداد و مصرف بالای پردازنده می‌شود.
+
+مثال: NetlinkBufferSize 2097152
+
+.TP
+.BI "NetlinkBufferSizeMaxGrowth <مقدار>"
+اگر دیمن دور ریخته شدن پیام‌های رویداد نت‌لینک را تشخیص دهد، اندازه بافر سوکت رویداد نت‌لینک را دو برابر می‌کند. این بند حداکثر رشد مجاز اندازه بافر را تعیین می‌کند.
+
+مثال: NetlinkBufferSizeMaxGrowth 8388608
+
+.TP
+.BI "NetlinkOverrunResync <yes|no|مقدار>"
+اگر دیمن تشخیص دهد که نت‌لینک در حال دور ریختن رویدادهای تغییر وضعیت است، به طور خودکار پس از ۳۰ ثانیه (مقدار پیش‌فرض) یک همگام‌سازی مجدد با هسته را زمان‌بندی می‌کند. همگام‌سازی‌های مجدد از نظر مصرف پردازنده سنگین هستند زیرا دیمن باید کل جدول وضعیت هسته را دریافت کرده و مدخل‌های وضعیتی را که دیگر وجود ندارند پاکسازی کند.
+
+نکته: در تنظیم یک مقدار بسیار کوچک در اینجا دقت کنید.
+
+مثال: NetlinkOverrunResync yes
+
+مقدار پیش‌فرض
+\fB30\fP
+ثانیه است.
+در صورت عدم تعیین، دیمن فرض می‌کند که این گزینه فعال است و از مقدار پیش‌فرض استفاده می‌کند.
+
+.TP
+.BI "NetlinkEventsReliable <yes|no>"
+اگر خواهان گزارش‌دهی مطمئن رویدادها از طریق نت‌لینک هستید، این گزینه را فعال کنید. اگر این بند را فعال کردید، ایده خوبی است که
+\fBNetlinkOverrunResync\fP
+را غیرفعال کنید.
+
+برای کارکرد این گزینه به
+\fBLinux Kernel >= 2.6.31\fP
+نیاز است.
+
+مثال: NetlinkEventsReliable yes
+
+این گزینه به طور پیش‌فرض غیرفعال (off) است.
+
+.TP
+.BI "PollSecs <ثانیه>"
+به طور پیش‌فرض، دیمن به‌روزرسانی‌های وضعیت را بر پایه یک مدل رویدادمحور (event-driven) دریافت می‌کند. می‌توانید با این بند و تغییر به حالت نظرسنجی دوره‌ای (polling)، این رفتار را دگرگون کنید.
+
+این بند به
+\fBconntrackd(8)\fP
+دستور می‌دهد که وضعیت‌ها را در هسته هر N ثانیه یک بار تخلیه (dump) کند. در رابطه با حالت همگام‌سازی، حالت polling تنها می‌تواند تضمین کند که وضعیت‌های با طول عمر طولانی بازیابی شوند. مزیت اصلی این روش کاهش تکثیر وضعیت به بهای کاهش شانس بازیابی اتصالات است.
+
+مثال: PollSecs 15
+
+.TP
+.BI "EventIterationLimit <مقدار>"
+دیمن اولویت را به مدیریت رویدادهای تغییر وضعیت دریافت شده از هسته اختصاص می‌دهد. با این بند، می‌توانید حداکثر تعداد رویدادهای تغییر وضعیت (آن‌هایی که از فضای هسته می‌آیند) را تعیین کنید که دیمن پردازش خواهد کرد؛ پس از آن به مدیریت سایر رویدادهای دریافتی از شبکه یا فضای کاربری خواهد پرداخت.
+
+یک مقدار کم، تعامل‌پذیری (از نظر رفتار بلادرنگ) را به قیمت مصرف پردازنده اضافی بهبود می‌بخشد.
+
+مثال: EventIterationLimit 100
+
+پیش‌فرض (در صورت عدم تنظیم) ۱۰۰ است.
+
+.SS "سوکت یونیکس (UNIX)"
+پیکربندی سوکت یونیکس. این سوکت توسط
+\fBconntrackd(8)\fP
+برای گوش دادن به دستورات خارجی مانند
+`\fIconntrackd -k\fP`
+یا
+`\fIconntrackd -n\fP`
+به کار می‌رود.
+
+مثال:
+.nf
+	UNIX {
+		Path /var/run/conntrackd.ctl
+	}
+.fi
+
+.TP
+.BI "Path <نام‌فایل>"
+مسیر مطلق به سوکت یونیکس.
+
+مثال: Path /var/run/conntrackd.ctl
+
+.TP
+.BI "Backlog <مقدار>"
+گزینه منسوخ‌شده.
+
+.SS "فیلتر (FILTER)"
+فیلتر کردن رویدادها. این بند به شما امکان می‌دهد ترافیک خاصی را فیلتر کنید.
+
+در حال حاضر سه مجموعه فیلتر وجود دارد:
+\fBProtocol\fP ،
+\fBAddress\fP
+و
+\fBState\fP .
+فیلتر به یک کنش (action) متصل می‌شود که می‌تواند یکی از دو حالت باشد:
+\fBAccept\fP
+یا
+\fBIgnore\fP .
+بدین ترتیب، می‌توانید سیاست فیلتر کردن رویدادهای مجموعه‌های فیلتر را بسته به نیاز خود در منطق مثبت یا منفی تعریف کنید.
+
+می‌توانید انتخاب کنید که
+\fBconntrackd(8)\fP
+پیام‌های رویداد را از فضای کاربری (userspace) فیلتر کند یا از فضای هسته (kernelspace). فیلتر رویداد در فضای هسته با جلوگیری از کپی پیام رویداد از فضای هسته به فضای کاربری، مقداری از چرخه‌های پردازنده را ذخیره می‌کند. فیلتر رویداد در فضای هسته ترجیح داده می‌شود، با این حال برای فیلتر کردن از فضای هسته به
+\fBLinux kernel >= 2.6.29\fP
+نیاز دارید.
+
+نحو این بخش به صورت زیر است:
+\fBFilter From <from> { }\fP.
+
+اگر می‌خواهید فیلتر رویداد در فضای هسته را انتخاب کنید، به جای
+\fBUserspace\fP
+از کلیدواژه
+\fBKernelspace\fP
+استفاده کنید.
+
+مثال:
+.nf
+	Filter From Userspace {
+		Protocol Accept {
+			TCP
+			SCTP
+			DCCP
+		}
+		Address Ignore {
+			IPv4_address 127.0.0.1
+			IPv6_address ::1
+		}
+		State Accept {
+			ESTABLISHED CLOSED TIME_WAIT CLOSE_WAIT for TCP
+		}
+	}
+.fi
+
+.TP
+.BI "Protocol <خط‌مشی> { <فهرست پروتکل‌ها> }"
+تنها پروتکل‌های خاصی را می‌پذیرد: ممکن است بخواهید وضعیت جریان‌ها را بر پایه پروتکل لایه ۴ آن‌ها تکثیر کنید.
+
+خط‌مشی (Policy) یکی از موارد
+\fBAccept\fP
+یا
+\fBIgnore\fP
+است.
+
+پروتکل‌ها عبارتند از:
+\fBTCP\fP ،
+\fBSCTP\fP ،
+\fBDCCP\fP ،
+\fBUDP\fP ،
+\fBICMP\fP
+و
+\fBIPv6-ICMP\fP .
+
+پروتکل‌های
+\fBICMP\fP
+و
+\fBIPv6-ICMP\fP
+به
+\fBLinux kernel >= 2.6.31\fP
+نیاز دارند.
+
+مثال:
+.nf
+	Protocol Accept {
+		TCP
+		SCTP
+		DCCP
+	}
+.fi
+
+.TP
+.BI "Address <خط‌مشی> { <فهرست نشانی‌ها> }"
+نادیده گرفتن ترافیک برای مجموعه‌ای خاص از IPها: معمولاً تمام IPهای تخصیص‌یافته به فایروال، زیرا ترافیک محلی باید نادیده گرفته شود و تنها ارزش دارد اتصالات هدایت‌شده (forwarded) تکثیر شوند.
+
+توجه داشته باشید که این مقادیر به IPهای محلی تخصیص داده شده به فایروال بستگی دارد.
+
+می‌توانید چندین دستورالعمل
+\fBIPv4_address\fP
+و/یا
+\fBIPv6_address\fP
+تعیین کنید. همچنین می‌توانید شبکه‌ها را در قالب CIDR مشخص نمایید.
+
+خط‌مشی یکی از موارد
+\fBAccept\fP
+یا
+\fBIgnore\fP
+است.
+
+مثال:
+.nf
+	Address Ignore {
+		IPv4_address 127.0.0.1 # loopback
+		IPv4_address 192.168.0.100 # virtual IP 1
+		IPv4_address 192.168.1.100 # virtual IP 2
+		IPv4_address 192.168.100.100 # dedicated link ip
+		IPv4_address 192.168.0.0/24
+		IPv6_address ::1
+	}
+.fi
+
+.TP
+.BI "State <خط‌مشی> { <فهرست وضعیت‌ها> for TCP }"
+فیلتر بر پایه وضعیت جریان. این گزینه موازنه‌ای در تکثیر ایجاد می‌کند: مصرف پردازنده را به بهای داشتن رونوشت‌های فایروال پشتیبان تنبل (lazy) کاهش می‌دهد.
+
+نکته: تنها بر جریان‌های TCP اثر می‌گذارد.
+
+وضعیت‌های موجود TCP عبارتند از:
+\fBSYN_SENT\fP ،
+\fBSYN_RECV\fP ،
+\fBESTABLISHED\fP ،
+\fBFIN_WAIT\fP ،
+\fBCLOSE_WAIT\fP ،
+\fBLAST_ACK\fP ،
+\fBTIME_WAIT\fP ،
+\fBCLOSED\fP
+و
+\fBLISTEN\fP .
+
+خط‌مشی یکی از موارد
+\fBAccept\fP
+یا
+\fBIgnore\fP
+است.
+
+مثال:
+.nf
+	State Accept {
+		ESTABLISHED CLOSED TIME_WAIT CLOSE_WAIT for TCP
+	}
+.fi
+
+.SS "زمان‌بند (SCHEDULER)"
+انتخاب یک زمان‌بند متفاوت برای دیمن؛ می‌توانید میان
+\fBRR\fP
+و
+\fBFIFO\fP
+و اولویت پردازش یکی را انتخاب کنید.
+
+استفاده از زمان‌بند بلادرنگ (RT) احتمال سرریز شدن بافر نت‌لینک را کاهش می‌دهد و
+\fBconntrackd(8)\fP
+به طور پیش‌فرض از
+\fBRR\fP
+استفاده می‌کند مگر اینکه
+\fBFIFO\fP
+انتخاب شود. برای اطلاعات بیشتر به
+\fBsched_setscheduler(2)\fP
+مراجعه کنید.
+
+مثال:
+.nf
+	Scheduler {
+		Type FIFO
+		Priority 99
+	}
+.fi
+
+.TP
+.BI "Type <نوع>"
+مقادیر پشتیبانی‌شده
+\fBRR\fP
+یا
+\fBFIFO\fP
+هستند.
+
+پیش‌فرض: RR
+
+.TP
+.BI "Priority <مقدار>"
+مقدار اولویت زمان‌بند.
+کمینه ۰ و بیشینه ۹۹ است.
+
+پیش‌فرض: ۹۹ (همان‌طور که توسط
+\fBsched_get_priority_max(2)\fP
+برای
+\fBSCHED_RR\fP
+بازگردانده می‌شود).
+
+.SH "آمارها (STATS)"
+این بخش سطح‌بالا مشخص می‌کند که
+\fBconntrackd(8)\fP
+به عنوان یک جمع‌آوری‌کننده آمار برای زیرسیستم nf_conntrack در هسته لینوکس کار کند.
+
+.TP
+.BI "LogFile <yes|no|نام‌فایل>"
+اگر این گزینه را فعال کنید، دیمن اطلاعات مربوط به اتصالات نابودشده را در یک فایل لاگ می‌نویسد.
+
+پیش‌فرض no است. نام فایل پیش‌فرض
+\fB/var/log/conntrackd-stats.log\fP
+است.
+
+.TP
+.BI "NetlinkEventsReliable <yes|no>"
+اگر خواهان گزارش‌دهی مطمئن رویدادها از طریق نت‌لینک هستید، این گزینه را فعال کنید. اگر این بند را فعال کردید، ایده خوبی است که
+\fBNetlinkOverrunResync\fP
+را غیرفعال کنید. این گزینه به
+\fBLinux kernel >= 2.6.31\fP
+نیاز دارد.
+
+پیش‌فرض no است.
+
+.TP
+.BI "Syslog <yes|no|محیط>"
+ثبت وقایع اتصالات از طریق Syslog را فعال می‌کند.
+اگر محیط را تعیین می‌کنید، از همان مقداری که در بخش
+\fBGeneral\fP
+آمده استفاده کنید؛ در غیر این صورت پیام هشداری دریافت خواهید کرد.
+
+مثال: Syslog local0
+
+پیش‌فرض no است.
+
+.SH "کمک‌کننده (HELPER)"
+نکته: این پیکربندی بسیار پیشرفته است و ارتباطی با همگام‌سازی یا جمع‌آوری آمار ندارد.
+
+این بخش سطح‌بالا به
+\fBconntrackd(8)\fP
+دستور می‌دهد کمک‌کننده‌های فضای کاربری (user-space helpers) را به زیرسیستم nf_conntrack هسته لینوکس تزریق کند.
+این کار منجر می‌شود موتور nf_conntrack اتصالات را برای پردازش‌های بعدی به فضای کاربری بفرستد.
+
+پیش از این، باید مطمئن شوید که استاب (stub) کمک‌کننده فضای کاربری مورد نظر را ثبت کرده‌اید.
+
+مثال:
+.nf
+	% nfct add helper ftp inet tcp
+.fi
+
+هر کمک‌کننده فضای کاربری باید با استفاده از یک بخش Type ثبت شود، که به این شیوه نام‌گذاری می‌شوند:
+.nf
+	\fBType <name> <af> <transport>\fP
+.fi
+
+نمونه‌ها:
+
+.nf
+Helper {
+	Type ftp inet tcp {
+		QueueNum 0
+		QueueLen 10240
+		Policy ftp {
+			ExpectMax 1
+			ExpectTimeout 300
+		}
+	}
+	Type rpc inet tcp {
+		QueueNum 1
+		QueueLen 10240
+		Policy rpc {
+			ExpectMax 1
+			ExpectTimeout 300
+		}
+	}
+	Type rpc inet udp {
+		QueueNum 2
+		QueueLen 10240
+		Policy rpc {
+			ExpectMax 1
+			ExpectTimeout 300
+		}
+	}
+	Type tns inet tcp {
+		QueueNum 3
+		QueueLen 10240
+		Policy tns {
+			ExpectMax 1
+			ExpectTimeout 300
+		}
+	}
+	Type dhcpv6 inet6 udp {
+		QueueNum 4
+		QueueLen 10240
+		Policy dhcpv6 {
+			ExpectMax 1
+			ExpectTimeout 300
+		}
+	}
+	Type ssdp inet udp {
+		QueueNum 5
+		QueueLen 10240
+		Policy ssdp {
+			ExpectMax 1
+			ExpectTimeout 300
+		}
+	}
+}
+.fi
+
+پارامترهای درون بخش
+\fBType\fP :
+
+.TP
+.BI "QueueNum <شماره>"
+شماره NFQUEUE را که می‌خواهید برای دریافت ترافیک از هسته استفاده کنید تعیین می‌کند.
+
+مثال: QueueNum 0
+
+.TP
+.BI "QueueLen <شماره>"
+بیشینه تعداد بسته‌های در انتظار در صف برای دریافت رای نهایی (verdict) از فضای کاربری.
+
+اگر با پیام خطای زیر روبرو شدید، این مقدار را افزایش دهید:
+.nf
+	"nf_queue: full at X entries, dropping packet(s)"
+.fi
+
+پیش‌فرض 1024 است.
+
+مثال: QueueLen 10240
+
+.TP
+.BI "Policy <نام> { }"
+خط‌مشی انتظار (expectation policy) را برای کمک‌کننده مشخص‌شده تعیین می‌کند.
+
+این زیربخش شامل ۲ دستورالعمل است:
+\fBExpectMax <شماره>\fP
+(بیشینه تعداد انتظارات همزمان)
+و
+\fBExpecTimeout <ثانیه>\fP
+(حداکثر زمان بقای یک انتظار).
+
+.SH "نمونه‌های کامل (COMPLETE EXAMPLES)"
+در ادامه چند نمونه واقعی و کاربردی ارائه شده است.
+
+.SS "نمونه آمار (STATS EXAMPLE)"
+این نمونه پیکربندی به
+\fBconntrackd(8)\fP
+دستور می‌دهد تا به عنوان یک جمع‌آوری‌کننده آمار عمل کند.
+
+.nf
+Stats {
+	LogFile yes
+	NetlinkEventsReliable no
+	Syslog yes
+}
+General {
+	Systemd yes
+	HashSize 8192
+	HashLimit 65535
+	Syslog yes
+	LockFile /var/lock/conntrack.lock
+	UNIX {
+		Path /var/run/conntrackd.ctl
+	}
+	NetlinkBufferSize 262142
+	NetlinkBufferSizeMaxGrowth 655355
+	Filter {
+		Protocol Accept {
+			TCP
+			UDP
+		}
+		Address Ignore {
+			IPv4_address 127.0.0.1
+			IPv6_address ::1
+		}
+	}
+}
+.fi
+
+.SS "نمونه همگام‌سازی ۱ (SYNC EXAMPLE 1)"
+این نمونه همگام‌سازی را در حالت
+\fBFTFW\fP
+با انتقال
+\fBMulticast\fP
+پیکربندی می‌کند.
+
+همچنین شامل پیکربندی عمومی مشترک نیز هست.
+
+نکته: این یکی از راه‌اندازی‌های توصیه‌شده برای
+\fBconntrackd(8)\fP
+در محیط کلاستر فایروال است.
+
+.nf
+Sync {
+	Mode FTFW {
+		ResendQueueSize 131072
+		PurgeTimeout 60
+		ACKWindowSize 300
+		DisableExternalCache no
+	}
+	Multicast {
+		IPv4_address 225.0.0.50
+		Group 3780
+		IPv4_interface 192.168.100.100
+		Interface eth2
+		SndSocketBuffer 1249280
+		RcvSocketBuffer 1249280
+		Checksum yes
+	}
+	Multicast Default {
+		IPv4_address 225.0.0.51
+		Group 3781
+		IPv4_interface 192.168.100.101
+		Interface eth3
+		SndSocketBuffer 1249280
+		RcvSocketBuffer 1249280
+		Checksum yes
+	}
+	Options {
+		TCPWindowTracking no
+		ExpectationSync yes
+	}
+}
+General {
+	Systemd yes
+	HashSize 32768
+	HashLimit 131072
+	LogFile yes
+	Syslog no
+	LockFile /var/lock/conntrack.lock
+	UNIX {
+		Path /var/run/conntrackd.ctl
+	}
+	NetlinkBufferSize 2097152
+	NetlinkBufferSizeMaxGrowth 8388608
+	NetlinkOverrunResync yes
+	NetlinkEventsReliable no
+	EventIterationLimit 100
+	Filter From Userspace {
+		Protocol Accept {
+			TCP
+			SCTP
+			DCCP
+		}
+		Address Ignore {
+			IPv4_address 127.0.0.1
+			IPv4_address 192.168.100.0/24
+			IPv6_address ::1
+		}
+	}
+}
+.fi
+
+.SS "نمونه همگام‌سازی ۲ (SYNC EXAMPLE 2)"
+
+این نمونه همگام‌سازی را در حالت
+\fBNOTRACK\fP
+با پروتکل انتقال
+\fBTCP\fP
+پیکربندی می‌کند.
+
+همچنین شامل پیکربندی عمومی مشترک نیز هست.
+
+.nf
+Sync {
+	Mode NOTRACK {
+		DisableInternalCache yes
+		DisableExternalCache yes
+	}
+	TCP {
+		IPv4_address 192.168.2.100
+		IPv4_Destination_Address 192.168.2.101
+		Port 3780
+		Interface eth2
+		SndSocketBuffer 1249280
+		RcvSocketBuffer 1249280
+		Checksum yes
+	}
+	Options {
+		TCPWindowTracking no
+		ExpectationSync yes
+	}
+}
+General {
+	Systemd yes
+	HashSize 32768
+	HashLimit 131072
+	LogFile yes
+	Syslog no
+	LockFile /var/lock/conntrack.lock
+	UNIX {
+		Path /var/run/conntrackd.ctl
+	}
+	NetlinkBufferSize 2097152
+	NetlinkBufferSizeMaxGrowth 8388608
+	NetlinkOverrunResync yes
+	NetlinkEventsReliable no
+	EventIterationLimit 100
+	Filter From Userspace {
+		Protocol Accept {
+			TCP
+			SCTP
+			DCCP
+		}
+		Address Ignore {
+			IPv4_address 127.0.0.1
+			IPv4_address 192.168.0.0/16
+			IPv6_address ::1
+		}
+		State Accept {
+			ESTABLISHED CLOSED TIME_WAIT CLOSE_WAIT for TCP
+		}
+	}
+}
+.fi
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR conntrackd (8),
+.BR conntrack (8),
+.BR nfct (8),
+.BR http://conntrack-tools.netfilter.org/manual.html
+
+.SH "نویسندگان (AUTHORS)"
+Pablo Neira Ayuso ابزار conntrackd را نوشت و نگهداری می‌کند.
+
+این صفحه راهنما توسط Arturo Borrero Gonzalez <arturo@debian.org> بر پایه نمونه‌های پیکربندی بایگانی تار conntrackd نوشته شده است.
+
+لطفاً گزارش‌های باگ را به <netfilter-devel@lists.netfilter.org> بفرستید. عضویت در فهرست ایمیل الزامی است.
+
+این مستندات تحت شرایط مجوز GPLv2+ آزاد/رایگان است.

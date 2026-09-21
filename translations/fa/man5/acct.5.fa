@@ -1,0 +1,152 @@
+.\" Copyright 2008, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH acct 5 2026-02-08 "Linux man-pages 6.19"
+.SH "نام (NAME)"
+acct \- پرونده حسابرسی فرآیندها
+.SH "خلاصه دستور (SYNOPSIS)"
+.nf
+.B #include <sys/acct.h>
+.fi
+.SH "توضیحات (DESCRIPTION)"
+اگر هسته با فعال بودن گزینه حسابرسی فرآیندها
+.RB ( CONFIG_BSD_PROCESS_ACCT )
+ساخته شده باشد، فراخوانی
+.BR acct (2)
+حسابرسی فرآیندها را آغاز می‌کند؛ برای مثال:
+.P
+.in +4n
+acct("/var/log/pacct");
+.in
+.P
+هنگامی که حسابرسی فرآیندها فعال باشد، با خاتمه یافتن هر فرآیند در سیستم، هسته یک رکورد را در پرونده حسابرسی می‌نویسد.
+این رکورد حاوی اطلاعاتی درباره فرآیند خاتمه‌یافته است و در
+.I <sys/acct.h>
+به صورت زیر تعریف شده است:
+.P
+.in +4n
+.EX
+#define ACCT_COMM 16
+\&
+typedef u_int16_t comp_t;
+\&
+struct acct {
+    char ac_flag;           /* Accounting flags */
+    u_int16_t ac_uid;       /* Accounting user ID */
+    u_int16_t ac_gid;       /* Accounting group ID */
+    u_int16_t ac_tty;       /* Controlling terminal */
+    u_int32_t ac_btime;     /* Process creation time
+                               (seconds since the Epoch) */
+    comp_t    ac_utime;     /* User CPU time */
+    comp_t    ac_stime;     /* System CPU time */
+    comp_t    ac_etime;     /* Elapsed time */
+    comp_t    ac_mem;       /* Average memory usage (kB) */
+    comp_t    ac_io;        /* Characters transferred (unused) */
+    comp_t    ac_rw;        /* Blocks read or written (unused) */
+    comp_t    ac_minflt;    /* Minor page faults */
+    comp_t    ac_majflt;    /* Major page faults */
+    comp_t    ac_swaps;     /* Number of swaps (unused) */
+    u_int32_t ac_exitcode;  /* Process termination status
+                               (see wait(2)) */
+    char      ac_comm[ACCT_COMM+1];
+                            /* Command name (basename of last
+                               executed command; null\-terminated) */
+    char      ac_pad[\f[I]X\f[]];    /* padding bytes */
+};
+\&
+enum {          /* Bits that may be set in ac_flag field */
+    AFORK = 0x01,           /* Has executed fork, but no exec */
+    ASU   = 0x02,           /* Used superuser privileges */
+    ACORE = 0x08,           /* Dumped core */
+    AXSIG = 0x10            /* Killed by a signal */
+};
+.EE
+.in
+.P
+نوع داده
+.I comp_t
+یک مقدار ممیز شناور متشکل از یک توان ۳ بیتی بر مبنای ۸ و یک مانتیس ۱۳ بیتی است.
+یک مقدار مانند
+.IR c
+از این نوع را می‌توان به صورت زیر به یک عدد صحیح (long) تبدیل کرد:
+.P
+.nf
+    v = (c & 0x1fff) << (((c >> 13) & 0x7) * 3);
+.fi
+.P
+فیلدهای
+.IR ac_utime ،
+.IR ac_stime
+و
+.I ac_etime
+زمان را بر حسب «تیک‌های ساعت» (clock ticks) اندازه می‌گیرند؛
+این مقادیر را بر
+.I sysconf(_SC_CLK_TCK)
+تقسیم کنید تا به ثانیه تبدیل شوند.
+.SS "قالب نسخه ۳ پرونده حسابرسی (Version 3 accounting file format)"
+از لینوکس ۲.۶.۸ به بعد، در صورتی که هنگام ساخت هسته گزینه
+.B CONFIG_BSD_PROCESS_ACCT_V3
+تنظیم شده باشد، نسخه جایگزین و اختیاری پرونده حسابرسی می‌تواند ایجاد شود.
+با تنظیم این گزینه، رکوردهای نوشته‌شده در پرونده حسابرسی شامل فیلدهای اضافی خواهند بود، و پهنای فیلدهای
+.I c_uid
+و
+.I ac_gid
+از ۱۶ به ۳۲ بیت افزایش می‌یابد
+(همگام با افزایش اندازه UID و GID در لینوکس ۲.۴ و پس از آن).
+این رکوردها به صورت زیر تعریف می‌شوند:
+.P
+.in +4n
+.EX
+struct acct_v3 {
+    char      ac_flag;      /* Flags */
+    char      ac_version;   /* Always set to ACCT_VERSION (3) */
+    u_int16_t ac_tty;       /* Controlling terminal */
+    u_int32_t ac_exitcode;  /* Process termination status */
+    u_int32_t ac_uid;       /* Real user ID */
+    u_int32_t ac_gid;       /* Real group ID */
+    u_int32_t ac_pid;       /* Process ID */
+    u_int32_t ac_ppid;      /* Parent process ID */
+    u_int32_t ac_btime;     /* Process creation time */
+    float     ac_etime;     /* Elapsed time */
+    comp_t    ac_utime;     /* User CPU time */
+    comp_t    ac_stime;     /* System time */
+    comp_t    ac_mem;       /* Average memory usage (kB) */
+    comp_t    ac_io;        /* Characters transferred (unused) */
+    comp_t    ac_rw;        /* Blocks read or written
+                               (unused) */
+    comp_t    ac_minflt;    /* Minor page faults */
+    comp_t    ac_majflt;    /* Major page faults */
+    comp_t    ac_swaps;     /* Number of swaps (unused) */
+    char      ac_comm[ACCT_COMM]; /* Command name */
+};
+.EE
+.in
+.SH "نسخه‌ها (VERSIONS)"
+اگرچه این قابلیت در بیشتر سیستم‌ها وجود دارد، اما استانداردسازی نشده است
+و جزئیات آن تا حدی میان سیستم‌های مختلف تفاوت دارد.
+.SH "استانداردها (STANDARDS)"
+هیچ‌کدام.
+.SH "تاریخچه (HISTORY)"
+glibc 2.6.
+.P
+حسابرسی فرآیندها در BSD پدید آمد.
+.SH "یادداشت‌ها (NOTES)"
+رکوردها در پرونده حسابرسی بر اساس زمان خاتمه فرآیند مرتب می‌شوند.
+.P
+تا و شامل لینوکس ۲.۶.۹،
+یک رکورد حسابرسی جداگانه برای هر نخی که با استفاده از کتابخانه نخ‌بندی NPTL ایجاد شده بود نوشته می‌شد؛
+از لینوکس ۲.۶.۱۰ به بعد،
+با خاتمه یافتن آخرین نخ در فرآیند، تنها یک رکورد حسابرسی برای کل فرآیند نوشته می‌شود.
+.P
+پرونده
+.IR /proc/sys/kernel/acct ،
+که در
+.BR proc (5)
+توصیف شده است، تنظیماتی را تعیین می‌کند که رفتار حسابرسی فرآیندها را هنگام کمبود فضای دیسک کنترل می‌نمایند.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR lastcomm (1),
+.BR acct (2),
+.BR accton (8),
+.BR sa (8)

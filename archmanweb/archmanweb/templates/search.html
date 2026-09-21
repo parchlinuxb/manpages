@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% load query_transform %}
+{% load reverse_man_url %}
+{% load pagination_links %}
+
+{% block title %}جستجوی مستندات - صفحات راهنمای پارچ لینوکس{% endblock %}
+
+{% block head %}
+    <meta name="robots" value="noindex">
+{% endblock %}
+
+{% block content %}
+<article id="content-left" class="search-page-article" dir="rtl">
+
+<section class="search-hero-container">
+    <form action="{% url 'search' %}" method="get" class="search-hero-form" id="search-form" role="search">
+        <div class="search-hero-bar">
+            <div class="search-input-wrap">
+                <svg class="search-icon-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" inputmode="search" id="search-input-hero" name="q" value="{{ request.GET.q|default:'' }}"
+                       placeholder="جستجوی دستور، فایل کانفیگ یا بسته (مثلاً pacman, systemd)..."
+                       autocomplete="off" autofocus aria-label="عبارت جستجو" />
+                <button type="button" id="search-clear-btn" class="search-clear-btn" title="پاک کردن متن" aria-label="Clear search" {% if not request.GET.q %}style="display: none;"{% endif %}>
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <span class="search-shortcut-kbd" title="کلید میانبر فوکوس">/</span >
+            </div>
+            <button type="submit" class="search-submit-btn btn-primary parch-btn">
+                <span>جستجو</span>
+            </button>
+        </div>
+
+        <div class="filter-chips-container">
+            <!-- Section filters -->
+            <div class="filter-group">
+                <span class="filter-label">بخش:</span>
+                <div class="filter-chips">
+                    <button type="button" class="filter-chip search-filter-chip filter-chip-all {% if not selected_sections %}is-active active{% endif %}" data-group="section">همه بخش‌ها</button>
+                    <label class="filter-chip search-filter-chip {% if '1' in selected_sections %}is-active active{% endif %}">
+                        <input type="checkbox" name="section" value="1" {% if '1' in selected_sections %}checked{% endif %}>
+                        <span>۱ - دستورات کاربری</span>
+                    </label>
+                    <label class="filter-chip search-filter-chip {% if '5' in selected_sections %}is-active active{% endif %}">
+                        <input type="checkbox" name="section" value="5" {% if '5' in selected_sections %}checked{% endif %}>
+                        <span>۵ - فایل‌های پیکربندی</span>
+                    </label>
+                    <label class="filter-chip search-filter-chip {% if '8' in selected_sections %}is-active active{% endif %}">
+                        <input type="checkbox" name="section" value="8" {% if '8' in selected_sections %}checked{% endif %}>
+                        <span>۸ - دستورات مدیریتی</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Language filters -->
+            <div class="filter-group">
+                <span class="filter-label">زبان:</span>
+                <div class="filter-chips">
+                    <button type="button" class="filter-chip search-filter-chip filter-chip-all {% if not selected_langs %}is-active active{% endif %}" data-group="lang">همه زبان‌ها</button>
+                    <label class="filter-chip search-filter-chip {% if 'fa' in selected_langs %}is-active active{% endif %}">
+                        <input type="checkbox" name="lang" value="fa" {% if 'fa' in selected_langs %}checked{% endif %}>
+                        <span>فارسی (fa)</span>
+                    </label>
+                    <label class="filter-chip search-filter-chip {% if 'en' in selected_langs %}is-active active{% endif %}">
+                        <input type="checkbox" name="lang" value="en" {% if 'en' in selected_langs %}checked{% endif %}>
+                        <span>انگلیسی (en)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Repo filters -->
+            <div class="filter-group">
+                <span class="filter-label">مخزن:</span>
+                <div class="filter-chips">
+                    <button type="button" class="filter-chip search-filter-chip filter-chip-all {% if not selected_repos %}is-active active{% endif %}" data-group="repo">همه مخازن</button>
+                    <label class="filter-chip search-filter-chip {% if 'core' in selected_repos %}is-active active{% endif %}">
+                        <input type="checkbox" name="repo" value="core" {% if 'core' in selected_repos %}checked{% endif %}>
+                        <span>core</span>
+                    </label>
+                    <label class="filter-chip search-filter-chip {% if 'extra' in selected_repos %}is-active active{% endif %}">
+                        <input type="checkbox" name="repo" value="extra" {% if 'extra' in selected_repos %}checked{% endif %}>
+                        <span>extra</span>
+                    </label>
+                    <label class="filter-chip search-filter-chip {% if 'multilib' in selected_repos %}is-active active{% endif %}">
+                        <input type="checkbox" name="repo" value="multilib" {% if 'multilib' in selected_repos %}checked{% endif %}>
+                        <span>multilib</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <details class="search-advanced-toggle">
+            <summary>تنظیمات پیشرفته فیلتر</summary>
+            <div class="advanced-filter-fields">
+                <div class="adv-field">
+                    <label for="adv-pkgname">محدود به نام بسته:</label>
+                    <input type="text" id="adv-pkgname" name="pkgname" value="{{ request.GET.pkgname|default:'' }}" placeholder="مثلاً: pacman یا systemd">
+                </div>
+            </div>
+        </details>
+    </form>
+</section>
+
+{% if not has_searched %}
+<section class="search-starter-guide">
+    <div class="starter-hero-card">
+        <h2 class="starter-title">راهنمای جستجو در مستندات پارچ لینوکس</h2>
+        <p class="starter-desc">جستجو میان هزاران صفحه راهنما، اسناد پیکربندی و بسته‌های نرم‌افزاری با امکان فیلتر هوشمند بر اساس بخش، زبان و مخزن.</p>
+    </div>
+
+    <div class="starter-section">
+        <h3 class="starter-section-title">جستجوهای پرکاربرد:</h3>
+        <div class="popular-queries">
+            <a href="{% url 'search' %}?q=pacman" class="popular-query-chip">pacman</a>
+            <a href="{% url 'search' %}?q=systemctl" class="popular-query-chip">systemctl</a>
+            <a href="{% url 'search' %}?q=journalctl" class="popular-query-chip">journalctl</a>
+            <a href="{% url 'search' %}?q=chmod" class="popular-query-chip">chmod</a>
+            <a href="{% url 'search' %}?q=btrfs" class="popular-query-chip">btrfs</a>
+            <a href="{% url 'search' %}?q=pacman.conf" class="popular-query-chip">pacman.conf</a>
+            <a href="{% url 'search' %}?q=fstab" class="popular-query-chip">fstab</a>
+            <a href="{% url 'search' %}?q=sudoers" class="popular-query-chip">sudoers</a>
+            <a href="{% url 'search' %}?q=bash" class="popular-query-chip">bash</a>
+            <a href="{% url 'search' %}?q=ssh" class="popular-query-chip">ssh</a>
+        </div>
+    </div>
+
+    <div class="starter-section">
+        <h3 class="starter-section-title">راهنمای بخش‌های صفحات راهنما (Sections):</h3>
+        <div class="section-guide-grid">
+            <div class="section-guide-card">
+                <div class="section-badge-num">۱</div>
+                <div class="section-guide-info">
+                    <strong>دستورات کاربری (User Commands)</strong>
+                    <p>برنامه‌های خط فرمان عمومی مانند <code>ls</code>, <code>pacman</code>, <code>grep</code></p>
+                </div>
+            </div>
+            <div class="section-guide-card">
+                <div class="section-badge-num">۲</div>
+                <div class="section-guide-info">
+                    <strong>فراخوان‌های سیستمی (System Calls)</strong>
+                    <p>توابع هسته لینوکس و ارتباط با سیستم‌عامل مانند <code>open</code>, <code>fork</code></p>
+                </div>
+            </div>
+            <div class="section-guide-card">
+                <div class="section-badge-num">۳</div>
+                <div class="section-guide-info">
+                    <strong>توابع کتابخانه‌ای (Library Functions)</strong>
+                    <p>توابع کتابخانه‌های برنامه‌نویسی استاندارد C مانند <code>printf</code>, <code>malloc</code></p>
+                </div>
+            </div>
+            <div class="section-guide-card">
+                <div class="section-badge-num">۵</div>
+                <div class="section-guide-info">
+                    <strong>فرمت فایل‌ها (File Formats)</strong>
+                    <p>ساختار فایل‌های پیکربندی سیستم مانند <code>pacman.conf</code>, <code>fstab</code></p>
+                </div>
+            </div>
+            <div class="section-guide-card">
+                <div class="section-badge-num">۷</div>
+                <div class="section-guide-info">
+                    <strong>مفاهیم و متفرقه‌ها (Miscellaneous)</strong>
+                    <p>پروتکل‌ها، استانداردهای سیستم، جداول رمزنگاری و راهنماهای کلی</p>
+                </div>
+            </div>
+            <div class="section-guide-card">
+                <div class="section-badge-num">۸</div>
+                <div class="section-guide-info">
+                    <strong>دستورات مدیریتی (System Admin)</strong>
+                    <p>ابزارهای مدیریتی سیستم و ریشه مانند <code>systemctl</code>, <code>mount</code></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="starter-tips">
+        <div class="tip-item">
+            <span class="tip-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/><path d="M14 8h.01"/><path d="M18 8h.01"/><path d="M6 12h.01"/><path d="M10 12h.01"/><path d="M14 12h.01"/><path d="M18 12h.01"/><path d="M8 16h8"/></svg>
+            </span>
+            <span>با فشردن کلید <kbd class="kbd-inline">/</kbd> در هر صفحه می‌توانید بلافاصله در جعبه جستجو تایپ کنید.</span>
+        </div>
+        <div class="tip-item">
+            <span class="tip-icon"><span class="badge-lang badge-lang-fa" style="font-size: 0.72rem; padding: 0.1rem 0.4rem;">FA</span></span>
+            <span>صفحات با برچسب <strong>فارسی</strong>، ترجمه بومی‌سازی شده توسط تیم پارچ لینوکس هستند.</span>
+        </div>
+    </div>
+</section>
+
+{% else %}
+
+<section class="search-results-section">
+    <!-- Category Tabs -->
+    <div class="search-tabs-container">
+        <div class="search-tabs" role="tablist">
+            <button type="button" class="search-tab-btn is-active" id="tab-btn-man" data-target="tab-panel-man" role="tab" aria-selected="true" aria-controls="tab-panel-man">
+                <span class="tab-title">دستورات و صفحات راهنما</span>
+                <span class="tab-count">{{ count_man }}</span>
+            </button>
+            <button type="button" class="search-tab-btn" id="tab-btn-apropos" data-target="tab-panel-apropos" role="tab" aria-selected="false" aria-controls="tab-panel-apropos">
+                <span class="tab-title">توضیحات و مفاهیم (Apropos)</span>
+                <span class="tab-count">{{ count_apropos }}</span>
+            </button>
+            <button type="button" class="search-tab-btn" id="tab-btn-pkg" data-target="tab-panel-pkg" role="tab" aria-selected="false" aria-controls="tab-panel-pkg">
+                <span class="tab-title">بسته‌های نرم‌افزاری</span>
+                <span class="tab-count">{{ count_pkg }}</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Tab Panels -->
+    <div class="search-tab-panels">
+        <!-- Panel 1: Manual Pages -->
+        <div class="search-tab-panel is-active" id="tab-panel-man" role="tabpanel" aria-labelledby="tab-btn-man">
+            <div class="search-results-list">
+            {% for man in man_results %}
+                <div class="search-result-card {% if man.lang == 'fa' %}is-persian{% endif %}">
+                    <div class="card-header">
+                        <a class="card-title" href="{% reverse_man_url man.package__repo man.package__name man.name man.section man.lang '' %}">
+                            <span class="cmd-name">{{ man.name }}</span>
+                            <span class="badge-section" title="بخش {{ man.section }}">{{ man.section }}</span>
+                        </a>
+                        <div class="card-badges">
+                            {% if man.lang == 'fa' %}
+                                <span class="badge-lang badge-lang-fa" title="ترجمه فارسی">فارسی</span>
+                            {% else %}
+                                <span class="badge-lang" title="زبان: {{ man.lang }}">{{ man.lang }}</span>
+                            {% endif %}
+                            <span class="badge-repo">{{ man.package__repo }}</span>
+                        </div>
+                    </div>
+                    <div class="card-meta">
+                        <span class="card-package-link">
+                            از بسته: <a href="{% url 'listing' %}/{{ man.package__repo }}/{{ man.package__name }}/"><code>{{ man.package__repo }}/{{ man.package__name }}</code></a>
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="search-empty-tab">
+                    <p>هیچ صفحه راهنمایی منطبق بر «<strong>{{ request.GET.q }}</strong>» یافت نشد.</p>
+                </div>
+            {% endfor %}
+            </div>
+
+            {% if man_results.paginator.num_pages != 1 %}
+                <div class="search-pagination">
+                    {% pagination_links request man_results 'page_man' %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Panel 2: Apropos (Descriptions) -->
+        <div class="search-tab-panel" id="tab-panel-apropos" role="tabpanel" aria-labelledby="tab-btn-apropos" style="display: none;">
+            <div class="search-results-list">
+            {% for man in apropos_results %}
+                <div class="search-result-card {% if man.lang == 'fa' %}is-persian{% endif %}">
+                    <div class="card-header">
+                        <a class="card-title" href="{% reverse_man_url man.package__repo man.package__name man.name man.section man.lang '' %}">
+                            <span class="cmd-name">{{ man.name }}</span>
+                            <span class="badge-section" title="بخش {{ man.section }}">{{ man.section }}</span>
+                        </a>
+                        <div class="card-badges">
+                            {% if man.lang == 'fa' %}
+                                <span class="badge-lang badge-lang-fa" title="ترجمه فارسی">فارسی</span>
+                            {% else %}
+                                <span class="badge-lang" title="زبان: {{ man.lang }}">{{ man.lang }}</span>
+                            {% endif %}
+                            <span class="badge-repo">{{ man.package__repo }}</span>
+                        </div>
+                    </div>
+                    {% if man.desc_snippet %}
+                    <div class="card-snippet" dir="auto">
+                        {{ man.desc_snippet | safe }}
+                    </div>
+                    {% endif %}
+                    <div class="card-meta">
+                        <span class="card-package-link">
+                            از بسته: <a href="{% url 'listing' %}/{{ man.package__repo }}/{{ man.package__name }}/"><code>{{ man.package__repo }}/{{ man.package__name }}</code></a>
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="search-empty-tab">
+                    <p>هیچ توضیحی منطبق بر «<strong>{{ request.GET.q }}</strong>» در متون راهنما یافت نشد.</p>
+                </div>
+            {% endfor %}
+            </div>
+
+            {% if apropos_results.paginator.num_pages != 1 %}
+                <div class="search-pagination">
+                    {% pagination_links request apropos_results 'page_apropos' %}
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Panel 3: Packages -->
+        <div class="search-tab-panel" id="tab-panel-pkg" role="tabpanel" aria-labelledby="tab-btn-pkg" style="display: none;">
+            <div class="search-results-list">
+            {% for pkg in pkg_results %}
+                <div class="search-result-card">
+                    <div class="card-header">
+                        <a class="card-title" href="{% url 'listing' %}/{{ pkg.repo }}/{{ pkg.name }}/">
+                            <span class="cmd-name">{{ pkg.name }}</span>
+                        </a>
+                        <div class="card-badges">
+                            <span class="badge-repo">{{ pkg.repo }}</span>
+                        </div>
+                    </div>
+                    {% if pkg.desc_snippet %}
+                    <div class="card-snippet" dir="auto">
+                        {{ pkg.desc_snippet | safe }}
+                    </div>
+                    {% endif %}
+                    <div class="card-meta">
+                        <span class="card-package-link">
+                            مشاهده مخزن بسته: <a href="{% url 'listing' %}/{{ pkg.repo }}/{{ pkg.name }}/"><code>{{ pkg.repo }}/{{ pkg.name }}</code></a>
+                        </span>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="search-empty-tab">
+                    <p>هیچ بسته نرم‌افزاری منطبق بر «<strong>{{ request.GET.q }}</strong>» یافت نشد.</p>
+                </div>
+            {% endfor %}
+            </div>
+
+            {% if pkg_results.paginator.num_pages != 1 %}
+                <div class="search-pagination">
+                    {% pagination_links request pkg_results 'page_pkg' %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+{% endif %}
+
+</article>
+
+<script>
+(function() {
+    // 1. Keyboard Shortcut: Pressing '/' focuses search input
+    document.addEventListener('keydown', function(e) {
+        if (e.key === '/' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+            e.preventDefault();
+            var searchInput = document.getElementById('search-input-hero');
+            if (searchInput) {
+                searchInput.focus();
+                searchInput.select();
+            }
+        }
+    });
+
+    // 2. Clear button functionality
+    var searchInput = document.getElementById('search-input-hero');
+    var clearBtn = document.getElementById('search-clear-btn');
+    if (searchInput && clearBtn) {
+        searchInput.addEventListener('input', function() {
+            clearBtn.style.display = this.value.length > 0 ? 'flex' : 'none';
+        });
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            clearBtn.style.display = 'none';
+            searchInput.focus();
+        });
+    }
+
+    // 3. Filter chips logic
+    var allButtons = document.querySelectorAll('.filter-chip-all');
+    allButtons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var group = this.getAttribute('data-group');
+            var checkboxes = document.querySelectorAll('input[type="checkbox"][name="' + group + '"]');
+            checkboxes.forEach(function(cb) {
+                cb.checked = false;
+                var parentLabel = cb.closest('.filter-chip');
+                if (parentLabel) {
+                    parentLabel.classList.remove('is-active');
+                    parentLabel.classList.remove('active');
+                }
+            });
+            this.classList.add('is-active');
+            this.classList.add('active');
+
+            // If query is filled, auto-submit
+            if (searchInput && searchInput.value.trim().length > 0) {
+                document.getElementById('search-form').submit();
+            }
+        });
+    });
+
+    var filterCheckboxes = document.querySelectorAll('.filter-chips input[type="checkbox"]');
+    filterCheckboxes.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            var parentLabel = this.closest('.filter-chip');
+            if (parentLabel) {
+                parentLabel.classList.toggle('is-active', this.checked);
+                parentLabel.classList.toggle('active', this.checked);
+            }
+            var group = this.name;
+            var allBtn = document.querySelector('.filter-chip-all[data-group="' + group + '"]');
+            var anyChecked = document.querySelectorAll('input[type="checkbox"][name="' + group + '"]:checked').length > 0;
+            if (allBtn) {
+                allBtn.classList.toggle('is-active', !anyChecked);
+                allBtn.classList.toggle('active', !anyChecked);
+            }
+
+            // If query is filled, auto-submit
+            if (searchInput && searchInput.value.trim().length > 0) {
+                document.getElementById('search-form').submit();
+            }
+        });
+    });
+
+    // 4. Result Tab switching
+    var tabs = document.querySelectorAll('.search-tab-btn');
+    var panels = document.querySelectorAll('.search-tab-panel');
+
+    function activateTab(targetId) {
+        tabs.forEach(function(t) {
+            var isActive = (t.getAttribute('data-target') === targetId);
+            t.classList.toggle('is-active', isActive);
+            t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+        panels.forEach(function(p) {
+            var isActive = (p.id === targetId);
+            p.classList.toggle('is-active', isActive);
+            p.style.display = isActive ? 'block' : 'none';
+        });
+    }
+
+    tabs.forEach(function(t) {
+        t.addEventListener('click', function() {
+            var target = this.getAttribute('data-target');
+            activateTab(target);
+            if (history.replaceState) {
+                history.replaceState(null, '', '#' + target);
+            }
+        });
+    });
+
+    // Auto-select tab based on results / query params
+    var urlParams = new URLSearchParams(window.location.search);
+    if (window.location.hash && document.getElementById(window.location.hash.substring(1))) {
+        activateTab(window.location.hash.substring(1));
+    } else if (urlParams.has('page_apropos')) {
+        activateTab('tab-panel-apropos');
+    } else if (urlParams.has('page_pkg')) {
+        activateTab('tab-panel-pkg');
+    } else {
+        var countMan = parseInt('{{ count_man|default:"0" }}', 10);
+        var countApropos = parseInt('{{ count_apropos|default:"0" }}', 10);
+        var countPkg = parseInt('{{ count_pkg|default:"0" }}', 10);
+        if (countMan === 0 && countApropos > 0) {
+            activateTab('tab-panel-apropos');
+        } else if (countMan === 0 && countApropos === 0 && countPkg > 0) {
+            activateTab('tab-panel-pkg');
+        }
+    }
+})();
+</script>
+{% endblock %}

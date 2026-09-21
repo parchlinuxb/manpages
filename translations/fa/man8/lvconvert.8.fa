@@ -1,0 +1,1883 @@
+.TH "LVCONVERT" "8" "مه ۲۰۲۵" "lvm2" "دستورهای مدیریتی و نگهداری"
+.
+.SH "نام (NAME)"
+lvconvert \- تبدیل و تغییر ساختار نوع چینش حجم منطقی در LVM
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBlvconvert\fP \fIموقعیت_گزینهها\fR [\fIگزینهها\fR] \fIحجم_منطقی\fR
+.
+.SH "توضیحات (DESCRIPTION)"
+دستور \fBlvconvert\fR ساختار یا طرحبندی حجم منطقی (LV) را تبدیل میکند؛ به عنوان مثال تبدیل به حجم آینهای (mirror)، ساختار RAID، حجم پویا (thin pool)، یا فعالسازی ذخیرهسازی کش (cache).
+این ابزار همچنین شامل امکاناتی برای نگهداری داده‌های حجم‌های منطقی است. نوع حجم منطقی (LV type) ساختار چینش داده‌ها و افزونگی (redundancy) را کنترل می‌کند و به آن نوع سگمنت (segtype) نیز گفته می‌شود.
+.P
+برای نمایش نوع فعلی حجم منطقی، این دستور را اجرا کنید:
+.P
+.B lvs \-o name,segtype
+.I LV
+.P
+در برخی موارد، یک حجم منطقی (LV) لایه منفردی از نگاشت‌کننده دستگاه (device mapper یا dm) بر روی دستگاه‌های فیزیکی است. در موارد دیگر، حجم‌های منطقی پنهان (دستگاه‌های dm) میان حجم منطقی مرئی و دستگاه‌های فیزیکی لایه‌بندی می‌شوند. به این حجم‌های منطقی در لایه‌های میانی، زیرحجم منطقی (sub LV) گفته می‌شود. دستوری که بر روی یک حجم منطقی مرئی اجرا می‌شود گاهی به جای حجم مشخص‌شده، بر روی یک زیرحجم منطقی عمل می‌کند. در موارد دیگر، زیرحجم منطقی باید مستقیماً در خط فرمان مشخص شود.
+.P
+زیرحجم‌های منطقی را می‌توان با این دستور نمایش داد:
+.P
+.B lvs \-a
+.P
+نوع
+.B linear
+(خطی) در حالتی که یک خط داده (stripe) وجود داشته باشد، معادل نوع
+.B striped
+است. در این حالت، این دو نوع گاهی می‌توانند به جای یکدیگر استفاده شوند.
+.P
+در بیشتر موارد، نوع
+.B mirror
+منسوخ شده است و باید از نوع
+.B raid1
+استفاده شود؛ هر دوی آن‌ها پیاده‌سازی‌هایی از آینه‌سازی (mirroring) هستند.
+.P
+انواع آرایه‌های خط‌کشی‌شده RAID عبارتند از:
+\fBraid0/raid0_meta\fP،
+\fBraid5\fP (نام مستعار برای raid5_ls)،
+\fBraid6\fP (نام مستعار برای raid6_zr)
+و
+\fBraid10\fP (نام مستعار برای raid10_near).
+.P
+برخلاف آینه‌سازی، ساختارهای raid5 و raid6 داده‌ها را به‌صورت خط‌کشی‌شده (stripe) ذخیره کرده و بلوک‌های پاریتی (parity) را محاسبه می‌کنند. این بلوک‌های پاریتی می‌توانند در صورت خرابی دستگاه‌ها برای بازیابی بلوک‌های داده استفاده شوند. در یک حجم raid5 حداکثر یک دستگاه و در raid6 حداکثر دو دستگاه می‌توانند بدون از دست رفتن داده‌ها دچار خرابی شوند. انواع خط‌کشی‌شده RAID معمولاً بلوک‌های داده و پاریتی را برای بهبود کارایی جابه‌جا (rotate) می‌کنند تا از ازدحام بار روی یک دستگاه جلوگیری شود. چینش‌های خاصی از بلوک‌های پاریتی و داده (طرح‌بندی‌ها یا layouts) می‌توانند برای بهینه‌سازی کارایی ورودی/خروجی (I/O) یا تبدیل بین سطوح RAID مورد استفاده قرار گیرند. برای اطلاعات بیشتر به
+\fBlvmraid\fP(7)
+مراجعه کنید.
+.P
+طرح‌بندی‌های بلوک‌های پاریتی چرخشی در raid5 می‌تواند شامل موارد زیر باشد:
+چپ‌ـ‌نامتقارن (raid5_la)، چپ‌ـ‌متقارن (raid5_ls با نام مستعار raid5)، راست‌ـ‌نامتقارن (raid5_ra)، راست‌ـ‌متقارن (raid5_rs) و raid5_n که بلوک‌های پاریتی را نمی‌چرخاند.
+طرح‌بندی‌های raid6 عبارتند از:
+شروع مجدد با صفر (raid6_zr با نام مستعار raid6)، شروع مجدد بعدی (raid6_nr) و ادامه بعدی (raid6_nc).
+.P
+طرح‌بندی‌های حاوی n_ امکان تبدیل بین سطوح RAID را فراهم می‌کنند (مانند تبدیل raid5_n به raid6 یا raid5_n به striped/raid0/raid0_meta). علاوه بر این، طرح‌بندی‌های ویژه raid6 برای تبدیل سطح RAID بین raid5 و raid6 عبارتند از:
+raid6_ls_6، raid6_rs_6، raid6_la_6 و raid6_ra_6. این طرح‌بندی‌ها متناظر با همتایان خود در raid5 هستند (به عنوان مثال raid5_rs می‌تواند مستقیماً به raid6_rs_6 و بالعکس تبدیل شود).
+.P
+ساختار raid10 (نام مستعار برای raid10_near) در حال حاضر محدود به یک کپی داده و تعداد زوجی از زیرحجم‌های منطقی (sub LVs) است. این یک طرح‌بندی گروه آینه‌ای است، بنابراین در هر گروه آینه‌ای یک زیرحجم منطقی می‌تواند بدون از دست رفتن داده‌ها دچار خرابی شود.
+.P
+انواع خط‌کشی‌شده RAID از تبدیل طرح‌بندی، اندازه خط داده (stripesize) و تعداد خطوط داده (stripes) پشتیبانی می‌کنند.
+.P
+ترکیب انواع RAID خط‌کشی‌شده با raid1 امکان تبدیل از خطی به striped/raid0/raid0_meta و بالعکس را فراهم می‌کند؛ به عنوان مثال:
+linear -> raid1 -> raid5_n (با افزودن خطوط داده) -> striped/raid0/raid0_meta.
+.SH "کاربرد و نحوه استفاده (USAGE)"
+.
+تبدیل حجم منطقی (LV) به نوع خطی (linear).
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBlinear\fP \fILV\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به نوع خط‌کشی‌شده (striped).
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBstriped\fP \fILV\fP
+.br
+.RS 4
+.na
+[ \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] ]
+.br
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[    \fB\-\-stripes\fP \fINumber\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به نوع آینه‌ای (mirror) (همچنین به نوع raid1 مراجعه کنید):
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBmirror\fP \fILV\fP
+.br
+.RS 4
+.na
+[ \fB\-m\fP|\fB\-\-mirrors\fP [\fB+\fP|\fB\-\fP]\fINumber\fP ]
+.br
+[ \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] ]
+.br
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[    \fB\-\-stripes\fP \fINumber\fP ]
+.br
+[    \fB\-\-mirrorlog\fP \fBcore\fP|\fBdisk\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به RAID یا تغییر طرح‌بندی RAID
+.br
+(باید سطح خاصی از RAID مانند raid1 مشخص شود).
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBraid\fP \fILV\fP
+.br
+.RS 4
+.na
+[ \fB\-m\fP|\fB\-\-mirrors\fP [\fB+\fP|\fB\-\fP]\fINumber\fP ]
+.br
+[ \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] ]
+.br
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[    \fB\-\-stripes\fP \fINumber\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به raid1 یا mirror، یا تغییر تعداد تصاویر آینه‌ای.
+.br
+.P
+\fBlvconvert\fP \fB\-m\fP|\fB\-\-mirrors\fP [\fB+\fP|\fB\-\fP]\fINumber\fP \fILV\fP
+.br
+.RS 4
+.na
+[ \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] ]
+.br
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[    \fB\-\-mirrorlog\fP \fBcore\fP|\fBdisk\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی raid برای تغییر تعداد تصاویر خط‌کشی (stripe).
+.br
+.P
+\fBlvconvert\fP \fB\-\-stripes\fP \fINumber\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[ \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] ]
+.br
+[ \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: raid
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی raid برای تغییر اندازه خط‌کشی (stripe size).
+.br
+.P
+\fBlvconvert\fP \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[ \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: raid
+.RE
+.P
+\(em
+.P
+جداسازی تصویر از یک حجم منطقی raid1 یا mirror و استفاده از آن‌ها برای ایجاد یک حجم جدید.
+.br
+.P
+\fBlvconvert\fP \fB\-\-splitmirrors\fP \fINumber\fP \fB\-n\fP|\fB\-\-name\fP \fILV\fP\fI_new\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: cache mirror raid1
+.RE
+.P
+\(em
+.P
+جداسازی تصویر از یک حجم raid1 و ردیابی تغییرات نسبت به مبدا برای ادغام در آینده.
+.br
+.P
+\fBlvconvert\fP \fB\-\-splitmirrors\fP \fINumber\fP \fB\-\-trackchanges\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: cache raid1
+.RE
+.P
+\(em
+.P
+ادغام مجدد تصاویر حجم منطقی که قبلاً از یک حجم raid1 جدا شده بودند.
+.br
+.P
+\fBlvconvert\fP \fB\-\-mergemirrors\fP \fIVG\fP|\fILV1\fP|\fITag\fP ...
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear raid
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به حجم منطقی پویا (thin LV) با استفاده از حجم اصلی به عنوان مبدا خارجی.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBthin\fP \fB\-\-thinpool\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-T\fP|\fB\-\-thin\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-originname\fP \fILV\fP\fI_new\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped cache raid thin zero error
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به حجم منطقی پویا با استفاده از حجم اصلی به عنوان حجم داده استخر پویا.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBthin\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-T\fP|\fB\-\-thin\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped cache raid vdo writecache zero error
+.RE
+.P
+\(em
+.P
+اتصال یک استخر کش به حجم منطقی، که حجم منطقی را به نوع کش (cache) تبدیل می‌کند.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBcache\fP \fB\-\-cachepool\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-H\fP|\fB\-\-cache\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-cachemetadataformat\fP \fBauto\fP|\fB1\fP|\fB2\fP ]
+.br
+[    \fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP ]
+.br
+[    \fB\-\-cachepolicy\fP \fIString\fP ]
+.br
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid thin thinpool vdo vdopool vdopooldata zero error
+.RE
+.P
+\(em
+.P
+اتصال یک writecache به حجم منطقی، که حجم منطقی را به نوع writecache تبدیل می‌کند.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBwritecache\fP \fB\-\-cachevol\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid thinpool
+.RE
+.P
+\(em
+.P
+اتصال یک کش به حجم منطقی، که حجم منطقی را به نوع کش (cache) تبدیل می‌کند.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBcache\fP \fB\-\-cachevol\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-H\fP|\fB\-\-cache\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[    \fB\-\-cachemetadataformat\fP \fBauto\fP|\fB1\fP|\fB2\fP ]
+.br
+[    \fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP ]
+.br
+[    \fB\-\-cachepolicy\fP \fIString\fP ]
+.br
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid thinpool
+.RE
+.P
+\(em
+.P
+افزودن یک writecache به حجم منطقی با استفاده از یک دستگاه کش مشخص.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBwritecache\fP \fB\-\-cachedevice\fP \fIPV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[    \fB\-\-cachesize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid thinpool
+.RE
+.P
+\(em
+.P
+افزودن یک کش (cache) به حجم منطقی با استفاده از یک دستگاه کش مشخص.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBcache\fP \fB\-\-cachedevice\fP \fIPV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[    \fB\-\-cachesize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid thinpool
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به نوع استخر پویا (thin-pool).
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBthin\-pool\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-stripes\fP \fINumber\fP ]
+.br
+[    \fB\-\-discards\fP \fBpassdown\fP|\fBnopassdown\fP|\fBignore\fP ]
+.br
+[    \fB\-\-errorwhenfull\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-pooldatavdo\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-compression\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-deduplication\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-vdosettings\fP \fIString\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped cache raid vdo writecache zero error
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به نوع استخر کش (cache-pool).
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBcache\-pool\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-cachemetadataformat\fP \fBauto\fP|\fB1\fP|\fB2\fP ]
+.br
+[    \fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP ]
+.br
+[    \fB\-\-cachepolicy\fP \fIString\fP ]
+.br
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid zero error
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به نوع vdopool.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBvdo\-pool\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-n\fP|\fB\-\-name\fP \fILV\fP\fI_new\fP ]
+.br
+[ \fB\-V\fP|\fB\-\-virtualsize\fP \fISize\fP[m|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-compression\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-deduplication\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-vdosettings\fP \fIString\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped cache raid
+.RE
+.P
+\(em
+.P
+جدا کردن کش از یک حجم منطقی.
+.br
+.P
+\fBlvconvert\fP \fB\-\-splitcache\fP \fILV1\fP
+.br
+.RS 4
+.na
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: cache cachepool thinpool vdopool writecache
+.RE
+.P
+\(em
+.P
+ادغام حجم منطقی پویا (thin LV) در حجم مبدا خود.
+.br
+.P
+\fBlvconvert\fP \fB\-\-mergethin\fP \fILV1\fP ...
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: thin
+.RE
+.P
+\(em
+.P
+ادغام تصویر لحظه‌ای COW در حجم مبدا خود.
+.br
+.P
+\fBlvconvert\fP \fB\-\-mergesnapshot\fP \fILV1\fP ...
+.br
+.RS 4
+.na
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: snapshot
+.RE
+.P
+\(em
+.P
+ترکیب تصویر لحظه‌ای پیشین COW (آرگومان دوم) با حجم مبدا پیشین (آرگومان اول)
+.br
+برای معکوس کردن دستور splitsnapshot.
+.br
+.P
+\fBlvconvert\fP \fB\-\-type\fP \fBsnapshot\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-s\fP|\fB\-\-snapshot\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped
+.RE
+.P
+\(em
+.P
+جایگزینی PVهای آسیب‌دیده در یک حجم raid یا mirror.
+.br
+تعمیر یک استخر پویا.
+.br
+تعمیر یک استخر کش.
+.br
+.P
+\fBlvconvert\fP \fB\-\-repair\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[ \fB\-k\fP|\fB\-\-setactivationskip\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-usepolicies\fP ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: cache cachepool mirror raid thinpool
+.RE
+.P
+\(em
+.P
+جایگزینی یک یا چند PV مشخص در یک حجم منطقی raid با PV دیگر.
+.br
+.P
+\fBlvconvert\fP \fB\-\-replace\fP \fIPV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: raid
+.RE
+.P
+\(em
+.P
+بررسی و نظارت بر حجم منطقی برای ادامه فرایند تبدیل.
+.br
+.P
+\fBlvconvert\fP \fB\-\-startpoll\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: mirror raid
+.RE
+.P
+\(em
+.P
+افزودن یا حذف چکسام‌های یکپارچگی داده‌ها در تصاویر raid.
+.br
+.P
+\fBlvconvert\fP \fB\-\-raidintegrity\fP \fBy\fP|\fBn\fP \fILV1\fP
+.br
+.RS 4
+.na
+[    \fB\-\-raidintegritymode\fP \fIString\fP ]
+.br
+[    \fB\-\-raidintegrityblocksize\fP \fINumber\fP ]
+.br
+[    \fB\-\-integritysettings\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: raid
+.RE
+.P
+\(em
+.P
+گزینه‌های عمومی دستور:
+.
+.RS 4
+.na
+[ \fB\-b\fP|\fB\-\-background\fP ]
+.br
+[ \fB\-f\fP|\fB\-\-force\fP ]
+.br
+[    \fB\-\-alloc\fP \c
+.nh
+\%\fBcontiguous\fP|\:\fBcling\fP|\:\fBcling_by_tags\fP|\:\fBnormal\fP|\:\fBanywhere\fP|\:\fBinherit\fP
+.hy
+]
+.br
+[    \fB\-\-noudevsync\fP ]
+.ad
+.RE
+.P
+گزینه‌های عمومی برای lvm:
+.
+.RS 4
+.na
+[ \fB\-d\fP|\fB\-\-debug\fP ]
+.br
+[ \fB\-h\fP|\fB\-\-help\fP ]
+.br
+[ \fB\-q\fP|\fB\-\-quiet\fP ]
+.br
+[ \fB\-t\fP|\fB\-\-test\fP ]
+.br
+[ \fB\-v\fP|\fB\-\-verbose\fP ]
+.br
+[ \fB\-y\fP|\fB\-\-yes\fP ]
+.br
+[    \fB\-\-commandprofile\fP \fIString\fP ]
+.br
+[    \fB\-\-config\fP \fIString\fP ]
+.br
+[    \fB\-\-devices\fP \fIPV\fP ]
+.br
+[    \fB\-\-devicesfile\fP \fIString\fP ]
+.br
+[    \fB\-\-driverloaded\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-journal\fP \fIString\fP ]
+.br
+[    \fB\-\-lockopt\fP \fIString\fP ]
+.br
+[    \fB\-\-longhelp\fP ]
+.br
+[    \fB\-\-nohints\fP ]
+.br
+[    \fB\-\-nolocking\fP ]
+.br
+[    \fB\-\-profile\fP \fIString\fP ]
+.br
+[    \fB\-\-version\fP ]
+.ad
+.RE
+.
+.SH "گزینه‌ها (OPTIONS)"
+.
+.HP
+.ad
+\fB\-\-alloc\fP \c
+.nh
+\%\fBcontiguous\fP|\:\fBcling\fP|\:\fBcling_by_tags\fP|\:\fBnormal\fP|\:\fBanywhere\fP|\:\fBinherit\fP
+.hy
+.ad
+.br
+سیاست تخصیص را زمانی که یک دستور نیاز به تخصیص اکستنت‌های فیزیکی (PEs) از گروه حجم (VG) دارد، تعیین می‌کند. هر VG و LV دارای یک سیاست تخصیص است که می‌تواند با vgchange/lvchange تغییر داده شود یا در خط فرمان بازنویسی شود.
+سیاست \fBnormal\fP قوانین معمول مانند عدم قرار دادن خطوط موازی داده بر روی یک PV مشترک را اعمال می‌کند.
+سیاست \fBinherit\fP سیاست VG را بر LV اعمال می‌کند.
+سیاست \fBcontiguous\fP نیازمند آن است که PEهای جدید در مجاورت PEهای موجود قرار گیرند.
+سیاست \fBcling\fP اکستنت‌های جدید را بر روی همان PV که PEهای فعلی در همان خط داده LV مستقر هستند قرار می‌دهد.
+اگر PEهای کافی وجود داشته باشد ولی normal از آن‌ها استفاده نکند، \fBanywhere\fP از آن‌ها بهره می‌گیرد حتی اگر به بهای کاهش کارایی (مانند قرارگیری دو خط داده روی یک PV یکسان) تمام شود.
+آرگومان‌های مکانی اختیاری PV در خط فرمان نیز می‌توانند برای محدود کردن PVهای مورد استفاده دستور جهت تخصیص به کار روند.
+برای اطلاعات بیشتر درباره تخصیص به \fBlvm\fP(8) مراجعه کنید.
+.
+.HP
+\fB\-b\fP|\fB\-\-background\fP
+.br
+اگر عملیات نیاز به نظارت و پیگیری (polling) داشته باشد، این گزینه باعث می‌شود دستور پیش از اتمام کامل برگردد و پیگیری در پس‌زمینه انجام شود.
+.
+.HP
+\fB\-H\fP|\fB\-\-cache\fP
+.br
+مشخص می‌کند که دستور در حال کار با یک حجم منطقی کش (cache LV) یا استخر کش (cache pool) است.
+به \-\-type cache و \-\-type cache\-pool مراجعه کنید.
+برای اطلاعات بیشتر درباره حافظه پنهان LVM به \fBlvmcache\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-\-cachedevice\fP \fIPV\fP
+.br
+نام دستگاه مورد استفاده برای کش.
+.
+.HP
+\fB\-\-cachemetadataformat\fP \fBauto\fP|\fB1\fP|\fB2\fP
+.br
+فرمت متاداده کش مورد استفاده توسط هدف کش (cache target) را تعیین می‌کند.
+.
+.HP
+\fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP
+.br
+مشخص می‌کند که چه زمانی عملیات نوشتن روی حجم منطقی کش، کامل در نظر گرفته شود.
+حالت \fBwriteback\fP نوشتن را بلافاصله پس از ثبت در حافظه کش کامل تلقی می‌کند.
+حالت \fBwritethrough\fP نوشتن را تنها پس از ثبت همزمان در حافظه کش و حجم اصلی کامل می‌داند.
+حالت \fBpassthrough\fP تمام عملیات نوشتن را مستقیماً به حجم اصلی هدایت می‌کند و از کش عبور نمی‌دهد.
+.
+.HP
+\fB\-\-cachepolicy\fP \fIString\fP
+.br
+سیاست کش را برای یک حجم منطقی کش مشخص می‌کند. برای اطلاعات بیشتر به \fBlvmcache\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-\-cachepool\fP \fILV\fP
+.br
+نام یک استخر کش (cache pool).
+.
+.HP
+\fB\-\-cachesettings\fP \fIString\fP
+.br
+پارامترهای قابل تنظیم هسته را برای حجم‌های dm-cache یا dm-writecache تعیین می‌کند. از قالب 'option=value' یا 'option1=value option2=value' استفاده کنید. برای اطلاعات بیشتر به \fBlvmcache\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-\-cachesize\fP \fISize\fP[m|UNIT]
+.br
+اندازه کش مورد استفاده.
+.
+.HP
+\fB\-\-cachevol\fP \fILV\fP
+.br
+نام یک حجم کش (cache volume).
+.
+.HP
+\fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT]
+.br
+اندازه تکه‌ها (chunk size) در یک تصویر لحظه‌ای، استخر کش یا استخر پویا.
+برای تصاویر لحظه‌ای، مقدار باید توانی از ۲ بین ۴ کیلوبایت تا ۵۱۲ کیلوبایت باشد و پیش‌فرض آن ۴ کیلوبایت است.
+برای استخر کش، مقدار باید مضربی از ۳۲ کیلوبایت بین ۳۲ کیلوبایت تا ۱ گیگابایت باشد و پیش‌فرض آن ۶۴ کیلوبایت است.
+برای استخر پویا، مقدار باید مضربی از ۶۴ کیلوبایت بین ۶۴ کیلوبایت تا ۱ گیگابایت باشد و مقدار پیش‌فرض بسته به اندازه استخر متغیر است.
+.
+.HP
+\fB\-\-commandprofile\fP \fIString\fP
+.br
+پروفایل دستور جهت پیکربندی تنظیمات دستور. برای اطلاعات بیشتر به \fBlvm.conf\fP(5) مراجعه کنید.
+.
+.HP
+\fB\-\-compression\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال بودن فشرده‌سازی برای حجم VDO را کنترل می‌کند. برای اطلاعات بیشتر به \fBlvmvdo\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-\-config\fP \fIString\fP
+.br
+تنظیمات پیکربندی برای دستور که تنظیمات \fBlvm.conf\fP(5) را بازنویسی می‌کند. آرگومان String از همان ساختار و قالب خطوط lvm.conf استفاده می‌کند.
+.
+.HP
+\fB\-d\fP|\fB\-\-debug\fP ...
+.br
+تنظیم سطح اشکال‌زدایی (دیباگ). از ۱ تا ۶ بار تکرار برای افزایش جزئیات پیام‌های ارسالی به فایل وقایع و خروجی خطا.
+.
+.HP
+\fB\-\-deduplication\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال بودن حذف داده‌های تکراری (deduplication) برای حجم VDO را کنترل می‌کند. برای اطلاعات بیشتر به \fBlvmvdo\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-\-devices\fP \fIPV\fP
+.br
+دستگاه‌های قابل مشاهده و دسترسی برای دستور را محدود می‌کند. دستگاه‌هایی که فهرست نشده‌اند به عنوان دستگاه ناموجود در نظر گرفته می‌شوند.
+.
+.HP
+\fB\-\-devicesfile\fP \fIString\fP
+.br
+فایلی شامل فهرست دستگاه‌هایی که LVM مجاز به استفاده از آن‌ها است. این فایل باید در مسیر \fI/etc/lvm/devices/\fP وجود داشته باشد و با دستور \fBlvmdevices\fP(8) مدیریت شود.
+.
+.HP
+\fB\-\-discards\fP \fBpassdown\fP|\fBnopassdown\fP|\fBignore\fP
+.br
+نحوه مدیریت درخواست‌های discard توسط لایه استخر پویا در هسته را تعیین می‌کند:
+گزینه \fBignore\fP درخواست‌های discard را نادیده می‌گیرد.
+گزینه \fBnopassdown\fP فضا را در استخر پویا آزاد می‌کند اما به دستگاه فیزیکی زیرین ارسال نمی‌کند.
+گزینه \fBpassdown\fP فضا را آزاد کرده و دستور را به دستگاه لایه زیرین نیز ارسال می‌کند.
+.
+.HP
+\fB\-\-driverloaded\fP \fBy\fP|\fBn\fP
+.br
+در صورت تنظیم بر روی no، دستور تلاشی برای استفاده از device-mapper نخواهد کرد (برای اهداف آزمایشی و اشکال‌زدایی).
+.
+.HP
+\fB\-\-errorwhenfull\fP \fBy\fP|\fBn\fP
+.br
+رفتار استخر پویا در زمان پر شدن کامل فضای داده را تعیین می‌کند. در صورت تنظیم yes، نگاشت‌کننده دستگاه بلافاصله خطای ورودی/خروجی صادر می‌کند؛ در صورت no، عملیات نوشتن تا زمان تخصیص فضای بیشتر متوقف (معلق) می‌ماند.
+.
+.HP
+\fB\-f\fP|\fB\-\-force\fP ...
+.br
+نادیده گرفتن بررسی‌های مختلف ایمنی، تاییدیه‌ها و محافظت‌ها. با احتیاط فراوان استفاده شود.
+.
+.HP
+\fB\-h\fP|\fB\-\-help\fP
+.br
+نمایش متن راهنمای دستور.
+.
+.HP
+\fB\-\-integritysettings\fP \fIString\fP
+.br
+تنظیمات قابل تنظیم هسته برای dm-integrity را تعیین می‌کند. برای اطلاعات بیشتر به \fBlvmraid\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-i\fP|\fB\-\-interval\fP \fINumber\fP
+.br
+گزارش منظم پیشرفت عملیات در فواصل زمانی مشخص (بر حسب ثانیه).
+.
+.HP
+\fB\-\-journal\fP \fIString\fP
+.br
+ثبت اطلاعات گزارش در ژورنال systemd علاوه بر گزارش‌های فعال‌شده در تنظیمات lvm.conf.
+.
+.HP
+\fB\-\-lockopt\fP \fIString\fP
+.br
+ارسال گزینه‌های مربوط به حالت‌های خاص به lvmlockd. برای اطلاعات بیشتر به \fBlvmlockd\fP(8) مراجعه کنید.
+.
+.HP
+\fB\-\-longhelp\fP
+.br
+نمایش متن راهنمای کامل و تفصیلی.
+.
+.HP
+\fB\-\-merge\fP
+.br
+نام مستعار برای \-\-mergethin، \-\-mergemirrors یا \-\-mergesnapshot بر اساس نوع حجم منطقی.
+.
+.HP
+\fB\-\-mergemirrors\fP
+.br
+ادغام تصاویر حجم منطقی که از یک حجم منطقی raid1 جدا شده بودند. به \-\-splitmirrors به همراه \-\-trackchanges مراجعه کنید.
+.
+.HP
+\fB\-\-mergesnapshot\fP
+.br
+ادغام تصویر لحظه‌ای COW در حجم مبدا خود. هنگام ادغام، اگر حجم‌های مبدا و تصویر لحظه‌ای باز نباشند، ادغام بلافاصله آغاز می‌شود؛ در غیر این صورت ادغام در اولین فعال‌سازی بعدی انجام خواهد شد.
+.
+.HP
+\fB\-\-mergethin\fP
+.br
+ادغام حجم منطقی پویا در حجم منطقی مبدا خود. حجم مبدا محتوای تصویر لحظه‌ای پویا را دریافت کرده و تصویر لحظه‌ای حذف می‌شود.
+.
+.HP
+\fB\-\-metadataprofile\fP \fIString\fP
+.br
+پروفایل متاداده برای پیکربندی دستور. برای اطلاعات بیشتر به \fBlvm.conf\fP(5) مراجعه کنید.
+.
+.HP
+\fB\-\-mirrorlog\fP \fBcore\fP|\fBdisk\fP
+.br
+نوع گزارش آینه‌ای را برای حجم‌های نوع "mirror" مشخص می‌کند (برای نوع "raid1" کاربرد ندارد).
+گزینه \fBdisk\fP یک زیرحجم منطقی پایدار برای نگهداری گزارش همگام‌سازی ایجاد می‌کند.
+گزینه \fBcore\fP گزارش همگام‌سازی را تنها در حافظه اصلی نگه می‌دارد (پس از راه‌اندازی مجدد سیستم نیاز به همگام‌سازی دوباره است).
+.
+.HP
+\fB\-m\fP|\fB\-\-mirrors\fP [\fB+\fP|\fB\-\fP]\fINumber\fP
+.br
+تعداد تصاویر آینه‌ای را علاوه بر تصویر اولیه مشخص می‌کند؛ برای مثال \-\-mirrors 1 به معنای دو نسخه کپی از داده‌ها است.
+.
+.HP
+\fB\-n\fP|\fB\-\-name\fP \fIString\fP
+.br
+نام یک حجم منطقی جدید را تعیین می‌کند. در صورت عدم تعیین، نامی پیش‌فرض مانند "lvol#" ایجاد می‌شود.
+.
+.HP
+\fB\-\-nohints\fP
+.br
+عدم استفاده از فایل راهنما (hints file) برای یافتن دستگاه‌های مربوط به PVها. در این حالت ممکن است دستور دستگاه‌های بیشتری را برای یافتن PVها اسکن کند.
+.
+.HP
+\fB\-\-nolocking\fP
+.br
+غیرفعال کردن قفل‌گذاری. با احتیاط استفاده شود؛ دستورات همزمان ممکن است نتایج نادرستی به بار آورند.
+.
+.HP
+\fB\-\-noudevsync\fP
+.br
+غیرفعال کردن همگام‌سازی با udev. فرایند منتظر اعلان از سوی udev نمی‌ماند و بلافاصله به کار خود ادامه می‌دهد.
+.
+.HP
+\fB\-\-originname\fP \fILV\fP
+.br
+نامی که برای حجم مبدا خارجی هنگام تبدیل یک حجم منطقی به حجم پویا (thin LV) استفاده می‌شود. نام حجم اولیه به این نام تغییر می‌یابد.
+.
+.HP
+\fB\-\-pooldatavdo\fP \fBy\fP|\fBn\fP
+.br
+استفاده از حجم نوع VDO برای حجم داده استخر (pool data volume).
+.
+.HP
+\fB\-\-poolmetadata\fP \fILV\fP
+.br
+نام یک حجم منطقی که برای ذخیره متاداده استخر به کار می‌رود.
+.
+.HP
+\fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT]
+.br
+اندازه حجم منطقی متاداده جدید برای استخر را مشخص می‌کند.
+.
+.HP
+\fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال کردن ایجاد و مدیریت خودکار یک حجم منطقی متاداده یدکی (spare pool metadata LV) در گروه حجم (VG).
+.
+.HP
+\fB\-\-profile\fP \fIString\fP
+.br
+نام مستعار برای \-\-commandprofile یا \-\-metadataprofile بسته به نوع دستور.
+.
+.HP
+\fB\-q\fP|\fB\-\-quiet\fP ...
+.br
+سرکوب پیام‌های خروجی و وقایع‌نگاری. اولویت بالاتری نسبت به \-\-debug و \-\-verbose دارد. تکرار مجدد آن هشدارهای حیاتی را نیز سرکوب می‌کند.
+.
+.HP
+\fB\-\-raidintegrity\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال کردن چکسام‌های یکپارچگی داده‌ها برای تصاویر raid با استفاده از dm-integrity.
+.
+.HP
+\fB\-\-raidintegrityblocksize\fP \fINumber\fP
+.br
+اندازه بلوک مورد استفاده برای dm-integrity در تصاویر raid. معمولاً باید با اندازه بلوک سیستم فایل (مانند ۵۱۲ یا ۴۰۹۶ بایت) یکسان باشد.
+.
+.HP
+\fB\-\-raidintegritymode\fP \fIString\fP
+.br
+استفاده از ژورنال (پیش‌فرض journal) یا نقشه بیتی (bitmap) برای حفظ همگامی چکسام‌های یکپارچگی در زمان خرابی ناگهانی سیستم.
+.
+.HP
+\fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP
+.br
+تعداد سکتورهای پیش‌خوانی (read ahead) حجم منطقی را تعیین می‌کند. \fBauto\fP مقدار پیش‌فرضی است که به هسته اجازه انتخاب می‌دهد. \fBnone\fP پیش‌خوانی را غیرفعال می‌کند.
+.
+.HP
+\fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT]
+.br
+اندازه هر ناحیه همگام‌سازی raid یا mirror. مقدار پیش‌فرض در \fBlvm.conf\fP(5) با تنظیم \fBactivation/raid_region_size\fP تعیین می‌شود.
+.
+.HP
+\fB\-\-repair\fP
+.br
+جایگزینی PVهای معیوب در یک حجم raid یا mirror، یا اجرای ابزار تعمیر روی یک استخر پویا یا کش. برای اطلاعات بیشتر به \fBlvmraid\fP(7) و \fBlvmthin\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-\-replace\fP \fIPV\fP
+.br
+جایگزینی یک PV خاص در حجم منطقی raid با یک PV دیگر. PV جدید می‌تواند به عنوان آرگومان مکانی در انتهای دستور ذکر شود.
+.
+.HP
+\fB\-k\fP|\fB\-\-setactivationskip\fP \fBy\fP|\fBn\fP
+.br
+تنظیم پایدار (yes) یا حذف (no) نشانگر رد کردن فعال‌سازی (activation skip) روی حجم منطقی.
+.
+.HP
+\fB\-s\fP|\fB\-\-snapshot\fP
+.br
+ترکیب یک حجم لحظه‌ای پیشین COW با حجم مبدا پیشین برای معکوس کردن دستور قبلی \-\-splitsnapshot.
+.
+.HP
+\fB\-\-splitcache\fP
+.br
+جداسازی استخر کش از یک حجم منطقی کش و حفظ حجم استخر کش بدون استفاده. پیش از جداسازی، کش تخلیه می‌شود. همچنین به \-\-uncache مراجعه کنید.
+.
+.HP
+\fB\-\-splitmirrors\fP \fINumber\fP
+.br
+جداسازی تعداد مشخصی تصویر از حجم raid1 یا mirror و ایجاد یک حجم منطقی جدید از آن‌ها. اگر \-\-name مشخص نشود، نام پیش‌فرضی تولید می‌شود.
+.
+.HP
+\fB\-\-splitsnapshot\fP
+.br
+جداسازی یک تصویر لحظه‌ای COW از حجم مبدا آن. حجم جداشده حاوی تکه‌های تغییریافته در لحظه جداسازی خواهد بود.
+.
+.HP
+\fB\-\-startpoll\fP
+.br
+شروع پیگیری و نظارت (polling) روی حجم منطقی جهت ادامه پردازش تبدیل.
+.
+.HP
+\fB\-\-stripes\fP \fINumber\fP
+.br
+تعداد خطوط داده (stripes) در یک حجم منطقی خط‌کشی‌شده. این مقدار نشان‌دهنده تعداد دستگاه‌های فیزیکی است که داده‌ها به صورت همزمان بین آن‌ها پخش می‌شوند.
+.
+.HP
+\fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT]
+.br
+اندازه خط داده (stripe size)؛ مقدار داده‌ای که پیش از انتقال به دستگاه بعدی روی یک دستگاه نوشته می‌شود.
+.
+.HP
+\fB\-\-swapmetadata\fP
+.br
+استخراج حجم متاداده از یک استخر و جایگزینی آن با یک حجم مشخص دیگر. حجم استخراج‌شده می‌تواند برای بازبینی و تعمیر مورد استفاده قرار گیرد.
+.
+.HP
+\fB\-t\fP|\fB\-\-test\fP
+.br
+اجرا در حالت آزمایشی (test). هیچ داده و متاداده‌ای در دیسک تغییر نمی‌کند؛ تمام عملیات نوشتن متاداده غیرفعال است.
+.
+.HP
+\fB\-T\fP|\fB\-\-thin\fP
+.br
+مشخص می‌کند که دستور در حال کار با یک حجم منطقی پویا یا استخر پویا است. به \-\-type thin، \-\-type thin\-pool و \-\-virtualsize مراجعه کنید. برای اطلاعات بیشتر به \fBlvmthin\fP(7) رجوع فرمایید.
+.
+.HP
+\fB\-\-thinpool\fP \fILV\fP
+.br
+نام یک حجم منطقی استخر پویا (thin pool LV).
+.
+.HP
+\fB\-\-trackchanges\fP
+.br
+قابل استفاده به همراه \-\-splitmirrors روی یک حجم raid1. باعث ردیابی تغییرات روی حجم اصلی raid1 می‌شود تا بعداً ادغام مجدد با سرعت بالا امکان‌پذیر گردد.
+.
+.HP
+.ad
+\fB\-\-type\fP \c
+.nh
+\%\fBlinear\fP|\:\fBstriped\fP|\:\fBsnapshot\fP|\:\fBraid\fP|\:\fBmirror\fP|\:\fBthin\fP|\:\fBthin\-pool\fP|\:\fBvdo\fP|\:\fBvdo\-pool\fP|\:\fBcache\fP|\:\fBcache\-pool\fP|\:\fBwritecache\fP
+.hy
+.ad
+.br
+نوع حجم منطقی (نوع سگمنت یا segtype).
+برای اطلاعات بیشتر درباره افزونگی و کارایی (\fBraid\fP<N>، \fBmirror\fP، \fBstriped\fP، \fBlinear\fP) به \fBlvmraid\fP(7) مراجعه کنید.
+برای تخصیص پویا (\fBthin\fP، \fBthin\-pool\fP) به \fBlvmthin\fP(7) مراجعه کنید.
+برای کش‌گذاری و بهبود کارایی (\fBcache\fP، \fBcache\-pool\fP) به \fBlvmcache\fP(7) مراجعه کنید.
+برای تصاویر لحظه‌ای کپی هنگام نوشتن (\fBsnapshot\fP) به بخش کاربردها مراجعه فرمایید.
+برای VDO (\fBvdo\fP) به \fBlvmvdo\fP(7) مراجعه کنید.
+بسیاری از دستورها از ذکر صریح گزینه نوع صرف‌نظر می‌کنند زیرا نوع از روی گزینه‌های دیگر استنباط می‌شود (مانند \-\-stripes، \-\-mirrors، \-\-snapshot، \-\-virtualsize، \-\-thin، \-\-cache). از انواع استنباطی با دقت استفاده کنید زیرا ممکن است منجر به نتایج غیرمنتظره شوند.
+.
+.HP
+\fB\-\-uncache\fP
+.br
+جداسازی استخر کش از یک حجم منطقی کش و حذف دائمی استخر کش بدون استفاده. پیش از جداسازی، کش تخلیه می‌شود. همچنین به \-\-splitcache مراجعه کنید.
+.
+.HP
+\fB\-\-usepolicies\fP
+.br
+انجام عملیات بر اساس خط‌مشی و سیاست‌های پیکربندی‌شده در \fBlvm.conf\fP(5) یا یک پروفایل.
+.
+.HP
+\fB\-\-vdopool\fP \fILV\fP
+.br
+نام یک حجم منطقی استخر VDO. برای اطلاعات بیشتر درباره کاربرد VDO به \fBlvmvdo\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-\-vdosettings\fP \fIString\fP
+.br
+تعیین گزینه‌های قابل تنظیم VDO برای حجم‌های منطقی VDO. از قالب 'option=value' یا 'option1=value option2=value' استفاده کنید.
+.
+.HP
+\fB\-v\fP|\fB\-\-verbose\fP ...
+.br
+افزایش سطح خروجی با جزئیات بیشتر. برای افزایش جزئیات پیام‌های ارسالی به stdout و stderr از ۱ تا ۴ بار قابل تکرار است.
+.
+.HP
+\fB\-\-version\fP
+.br
+نمایش اطلاعات نسخه برنامه.
+.
+.HP
+\fB\-V\fP|\fB\-\-virtualsize\fP \fISize\fP[m|UNIT]
+.br
+اندازه مجازی یک حجم منطقی پویای جدید. برای اطلاعات بیشتر به \fBlvmthin\fP(7) مراجعه کنید.
+.
+.HP
+\fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP
+.br
+کنترل شناسایی و پاک‌سازی متعاقب امضاها روی حجم‌های منطقی جدید. پیش از پاک کردن هر امضا یک اعلان تایید نمایش داده می‌شود مگر آنکه با \-\-yes تایید شده باشد.
+.
+.HP
+\fB\-y\fP|\fB\-\-yes\fP
+.br
+عدم درخواست تایید تعاملی و فرض پاسخ مثبت (yes) برای تمامی پرسش‌ها. با احتیاط کامل استفاده شود.
+.
+.HP
+\fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP
+.br
+برای تصاویر لحظه‌ای، پاک کردن (صفر کردن) ۴ کیلوبایت ابتدایی داده‌ها در تصویر لحظه‌ای را کنترل می‌کند. برای استخرهای پویا و استخرهای کش، صفر کردن اولین بلوک متاداده استخر را کنترل می‌کند.
+.
+.SH "متغیرها (VARIABLES)"
+.
+.TP
+.I VG
+نام گروه حجم (Volume Group). برای نام‌های معتبر به \fBlvm\fP(8) مراجعه کنید.
+.TP
+.I LV
+نام حجم منطقی (Logical Volume). برای نام‌های معتبر به \fBlvm\fP(8) مراجعه کنید.
+یک آرگومان مکانی LV معمولاً شامل نام VG و نام LV است، مانند VG/LV.
+شناسه LV1 نشان می‌دهد که حجم منطقی باید دارای نوع خاصی باشد؛ انواع مجاز در توضیحات آورده شده است (raid بیانگر انواع raid<N> است).
+.TP
+.I PV
+نام حجم فیزیکی (Physical Volume)، که یک مسیر دستگاه زیر شاخه /dev است.
+برای دستورهایی که اکستنت‌های فیزیکی را مدیریت می‌کنند، آرگومان مکانی PV معمولاً پسوندی را می‌پذیرد که نشان‌دهنده یک بازه (یا چندین بازه) از اکستنت‌های فیزیکی (PE) است. در صورت حذف اولین PE، به‌طور پیش‌فرض از ابتدای دستگاه در نظر گرفته می‌شود و در صورت حذف آخرین PE، به انتهای دستگاه ختم می‌شود.
+بازه شروع و پایان (شامل هر دو):
+\fIPV\fP[\fB:\fP\fIPE\fP\fB\-\fP\fIPE\fP]...
+بازه شروع و طول (با شمارش از ۰):
+\fIPV\fP[\fB:\fP\fIPE\fP\fB+\fP\fIPE\fP]...
+.TP
+.I Tag
+نام برچسب (Tag). برای اطلاعات درباره نام‌های برچسب و استفاده از برچسب‌ها به جای VG، LV یا PV به \fBlvm\fP(8) مراجعه کنید.
+.TP
+.I String
+رشته متنی. برای اطلاعات درباره محتوای رشته به توضیحات گزینه مراجعه کنید.
+.TP
+.IR Size [UNIT]
+اندازه یک عدد ورودی است که یک یکای اختیاری را می‌پذیرد.
+یکاهای ورودی صرف‌نظر از بزرگ یا کوچک بودن حروف همواره بر مبنای دو (باینری) در نظر گرفته می‌شوند؛ به عنوان مثال 'k' و 'K' هر دو نشان‌دهنده ۱۰۲۴ هستند.
+یکای ورودی پیش‌فرض با یک حرف مشخص شده و به دنبال آن |UNIT می‌آید.
+نماد UNIT نشان‌دهنده سایر یکاهای ممکن برای ورودی است:
+.BR b | B
+بایت (bytes)،
+.BR s | S
+بخش‌های ۵۱۲ بایتی (sectors)،
+.BR k | K
+کیبی‌بایت (KiB)،
+.BR m | M
+مبی‌بایت (MiB)،
+.BR g | G
+گیبی‌بایت (GiB)،
+.BR t | T
+تبی‌بایت (TiB)،
+.BR p | P
+پبی‌بایت (PiB)،
+.BR e | E
+اگزی‌بایت (EiB).
+(این مورد نباید با گزینه کنترل خروجی \-\e-units اشتباه گرفته شود که در آن حروف بزرگ نشان‌دهنده مضارب ۱۰۰۰ هستند.)
+.SH "متغیرهای محیطی (ENVIRONMENT VARIABLES)"
+.
+برای اطلاعات در مورد متغیرهای محیطی مورد استفاده توسط lvm به \fBlvm\fP(8) مراجعه کنید.
+برای مثال، معمولاً می‌توان متغیر LVM_VG_NAME را به جای پارامتر اجباری VG جایگزین کرد.
+.SH "کاربردهای پیشرفته (ADVANCED USAGE)"
+.
+شیوه‌های جایگزین دستور، کاربردهای پیشرفته دستور،
+و فهرست تمام ساختارهای نحوی معتبر جهت جامعیت سند.
+.P
+تغییر اندازه ناحیه (region size) یک حجم منطقی.
+.br
+.P
+\fBlvconvert\fP \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: raid
+.RE
+.P
+\(em
+.P
+تغییر نوع لاگ آینه‌ای مورد استفاده توسط یک حجم منطقی mirror.
+.br
+.P
+\fBlvconvert\fP \fB\-\-mirrorlog\fP \fBcore\fP|\fBdisk\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: mirror
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به یک حجم منطقی پویا با استفاده از حجم اصلی به عنوان مبدا خارجی.
+.br
+.P
+\fBlvconvert\fP \fB\-T\fP|\fB\-\-thin\fP \fB\-\-thinpool\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-\-type thin\fP ] (implied)
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-originname\fP \fILV\fP\fI_new\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped cache raid thin zero error
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به یک حجم منطقی پویا با استفاده از LV به عنوان حجم داده استخر پویا.
+.br
+.P
+\fBlvconvert\fP \fB\-T\fP|\fB\-\-thin\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-\-type thin\fP ] (implied)
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped cache raid vdo writecache zero error
+.RE
+.P
+\(em
+.P
+اتصال یک استخر کش به حجم منطقی.
+.br
+.P
+\fBlvconvert\fP \fB\-H\fP|\fB\-\-cache\fP \fB\-\-cachepool\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-\-type cache\fP ] (implied)
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-cachemetadataformat\fP \fBauto\fP|\fB1\fP|\fB2\fP ]
+.br
+[    \fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP ]
+.br
+[    \fB\-\-cachepolicy\fP \fIString\fP ]
+.br
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[    \fB\-\-poolmetadata\fP \fILV\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.RS 4
+[ \fIPV\fP ... ]
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid thin thinpool vdo vdopool vdopooldata zero error
+.RE
+.P
+\(em
+.P
+اتصال یک کش به حجم منطقی، که حجم منطقی را به نوع کش (cache) تبدیل می‌کند.
+.br
+.P
+\fBlvconvert\fP \fB\-H\fP|\fB\-\-cache\fP \fB\-\-cachevol\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[    \fB\-\-cachemetadataformat\fP \fBauto\fP|\fB1\fP|\fB2\fP ]
+.br
+[    \fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP ]
+.br
+[    \fB\-\-cachepolicy\fP \fIString\fP ]
+.br
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[    \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped raid thinpool
+.RE
+.P
+\(em
+.P
+تبدیل حجم منطقی به نوع vdopool.
+.br
+.P
+\fBlvconvert\fP \fB\-\-vdopool\fP \fILV\fP
+.br
+.RS 4
+.na
+[ \fB\-\-type vdo\-pool\fP ] (implied)
+.br
+[ \fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP ]
+.br
+[ \fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ \fB\-n\fP|\fB\-\-name\fP \fILV\fP\fI_new\fP ]
+.br
+[ \fB\-V\fP|\fB\-\-virtualsize\fP \fISize\fP[m|UNIT] ]
+.br
+[    \fB\-\-compression\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-deduplication\fP \fBy\fP|\fBn\fP ]
+.br
+[    \fB\-\-vdosettings\fP \fIString\fP ]
+.br
+[    \fB\-\-metadataprofile\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+\(em
+.P
+جداسازی و حذف کش از یک حجم منطقی.
+.br
+.P
+\fBlvconvert\fP \fB\-\-uncache\fP \fILV1\fP
+.br
+.RS 4
+.na
+[    \fB\-\-cachesettings\fP \fIString\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: cache thinpool vdopool writecache
+.RE
+.P
+\(em
+.P
+جابه‌جایی حجم متاداده در یک استخر پویا یا استخر کش (فقط برای مقاصد تعمیر).
+.br
+.P
+\fBlvconvert\fP \fB\-\-swapmetadata\fP \fB\-\-poolmetadata\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: cachepool thinpool
+.RE
+.P
+\(em
+.P
+ادغام حجم منطقی جداشده از یک حجم آینه‌ای (شیوه دیگر، از \-\-mergemirrors استفاده کنید).
+.br
+ادغام حجم منطقی پویا در حجم مبدا خود (شیوه دیگر، از \-\-mergethin استفاده کنید).
+.br
+ادغام تصویر لحظه‌ای COW در حجم مبدا خود (شیوه دیگر، از \-\-mergesnapshot استفاده کنید).
+.br
+.P
+\fBlvconvert\fP \fB\-\-merge\fP \fIVG\fP|\fILV1\fP|\fITag\fP ...
+.br
+.RS 4
+.na
+[ \fB\-i\fP|\fB\-\-interval\fP \fINumber\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped snapshot raid thin
+.RE
+.P
+\(em
+.P
+جداسازی یک تصویر لحظه‌ای COW از حجم مبدا آن.
+.br
+.P
+\fBlvconvert\fP \fB\-\-splitsnapshot\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: snapshot
+.RE
+.P
+\(em
+.P
+ترکیب یک تصویر لحظه‌ای پیشین COW (آرگومان دوم) با حجم مبدا پیشین (آرگومان اول)
+.br
+برای معکوس کردن دستور splitsnapshot.
+.br
+.P
+\fBlvconvert\fP \fB\-s\fP|\fB\-\-snapshot\fP \fILV\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ \fB\-\-type snapshot\fP ] (implied)
+.br
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+.br
+[ \fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP ]
+.br
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: linear striped
+.RE
+.P
+\(em
+.P
+پیگیری وضعیت حجم منطقی برای ادامه تبدیل (همچنین به \-\-startpoll مراجعه کنید)
+.br
+یا انتظار تا اتمام همگام‌سازی تبدیل/آینه.
+.br
+.P
+\fBlvconvert\fP \fILV1\fP
+.br
+.RS 4
+.na
+[ COMMON_OPTIONS ]
+.ad
+.RE
+.P
+.RS 4
+انواع LV1: mirror raid
+.RE
+.P
+\(em
+.
+.SH "نکات (NOTES)"
+.
+این ترکیب دستوری پیشین دو عملیات متفاوت را انجام می‌داد:
+.br
+\fBlvconvert \-\-thinpool\fP \fILV1\fP \fB\-\-poolmetadata\fP \fILV2\fP
+.br
+اگر LV1 یک استخر پویا نبود، دستور LV1 را به یک استخر پویا تبدیل می‌کرد و در صورت تمایل از حجم منطقی مشخص‌شده برای متاداده استفاده می‌کرد.
+اما اگر LV1 از قبل یک استخر پویا بود، دستور حجم متاداده فعلی را با LV2 جابه‌جا می‌کرد (تنها برای مقاصد تعمیر).
+.P
+به همین ترتیب، این ترکیب دستوری پیشین دو عملیات متفاوت را انجام می‌داد:
+.br
+\fBlvconvert \-\-cachepool\fP \fILV1\fP \fB\-\-poolmetadata\fP \fILV2\fP
+.br
+اگر LV1 یک استخر کش نبود، دستور LV1 را به یک استخر کش تبدیل می‌کرد و در صورت تمایل از حجم منطقی مشخص‌شده برای متاداده استفاده می‌کرد.
+اما اگر LV1 از قبل یک استخر کش بود، دستور حجم متاداده فعلی را با LV2 جابه‌جا می‌کرد (تنها برای مقاصد تعمیر).
+.SH "مثال‌ها (EXAMPLES)"
+.
+تبدیل یک حجم منطقی خطی به یک حجم منطقی آینه‌ای دوطرفه:
+.br
+.B lvconvert \-\-type mirror \-\-mirrors 1 vg/lvol1
+.P
+تبدیل یک حجم منطقی خطی به یک حجم منطقی دوطرفه RAID1:
+.br
+.B lvconvert \-\-type raid1 \-\-mirrors 1 vg/lvol1
+.P
+تبدیل یک حجم منطقی آینه‌ای برای استفاده از لاگ درون‌حافظه‌ای:
+.br
+.B lvconvert \-\-mirrorlog core vg/lvol1
+.P
+تبدیل یک حجم منطقی آینه‌ای برای استفاده از لاگ روی دیسک:
+.br
+.B lvconvert \-\-mirrorlog disk vg/lvol1
+.P
+تبدیل یک حجم منطقی mirror یا raid1 به یک حجم منطقی خطی:
+.br
+.B lvconvert \-\-type linear vg/lvol1
+.P
+تبدیل یک حجم منطقی mirror به یک حجم raid1 با همان تعداد تصویر:
+.br
+.B lvconvert \-\-type raid1 vg/lvol1
+.P
+تبدیل یک حجم منطقی خطی به یک حجم آینه‌ای دوطرفه، با تخصیص اکستنت‌های جدید از محدوده‌های مشخص PV:
+.br
+.B lvconvert \-\-mirrors 1 vg/lvol1 /dev/sda:0\-15 /dev/sdb:0\-15
+.P
+تبدیل یک حجم منطقی آینه‌ای به خطی و آزادسازی اکستنت‌های فیزیکی از یک PV مشخص:
+.br
+.B lvconvert \-\-type linear vg/lvol1 /dev/sda
+.P
+جداسازی یک تصویر از یک حجم mirror یا raid1 و ساخت یک حجم منطقی جدید از آن:
+.br
+.B lvconvert \-\-splitmirrors 1 \-\-name lv_split vg/lvol1
+.P
+جداسازی یک تصویر از یک حجم raid1 و ردیابی تغییرات اعمال‌شده بر حجم raid1 تا زمانی که تصویر جداشده منفصل باقی بماند:
+.br
+.B lvconvert \-\-splitmirrors 1 \-\-trackchanges vg/lvol1
+.P
+ادغام مجدد تصویری که قبلاً با گزینه‌های \-\-splitmirrors و \-\-trackchanges ایجاد شده بود در حجم اصلی raid1:
+.br
+.B lvconvert \-\-mergemirrors vg/lvol1_rimage_1
+.P
+جایگزینی PV با نام /dev/sdb1 با PV دیگر /dev/sdf1 در یک حجم منطقی raid1/4/5/6/10:
+.br
+.B lvconvert \-\-replace /dev/sdb1 vg/lvol1 /dev/sdf1
+.P
+جایگزینی ۳ حجم فیزیکی /dev/sd[b\-d]1 با /dev/sd[f\-h]1 در یک حجم raid1:
+.br
+.B lvconvert \-\-replace /dev/sdb1 \-\-replace /dev/sdc1 \-\-replace /dev/sdd1
+.RS
+.B vg/lvol1 /dev/sd[fgh]1
+.RE
+.P
+جایگزینی حداکثر ۲ حجم فیزیکی /dev/sd[bc]1 با /dev/sd[gh]1 در یک حجم raid6:
+.br
+.B lvconvert \-\-replace /dev/sdb1 \-\-replace /dev/sdc1 vg/lvol1 /dev/sd[gh]1
+.P
+تبدیل یک حجم منطقی ضخیم (thick LV) به حجم داده استخر پویا (thin-pool) و ادامه استفاده از آن از طریق thinLV و تنظیم اندازه متاداده استخر به 1GiB:
+.br
+.B lvconvert \-\-type thin \-\-poolmetadatasize 1G vg/lvol1
+.P
+تبدیل یک حجم منطقی به یک استخر پویا با فشرده‌سازی و حذف داده‌های تکراری با VDO:
+.br
+.B lvconvert \-\-type thin\-pool \-\-pooldatavdo y vg/lvol1
+.P
+تبدیل یک حجم منطقی به یک حجم منطقی پویا در استخر پویای مشخص‌شده؛ حجم موجود به عنوان مبدا فقط‌خواندنی خارجی برای حجم پویای جدید استفاده می‌شود:
+.br
+.B lvconvert \-\-type thin \-\-thinpool vg/tpool1 vg/lvol1
+.P
+تبدیل یک حجم منطقی به یک حجم منطقی پویا در استخر پویای مشخص‌شده با تغییر نام مبدا خارجی به "external":
+.br
+.B lvconvert \-\-type thin \-\-thinpool vg/tpool1
+.RS
+.B \-\-originname external vg/lvol1
+.RE
+.P
+تبدیل یک حجم منطقی به حجم استخر کش با استفاده از حجم مشخص دیگری برای متاداده استخر کش:
+.br
+.B lvconvert \-\-type cache\-pool \-\-poolmetadata vg/poolmeta1 vg/lvol1
+.P
+تبدیل یک حجم منطقی به حجم منطقی کش با استفاده از استخر کش و اندازه تکه (chunk size) مشخص‌شده:
+.br
+.B lvconvert \-\-type cache \-\-cachepool vg/cpool1 \-c 128 vg/lvol1
+.P
+جداسازی و حفظ استخر کش از یک حجم منطقی کش:
+.br
+.B lvconvert \-\-splitcache vg/lvol1
+.P
+جداسازی و حذف کامل استخر کش از یک حجم منطقی کش:
+.br
+.B lvconvert \-\-uncache vg/lvol1
+.SH "همچنین ببینید (SEE ALSO)"
+.
+.nh
+.na
+.BR lvm (8),
+.BR lvm.conf (5),
+.BR lvmconfig (8),
+.BR lvmdevices (8),
+.P
+.BR pvchange (8),
+.BR pvck (8),
+.BR pvcreate (8),
+.BR pvdisplay (8),
+.BR pvmove (8),
+.BR pvremove (8),
+.BR pvresize (8),
+.BR pvs (8),
+.BR pvscan (8),
+.P
+.BR vgcfgbackup (8),
+.BR vgcfgrestore (8),
+.BR vgchange (8),
+.BR vgck (8),
+.BR vgcreate (8),
+.BR vgconvert (8),
+.BR vgdisplay (8),
+.BR vgexport (8),
+.BR vgextend (8),
+.BR vgimport (8),
+.BR vgimportclone (8),
+.BR vgimportdevices (8),
+.BR vgmerge (8),
+.BR vgmknodes (8),
+.BR vgreduce (8),
+.BR vgremove (8),
+.BR vgrename (8),
+.BR vgs (8),
+.BR vgscan (8),
+.BR vgsplit (8),
+.P
+.BR lvcreate (8),
+.BR lvchange (8),
+.BR lvconvert (8),
+.BR lvdisplay (8),
+.BR lvextend (8),
+.BR lvreduce (8),
+.BR lvremove (8),
+.BR lvrename (8),
+.BR lvresize (8),
+.BR lvs (8),
+.BR lvscan (8),
+.P
+.BR lvm\-fullreport (8),
+.BR lvm\-lvpoll (8),
+.BR blkdeactivate (8),
+.BR lvmdump (8),
+.P
+.BR dmeventd (8),
+.BR lvmpolld (8),
+.BR lvmlockd (8),
+.BR lvmlockctl (8),
+.BR cmirrord (8),
+.BR lvmdbusd (8),
+.BR fsadm (8),
+.P
+.BR lvmsystemid (7),
+.BR lvmreport (7),
+.BR lvmcache (7),
+.BR lvmraid (7),
+.BR lvmthin (7),
+.BR lvmvdo (7),
+.BR lvmautoactivation (7)

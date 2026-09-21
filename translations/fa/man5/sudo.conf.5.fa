@@ -1,0 +1,694 @@
+.TH "SUDO.CONF" "5" "مه ۲۰۲۵" "sudo" "فایلهای پیکربندی"
+.SH "نام (NAME)"
+sudo.conf \- پرونده پیکربندی افزونهها و تنظیمات دستور sudo
+.SH "توضیحات (DESCRIPTION)"
+پرونده \fI/etc/sudo.conf\fR گزینههای عمومی بخش فرانتاند sudo، بارگذاری افزونههای امنیتی (plugins) و دیباگ را پیکربندی میکند.
+.PP
+پرونده
+.B sudo.conf
+از دستورالعمل‌های زیر پشتیبانی می‌کند که جزئیات آن‌ها در ادامه آمده است:
+.TP
+.B Plugin
+یک افزونه برای تایید (approval)، بازرسی (audit)، ثبت گزارش ورودی/خروجی (I/O logging)، یا خط‌مشی امنیتی (security policy).
+.TP
+.B Path
+یک مسیر ناوابسته به افزونه (plugin-agnostic).
+.TP
+.B Set
+یک تنظیم فرانت‌اند، مانند
+.B disable_coredump
+یا
+.BR group_source .
+.TP
+.B Debug
+فلگ‌های اشکال‌زدایی جهت کمک به دیباگ
+.BR sudo ،
+.BR sudoreplay ،
+.BR visudo
+و افزونه
+.BR sudoers .
+.PP
+علامت هش
+.RB ( # )
+برای نشان دادن کامنت استفاده می‌شود. نویسه کامنت و هر متنی پس از آن تا انتهای خط نادیده گرفته می‌شوند.
+.PP
+خطوط طولانی را می‌توان با قرار دادن یک بک‌اسلش
+.RB ( \e )
+به عنوان آخرین نویسه در انتهای خط ادامه داد. فاصله‌های خالی ابتدای خط حتی در صورت استفاده از نویسه ادامه‌دهنده حذف می‌شوند.
+.PP
+خطوط غیر کامنت که با
+.BR Plugin ،
+.BR Path ،
+.B Debug
+یا
+.B Set
+شروع نشوند، در سکوت نادیده گرفته می‌شوند.
+.PP
+پرونده
+.B sudo.conf
+همیشه در لوکال
+.B C
+تجزیه می‌شود.
+.SS "پیکربندی افزونه‌ها (Plugin configuration)"
+دستور
+.B sudo
+از یک معماری افزونه برای خط‌مشی‌های امنیتی و ثبت ورودی/خروجی پشتیبانی می‌کند. اشخاص ثالث می‌توانند افزونه‌های خط‌مشی و لاگ I/O خود را توسعه داده و توزیع کنند تا به‌صورت یکپارچه با فرانت‌اند
+.B sudo
+کار کنند. افزونه‌ها به‌طور پویا بر اساس محتویات
+.B sudo.conf
+بارگذاری می‌شوند.
+.PP
+یک خط
+.B Plugin
+از کلمه کلیدی
+.B Plugin
+تشکیل شده است که به دنبال آن
+.I symbol_name
+و
+.I path
+به شیء مشترک پویا (dynamic shared object) حاوی افزونه قرار می‌گیرد. مقدار
+.I symbol_name
+نام یکی از ساختارهای
+.BR "struct approval_plugin" ،
+.BR "struct audit_plugin" ،
+.B struct io_plugin
+یا
+.B struct policy_plugin
+است که توسط افزونه تعریف شده است. اگر افزونه‌ای چندین نوع افزونه را پیاده‌سازی کند، باید برای هر نام نماد یک خط
+.B Plugin
+جداگانه وجود داشته باشد. مسیر
+.I path
+می‌تواند مطلق یا نسبی باشد. اگر مطلق نباشد، نسبت به دایرکتوری مشخص‌شده توسط تنظیم
+.B plugin_dir
+در
+.B Path
+در نظر گرفته می‌شود که پیش‌فرض آن
+.I /usr/libexec/sudo
+است. به عبارت دیگر:
+.PP
+.nf
+    Plugin sudoers_policy sudoers.so
+.fi
+.PP
+معادل است با:
+.PP
+.nf
+    Plugin sudoers_policy /usr/libexec/sudo/sudoers.so
+.fi
+.PP
+اگر افزونه به جای نصب به عنوان یک شیء مشترک پویا، به‌صورت ایستا در باینری
+.B sudo
+کامپایل شده باشد، مسیر
+.I path
+باید بدون پیشوند دایرکتوری مشخص شود، زیرا در واقع در فایل‌سیستم وجود ندارد. برای مثال:
+.PP
+.nf
+    Plugin sudoers_policy sudoers.so
+.fi
+.PP
+از نگارش 1.8.5 به بعد
+.BR sudo ،
+هر پارامتر اضافی پس از
+.I path
+به عنوان آرگومان به تابع
+.B open
+افزونه ارسال می‌شود. برای مثال، برای لغو حالت پیش‌فرض فایل sudoers تعیین‌شده در زمان کامپایل:
+.PP
+.nf
+    Plugin sudoers_policy sudoers.so sudoers_mode=0440
+.fi
+.PP
+برای مشاهده فهرست آرگومان‌های پشتیبانی‌شده به صفحه راهنمای
+.BR sudoers (5)
+مراجعه کنید.
+.PP
+یک شیء مشترک پویا می‌تواند شامل چندین افزونه باشد که هرکدام نام نماد متفاوتی دارند. مالک این پرونده باید شناسه کاربری 0 (root) باشد و فقط توسط مالک آن قابل نوشتن باشد. به دلیل ابهاماتی که ممکن است از خط‌مشی‌های مرکب ایجاد شود، تنها یک افزونه خط‌مشی (policy plugin) را می‌توان مشخص کرد. این محدودیت برای افزونه‌های ورودی/خروجی (I/O plugins) اعمال نمی‌شود.
+.PP
+اگر پرونده
+.B sudo.conf
+وجود نداشته باشد یا شامل هیچ خط
+.B Plugin
+نباشد، افزونه
+.B sudoers
+به‌عنوان خط‌مشی امنیتی پیش‌فرض، برای ثبت I/O (در صورت فعال بودن در خط‌مشی) و برای بازرسی استفاده خواهد شد. این معادل موارد زیر است:
+.PP
+.nf
+    Plugin sudoers_policy sudoers.so
+    Plugin sudoers_io sudoers.so
+    Plugin sudoers_audit sudoers.so
+.fi
+.PP
+از نگارش 1.9.1 به بعد
+.BR sudo ،
+بخشی از قابلیت‌های لاگینگ افزونه
+.B sudoers
+از افزونه خط‌مشی به یک افزونه بازرسی (audit plugin) منتقل شده است. برای حفظ سازگاری با پرونده‌های
+.B sudo.conf
+نسخه‌های قدیمی‌تر
+.BR sudo ،
+اگر
+.B sudoers
+به عنوان خط‌مشی امنیتی پیکربندی شده باشد، به عنوان افزونه بازرسی نیز استفاده خواهد شد. این امر تضمین می‌کند که رفتار ثبت گزارش با نسخه‌های 1.9.0 و پایین‌تر
+.B sudo
+سازگار بماند.
+.PP
+برای اطلاعات بیشتر درباره معماری افزونه‌های
+.BR sudo ،
+به صفحه راهنمای
+.BR sudo_plugin (5)
+مراجعه کنید.
+.SS "تنظیمات مسیر (Path settings)"
+یک خط
+.B Path
+شامل کلمه کلیدی
+.B Path
+است که پس از آن نام مسیر و مقدار آن قرار می‌گیرد. برای مثال:
+.PP
+.nf
+    Path intercept /usr/libexec/sudo/sudo_intercept.so
+    Path noexec /usr/libexec/sudo/sudo_noexec.so
+    Path askpass /usr/X11R6/bin/ssh-askpass
+.fi
+.PP
+اگر نام مسیری مشخص نشود، قابلیت‌هایی که به آن تنظیم وابسته‌اند غیرفعال خواهند شد. غیرفعال‌سازی تنظیمات
+.B Path
+تنها در نسخه 1.8.16 و بالاتر
+.B sudo
+پشتیبانی می‌شود.
+.PP
+مسیرهای ناوابسته به افزونه زیر را می‌توان در پرونده
+.I /etc/sudo.conf
+تنظیم کرد:
+.TP
+.B askpass
+مسیر کامل به یک برنامه کمکی برای خواندن رمز عبور کاربر در زمانی که هیچ ترمینالی در دسترس نیست. این مورد زمانی رخ می‌دهد که
+.B sudo
+از یک برنامه گرافیکی (برخلاف متنی) اجرا شود. برنامه مشخص‌شده توسط
+.B askpass
+باید آرگومان ارسال‌شده به خود را به عنوان اعلان (prompt) نمایش دهد و رمز عبور کاربر را در خروجی استاندارد بنویسد. مقدار
+.B askpass
+را می‌توان با متغیر محیطی
+.B SUDO_ASKPASS
+بازنویسی کرد.
+.TP
+.B devsearch
+یک مسیر جستجوی مرتب‌شده و جداشده با دونقطه از دایرکتوری‌ها جهت جستجوی گره‌های دستگاه. این تنظیم هنگام نگاشت شماره دستگاه tty فرایند به نام دستگاه در سیستم‌هایی که چنین سازوکاری را ارائه نمی‌دهند استفاده می‌شود. دستور Sudo در زیردایرکتوری‌ها جستجوی بازگشتی انجام
+.B نمی‌دهد
+. اگر دستگاه‌های ترمینال ممکن است در یک زیردایرکتوری از
+.I /dev
+قرار داشته باشند، آن مسیر باید صراحتاً در
+.B devsearch
+ذکر شود. مقدار پیش‌فرض آن عبارت است از:
+.PP
+.nf
+    /dev/pts:/dev/vt:/dev/term:/dev/zcons:/dev/pty:/dev
+.fi
+.PP
+این گزینه در سیستم‌هایی که از توابع
+.B devname
+یا
+.B _ttyname_dev
+پشتیبانی می‌کنند (مانند BSD، macOS و Solaris) نادیده گرفته می‌شود.
+.TP
+.B intercept
+مسیر کامل به یک کتابخانه مشترک حاوی پوشش‌هایی (wrappers) برای توابع کتابخانه‌ای
+.BR execve (2)،
+.BR execl (3)،
+.BR execle (3)،
+.BR execlp (3)،
+.BR execv (3)،
+.BR execvp (3)،
+.BR execvpe (3)
+و
+.BR system (3)
+که تلاش‌ها برای اجرای دستورات بعدی را رهگیری کرده و پیش از اجازه اجرای آن‌ها یک بررسی خط‌مشی انجام می‌دهد. این برای پیاده‌سازی قابلیت
+.B intercept
+در سیستم‌هایی که از
+.B LD_PRELOAD
+یا معادل آن پشتیبانی می‌کنند به کار می‌رود. مقدار پیش‌فرض آن
+.I /usr/libexec/sudo/sudo_intercept.so
+است.
+.TP
+.B noexec
+مسیر کامل به یک کتابخانه مشترک حاوی پوشش‌هایی برای توابع کتابخانه‌ای
+.BR execve (2)،
+.BR execl (3)،
+.BR execle (3)،
+.BR execlp (3)،
+.BR exect (3)،
+.BR execv (3)،
+.BR execveat (3)،
+.BR execvP (3)،
+.BR execvp (3)،
+.BR execvpe (3)،
+.BR fexecve (3)،
+.BR popen (3)،
+.BR posix_spawn (3)،
+.BR posix_spawnp (3)،
+.BR system (3)
+و
+.BR wordexp (3)
+که از اجرای دستورات بعدی جلوگیری می‌کنند. این برای پیاده‌سازی قابلیت
+.B noexec
+در سیستم‌هایی که از
+.B LD_PRELOAD
+یا معادل آن پشتیبانی می‌کنند به کار می‌رود. مقدار پیش‌فرض آن
+.I /usr/libexec/sudo/sudo_noexec.so
+است.
+.TP
+.B plugin_dir
+دایرکتوری پیش‌فرض برای جستجوی افزونه‌هایی که بدون مسیر کامل مشخص شده‌اند. مقدار پیش‌فرض آن
+.I /usr/libexec/sudo
+است.
+.TP
+.B sesh
+مسیر کامل به باینری
+.BR sesh .
+این تنظیم تنها زمانی استفاده می‌شود که
+.B sudo
+با پشتیبانی از SELinux ساخته شده باشد. مقدار پیش‌فرض آن
+.I /usr/libexec/sudo/sesh
+است.
+.SS "سایر تنظیمات (Other settings)"
+پرونده
+.B sudo.conf
+همچنین از تنظیمات فرانت‌اند زیر پشتیبانی می‌کند:
+.TP
+.B disable_coredump
+تولید تخلیه حافظه هسته (Core dump) خود
+.B sudo
+به‌طور پیش‌فرض غیرفعال است تا از افشای اطلاعات حساس احتمالی جلوگیری شود. برای کمک به دیباگ کردن خطاهای کرش
+.BR sudo ،
+ممکن است بخواهید تولید core dump را با قرار دادن
+.B disable_coredump
+روی مقدار false در پرونده
+.B sudo.conf
+به صورت زیر فعال کنید:
+.PP
+.nf
+    Set disable_coredump false
+.fi
+.PP
+تمام سیستم‌های‌عامل مدرن محدودیت‌هایی را بر تولید core dump از فرایندهای set-user-ID مانند
+.B sudo
+اعمال می‌کنند، بنابراین این گزینه را می‌توان بدون به خطر انداختن امنیت فعال کرد. برای دریافت واقعی یک فایل core از
+.BR sudo ،
+احتمالاً باید ایجاد core dump را برای فرایندهای set-user-ID فعال سازید. در سیستم‌های BSD و لینوکس این کار با دستور
+.BR sysctl (8)
+انجام می‌شود. در سولاریس، دستور
+.BR coreadm (1m)
+برای پیکربندی رفتار core dump استفاده می‌شود.
+.PP
+این تنظیم تنها در نگارش 1.8.4 و بالاتر
+.B sudo
+در دسترس است.
+.TP
+.B group_source
+دستور
+.B sudo
+فهرست گروه‌های کاربری که دستور را اجرا کرده به افزونه‌های خط‌مشی و ورودی/خروجی ارسال می‌کند. در بیشتر سیستم‌ها، حد بالایی برای تعداد گروه‌هایی که یک کاربر می‌تواند هم‌زمان عضو آن‌ها باشد وجود دارد (معمولاً ۱۶ برای سازگاری با NFS). در سیستم‌های دارای ابزار
+.BR getconf (1)،
+اجرای دستور:
+.PP
+.nf
+    getconf NGROUPS_MAX
+.fi
+.PP
+حداکثر تعداد گروه‌ها را برمی‌گرداند.
+.PP
+با این حال، همچنان ممکن است کاربر عضو تعداد بیشتری از گروه‌ها باشد؛ آن‌ها صرفاً در لیست گروه‌های بازگردانده‌شده توسط هسته برای کاربر گنجانده نمی‌شوند. از نگارش 1.8.7 به بعد
+.BR sudo ،
+اگر لیست گروه‌های هسته کاربر دارای حداکثر تعداد ورودی‌ها باشد،
+.B sudo
+مستقیماً پایگاه داده گروه‌ها را بررسی می‌کند تا لیست کامل را تعیین نماید. این امر باعث می‌شود خط‌مشی امنیتی بتواند تطبیق را بر اساس نام گروه حتی زمانی که کاربر عضو گروه‌های بیشتری از حداکثر مجاز باشد، انجام دهد.
+.PP
+تنظیم
+.B group_source
+به مدیر سیستم اجازه می‌دهد این رفتار پیش‌فرض را تغییر دهد. مقادیر پشتیبانی‌شده برای
+.B group_source
+عبارتند از:
+.RS
+.TP
+.B static
+استفاده از لیست ایستای گروه‌ها که هسته برمی‌گرداند. دریافت لیست گروه‌ها به این روش بسیار سریع است اما مشمول حد بالایی است که در بالا توضیح داده شد. این لیست از این جهت «ایستا» است که تغییرات اعمال‌شده در پایگاه داده گروه‌ها پس از ورود کاربر را منعکس نمی‌کند. این رفتار پیش‌فرض قبل از نگارش 1.8.7 بود.
+.TP
+.B dynamic
+پرس‌وجوی مستقیم و همیشگی از پایگاه داده گروه‌ها. این روش از این جهت «پویا» است که تغییرات اعمال‌شده در پایگاه داده گروه‌ها پس از ورود کاربر در لیست منعکس می‌شود. در برخی سیستم‌ها، پرس‌وجو از پایگاه داده گروه‌ها برای تمام گروه‌های یک کاربر در صورت شبکه‌ای بودن پایگاه داده ممکن است زمان‌بر باشد. اکثر سیستم‌های‌عامل روش بهینه‌ای برای این پرس‌وجوها ارائه می‌دهند. در حال حاضر
+.B sudo
+از پرس‌وجوهای بهینه در AIX، BSD، HP-UX، Linux، macOS و Solaris پشتیبانی می‌کند. این رفتار پیش‌فرض در macOS از نسخه 1.9.6 به بعد است.
+.TP
+.B adaptive
+تنها در صورتی از پایگاه داده گروه‌ها استعلام می‌شود که لیست ایستای ارائه‌شده توسط هسته دارای حداکثر تعداد ورودی‌ها باشد. این رفتار پیش‌فرض در سیستم‌هایی به غیر از macOS از نسخه 1.8.7 به بعد است.
+.RE
+.PP
+برای مثال، برای آنکه
+.B sudo
+تنها از لیست ایستای هسته استفاده کند:
+.PP
+.nf
+    Set group_source static
+.fi
+.PP
+این تنظیم تنها در نسخه 1.8.7 و بالاتر
+.B sudo
+در دسترس است.
+.TP
+.B max_groups
+حداکثر تعداد گروه‌های کاربر که باید از پایگاه داده گروه‌ها استخراج شود. مقادیر کمتر از 1 یا بزرگتر از 1024 نادیده گرفته می‌شوند. این تنظیم تنها هنگام استعلام مستقیم از پایگاه داده گروه‌ها استفاده می‌شود. کاربرد آن برای سیستم‌هایی است که امکان تشخیص عدم کفایت اندازه آرایه پرشونده با ورودی‌های گروه وجود ندارد. به‌طور پیش‌فرض،
+.B sudo
+چهار برابر حداکثر تعداد گروه‌های سیستم (به بالا مراجعه شود) فضا تخصیص می‌دهد و در صورت شکست استعلام پایگاه داده، با دو برابر آن مقدار دوباره تلاش می‌کند.
+.PP
+این تنظیم تنها در نگارش 1.8.7 و بالاتر
+.B sudo
+موجود است. در نگارش‌های 1.8.24 و بالاتر نیازی به آن نیست و ممکن است در نسخه‌های آینده حذف شود.
+.TP
+.B probe_interfaces
+به‌طور پیش‌فرض،
+.B sudo
+رابط‌های شبکه سیستم را بررسی کرده و آدرس IP هر رابط فعال را به افزونه خط‌مشی ارسال می‌کند. این امکان را فراهم می‌سازد که افزونه قوانین را بر اساس آدرس IP بدون نیاز به پرس‌وجو از DNS تطبیق دهد. در سیستم‌های لینوکس با تعداد زیادی رابط مجازی، این کار ممکن است زمان قابل توجهی ببرد. اگر تطبیق بر اساس IP مورد نیاز نباشد، می‌توان بررسی رابط‌های شبکه را به صورت زیر غیرفعال کرد:
+.PP
+.nf
+    Set probe_interfaces false
+.fi
+.PP
+این تنظیم در نسخه 1.8.10 و بالاتر
+.B sudo
+در دسترس است.
+.SS "تنظیمات اشکال‌زدایی (Debug settings)"
+نسخه‌های 1.8.4 و بالاتر
+.B sudo
+از یک چارچوب انعطاف‌پذیر اشکال‌زدایی پشتیبانی می‌کنند که می‌تواند در صورت بروز مشکل، فعالیت‌های داخلی
+.B sudo
+را ثبت کند.
+.PP
+یک خط
+.B Debug
+شامل کلمه کلیدی
+.B Debug
+است که پس از آن نام برنامه، افزونه یا شیء مشترک مورد نظر برای دیباگ، نام فایل لاگ دیباگ و فهرستی از فلگ‌های اشکال‌زدایی جداشده با کاما می‌آید. ساختار نگارشی فلگ‌های دیباگ استفاده‌شده توسط
+.BR sudo ،
+افزونه
+.B sudoers
+و برنامه‌ها و اشیاء مشترک مرتبط با آن به صورت
+.IB subsystem @ priority
+است، اما یک افزونه ثالث آزاد است تا زمانی که از کاما
+.RB ( \&, )
+استفاده نکند، قالب دیگری را به کار ببرد.
+.PP
+مثال‌ها:
+.PP
+.nf
+    Debug sudo /var/log/sudo_debug all@warn,plugin@info
+.fi
+.PP
+تمام پیام‌های اشکال‌زدایی در سطح
+.B warn
+و بالاتر و همچنین پیام‌های در سطح
+.B info
+را برای زیرسیستم افزونه ثبت می‌کند.
+.PP
+.nf
+    Debug sudo_intercept.so /var/log/intercept_debug all@debug
+.fi
+.PP
+تمامی گزارش‌های اشکال‌زدایی را بدون در نظر گرفتن سطح، برای کتابخانه مشترک
+.I sudo_intercept.so
+که قابلیت رهگیری را در برخی سیستم‌ها پیاده‌سازی می‌کند ثبت خواهد کرد.
+.PP
+از نگارش 1.8.12 به بعد
+.BR sudo ،
+می‌توان چندین مدخل
+.B Debug
+را برای هر برنامه مشخص کرد. نسخه‌های قدیمی‌تر تنها از یک ورودی
+.B Debug
+به ازای هر برنامه پشتیبانی می‌کردند. همچنین از نگارش 1.8.12 به بعد ورودی‌های دیباگ ویژه افزونه‌ها نیز پشتیبانی می‌شوند و بر اساس نام پایه افزونه بارگذاری‌شده (برای مثال
+.IR sudoers.so )
+یا مسیر کامل افزونه تطبیق داده می‌شوند. پیش از این، افزونه
+.B sudoers
+همان ورودی
+.B Debug
+فرانت‌اند
+.B sudo
+را به اشتراک می‌گذاشت و نمی‌توانست به‌طور جداگانه پیکربندی شود.
+.PP
+اولویت‌های زیر به ترتیب کاهش شدت پشتیبانی می‌شوند:
+.BR crit ،
+.BR err ،
+.BR warn ،
+.BR notice ،
+.BR diag ،
+.BR info ،
+.B trace
+و
+.BR debug .
+هر اولویت پس از مشخص شدن، تمام اولویت‌های بالاتر از خود را نیز شامل می‌شود. برای مثال، اولویت
+.B notice
+شامل پیام‌های دیباگ ثبت‌شده در سطح
+.B notice
+و بالاتر خواهد بود.
+.PP
+اولویت‌های
+.B trace
+و
+.B debug
+همچنین شامل ردگیری فراخوانی توابع (function call tracing) هستند که زمان ورود به یک تابع و زمان بازگشت از آن را ثبت می‌کند. به عنوان مثال، ردگیری زیر مربوط به تابع
+.B get_user_groups
+واقع در src/sudo.c است:
+.PP
+.nf
+    sudo[123] -> get_user_groups @ src/sudo.c:385
+    sudo[123] <- get_user_groups @ src/sudo.c:429 := groups=10,0,5
+.fi
+.PP
+هنگام ورود به تابع که با یک پیکان به سمت راست
+.RB ( -> )
+مشخص شده است، برنامه، شناسه فرایند (PID)، تابع، فایل منبع و شماره خط ثبت می‌شوند. هنگامی که تابع بازمی‌گردد که با یک پیکان به سمت چپ
+.RB ( <- )
+نشان داده شده است، همان اطلاعات به همراه مقدار بازگشتی ثبت می‌گردد. در این مورد، مقدار بازگشتی یک رشته است.
+.PP
+زیرسیستم‌های زیر توسط فرانت‌اند
+.B sudo
+استفاده می‌شوند:
+.TP
+.B all
+با تمامی زیرسیستم‌ها مطابقت دارد
+.TP
+.B args
+پردازش آرگومان‌های خط فرمان
+.TP
+.B conv
+گفتگوی تعاملی با کاربر
+.TP
+.B edit
+دستور sudoedit
+.TP
+.B event
+زیرسیستم رویدادها
+.TP
+.B exec
+اجرای دستور
+.TP
+.B main
+تابع اصلی
+.B sudo
+.TP
+.B netif
+مدیریت رابط‌های شبکه
+.TP
+.B pcomm
+ارتباط با افزونه
+.TP
+.B plugin
+پیکربندی افزونه
+.TP
+.B pty
+کدهای مربوط به شبه‌ترمینال (pseudo-terminal)
+.TP
+.B selinux
+مدیریت ویژه SELinux
+.TP
+.B util
+توابع سودمند و کمکی
+.TP
+.B utmp
+مدیریت utmp
+.PP
+افزونه
+.BR sudoers (5)
+از زیرسیستم‌های بیشتری پشتیبانی می‌کند.
+.SH "فایل‌ها (FILES)"
+.TP
+.I /etc/sudo.conf
+پیکربندی فرانت‌اند
+.B sudo
+.SH "مثال‌ها (EXAMPLES)"
+.nf
+#
+# Default /etc/sudo.conf file
+#
+# Sudo plugins:
+#   Plugin plugin_name plugin_path plugin_options ...
+#
+# The plugin_path is relative to /usr/libexec/sudo unless
+#   fully qualified.
+# The plugin_name corresponds to a global symbol in the plugin
+#   that contains the plugin interface structure.
+# The plugin_options are optional.
+#
+# The sudoers plugin is used by default if no Plugin lines are present.
+#Plugin sudoers_policy sudoers.so
+#Plugin sudoers_io sudoers.so
+#Plugin sudoers_audit sudoers.so
+
+#
+# Sudo askpass:
+#   Path askpass /path/to/askpass
+#
+# An askpass helper program may be specified to provide a graphical
+# password prompt for "sudo -A" support.  Sudo does not ship with its
+# own askpass program but can use the OpenSSH askpass.
+#
+# Use the OpenSSH askpass
+#Path askpass /usr/X11R6/bin/ssh-askpass
+#
+# Use the Gnome OpenSSH askpass
+#Path askpass /usr/libexec/openssh/gnome-ssh-askpass
+
+#
+# Sudo device search path:
+#   Path devsearch /dev/path1:/dev/path2:/dev
+#
+# A colon-separated list of paths to check when searching for a user's
+# terminal device.
+#
+#Path devsearch /dev/pts:/dev/vt:/dev/term:/dev/zcons:/dev/pty:/dev
+
+#
+# Sudo command interception:
+#   Path intercept /path/to/sudo_intercept.so
+#
+# Path to a shared library containing replacements for the execv()
+# and execve() library functions that perform a policy check to verify
+# the command is allowed and simply return an error if not.  This is
+# used to implement the "intercept" functionality on systems that
+# support LD_PRELOAD or its equivalent.
+#
+# The compiled-in value is usually sufficient and should only be changed
+# if you rename or move the sudo_intercept.so file.
+#
+#Path intercept /usr/libexec/sudo/sudo_intercept.so
+
+#
+# Sudo noexec:
+#   Path noexec /path/to/sudo_noexec.so
+#
+# Path to a shared library containing replacements for the execv()
+# family of library functions that just return an error.  This is
+# used to implement the "noexec" functionality on systems that support
+# LD_PRELOAD or its equivalent.
+#
+# The compiled-in value is usually sufficient and should only be changed
+# if you rename or move the sudo_noexec.so file.
+#
+#Path noexec /usr/libexec/sudo/sudo_noexec.so
+
+#
+# Sudo plugin directory:
+#   Path plugin_dir /path/to/plugins
+#
+# The default directory to use when searching for plugins that are
+# specified without a fully qualified path name.
+#
+#Path plugin_dir /usr/libexec/sudo
+
+#
+# Core dumps:
+#   Set disable_coredump true|false
+#
+# By default, sudo disables core dumps while it is executing (they
+# are re-enabled for the command that is run).
+# To aid in debugging sudo problems, you may wish to enable core
+# dumps by setting "disable_coredump" to false.
+#
+#Set disable_coredump false
+
+#
+# User groups:
+#   Set group_source static|dynamic|adaptive
+#
+# Sudo passes the user's group list to the policy plugin.
+# If the user is a member of the maximum number of groups (usually 16),
+# sudo will query the group database directly to be sure to include
+# the full list of groups.
+#
+# On some systems, this can be expensive so the behavior is configurable.
+# The "group_source" setting has three possible values:
+#   static   - use the user's list of groups returned by the kernel.
+#   dynamic  - query the group database to find the list of groups.
+#   adaptive - if user is in less than the maximum number of groups.
+#              use the kernel list, else query the group database.
+#
+#Set group_source static
+
+#
+# Sudo interface probing:
+#   Set probe_interfaces true|false
+#
+# By default, sudo will probe the system's network interfaces and
+# pass the IP address of each enabled interface to the policy plugin.
+# On systems with a large number of virtual interfaces this may take
+# a noticeable amount of time.
+#
+#Set probe_interfaces false
+
+#
+# Sudo debug files:
+#   Debug program /path/to/debug_log subsystem@priority[,subsyste@priority]
+#
+# Sudo and related programs support logging debug information to a file.
+# The program is typically sudo, sudoers.so, sudoreplay, or visudo.
+#
+# Subsystems vary based on the program; "all" matches all subsystems.
+# Priority may be crit, err, warn, notice, diag, info, trace, or debug.
+# Multiple subsystem@priority may be specified, separated by a comma.
+#
+#Debug sudo /var/log/sudo_debug all@warn,plugin@info
+#Debug sudoers.so /var/log/sudoers_debug all@debug
+.fi
+.SH "همچنین ببینید (SEE ALSO)"
+.BR sudo_plugin (5)،
+.BR sudoers (5)،
+.BR sudo (8)
+.SH "نویسندگان (AUTHORS)"
+افراد بسیاری در طول سال‌ها روی
+.B sudo
+کار کرده‌اند؛ این نگارش عمدتاً از کدهای نوشته‌شده توسط افراد زیر تشکیل شده است:
+.RS
+Todd C. Miller
+.RE
+.PP
+برای مشاهده فهرست کامل افرادی که در پروژه
+.B sudo
+مشارکت داشته‌اند، پرونده CONTRIBUTORS.md را در توزیع
+.B sudo
+یا نشانی
+<https://www.sudo.ws/about/contributors>
+ببینید.
+.SH "گزارش باگ‌ها (BUGS)"
+اگر فکر می‌کنید باگی در
+.B sudo
+یافته‌اید، می‌توانید گزارش اشکال را در
+<https://bugzilla.sudo.ws>
+ارسال کنید.
+.SH "پشتیبانی (SUPPORT)"
+پشتیبانی رایگان محدود از طریق فهرست ایمیل sudo-users در دسترس است، برای عضویت یا جستجو در آرشیو نشانی
+<https://www.sudo.ws/mailman/listinfo/sudo-users>
+را ببینید.
+.SH "سلب مسئولیت (DISCLAIMER)"
+برنامه
+.B sudo
+به صورت «همان‌گونه که هست» (AS IS) ارائه می‌شود و هرگونه ضمانت صریح یا ضمنی، شامل و نه محدود به، ضمانت‌های ضمنی تجارت و تناسب با یک هدف خاص رد می‌شود. برای جزئیات کامل پرونده LICENSE.md ارائه‌شده همراه با
+.B sudo
+یا نشانی
+<https://www.sudo.ws/about/license>
+را ملاحظه فرمایید.

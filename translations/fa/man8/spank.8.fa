@@ -1,0 +1,397 @@
+.TH SPANK "8" "Slurm Component" "Slurm 26.05" "Slurm Component"
+
+.SH "نام (NAME)"
+\fBSPANK\fR \- معماری پلاگین Slurm برای کنترل گره و کار (Job and Node Control)
+
+.SH "توضیحات (DESCRIPTION)"
+این راهنما به طور خلاصه قابلیت‌های معماری پلاگین Slurm برای کنترل گره و کار (\fBSPANK\fR) و همچنین فایل پیکربندی \fBSPANK\fR (به‌طور پیش‌فرض: \fBplugstack.conf\fP) را شرح می‌دهد.
+.LP
+\fBSPANK\fR یک رابط بسیار عمومی برای پلاگین‌های پشته‌پذیر (stackable) فراهم می‌کند که می‌توان از آن برای تغییر پویای کد راه‌اندازی کار در Slurm استفاده کرد. پلاگین‌های \fBSPANK\fR بدون نیاز به دسترسی به کد منبع Slurm ساخته می‌شوند. آن‌ها تنها کافی است در برابر فایل هدر \fBspank.h\fR از Slurm کامپایل شده و به فایل پیکربندی \fBSPANK\fR با نام \fBplugstack.conf\fR اضافه شوند تا در زمان اجرا هنگام راه‌اندازی کار بعدی بارگذاری گردند. از این رو، زیرساخت \fBSPANK\fR برای مدیران سیستم و سایر توسعه‌دهندگان قابلیت تغییر پویای رفتار زمان اجرای راه‌اندازی کارهای Slurm را با هزینه و زحمت اندک فراهم می‌سازد.
+.LP
+\fBنکته\fR: تمام پلاگین‌های \fBSPANK\fR هنگام ارتقای Slurm به یک نسخه اصلی (major release) جدید باید مجدداً کامپایل شوند. تضمین نمی‌شود که API مربوط به \fBSPANK\fR بین نسخه‌های اصلی سازگاری ABI داشته باشد. هر پلاگین \fBSPANK\fR که با کتابخانه‌های Slurm پیوند می‌خورد باید به دقت بررسی شود، زیرا APIها و هدرهای Slurm ممکن است در نسخه‌های اصلی تغییر کنند.
+.LP
+
+.SH "پلاگین‌های SPANK (SPANK PLUGINS)"
+پلاگین‌های \fBSPANK\fR در حداکثر پنج زمینه (context) مجزا در طول یک کار \fBSlurm\fR بارگذاری می‌شوند. به طور خلاصه، این پنج زمینه عبارتند از:
+
+.TP 8
+\fBlocal\fR
+در زمینه \fBlocal\fR، پلاگین توسط \fBsrun\fR بارگذاری می‌شود (یعنی بخش «محلی» یک کار موازی).
+.IP
+
+.TP
+\fBremote\fR
+در زمینه \fBremote\fR، پلاگین توسط \fBslurmstepd\fR بارگذاری می‌شود (یعنی بخش «دورست» یک کار موازی).
+.IP
+
+.TP
+\fBallocator\fR
+در زمینه \fBallocator\fR، پلاگین در یکی از ابزارهای تخصیص کار شامل \fBsalloc\fR، \fBsbatch\fR یا \fBscrontab\fR بارگذاری می‌شود.
+.IP
+
+.TP
+\fBslurmd\fR
+در زمینه \fBslurmd\fR، پلاگین در خود دیمن \fBslurmd\fR بارگذاری می‌شود. \fBنکته\fR: پلاگین‌های بارگذاری‌شده در زمینه slurmd در تمام مدت زمان اجرای slurmd فعال باقی می‌مانند، بنابراین در صورت تغییر پیکربندی یا به‌روزرسانی پلاگین‌ها، slurmd باید مجدداً راه‌اندازی شود تا تغییرات اعمال شوند.
+.IP
+
+.TP
+\fBjob_script\fR
+در زمینه \fBjob_script\fR، پلاگین‌ها در زمینه پرولوگ یا اپیلوگ کار بارگذاری می‌شوند. \fBنکته\fR: پلاگین‌ها در زمینه \fBjob_script\fR در هر بار اجرای پرولوگ یا اپیلوگ کار، در یک فضای آدرس‌دهی مجزا از پلاگین‌های زمینه \fBslurmd\fR بارگذاری می‌شوند. این بدان معناست که هیچ وضعیتی بین این زمینه و زمینه‌های دیگر، یا حتی بین یک فراخوانی به \fBslurm_spank_job_prolog\fR یا \fBslurm_spank_job_epilog\fR و فراخوانی‌های بعدی به اشتراک گذاشته نمی‌شود.
+.IP
+.LP
+در زمینه local، تنها توابع \fBinit\fR، \fBexit\fR، \fBinit_post_opt\fR و \fBlocal_user_init\fR فراخوانی می‌شوند. در زمینه allocator، فقط توابع \fBinit\fR، \fBexit\fR و \fBinit_post_opt\fR فراخوانی می‌گردند. به همین ترتیب، در زمینه slurmd تنها کالبک‌های \fBinit\fR و \fBslurmd_exit\fR فعال هستند و در زمینه job_script فقط کالبک‌های \fBjob_prolog\fR و \fBjob_epilog\fR به کار گرفته می‌شوند.
+پلاگین‌ها می‌توانند زمینه‌ای را که در آن در حال اجرا هستند با استفاده از توابع \fBspank_context\fR و \fBspank_remote\fR تعریف‌شده در \fBspank.h\fR استعلام کنند.
+.LP
+پلاگین‌های \fBSPANK\fR ممکن است از چندین نقطه در طول فرآیند راه‌اندازی کار Slurm فراخوانی شوند. یک پلاگین می‌تواند توابع زیر را تعریف کند:
+
+.TP 2
+\fBslurm_spank_init\fR
+درست پس از بارگذاری پلاگین‌ها فراخوانی می‌شود. در زمینه remote، این فراخوانی درست پس از مقداردهی اولیه گام کار (job step) صورت می‌گیرد. این تابع پیش از هرگونه پردازش گزینه‌های پلاگین فراخوانی می‌شود.
+.IP
+
+.TP
+\fBslurm_spank_job_prolog\fR
+هم‌زمان با پرولوگ کار فراخوانی می‌شود. اگر این تابع مقداری غیرصفر برگرداند و پلاگین \fBSPANK\fR شامل آن در \fBplugstack.conf\fR به‌صورت الزامی (required) مشخص شده باشد، گره‌ای که این تابع روی آن اجرا شده است در وضعیت تخلیه (drained) قرار خواهد گرفت.
+.IP
+
+.TP
+\fBslurm_spank_init_post_opt\fR
+در همان نقطه \fBslurm_spank_init\fR فراخوانی می‌شود، اما پس از آنکه تمام گزینه‌های کاربری ارسال‌شده به پلاگین پردازش شدند. دلیل تفکیک کالبک‌های \fBinit\fR و \fBinit_post_opt\fR این است که پلاگین‌ها بتوانند گزینه‌های سراسری سیستم مشخص‌شده در plugstack.conf را در کالبک \fBinit\fR پردازش کنند، سپس گزینه‌های کاربر را مورد پردازش قرار دهند و در نهایت در صورت نیاز در \fBslurm_spank_init_post_opt\fR اقدامی انجام دهند.
+در صورت وجود یک کار ناهمگن (heterogeneous job)، تابع \fBslurm_spank_init\fR برای هر مؤلفه از کار یک‌بار فراخوانی می‌شود.
+.IP
+
+.TP
+\fBslurm_spank_local_user_init\fR
+فقط در زمینه محلی (\fBsrun\fR) و پس از پردازش تمام گزینه‌ها فراخوانی می‌شود.
+این تابع پس از در دسترس قرار گرفتن شناسه کار (job ID) و شناسه‌های گام (step IDs) فراخوانی می‌گردد.
+این رخداد در \fBsrun\fR پس از انجام تخصیص، اما پیش از راه‌اندازی تسک‌ها انجام می‌شود.
+.IP
+
+.TP
+\fBslurm_spank_user_init\fR
+پس از کاهش موقت دسترسی‌ها فراخوانی می‌شود (فقط در زمینه remote).
+.IP
+
+.TP
+\fBslurm_spank_task_init_privileged\fR
+برای هر تسک درست پس از fork، اما پیش از حذف تمام دسترسی‌های ارتقایافته فراخوانی می‌شود. این تابع می‌تواند به صورت موازی با \fBslurm_spank_task_post_fork\fR اجرا شود (فقط در زمینه remote).
+.IP
+
+.TP
+\fBslurm_spank_task_init\fR
+برای هر تسک درست قبل از execve (2) فراخوانی می‌شود. اگر حافظه را با cgroups محدود می‌کنید، حافظه تخصیص‌یافته در اینجا درون cgroup کار قرار خواهد گرفت (فقط در زمینه remote).
+.IP
+
+.TP
+\fBslurm_spank_task_post_fork\fR
+برای هر تسک از فرآیند والد پس از تکمیل fork (2) فراخوانی می‌شود.
+با توجه به اینکه \fBslurmd\fR هیچ تسکی را تا زمان تکمیل fork (2) برای تمام تسک‌ها اجرا (exec) نمی‌کند، تضمین می‌شود که این فراخوانی پیش از اجرای تسک کاربر انجام پذیرد. این فراخوانی می‌تواند به صورت موازی با \fBslurm_spank_task_init_privileged\fR اجرا شود (فقط در زمینه remote).
+.IP
+
+.TP
+\fBslurm_spank_task_exit\fR
+برای هر تسک در زمان جمع‌آوری وضعیت خروج آن توسط Slurm فراخوانی می‌شود (فقط در زمینه remote).
+.IP
+
+.TP
+\fBslurm_spank_exit\fR
+یک‌بار درست پیش از خروج \fBslurmstepd\fR در زمینه remote فراخوانی می‌شود.
+در زمینه local، پیش از خروج \fBsrun\fR فراخوانی می‌گردد.
+.IP
+
+.TP
+\fBslurm_spank_job_epilog\fR
+هم‌زمان با اپیلوگ کار فراخوانی می‌شود. اگر این تابع مقداری غیرصفر برگرداند و پلاگین \fBSPANK\fR شامل آن در \fBplugstack.conf\fR به‌صورت الزامی (required) باشد، گره مربوطه به وضعیت تخلیه (drained) درمی‌آید.
+.IP
+
+.TP
+\fBslurm_spank_slurmd_exit\fR
+در slurmd هنگام خاموش شدن دیمن فراخوانی می‌شود.
+.IP
+
+.LP
+تمام این توابع دارای الگوی اولیه (prototype) یکسانی هستند، به عنوان مثال:
+.nf
+   int \fBslurm_spank_init\fR (spank_t spank, int ac, char *argv[])
+.fi
+
+.LP
+که در آن \fBspank\fR دستگیره \fBSPANK\fR است که هنگام فراخوانی توابعی مانند \fBspank_get_item\fR و \fBspank_getenv\fR باید به Slurm بازگردانده شود. آرگومان‌های پیکربندی‌شده (بخش \fBپیکربندی (CONFIGURATION)\fR در ادامه را ببینید) در بردار آرگومان \fBargv\fR به همراه تعداد آرگومان‌ها \fBac\fR ارسال می‌شوند.
+.LP
+یک پلاگین همچنین می‌تواند متغیرهای زیر را برای استفاده توسط Slurm تعریف کند:
+
+.TP
+\fBslurm_spank_init_failure_mode\fR
+هنگامی که فراخوانی slurm_spank_init شکست می‌خورد، نحوه مدیریت آن شکست توسط Slurm را تغییر می‌دهد.
+مقادیر مجاز عبارتند از:
+.IP
+.RS
+.TP
+\fBESPANK_NODE_FAILURE\fR
+سیستم Slurm گره را مقصر می‌داند و آن را در وضعیت تخلیه (drained) علامت‌گذاری می‌کند. ممکن است کار مجدداً در صف قرار گیرد (requeued). این مقدار پیش‌فرض است.
+.IP
+
+.TP
+\fBESPANK_JOB_FAILURE\fR
+سیستم Slurm کار را مقصر می‌داند و آن را به عنوان شکست‌خورده علامت‌گذاری می‌کند (مجدداً در صف قرار نمی‌گیرد). گره تخلیه نخواهد شد.
+.RE
+.IP
+
+.LP
+پلاگین‌های \fBSPANK\fR می‌توانند فهرست فعلی نمادهای پشتیبانی‌شده slurm_spank را استعلام کنند تا مشخص شود آیا نسخه فعلی از یک قلاب (hook) خاص پلاگین پشتیبانی می‌کند یا خیر. این قابلیت مفید است زیرا فهرست نمادهای پلاگین ممکن است در آینده رشد کند. این استعلام با استفاده از تابع \fBspank_symbol_supported\fR با الگوی اولیه زیر انجام می‌شود:
+.nf
+    int \fBspank_symbol_supported\fR (const char *sym);
+.fi
+
+.LP
+اگر نماد پشتیبانی شود، مقدار بازگشتی 1 و در غیر این صورت 0 خواهد بود.
+.LP
+پلاگین‌های \fBSPANK\fR دسترسی مستقیمی به ساختارهای داده داخلی تعریف‌شده در Slurm ندارند. در عوض، اطلاعات مربوط به کاری که هم‌اکنون در حال اجرا است از طریق فراخوانی تابع \fBspank_get_item\fR به دست می‌آید.
+.nf
+  spank_err_t \fBspank_get_item\fR (spank_t spank, spank_item_t item, ...);
+.fi
+
+به فراخوانی \fBspank_get_item\fR باید دستگیره فعلی \fBSPANK\fR و همچنین قلم مورد درخواست که توسط \fBspank_item_t\fR ارسالی مشخص می‌شود، داده شود. بسته به اینکه کدام قلم توسط پلاگین درخواست شده باشد، تعداد متغیری از آرگومان‌های اشاره‌گر نیز ارسال می‌شوند. فهرستی از مقادیر معتبر برای \fBitem\fR در فایل هدر \fBspank.h\fR نگهداری می‌شود. چند نمونه عبارتند از:
+
+.TP 2
+\fBS_JOB_UID\fR
+شناسه کاربری (User id) برای کار در حال اجرا. نوع (uid_t *) آرگومان سوم \fBspank_get_item\fR است.
+.IP
+
+.TP
+\fBS_JOB_STEPID\fR
+شناسه گام کار (Job step id) برای کار در حال اجرا. نوع (uint32_t *) آرگومان سوم \fBspank_get_item\fR است.
+.IP
+
+.TP
+\fBS_TASK_EXIT_STATUS\fR
+وضعیت خروج برای تسک پایان‌یافته. تنها از طریق \fBslurm_spank_task_exit\fR معتبر است. نوع (int *) آرگومان سوم \fBspank_get_item\fR است.
+.IP
+
+.TP
+\fBS_JOB_ARGV\fR
+خط فرمان کامل کار. آرگومان‌های سوم و چهارم برای \fBspank_get_item\fR از نوع (int *, char ***) هستند.
+.IP
+
+.LP
+برای جزئیات بیشتر به \fBspank.h\fR مراجعه کنید.
+.LP
+توابع \fBSPANK\fR در محیط‌های \fBlocal\fB و \fBallocator\fR باید از توابع \fBgetenv\fR، \fBsetenv\fR و \fBunsetenv\fR برای مشاهده و تغییر محیط کار استفاده کنند.
+توابع \fBSPANK\fR در محیط \fBremote\fR باید از توابع \fBspank_getenv\fR، \fBspank_setenv\fR و \fBspank_unsetenv\fR برای مشاهده و تغییر محیط کار بهره ببرند. تابع \fBspank_getenv\fR محیط کار را برای متغیر محیطی \fIvar\fR جستجو کرده و مقدار فعلی را در یک بافر \fIbuf\fR با طول \fIlen\fR کپی می‌کند. تابع \fBspank_setenv\fR به یک پلاگین \fBSPANK\fR اجازه می‌دهد تا متغیری را در محیط کار تنظیم کرده یا بازنویسی کند و \fBspank_unsetenv\fR یک متغیر محیطی را از محیط کار حذف می‌نماید. الگوهای اولیه عبارتند از:
+.nf
+ spank_err_t \fBspank_getenv\fR (spank_t spank, const char *var,
+			           char *buf, int len);
+ spank_err_t \fBspank_setenv\fR (spank_t spank, const char *var,
+			           const char *val, int overwrite);
+ spank_err_t \fBspank_unsetenv\fR (spank_t spank, const char *var);
+.fi
+
+.LP
+این توابع تنها در زمینه remote ضروری هستند، زیرا تغییرات در محیط فرآیند استاندارد با استفاده از \fBsetenv\fR (3)، \fBgetenv\fR (3) و \fBunsetenv\fR (3) می‌تواند در زمینه local انجام پذیرد.
+.LP
+توابعی نیز در داخل پلاگین‌های \fBSPANK\fR در دسترس هستند تا متغیرهای محیطی را برای صدور (export) به برنامه‌های \fBPrologSlurmctld\fR، \fBProlog\fR، \fBEpilog\fR و \fBEpilogSlurmctld\fR در Slurm تعیین کنند (به اصطلاح محیط \fBکنترل کار\fR یا job control).
+نام متغیرهای محیطی که از طریق این فراخوانی‌ها ایجاد می‌شوند با رشته \fISPANK_\fR پیشوندگذاری می‌شود تا از هرگونه پیامد امنیتی ناشی از کنترل اختیاری متغیرهای محیطی جلوگیری شود (چرا که اسکریپت‌های کنترل کار با دسترسی root یا کاربر Slurm اجرا می‌شوند).
+.LP
+این توابع تنها در زمینه \fBlocal\fR در دسترس هستند.
+.nf
+  spank_err_t \fBspank_job_control_getenv\fR(spank_t spank, const char *var,
+			             char *buf, int len);
+  spank_err_t \fBspank_job_control_setenv\fR(spank_t spank, const char *var,
+			             const char *val, int overwrite);
+  spank_err_t \fBspank_job_control_unsetenv\fR(spank_t spank, const char *var);
+.fi
+
+.LP
+برای اطلاعات بیشتر به \fBspank.h\fR مراجعه کنید.
+.LP
+بسیاری از توابع شرح داده‌شده \fBSPANK\fR که در دسترس پلاگین‌ها هستند، خطاها را از طریق نوع خطای \fBspank_err_t\fR بازمی‌گردانند. در صورت موفقیت، مقدار بازگشتی برابر با \fBESPANK_SUCCESS\fR خواهد بود، در حالی که در صورت بروز خطا، مقدار بازگشتی روی یکی از مقادیر خطای متعددی که در \fBspank.h\fR تعریف شده است تنظیم می‌شود. رابط \fBSPANK\fR یک تابع ساده به شکل
+.nf
+  const char * \fBspank_strerror\fR(spank_err_t err);
+.fi
+ارائه می‌دهد که می‌توان از آن برای تبدیل مقدار \fBspank_err_t\fR به نمایش متنی آن استفاده کرد.
+
+.LP
+از تابع \fBslurm_spank_log\fR می‌توان برای چاپ پیام‌ها به کاربر در سطح خطا استفاده کرد. هدف از این کار این است که کاربران نیازی به تکیه بر تابع \fBslurm_error\fR نداشته باشند؛ تابعی که ممکن است گیج‌کننده باشد زیرا عبارت "\fBerror:\fR" را به ابتدای هر پیام اضافه می‌کند.
+
+.SH "گزینه‌های SPANK (SPANK OPTIONS)"
+.LP
+پلاگین‌های SPANK همچنین دارای رابطی هستند که از طریق آن می‌توانند گزینه‌های اضافی برای کارها را تعریف و پیاده‌سازی کنند. این گزینه‌ها از طریق دستورات Slurm مانند \fBsrun\fR(1)، \fBsalloc\fR(1) و \fBsbatch\fR(1) در دسترس کاربر قرار می‌گیرند. اگر گزینه توسط کاربر مشخص شود، مقدار آن هنگام اجرای کار فوروارد شده و در slurmd نزد پلاگین ثبت می‌شود. از این طریق، پلاگین‌های \fBSPANK\fR می‌توانند به صورت پویا گزینه‌ها و قابلیت‌های جدیدی را به Slurm اضافه کنند.
+.LP
+هر گزینه‌ای که توسط یک پلاگین در Slurm ثبت می‌شود در قالب یک \fBstruct spank_option\fR قرار دارد که در \fBspank.h\fR به این صورت تعریف شده است:
+.nf
+   struct spank_option {
+      char *         name;
+      char *         arginfo;
+      char *         usage;
+      int            has_arg;
+      int            val;
+      spank_opt_cb_f cb;
+   };
+.fi
+
+که در آن
+
+.TP
+.I name
+نام گزینه است. طول آن به مقدار \fBSPANK_OPTION_MAXLEN\fR تعریف‌شده در \fBspank.h\fR محدود می‌شود.
+.IP
+
+.TP
+.I arginfo
+شرحی از آرگومان گزینه است، در صورتی که گزینه آرگومان دریافت کند.
+.IP
+
+.TP
+.I usage
+شرح کوتاهی از گزینه است که برای نمایش در خروجی \-\-help مناسب است.
+.IP
+
+.TP
+.I has_arg
+مقدار 0 اگر گزینه آرگومان دریافت نکند، 1 اگر گزینه یک آرگومان دریافت کند، و 2 اگر گزینه یک آرگومان اختیاری دریافت نماید (به \fBgetopt_long\fR (3) مراجعه کنید).
+.IP
+
+.TP
+.I val
+مقداری محلی برای پلاگین که به تابع کالبک گزینه برگردانده می‌شود.
+.IP
+
+.TP
+.I cb
+یک تابع کالبک که هنگام ثبت گزینه پلاگین در Slurm فراخوانی می‌شود. نوع \fBspank_opt_cb_f\fR در \fBspank.h\fR به صورت زیر تعریف شده است:
+.IP
+.nf
+  typedef int (*spank_opt_cb_f) (int val, const char *optarg,
+			                 int remote);
+.fi
+که در آن \fIval\fR مقدار فیلد \fIval\fR در ساختار \fBspank_option\fR است، \fIoptarg\fR آرگومان ارائه‌شده (در صورت وجود) است، و \fIremote\fR اگر تابع از میزبان «محلی» فراخوانی شود (مانند میزبانی که در آن \fBsrun\fR یا \fBsbatch/salloc\fR اجرا می‌شوند) برابر با 0 و از میزبان «دورست» (میزبانی که slurmd/slurmstepd روی آن اجرا می‌شوند) برابر با 1 خواهد بود، اما تنها در صورتی توسط \fBslurmstepd\fR (زمینه remote) اجرا می‌شود که گزینه برای چنین زمینه‌ای ثبت شده باشد.
+.LP
+گزینه‌های پلاگین را می‌توان با استفاده از تابع \fBspank_option_register\fR در Slurm ثبت کرد. این تابع تنها زمانی معتبر است که از هندلر \fBslurm_spank_init\fR در پلاگین فراخوانی شود و در هر بار یک گزینه را ثبت می‌کند. الگوی اولیه به این صورت است:
+.nf
+   spank_err_t spank_option_register (spank_t sp,
+			   struct spank_option *opt);
+.fi
+این تابع در صورت ثبت موفقیت‌آمیز یک گزینه مقدار \fBESPANK_SUCCESS\fR، یا در صورت بروز خطا (از جمله دستگیره نامعتبر spank_t یا زمانی که تابع از داخل تابع \fBslurm_spank_init\fR فراخوانی نشده باشد) مقدار \fBESPANK_BAD_ARG\fR را برمی‌گرداند. تمام گزینه‌ها باید از تمامی زمینه‌هایی که در آن‌ها استفاده خواهند شد ثبت گردند. به عنوان مثال، اگر یک گزینه فقط در زمینه‌های local (srun) و remote (slurmd) به کار می‌رود، پس \fBspank_option_register\fR تنها باید از داخل همان زمینه‌ها فراخوانی شود؛ برای نمونه:
+.nf
+   if (spank_context() != S_CTX_ALLOCATOR)
+      spank_option_register (sp, opt);
+.fi
+اگر گزینه در تمام زمینه‌ها مورد استفاده قرار می‌گیرد، باید \fBspank_option_register\fR در همه جا فراخوانی شود.
+.LP
+علاوه بر \fBspank_option_register\fR، پلاگین‌ها می‌توانند با تعریف جدولی از \fBstruct spank_option\fR با نام نماد \fBspank_options\fR نیز گزینه‌ها را به Slurm صادر کنند. با این حال، این روش برای استفاده با \fBsbatch\fR و \fBsalloc\fR (زمینه allocator) پشتیبانی نمی‌شود، بنابراین استفاده از \fBspank_option_register\fR ترجیح داده می‌شود. هنگام استفاده از جدول \fBspank_options\fR، آخرین عنصر در آرایه باید با صفر پر شود. ماکروی \fBSPANK_OPTIONS_TABLE_END\fR برای این منظور در \fBspank.h\fR فراهم شده است.
+.LP
+هنگامی که یک گزینه توسط کاربر در سمت محلی (خواه از طریق گزینه‌های خط فرمان یا متغیرهای محیطی) ارائه شود، \fBSlurm\fR بلافاصله کالبک گزینه را با \fIremote\fR=0 فراخوانی می‌کند. این فراخوانی برای این است که پلاگین پیش از ارسال مقدار به سمت دورست در زمان راه‌اندازی کار، اعتبارسنجی محلی (sanity checking) گزینه را انجام دهد. اگر آرگومان مشخص‌شده توسط کاربر نامعتبر باشد، پلاگین باید یک خطا اعلام کرده و یک کد بازگشتی غیرصفر از کالبک صادر کند. پلاگین باید بتواند مواردی را که گزینه spank چندین بار از طریق متغیرهای محیطی و گزینه‌های خط فرمان تنظیم شده است مدیریت کند. متغیرهای محیطی پیش از گزینه‌های خط فرمان پردازش می‌شوند.
+.LP
+در سمت دورست، گزینه‌ها و آرگومان‌های آن‌ها درست پس از بارگذاری پلاگین‌های \fBSPANK\fR و قبل از فراخوانی هندلر \fBspank_init\fR ثبت می‌شوند. این سازوکار به پلاگین‌ها اجازه می‌دهد تا رفتار تمام قابلیت‌های پلاگین را بر اساس مقدار گزینه‌های ارائه‌شده توسط کاربر تغییر دهند.
+.LP
+به عنوان جایگزینی برای استفاده از کالبک گزینه و متغیر سراسری، پلاگین‌ها می‌توانند از تابع \fBspank_option_getopt\fR برای بررسی گزینه‌های ارائه‌شده پس از پردازش گزینه‌ها استفاده کنند. الگوی اولیه این تابع به صورت زیر است:
+.nf
+   spank_err_t spank_option_getopt(spank_t sp,
+       struct spank_option *opt, char **optargp);
+.fi
+اگر گزینه تعریف‌شده در struct spank_option \fIopt\fR توسط کاربر استفاده شده باشد، این تابع مقدار \fBESPANK_SUCCESS\fR را برمی‌گرداند. اگر \fIoptargp\fR مقدار غیر تهی (non-NULL) داشته باشد، روی هر آرگومان گزینه‌ای که ارسال شده باشد تنظیم می‌شود (در صورتی که گزینه آرگومان دریافت کند). استفاده از این روش برای پردازش گزینه‌ها در زمینه \fBjob_script\fR (\fBslurm_spank_job_prolog\fR و \fBslurm_spank_job_epilog\fR) \fIالزامی\fR است. این تابع در زمینه‌های زیر معتبر است:
+slurm_spank_job_prolog، slurm_spank_local_user_init، slurm_spank_user_init،
+slurm_spank_task_init_privileged، slurm_spank_task_init، slurm_spank_task_exit،
+و slurm_spank_job_epilog.
+
+.SH "پیکربندی (CONFIGURATION)"
+.LP
+فایل پیکربندی پیش‌فرض پشته پلاگین‌های \fBSPANK\fR فایل \fBplugstack.conf\fR در همان دایرکتوری \fBslurm.conf\fR(5) است، هرچند این مسیر را می‌توان از طریق پارامتر پیکربندی \fIPlugStackConfig\fR در Slurm تغییر داد. به طور معمول فایل \fBplugstack.conf\fR باید روی تمام گره‌های کلاستر یکسان باشد.
+فایل پیکربندی، پلاگین‌های \fBSPANK\fR را به صورت یک پلاگین در هر سطر، همراه با مشخص کردن اینکه پلاگین \fIrequired\fR (الزامی) یا \fIoptional\fR (اختیاری) است، و هرگونه آرگومان سراسری که باید برای پیکربندی زمان اجرا به پلاگین ارسال شود، فهرست می‌کند. توضیحات (کامنت‌ها) با کاراکتر '#' آغاز شده و تا انتهای خط ادامه می‌یابند. در صورتی که فایل پیکربندی موجود نباشد یا خالی باشد، نادیده گرفته خواهد شد.
+.LP
+\fBنکته\fR: پلاگین‌های \fBSPANK\fR باید روی ماشین‌هایی که slurmd را اجرا می‌کنند (گره‌های محاسباتی) و همچنین روی ماشین‌هایی که ابزارهای تخصیص کار مانند salloc، sbatch و غیره را اجرا می‌کنند (گره‌های لاگین) نصب شوند.
+.LP
+قالب هر خط غیرتوضیحی در فایل پیکربندی به این صورت است:
+\fB
+.nf
+  required/optional   plugin   arguments
+.fi
+\fR برای مثال:
+.nf
+  optional /usr/lib/slurm/test.so
+.fi
+به \fBslurmd\fR دستور می‌دهد تا پلاگین \fBtest.so\fR را بدون ارسال هیچ آرگومانی بارگذاری کند.
+اگر یک پلاگین \fBSPANK\fR از نوع \fIrequired\fR باشد، شکست هر یک از توابع پلاگین باعث می‌شود که \fBslurmd\fR یا دستور تخصیص‌دهنده کار، آن کار را متوقف کند، در حالی که پلاگین‌های \fIoptional\fR تنها باعث ایجاد یک هشدار می‌شوند.
+.LP
+اگر یک مسیر کامل (fully-qualified path) برای یک پلاگین مشخص نشود، مسیر پیکربندی‌شده فعلی \fIPluginDir\fR در \fBslurm.conf\fR(5) جستجو می‌شود.
+.LP
+پلاگین‌های \fBSPANK\fR پشته‌پذیر (stackable) هستند، به این معنی که بیش از یک پلاگین را می‌توان در فایل پیکربندی قرار داد. پلاگین‌ها به ترتیب و یکی پس از دیگری فراخوانی خواهند شد، و اقدام مقتضی در صورت بروز خطا با توجه به وضعیت فلگ \fIoptional\fR پلاگین انجام می‌گیرد.
+.LP
+فایل‌های پیکربندی اضافی یا دایرکتوری‌های حاوی فایل‌های پیکربندی را می‌توان با کلمه کلیدی \fBinclude\fR در \fBplugstack.conf\fR گنجاند. کلمه کلیدی \fBinclude\fR باید در سطری جداگانه قرار گیرد و یک الگو (glob) را به عنوان پارامتر دریافت کند؛ بنابراین چندین فایل را می‌توان از یک خط \fBinclude\fR وارد کرد. برای مثال، ساختار زیر تمام فایل‌های پیکربندی موجود در پوشه /etc/slurm/plugstack.conf.d را به ترتیب مرتب‌سازی محلی بارگذاری می‌کند:
+.nf
+  include /etc/slurm/plugstack.conf.d/*
+.fi
+که ممکن است روشی انعطاف‌پذیرتر برای ایجاد پشته‌ای از پلاگین‌های spank در نظر گرفته شود.
+.LP
+فایل پیکربندی \fBSPANK\fR در هر بار راه‌اندازی کار مجدداً خوانده می‌شود، بنابراین ویرایش فایل پیکربندی بر کارهای در حال اجرا تأثیری نخواهد داشت. با این حال باید مراقبت شود که یک فایل پیکربندی نیمه‌ویرایش‌شده توسط کاری که در حال راه‌اندازی است خوانده نشود.
+
+.SH "خطاها (ERRORS)"
+هنگامی که پلاگین SPANK یک نتیجه غیرصفر برمی‌گرداند، تغییرات زیر حاصل خواهد شد:
+
+.TS
+expand, allbox, tab (@);
+l l c c c c
+l l c c c c.
+Command@Function                         @Context   @Exitcode @Drains Node @Fails job
+_
+srun   @slurm_spank_init                 @local     @1        @no          @yes
+srun   @slurm_spank_init_post_opt        @local     @1        @no          @yes
+srun   @slurm_spank_local_user_init      @local     @1        @no          @yes
+srun   @slurm_spank_init                 @remote    @1        @no          @no
+srun   @slurm_spank_user_init            @remote    @0        @no          @no
+srun   @slurm_spank_task_init_privileged @remote    @1        @no          @yes
+srun   @slurm_spank_task_post_fork       @remote    @0        @no          @no
+srun   @slurm_spank_task_init            @remote    @1        @no          @yes
+srun   @slurm_spank_task_exit            @remote    @0        @no          @no
+srun   @slurm_spank_exit                 @local     @0        @no          @yes
+_
+salloc @slurm_spank_init                 @allocator @1        @no          @yes
+salloc @slurm_spank_init_post_opt        @allocator @1        @no          @yes
+salloc @slurm_spank_init                 @remote    @1        @no          @no
+salloc @slurm_spank_user_init            @remote    @1        @no          @yes
+salloc @slurm_spank_task_init_privileged @remote    @1        @no          @yes
+salloc @slurm_spank_task_post_fork       @remote    @1        @no          @yes
+salloc @slurm_spank_task_init            @remote    @1        @no          @yes
+salloc @slurm_spank_task_exit            @remote    @0        @no          @no
+salloc @slurm_spank_exit                 @allocator @0        @no          @yes
+_
+sbatch @slurm_spank_init                 @allocator @1        @no          @yes
+sbatch @slurm_spank_init_post_opt        @allocator @1        @no          @yes
+sbatch @slurm_spank_init                 @remote    @1        @yes         @no
+sbatch @slurm_spank_user_init            @remote    @1        @yes         @yes
+sbatch @slurm_spank_task_init_privileged @remote    @1        @no          @yes
+sbatch @slurm_spank_task_post_fork       @remote    @1        @yes         @yes
+sbatch @slurm_spank_task_init            @remote    @1        @no          @yes
+sbatch @slurm_spank_task_exit            @remote    @0        @no          @no
+sbatch @slurm_spank_exit                 @allocator @0        @no          @no
+_
+scrontab @slurm_spank_init               @allocator @1        @no          @no
+scrontab @slurm_spank_exit               @allocator @0        @no          @no
+.TE
+
+\fBنکته\fR: رفتار مربوط به \fBProctrackType=proctrack/pgid\fR ممکن است در صورت بروز خطا برای \fBslurm_spank_task_post_fork\fR در زمینه \fBremote\fR به اتمام مهلت زمانی (timeout) منجر شود.
+
+.SH "کپی‌رایت (COPYING)"
+Portions copyright (C) 2010\-2022 SchedMD LLC.
+.br
+Copyright (C) 2006 The Regents of the University of California.
+.br
+Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+.br
+CODE\-OCEC\-09\-009. All rights reserved.
+.LP
+این فایل بخشی از Slurm است که یک برنامه مدیریت منابع به شمار می‌رود.
+برای جزئیات بیشتر به <https://slurm.schedmd.com> مراجعه کنید.
+.LP
+سامانه Slurm یک نرم‌افزار آزاد است؛ شما می‌توانید آن را تحت شرایط مجوز عمومی همگانی گنو (GNU General Public License) همان‌گونه که توسط بنیاد نرم‌افزارهای آزاد منتشر شده است، چه نسخه ۲ مجوز و چه (به انتخاب خودتان) هر نسخه پس از آن، مجدداً توزیع کرده یا تغییر دهید.
+.LP
+سامانه Slurm با این امید توزیع می‌شود که مفید واقع شود، اما بدون هرگونه ضمانت؛ حتی بدون ضمانت ضمنی قابل فروش بودن یا تناسب برای یک هدف خاص. برای جزئیات بیشتر به مجوز عمومی همگانی گنو مراجعه کنید.
+.SH "فایل‌ها (FILES)"
+\fB/etc/slurm/slurm.conf\fR \- فایل پیکربندی Slurm.
+.br
+\fB/etc/slurm/plugstack.conf\fR \- فایل پیکربندی SPANK.
+.br
+\fB/usr/include/slurm/spank.h\fR \- فایل هدر SPANK.
+.SH "همچنین ببینید (SEE ALSO)"
+.LP
+\fBsrun\fR(1), \fBslurm.conf\fR(5)

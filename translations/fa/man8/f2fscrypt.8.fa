@@ -1,0 +1,92 @@
+.TH F2FSCRYPT 8
+.SH "نام (NAME)"
+f2fscrypt \- ابزار رمزگذاری سیستم‌فایل f2fs
+.SH "خلاصه دستور (SYNOPSIS)"
+.B f2fscrypt add_key -S \fR[\fB -k \fIkeyring\fR ] [\fB-v\fR] [\fB-q\fR] [ \fI path\fR ... ]
+.br
+.B f2fscrypt new_session
+.br
+.B f2fscrypt get_policy \fIpath\fR ...
+.br
+.B f2fscrypt set_policy \fIpolicy path\fR ...
+.SH "توضیحات (DESCRIPTION)"
+.B f2fscrypt
+مدیریت رمزگذاری را برای سیستم‌های فایل f2fs انجام می‌دهد.
+.SH "دستورات (COMMANDS)"
+.TP
+.B f2fscrypt add_key -S \fR[\fB -k \fIkeyring\fR ] [\fB-v\fR] [\fB-q\fR] [ \fI path\fR ... ]
+از کاربر یک عبارت عبور (passphrase) درخواست می‌کند و آن را درون دسته‌کلید (keyring) مشخص‌شده قرار می‌دهد. اگر هیچ دسته‌کلیدی مشخص نشود، f2fscrypt در صورت وجود از دسته‌کلید نشست (session keyring) یا در غیر این صورت از دسته‌کلید نشست کاربر (user session keyring) استفاده خواهد کرد.
+.IP
+اگر یک یا چند مسیر دایرکتوری مشخص شده باشد، f2fscrypt تلاش خواهد کرد تا سیاست (policy) آن دایرکتوری‌ها را برای استفاده از کلیدی که به‌تازگی توسط کاربر وارد شده است تنظیم کند.
+.TP
+.B f2fscrypt get_policy \fIpath\fR ...
+سیاست مربوط به دایرکتوری‌های مشخص‌شده در خط فرمان را چاپ می‌کند.
+.TP
+.B f2fscrypt new_session
+به فرآیند فراخواننده (معمولاً یک شل) یک دسته‌کلید نشست جدید اختصاص می‌دهد و دسته‌کلید نشست قدیمی آن را دور می‌اندازد.
+.TP
+.B f2fscrypt set_policy \fIpolicy path\fR ...
+سیاست را برای دایرکتوری‌های مشخص‌شده در خط فرمان تنظیم می‌کند.
+برای تنظیم سیاست، تمام دایرکتوری‌ها باید خالی باشند؛ اگر دایرکتوری از قبل دارای سیاستی تعیین‌شده باشد، f2fscrypt تطابق داشتن آن سیاست با مقدار مشخص‌شده را اعتبارسنجی می‌کند. یک سیاست، یک شناسه کلید رمزگذاری شامل ۱۶ نویسه هگزادسیمال است.
+.SH "نکات (NOTES)"
+دایرکتوری مقصد باید خالی باشد.
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+قالب‌بندی یک سیستم‌فایل f2fs که از رمزگذاری پشتیبانی می‌کند.
+.PP
+.nf
+# mkfs.f2fs -O encrypt /dev/sdxx
+# mount /dev/sdxx /encrypted/
+# mkdir /encrypted/dir
+.fi
+.PP
+ابتدا کلید را با استفاده از یک سالت ساده درون دسته‌کلید ایجاد کنید (یا یک سالت تصادفی تولید نمایید).
+سپس از آن برای تنظیم سیاست دایرکتوری مورد نظر جهت رمزگذاری استفاده کنید.
+.PP
+.nf
+# f2fscrypt add_key -S 0x1234
+  Enter passphrase (echo disabled):
+  Added key with descriptor [28e21cc0c4393da1]
+
+# f2fscrypt set_policy 28e21cc0c4393da1 /encrypted/dir
+  Key with descriptor [28e21cc0c4393da1] applied to /encrypted/dir.
+
+# touch /encrypted/dir/test.txt
+# ls -l /encrypted/dir/
+  -rw-r--r--. 1 root root 0 Mar  5 21:41 test.txt
+.fi
+.PP
+پس از هر بار راه‌اندازی مجدد، می‌توان از همان دستور برای تنظیم کلید جهت رمزگشایی دایرکتوری و زیرشاخه‌های آن استفاده کرد.
+.PP
+.nf
+# ls -l /encrypted/dir/
+  -rw-r--r--. 1 root root 0 Mar  5 21:41 zbx7tsUEMLzh+AUVMkQcnB
+
+# f2fscrypt get_policy /encrypted/dir/
+  /encrypted/dir/: 28e21cc0c4393da1
+
+# f2fscrypt add_key -S 0x1234
+  Enter passphrase (echo disabled):
+  Added key with descriptor [28e21cc0c4393da1]
+
+# ls -l /encrypted/dir/
+  -rw-r--r--. 1 root root 0 Mar  5 21:41 test.txt
+.fi
+.PP
+نمایش دسته‌کلیدهای فرآیند.
+.PP
+.nf
+# keyctl show
+  Session Keyring
+    84022412 --alswrv      0     0  keyring: _ses
+   204615789 --alswrv      0 65534   \\_ keyring: _uid.0
+   529474961 --alsw-v      0     0   \\_ logon: f2fs:28e21cc0c4393da1
+.fi
+.SH "نویسندگان (AUTHORS)"
+نوشته‌شده توسط Kinglong Mee <kinglongmee@gmail.com>،
+برگرفته از e4crypt که توسط Michael Halcrow <mhalcrow@google.com>،
+Ildar Muslukhov <muslukhovi@gmail.com> و Theodore Ts\(aqo <tytso@mit.edu> نوشته شده است.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR keyctl (1),
+.BR mkfs.f2fs (8),
+.BR mount (8).

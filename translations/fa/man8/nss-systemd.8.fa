@@ -1,0 +1,248 @@
+'\" t
+.TH "NSS\-SYSTEMD" "8" "" "systemd 261.2" "nss-systemd"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+nss-systemd \- مدیریت و تفکیک پویای کاربران و گروه‌های موقت در systemd
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+libnss_systemd\&.so\&.2
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBnss\-systemd\fR
+یک ماژول افزونه (plug\-in) برای قابلیت سوئیچ سرویس نام گنو (GNU Name Service Switch یا NSS) در کتابخانه سی گنو (\fBglibc\fR) است که تفکیک نام کاربر و گروه یونیکس را برای سرویس‌هایی که
+\m[blue]\fBUser/Group Record Lookup API via Varlink\fR\m[]\&\s-2\u[1]\d\s+2
+را پیاده‌سازی کرده‌اند فراهم می‌کند؛ مانند مدیر سیستم و سرویس
+\fBsystemd\fR(1)
+(برای قابلیت
+\fIDynamicUser=\fR
+آن، برای جزئیات به
+\fBsystemd.exec\fR(5)
+مراجعه کنید)،
+\fBsystemd-homed.service\fR(8)، یا
+\fBsystemd-machined.service\fR(8)\&.
+.PP
+این ماژول همچنین تضمین می‌کند که کاربران و گروه‌های root و nobody (یعنی کاربران/گروه‌هایی با شناسه‌های کاربری UID و گروهی GID برابر با 0 و 65534) همواره قابل تفکیک باقی بمانند، حتی اگر در
+/etc/passwd
+یا
+/etc/group
+فهرست نشده باشند، یا اگر این فایل‌ها وجود نداشته باشند\&.
+.PP
+این ماژول ترجیحاً از
+\fBsystemd-userdbd.service\fR(8)
+برای تفکیک کاربران و گروه‌ها استفاده می‌کند، اما بدون در حال اجرا بودن این سرویس نیز کار می‌کند\&.
+.PP
+برای فعال‌سازی این ماژول NSS، عبارت
+"systemd"
+را به خطوطی که با
+"passwd:",
+"group:",
+"shadow:"
+و
+"gshadow:"
+در
+/etc/nsswitch\&.conf
+آغاز می‌شوند اضافه کنید\&.
+.PP
+توصیه می‌شود که
+"systemd"
+بعد از مدخل
+"files"
+در خطوط
+/etc/nsswitch\&.conf
+قرار گیرد تا نگاشت‌های مبتنی بر
+/etc/passwd،
+/etc/group،
+/etc/shadow
+و
+/etc/gshadow
+اولویت داشته باشند\&.
+.SH "رکوردهای تکمیلی ایستا JSON کاربر/گروه (STATIC DROP\-IN JSON USER/GROUP RECORDS)"
+.PP
+علاوه بر رکوردهای کاربر/گروه که از طریق واسط‌های IPC یادشده Varlink و حساب‌های ساخته‌شده root و nobody به دست می‌آیند، این ماژول همچنین حساب‌های کاربری و گروهی را در دسترس سیستم قرار می‌دهد که در فایل‌های تکمیلی (drop\-in) ایستا در دایرکتوری‌های
+/etc/userdb/,
+/run/userdb/,
+/run/host/userdb/
+و
+/usr/lib/userdb/
+تعریف شده‌اند\&.
+.PP
+این یک سازوکار ساده برای ارائه رکوردهای ایستای کاربر و گروه از طریق فایل‌های تکمیلی (drop\-in) با قالب JSON است\&. چنین رکوردهای کاربری باید در قالبی که در مشخصات
+\m[blue]\fBJSON User Records\fR\m[]\&\s-2\u[2]\d\s+2
+شرح داده شده تعریف شوند و در یکی از دایرکتوری‌های یادشده تحت نام فایلی متشکل از نام کاربر و پسوند
+\&.user،
+با حالت دسترسی قابل‌خواندن برای همگان (world\-readable) قرار گیرند\&. یک پیوند نمادین (symlink) نیز با نامی برگرفته از شناسه کاربری (UID) رکورد کاربری به صورت ده‌دهی و با پسوند
+\&.user
+که به فایل رکورد اصلی اشاره می‌کند باید ایجاد شود، تا امکان جستجو هم بر اساس نام کاربری و هم بر اساس UID فراهم گردد\&. داده‌های رکورد کاربری دارای دسترسی ویژه (مانند گذرواژه‌های هش‌شده یونیکس) نیز می‌توانند به صورت اختیاری در یک جفت فایل همگام جداگانه با پسوند
+\&.user\-privileged
+ارائه شوند\&. این داده‌ها باید در یک فایل عادی به نام کاربر با پسوند
+\&.user\-privileged،
+و یک پیوند نمادین اشاره‌کننده به آن با نام UID عددی مربوطه به صورت ده‌دهی با همین پسوند ذخیره شوند\&. این فایل‌های همگام نباید برای هیچ‌کسی جز root قابل خواندن باشند\&. مثال:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\-rw\-r\-\-r\-\-\&. 1 root root  723 May 10 foobar\&.user
+\-rw\-\-\-\-\-\-\-\&. 1 root root  123 May 10 foobar\&.user\-privileged
+lrwxrwxrwx\&. 1 root root   19 May 10 4711\&.user \-> foobar\&.user
+lrwxrwxrwx\&. 1 root root   19 May 10 4711\&.user\-privileged \-> foobar\&.user\-privileged
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+به طور مشابه، رکوردهای گروهی با پیروی از قالب شرح داده شده در
+\m[blue]\fBJSON Group Record\fR\m[]\&\s-2\u[3]\d\s+2
+را می‌توان با استفاده از پسوندهای فایلی
+\&.group
+و
+\&.group\-privileged
+تعریف کرد\&.
+.PP
+فایل‌های رکورد اصلی کاربر/گروه (یعنی فایل‌های دارای پسوندهای
+\&.user
+و
+\&.group)
+نباید شامل بخش
+"privileged"
+همان‌گونه که در مشخصات آمده است باشند\&. فایل‌های رکورد کاربر/گروه دارای دسترسی ویژه (یعنی فایل‌های دارای پسوندهای
+\&.user\-privileged
+و
+\&.group\-privileged)
+باید منحصراً شامل این بخش باشند\&.
+.PP
+علاوه بر دو نوع فایل رکورد کاربر و دو نوع فایل رکورد گروه، نوع پنجمی از فایل‌ها وجود دارد که می‌تواند در دایرکتوری‌های مورد جستجو قرار گیرد: فایل‌هایی که نشان‌دهنده عضویت کاربران در گروه‌ها هستند\&. به طور مشخص، برای هر جفت کاربر/گروه که در آن کاربر باید عضو یک گروه باشد، فایلی با نام
+"\fIusername\fR:\fIgroupname\fR\&.membership"
+باید ایجاد شود؛ یعنی نام متنی کاربر یونیکس، به دنبال آن دو نقطه (:)، به دنبال آن نام متنی گروه یونیکس، با پسوند
+"\&.membership"\&.
+محتوای این فایل‌ها در حال حاضر خوانده نمی‌شود، با این حال توصیه می‌شود آنها را حاوی یک شیء خالی JSON (یعنی
+"{}")
+ایجاد کنید\&. صرف وجود این فایل‌ها برای تأثیرگذاری بر عضویت کاربر/گروه کافی است\&. اگر برنامه‌ای فایل‌های رکورد کاربر و/یا گروه را در دایرکتوری‌های مورد جستجو ارائه می‌دهد، باید همیشه چنین فایل‌هایی را هم برای عضویت‌های گروهی اصلی و هم فرعی (auxiliary) ایجاد کند\&.
+.PP
+توجه داشته باشید که رکوردهای ایستای کاربر/گروه معمولاً رکوردهای دارای تداخل در
+/etc/passwd
+یا
+/etc/group
+یا سایر پایگاه‌های داده حساب‌ها را لغو (override) نمی‌کنند\&. در واقع، پیش از قرار دادن این فایل‌ها باید دقت معقولی برای جلوگیری از تداخل نام کاربر/گروه و UID/GID به کار رود\&.
+.PP
+سرویس
+systemd\-userdb\-load\-credentials\&.service
+به طور خودکار هنگام بوت اجرا می‌شود و این فایل‌ها را از رکوردهای کاربری که از طریق اعتبارنامه‌های سیستمی منتقل شده‌اند نصب می‌کند\&. برای جزئیات به
+\fBuserdbctl\fR(1)
+و
+\fBsystemd.system-credentials\fR(7)
+مراجعه کنید\&.
+.SH "پیکربندی در /ETC/NSSWITCH\&.CONF (CONFIGURATION IN /ETC/NSSWITCH.CONF)"
+.PP
+در اینجا نمونه‌ای از فایل
+/etc/nsswitch\&.conf
+آورده شده است که
+\fBnss\-systemd\fR
+را به درستی فعال می‌کند:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+passwd:         files \fBsystemd\fR
+group:          files \fB[SUCCESS=merge] systemd\fR
+shadow:         files \fBsystemd\fR
+gshadow:        files \fBsystemd\fR
+
+hosts:          mymachines resolve [!UNAVAIL=return] files myhostname dns
+networks:       files
+
+protocols:      db files
+services:       db files
+ethers:         db files
+rpc:            db files
+
+netgroup:       nis
+.fi
+.if n \{\
+.RE
+.\}
+.SH "مثال: نگاشت‌های ارائه‌شده توسط SYSTEMD\-MACHINED\&.SERVICE (EXAMPLE: MAPPINGS PROVIDED BY SYSTEMD\-MACHINED.SERVICE)"
+.PP
+کانتینر
+"rawhide"
+با استفاده از
+\fBsystemd-nspawn\fR(1)
+راه‌اندازی شده است:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# systemd\-nspawn \-M rawhide \-\-boot \-\-network\-veth \-\-private\-users=pick
+Spawning container rawhide on /var/lib/machines/rawhide\&.
+Selected user namespace base 20119552 and range 65536\&.
+\&.\&.\&.
+
+$ machinectl \-\-max\-addresses=3
+MACHINE CLASS     SERVICE        OS     VERSION ADDRESSES
+rawhide container systemd\-nspawn fedora 30      169\&.254\&.40\&.164 fe80::94aa:3aff:fe7b:d4b9
+
+$ getent passwd vu\-rawhide\-0 vu\-rawhide\-81
+vu\-rawhide\-0:*:20119552:65534:vu\-rawhide\-0:/:/usr/sbin/nologin
+vu\-rawhide\-81:*:20119633:65534:vu\-rawhide\-81:/:/usr/sbin/nologin
+
+$ getent group vg\-rawhide\-0 vg\-rawhide\-81
+vg\-rawhide\-0:*:20119552:
+vg\-rawhide\-81:*:20119633:
+
+$ ps \-o user:15,pid,tty,command \-e|grep \*(Aq^vu\-rawhide\*(Aq
+vu\-rawhide\-0      692 ?        /usr/lib/systemd/systemd
+vu\-rawhide\-0      731 ?        /usr/lib/systemd/systemd\-journald
+vu\-rawhide\-192    734 ?        /usr/lib/systemd/systemd\-networkd
+vu\-rawhide\-193    738 ?        /usr/lib/systemd/systemd\-resolved
+vu\-rawhide\-0      742 ?        /usr/lib/systemd/systemd\-logind
+vu\-rawhide\-81     744 ?        /usr/bin/dbus\-daemon \-\-system \-\-address=systemd: \-\-nofork \-\-nopidfile \-\-systemd\-activation \-\-syslog\-only
+vu\-rawhide\-0      746 ?        /usr/sbin/sshd \-D \&.\&.\&.
+vu\-rawhide\-0      752 ?        /usr/lib/systemd/systemd \-\-user
+vu\-rawhide\-0      753 ?        (sd\-pam)
+vu\-rawhide\-0     1628 ?        login \-\- zbyszek
+vu\-rawhide\-1000  1630 ?        /usr/lib/systemd/systemd \-\-user
+vu\-rawhide\-1000  1631 ?        (sd\-pam)
+vu\-rawhide\-1000  1637 pts/8    \-zsh
+.fi
+.if n \{\
+.RE
+.\}
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsystemd\fR(1), \fBsystemd.exec\fR(5), \fBnss-resolve\fR(8), \fBnss-myhostname\fR(8), \fBnss-mymachines\fR(8), \fBsystemd-userdbd.service\fR(8), \fBsystemd-homed.service\fR(8), \fBsystemd-machined.service\fR(8), \fBuserdbctl\fR(1), \fBsystemd.system-credentials\fR(7), \fBnsswitch.conf\fR(5), \fBgetent\fR(1)
+.SH "نکات (NOTES)"
+.IP " 1." 4
+User/Group Record Lookup API via Varlink
+.RS 4
+\%https://systemd.io/USER_GROUP_API
+.RE
+.IP " 2." 4
+JSON User Records
+.RS 4
+\%https://systemd.io/USER_RECORD
+.RE
+.IP " 3." 4
+JSON Group Record
+.RS 4
+\%https://systemd.io/GROUP_RECORD
+.RE

@@ -1,0 +1,332 @@
+.TH DEVLINK\-SB 8 "14 Apr 2016" "iproute2" "Linux"
+.SH "نام (NAME)"
+devlink-sb \- پیکربندی استخرهای بافر مشترک (Shared Buffer) در devlink
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.ad l
+.in +8
+.ti -8
+.B devlink
+.RI "[ " OPTIONS " ]"
+.B sb
+.RI  " { " COMMAND " | "
+.BR help " }"
+.sp
+
+.ti -8
+.IR OPTIONS " := { "
+\fB\-V\fR[\fIersion\fR] |
+\fB\-n\fR[\fIno-nice-names\fR] }
+
+.ti -8
+.BR "devlink sb show "
+.RI "[ " DEV " [ "
+.B sb
+.IR SB_INDEX " ] ]"
+
+.ti -8
+.BR "devlink sb pool show "
+.RI "[ " DEV " [ "
+.B sb
+.IR SB_INDEX " ] "
+.br
+.B pool
+.IR POOL_INDEX " ]"
+
+.ti -8
+.BI "devlink sb pool set " DEV "
+.RB "[ " sb
+.IR SB_INDEX " ] "
+.br
+.BI pool " POOL_INDEX "
+.br
+.BI size " POOL_SIZE "
+.br
+.BR thtype " { " static " | " dynamic " }"
+
+.ti -8
+.BR "devlink sb port pool show "
+.RI "[ " DEV/PORT_INDEX " [ "
+.B sb
+.IR SB_INDEX " ] "
+.br
+.B pool
+.IR POOL_INDEX " ]"
+
+.ti -8
+.BI "devlink sb port pool set " DEV/PORT_INDEX "
+.RB "[ " sb
+.IR SB_INDEX " ] "
+.br
+.BI pool " POOL_INDEX "
+.br
+.BI th " THRESHOLD "
+
+.ti -8
+.BR "devlink sb tc bind show "
+.RI "[ " DEV/PORT_INDEX " [ "
+.B sb
+.IR SB_INDEX " ] "
+.br
+.BI tc " TC_INDEX "
+.br
+.B type
+.RB "{ " ingress " | " egress " } ]"
+
+.ti -8
+.BI "devlink sb tc bind set " DEV/PORT_INDEX "
+.RB "[ " sb
+.IR SB_INDEX " ] "
+.br
+.BI tc " TC_INDEX "
+.br
+.BR type " { " ingress " | " egress " }"
+.br
+.BI pool " POOL_INDEX "
+.br
+.BI th " THRESHOLD "
+
+.ti -8
+.BR "devlink sb occupancy show "
+.RI "{ " DEV " | " DEV/PORT_INDEX " } [ "
+.B sb
+.IR SB_INDEX " ] "
+
+.ti -8
+.BR "devlink sb occupancy snapshot "
+.IR DEV " [ "
+.B sb
+.IR SB_INDEX " ]"
+
+.ti -8
+.BR "devlink sb occupancy clearmax "
+.IR DEV " [ "
+.B sb
+.IR SB_INDEX " ]"
+
+.ti -8
+.B devlink sb help
+
+.SH "توضیحات (DESCRIPTION)"
+.SS "devlink sb show \- نمایش بافرهای مشترک موجود و ویژگی‌های آن‌ها"
+
+.PP
+.I "DEV"
+\- دستگاه devlink مورد نظر برای نمایش بافرهای مشترک را مشخص می‌کند.
+اگر این آرگومان حذف شود، تمام بافرهای مشترک کلیه دستگاه‌ها فهرست می‌شوند.
+
+.PP
+.I "SB_INDEX"
+\- بافر مشترک را مشخص می‌کند.
+اگر این آرگومان حذف شود، بافر مشترک با شاخص 0 انتخاب می‌شود.
+رفتار این آرگومان برای تمامی دستورات یکسان است.
+
+.SS "devlink sb pool show \- نمایش استخرهای موجود و ویژگی‌های آن‌ها"
+
+.PP
+.I "DEV"
+\- دستگاه devlink مورد نظر برای نمایش استخرها را مشخص می‌کند.
+اگر این آرگومان حذف شود، تمام استخرهای کلیه دستگاه‌ها فهرست می‌شوند.
+
+.PP
+استخرهای موجود را با ذکر ویژگی‌های
+.BR type ،
+.BR size ،
+.B thtype
+و
+.B cell_size
+فهرست می‌کند.
+.B cell_size
+میزان دانه‌بندی تخصیص حافظه در بافر مشترک است. درایورها اگر مقدار
+.B size
+داده‌شده به دستور set مضربی از
+.B cell_size
+نباشد، ممکن است آن را به بالا یا پایین گرد کرده یا رد نمایند.
+
+.SS "devlink sb pool set \- تنظیم ویژگی‌های استخر"
+
+.PP
+.I "DEV"
+\- دستگاه devlink مورد نظر برای تنظیم استخر را مشخص می‌کند.
+
+.TP
+.BI size " POOL_SIZE"
+اندازه استخر بر حسب بایت.
+
+.TP
+.BR thtype " { " static " | " dynamic " } "
+نوع آستانه استخر.
+
+.PP
+.I static
+\- مقادیر آستانه برای این استخر بر حسب بایت داده خواهند شد.
+
+.PP
+.I dynamic
+\- مقادیر آستانه ("to_alpha") برای استخر جهت محاسبه پارامتر آلفا طبق این فرمول به کار می‌روند:
+.br
+.in +16
+alpha = 2 ^ (to_alpha - 10)
+.in -16
+
+.in +10
+محدوده مقدار ارسال‌شده بین 0 تا 20 است. آلفای محاسبه‌شده برای تعیین حداکثر استفاده از جریان ترافیکی (flow) به کار می‌رود:
+.in -10
+.br
+.in +16
+max_usage = alpha / (1 + alpha) * Free_Buffer
+.in -16
+
+.SS "devlink sb port pool show \- نمایش ترکیب‌های درگاه\-استخر و آستانه هر یک"
+.I "DEV/PORT_INDEX"
+\- درگاه devlink را مشخص می‌کند.
+
+.TP
+.BI pool " POOL_INDEX"
+شاخص استخر.
+
+.SS "devlink sb port pool set \- تنظیم آستانه درگاه\-استخر"
+.I "DEV/PORT_INDEX"
+\- درگاه devlink را مشخص می‌کند.
+
+.TP
+.BI pool " POOL_INDEX"
+شاخص استخر.
+
+.TP
+.BI th " THRESHOLD"
+مقدار آستانه. نوع مقدار بسته به
+.B thtype
+تنظیم‌شده برای استخر، بر حسب بایت یا "to_alpha" است.
+
+.SS "devlink sb tc bind show \- نمایش اتصال‌های درگاه\-TC به استخر و آستانه هر یک"
+
+.I "DEV/PORT_INDEX"
+\- درگاه devlink را مشخص می‌کند.
+
+.TP
+.BI tc " TC_INDEX"
+شاخص TC ورودی (ingress) یا خروجی (egress)، معمولاً در محدوده 0 تا 8 (بسته به دستگاه).
+
+.TP
+.BR type " { " ingress " | " egress " } "
+نوع TC.
+
+.SS "devlink sb tc bind set \- تنظیم اتصال درگاه\-TC به استخر با آستانه مشخص"
+
+.I "DEV/PORT_INDEX"
+\- درگاه devlink را مشخص می‌کند.
+
+.TP
+.BI tc " TC_INDEX"
+شاخص TC ورودی (ingress) یا خروجی (egress)، معمولاً در محدوده 0 تا 8 (بسته به دستگاه).
+
+.TP
+.BR type " { " ingress " | " egress " } "
+نوع TC.
+
+.TP
+.BI pool " POOL_INDEX"
+شاخص استخری که اتصال به آن برقرار می‌شود.
+
+.TP
+.BI th " THRESHOLD"
+مقدار آستانه. نوع مقدار بسته به
+.B thtype
+تنظیم‌شده برای استخر، بر حسب بایت یا "to_alpha" است.
+
+.SS "devlink sb occupancy show \- نمایش مقادیر اشغال بافر مشترک برای دستگاه یا درگاه"
+
+.PP
+این دستور برای بررسی مقادیر اشغال بافر مشترک به کار می‌رود. مقادیر برای هر ترکیب درگاه\-استخر و همچنین برای تمام ترکیب‌های درگاه\-TC (به همراه استخری که این درگاه\-TC به آن متصل است) نمایش داده می‌شوند. قالب مقدار به صورت زیر است:
+.br
+.in +16
+current_value/max_value
+.in -16
+توجه داشته باشید که پیش از نمایش مقادیر، ابتدا باید دستور
+.B occupancy snapshot
+اجرا شود.
+
+.PP
+.I "DEV"
+\- دستگاه devlink مورد نظر برای نمایش مقادیر اشغال را مشخص می‌کند.
+
+.PP
+.I "DEV/PORT_INDEX"
+\- درگاه devlink مورد نظر برای نمایش مقادیر اشغال را مشخص می‌کند.
+
+.SS "devlink sb occupancy snapshot \- ثبت تصویر لحظه‌ای (snapshot) از اشغال بافر مشترک دستگاه"
+این دستور برای ثبت یک تصویر لحظه‌ای از مقادیر اشغال بافر مشترک به کار می‌رود. پس از آن، مقادیر می‌توانند با استفاده از دستور
+.B occupancy show
+نمایش داده شوند.
+
+.PP
+.I "DEV"
+\- دستگاه devlink مورد نظر برای ثبت تصویر لحظه‌ای اشغال را مشخص می‌کند.
+
+.SS "devlink sb occupancy clearmax \- پاک‌سازی نشانه‌های بیشینه (watermarks) اشغال بافر مشترک دستگاه"
+این دستور برای بازنشانی بیشترین مقادیر اشغال ثبت‌شده برای کل دستگاه به کار می‌رود. توجه داشته باشید که پیش از بررسی مقادیر بازنشانی‌شده، ابتدا باید دستور
+.B occupancy snapshot
+اجرا شود.
+
+.PP
+.I "DEV"
+\- دستگاه devlink مورد نظر برای پاک‌سازی نشانه‌های بیشینه اشغال را مشخص می‌کند.
+
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+devlink sb show
+.RS 4
+فهرست کردن بافرهای مشترک موجود.
+.RE
+.PP
+devlink sb pool show
+.RS 4
+فهرست کردن استخرهای موجود و پیکربندی آن‌ها.
+.RE
+.PP
+devlink sb port pool show pci/0000:03:00.0/1 pool 0
+.RS 4
+نمایش تنظیمات درگاه\-استخر برای درگاه و استخر مشخص‌شده.
+.RE
+.PP
+sudo devlink sb port pool set pci/0000:03:00.0/1 pool 0 th 15
+.RS 4
+تغییر آستانه برای درگاه و استخر مشخص‌شده.
+.RE
+.PP
+devlink sb tc bind show pci/0000:03:00.0/1 tc 0 type ingress
+.RS 4
+نمایش اتصال استخر و آستانه برای درگاه و TC مشخص‌شده.
+.RE
+.PP
+sudo devlink sb tc bind set pci/0000:03:00.0/1 tc 0 type ingress pool 0 th 9
+.RS 4
+تنظیم اتصال استخر و آستانه برای درگاه و TC مشخص‌شده.
+.RE
+.PP
+sudo devlink sb occupancy snapshot pci/0000:03:00.0
+.RS 4
+ثبت تصویر لحظه‌ای از اشغال بافر مشترک برای دستگاه devlink مشخص‌شده.
+.RE
+.PP
+devlink sb occupancy show pci/0000:03:00.0/1
+.RS 4
+نمایش اشغال برای درگاه مشخص‌شده از روی تصویر لحظه‌ای.
+.RE
+.PP
+sudo devlink sb occupancy clearmax pci/0000:03:00.0
+.RS 4
+پاک‌سازی نشانه‌های بیشینه برای بافر مشترک دستگاه devlink مشخص‌شده.
+.RE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR devlink (8),
+.BR devlink-dev (8),
+.BR devlink-port (8),
+.BR devlink-monitor (8)
+.br
+
+.SH "نویسنده (AUTHOR)"
+Jiri Pirko <jiri@mellanox.com>

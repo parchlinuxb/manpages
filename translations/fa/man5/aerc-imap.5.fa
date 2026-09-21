@@ -1,0 +1,236 @@
+.TH "AERC-IMAP" "5" "2025-08-29"
+.SH "نام (NAME)"
+aerc\-imap \- پیکربندی IMAP برای \fBaerc\fR(1)
+.SH "خلاصه (SYNOPSIS)"
+برنامه
+.B aerc
+پروتکل IMAP را مطابق مشخصات RFC 3501 پیاده‌سازی می‌کند، همراه با افزونه‌های IMAP زیر:
+.PP
+.PD 0
+.IP \(bu 4
+IDLE (RFC 2177)
+.IP \(bu 4
+LIST-STATUS (RFC 5819)
+.IP \(bu 4
+X-GM-EXT-1 (Gmail)
+.PD
+.PP
+.SH "پیکربندی (CONFIGURATION)"
+.PP
+پیکربندی پایه‌ای IMAP می‌تواند به صورت تعاملی با دستور
+.B :new-account
+انجام شود.
+.PP
+در فایل
+.I accounts.conf
+(به
+.BR aerc\-accounts (5)
+مراجعه فرمایید)، گزینه‌های اختصاصی IMAP زیر در دسترس هستند:
+.PP
+\fBsource\fR = \fI<scheme>\fR://\fI<username>\fR[\fI:<password>\fR]\fI@<hostname>\fR[\fI:<port>\fR]\fI?\fR[\fI<oauth2_params>\fR]
+.RS 4
+توجه داشته باشید که تمام فیلدها باید کدگذاری URL (به صورت URL-encoded) باشند. نماد
+.I @
+در صورت کدگذاری URL به
+.I %40
+تبدیل می‌شود.
+.PP
+مقادیر ممکن برای
+.I <scheme>
+عبارتند از:
+.PP
+\fIimap\fR
+.RS 4
+پروتکل IMAP به همراه STARTTLS
+.PP
+.RE
+\fIimap+insecure\fR
+.RS 4
+پروتکل IMAP بدون STARTTLS
+.PP
+.RE
+\fIimaps\fR
+.RS 4
+پروتکل IMAP با TLS/SSL
+.PP
+.RE
+\fIimaps+insecure\fR
+.RS 4
+پروتکل IMAP با TLS/SSL، بدون بررسی صحت گواهی (certificate)
+.PP
+.RE
+\fIimaps+oauthbearer\fR
+.RS 4
+پروتکل IMAP با TLS/SSL و استفاده از احراز هویت OAUTHBEARER
+.PP
+\fI<oauth2_params>\fR:
+.PP
+در صورت تعیین این بخش و ارائه
+.IR token_endpoint ،
+گذرواژه پیکربندی‌شده به عنوان یک توکن نوسازی (refresh token) برای دریافت توکن دسترسی (access token) به کار می‌رود. اگر
+.I token_endpoint
+حذف شود، تبادل توکن نوسازی نادیده گرفته می‌شود و گذرواژه در عوض مانند یک توکن دسترسی عمل می‌کند.
+.PP
+.PD 0
+.IP \(bu 4
+\fItoken_endpoint\fR (اختیاری)
+.IP \(bu 4
+\fIclient_id\fR (اختیاری)
+.IP \(bu 4
+\fIclient_secret\fR (اختیاری)
+.IP \(bu 4
+\fIscope\fR (اختیاری)
+.PD
+.PP
+مثال:
+.RS 4
+imaps+oauthbearer://...?&token_endpoint=https://...&client_id=
+.PP
+.RE
+.RE
+\fIimaps+xoauth2\fR
+.RS 4
+پروتکل IMAP با TLS/SSL با استفاده از احراز هویت XOAUTH2. پارامترها مشابه OAUTHBEARER هستند.
+.PP
+.RE
+.RE
+\fBsource-cred-cmd\fR = \fI<command>\fR
+.RS 4
+دستوری را مشخص می‌کند که برای دریافت گذرواژه حساب IMAP اجرا می‌شود. این دستور با استفاده از
+.I sh -c command
+اجرا خواهد شد. اگر گذرواژه‌ای در گزینه
+.B source
+تعیین شده باشد، آن گذرواژه بر این دستور اولویت خواهد داشت.
+.PP
+مثال:
+.RS 4
+source-cred-cmd = pass hostname/username
+.PP
+.RE
+.RE
+\fBconnection-timeout\fR = \fI<duration>\fR
+.RS 4
+حداکثر زمان تاخیر برای برقراری اتصال به سرور IMAP. نشانی زیر را ببینید:
+https://pkg.go.dev/time#ParseDuration
+.PP
+پیش‌فرض: \fI90s\fR
+.PP
+.RE
+\fBkeepalive-period\fR = \fI<duration>\fR
+.RS 4
+فاصله زمانی بین آخرین بسته داده ارسال‌شده (پیام‌های ساده ACK داده محسوب نمی‌شوند) و نخستین پروب keepalive. پس از آن‌که اتصال به عنوان نیازمند keepalive علامت‌گذاری شد، این شمارنده دیگر استفاده نمی‌شود. نشانی زیر را ببینید:
+https://pkg.go.dev/time#ParseDuration
+.PP
+به‌طور پیش‌فرض، تنظیمات سوکت TCP سیستم استفاده می‌شود.
+.PP
+.RE
+\fBkeepalive-probes\fR = \fI<int>\fR
+.RS 4
+تعداد پروب‌های بدون پاسخ پیش از قطع فرض کردن اتصال و اطلاع‌رسانی به لایه برنامه.
+.PP
+به‌طور پیش‌فرض، از تنظیمات سوکت TCP سیستم استفاده می‌شود. اگر
+.B keepalive-period
+مشخص شده باشد، این گزینه به‌طور پیش‌فرض به ۳ پروب تنظیم می‌شود.
+.PP
+این گزینه فقط در لینوکس پشتیبانی می‌شود. در سایر پلتفرم‌ها نادیده گرفته خواهد شد.
+.PP
+.RE
+\fBkeepalive-interval\fR = \fI<duration>\fR
+.RS 4
+فاصله زمانی بین پروب‌های آزمایشی بعدی keepalive، بدون در نظر گرفتن این‌که اتصال در این بین چه مواردی را تبادل کرده است. کسرهای ثانیه کوتاه (حذف) می‌شوند.
+.PP
+به‌طور پیش‌فرض، تنظیمات سوکت TCP سیستم استفاده می‌شود. اگر
+.B keepalive-period
+مشخص شده باشد، این گزینه به‌طور پیش‌فرض به
+.I 3s
+تنظیم می‌شود.
+.PP
+این گزینه فقط در لینوکس پشتیبانی می‌شود. در سایر پلتفرم‌ها نادیده گرفته خواهد شد.
+.PP
+.RE
+\fBcheck-mail-include\fR = \fI<folder1,folder2,folder3...>\fR
+.RS 4
+فهرستی از پوشه‌ها که با کاما از هم جدا شده‌اند را برای بررسی نامه‌های جدید توسط دستور
+.B :check-mail
+مشخص می‌کند. نام‌هایی که با پیشوند
+.I ~
+مشخص شده باشند به صورت عبارات باقاعده (regular expressions) تفسیر می‌شوند. اگر سرور IMAP شما از دستور LIST-STATUS پشتیبانی کند، این تنظیم نادیده گرفته می‌شود که در این حالت تمام پوشه‌ها بررسی خواهند شد.
+.PP
+به‌طور پیش‌فرض، تمام پوشه‌ها گنجانده شده‌اند.
+.PP
+.RE
+\fBcheck-mail-exclude\fR = \fI<folder1,folder2,folder3...>\fR
+.RS 4
+فهرستی از پوشه‌ها که با کاما از هم جدا شده‌اند را برای استثنا کردن از بررسی نامه‌های جدید توسط دستور
+.B :check-mail
+مشخص می‌کند. نام‌هایی که با پیشوند
+.I ~
+مشخص شده باشند به صورت عبارات باقاعده (regular expressions) تفسیر می‌شوند. اگر سرور IMAP شما از دستور LIST-STATUS پشتیبانی کند، این تنظیم نادیده گرفته می‌شود که در این حالت تمام پوشه‌ها بررسی خواهند شد. توجه داشته باشید که این گزینه بر هر تنظیمی از
+.B check-mail-include
+اولویت دارد.
+.PP
+به‌طور پیش‌فرض، هیچ پوشه‌ای مستثنی نشده است.
+.PP
+.RE
+\fBcache-headers\fR = \fItrue\fR|\fIfalse\fR
+.RS 4
+در صورت تنظیم بر روی
+.IR true ،
+سرآیندها کش خواهند شد. سرآیندهای کش‌شده در
+.I $XDG_CACHE_HOME/aerc
+ذخیره می‌شوند، که به‌طور پیش‌فرض
+.I ~/.cache/aerc
+است.
+.PP
+پیش‌فرض: \fIfalse\fR
+.PP
+.RE
+\fBcache-max-age\fR = \fI<duration>\fR
+.RS 4
+حداکثر طول عمر فایل‌های کش‌شده را مشخص می‌کند. نکته: بزرگ‌ترین واحد زمانی که می‌توان برای
+.B cache-max-age
+تعیین کرد بر حسب ساعت است. برای غیرفعال کردن پاکسازی کش، مقدار را بر روی
+.I 0
+تنظیم کنید.
+.PP
+پیش‌فرض: \fI720h\fR (۳۰ روز)
+.PP
+.RE
+\fBidle-timeout\fR = \fI<duration>\fR
+.RS 4
+مدت زمانی که کلاینت منتظر می‌ماند تا سرور پیش از بسته شدن وضعیت IDLE، هرگونه به‌روزرسانی نهایی را ارسال کند.
+.PP
+پیش‌فرض: \fI10s\fR
+.PP
+.RE
+\fBidle-debounce\fR = \fI<duration>\fR
+.RS 4
+مدت زمان پس از آخرین دستور کلاینت تا زمانی که بیکارکننده (idler) شروع به کار کند را مشخص می‌کند.
+.PP
+پیش‌فرض: \fI10ms\fR
+.PP
+.RE
+\fBexpunge-policy\fR = \fIauto\fR|\fIlow-to-high\fR|\fIstable\fR
+.RS 4
+سیاست حذف استفاده‌شده در زمان پاکسازی هم‌زمان چند پیام را مشخص می‌کند. مقدار
+.I auto
+تلاش می‌کند تا آن را به‌طور خودکار شناسایی کند، و در بیشتر مواقع درست خواهد بود. مقدار
+.I low-to-high
+مشخص می‌کند که سرور پیام‌ها را با ترتیب صعودی شماره توالی حذف می‌کند (این کاری است که GMail یا FastMail انجام می‌دهند و به درستی توسط شناسایی خودکار مدیریت می‌شود). مقدار
+.I stable
+مشخص می‌کند که سرور شماره‌های توالی دریافتی را تغییر نمی‌دهد (این کاری است که Dovecot یا WorkMail انجام می‌دهند و به صورت قابل اطمینان به طور خودکار شناسایی
+.B نمی‌شود
+).
+.PP
+پیش‌فرض: \fIauto\fR
+.PP
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+.BR aerc (1)
+.BR aerc\-accounts (5)
+.PP
+.SH "نویسندگان (AUTHORS)"
+.PP
+در ابتدا توسط Drew DeVault ایجاد شد و توسط Robin Jarry با همراهی سایر مشارکت‌کنندگان متن‌باز نگهداری می‌شود. برای اطلاعات بیشتر درباره توسعه aerc، نشانی زیر را ببینید:
+.I https://sr.ht/~rjarry/aerc

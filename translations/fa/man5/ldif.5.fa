@@ -1,0 +1,245 @@
+.TH "LDIF" "5" "مه ۲۰۲۵" "OpenLDAP" "فایلهای پیکربندی"
+.\" $OpenLDAP$
+.\" Copyright 1998-2024 The OpenLDAP Foundation All Rights Reserved.
+.\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
+.SH "نام (NAME)"
+ldif \- قالب تبادل داده برای سرویس دایرکتوری LDAP
+.SH "توضیحات (DESCRIPTION)"
+قالب \fBLDIF\fR (قالب تبادل داده LDAP) قالبی متنی و استاندارد برای توصیف ورودیهای دایرکتوری و اعمال تغییرات روی آنها است. ابزارهای LDAP، مانند
+.BR ldapadd (1)
+و
+.BR ldapsearch (1)،
+رکوردهای ورودی LDIF را خوانده و می‌نویسند.
+.BR ldapmodify (1)
+رکوردهای تغییرات LDIF را می‌خواند.
+.LP
+این صفحه راهنما توصیفی پایه‌ای از LDIF ارائه می‌دهد. مشخصات رسمی LDIF در RFC 2849 منتشر شده است.
+.SH "رکوردهای ورودی (ENTRY RECORDS)"
+.LP
+رکوردهای ورودی LDIF برای نمایش مدخل‌های دایرکتوری استفاده می‌شوند. فرم پایه یک رکورد ورودی به این صورت است:
+.LP
+.nf
+.ft tt
+	dn: <distinguished name>
+	<attrdesc>: <attrvalue>
+	<attrdesc>: <attrvalue>
+	<attrdesc>:: <base64-encoded-value>
+	<attrdesc>:< <URL>
+	...
+.ft
+.fi
+.LP
+مقدار ممکن است به‌صورت متن UTF-8 یا داده کدگذاری‌شده با base64 مشخص شود، یا یک URI برای مشخص کردن مکان مقدار مشخصه (attribute) ارائه گردد.
+.LP
+یک خط می‌تواند با شروع خط بعدی با یک فاصله (space) یا تب (tab) تکی ادامه یابد، به عنوان مثال:
+.LP
+.nf
+.ft tt
+	dn: cn=Barbara J Jensen,dc=exam
+	 ple,dc=com
+.ft
+.fi
+.LP
+خطوطی که با علامت شارپ ('#') آغاز می‌شوند نادیده گرفته می‌شوند.
+.LP
+مقادیر چندگانه یک مشخصه در خطوط جداگانه مشخص می‌شوند، مانند:
+.LP
+.nf
+.ft tt
+	cn: Barbara J Jensen
+	cn: Babs Jensen
+.ft
+.fi
+.LP
+اگر مقداری حاوی نویسه غیرقابل‌چاپ باشد، یا با یک فاصله یا دونقطه ':' شروع شود، پس از <attrtype> دو دونقطه (::) قرار گرفته و مقدار با نشانه‌گذاری پایه ۶۴ (base64) کدگذاری می‌شود؛ مثلاً مقدار " begins with a space" به این شکل کدگذاری خواهد شد:
+.LP
+.nf
+.ft tt
+	cn:: IGJlZ2lucyB3aXRoIGEgc3BhY2U=
+.ft
+.fi
+.LP
+اگر مقدار مشخصه در یک فایل قرار داشته باشد، پس از <attrtype> عبارت ':<' و سپس یک URI از نوع file: می‌آید. برای مثال، مقداری که در فایل /tmp/value قرار دارد به این شکل فهرست می‌شود:
+.LP
+.nf
+.ft tt
+	cn:< file:///tmp/value
+.ft
+.fi
+سایر طرح‌های URI (مانند ftp و http) نیز ممکن است پشتیبانی شوند.
+.LP
+مدخل‌های چندگانه در یک فایل LDIF با خطوط خالی از یکدیگر جدا می‌شوند.
+.SH "مثال رکورد ورودی (ENTRY RECORD EXAMPLE)"
+در ادامه نمونه‌ای از یک فایل LDIF حاوی سه مدخل آورده شده است:
+.LP
+.nf
+.ft tt
+	dn: cn=Barbara J Jensen,dc=example,dc=com
+	cn: Barbara J Jensen
+	cn: Babs Jensen
+	objectclass: person
+	description:< file:///tmp/babs
+	sn: Jensen
+
+	dn: cn=Bjorn J Jensen,dc=example,dc=com
+	cn: Bjorn J Jensen
+	cn: Bjorn Jensen
+	objectclass: person
+	sn: Jensen
+
+	dn: cn=Jennifer J Jensen,dc=example,dc=com
+	cn: Jennifer J Jensen
+	cn: Jennifer Jensen
+	objectclass: person
+	sn: Jensen
+	jpegPhoto:: /9j/4AAQSkZJRgABAAAAAQABAAD/2wBDABALD
+	 A4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQ
+	 ERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P/2wBDARESEhgVG
+	...
+.ft
+.fi
+.LP
+توجه داشته باشید که description در مدخل Barbara Jensen از file:///tmp/babs خوانده می‌شود و jpegPhoto در مدخل Jennifer Jensen با استفاده از base64 کدگذاری شده است.
+.SH "رکوردهای تغییرات (CHANGE RECORDS)"
+رکوردهای تغییرات LDIF برای نمایش درخواست‌های تغییر دایرکتوری استفاده می‌شوند. هر رکورد تغییر با خطی شامل نام متمایز (DN) ورودی در حال تغییر آغاز می‌شود:
+.LP
+.nf
+	dn: <distinguishedname>
+.fi
+.LP
+.nf
+	changetype: <[modify|add|delete|modrdn]>
+.fi
+.LP
+در نهایت، اطلاعات خودِ تغییر داده می‌شود که فرمت آن بستگی به نوع تغییر مشخص‌شده در بالا دارد. برای یک \fIchangetype\fP از نوع \fImodify\fP، فرمت به یک یا چند مورد از شکل‌های زیر است:
+.LP
+.nf
+	add: <attributetype>
+	<attrdesc>: <value1>
+	<attrdesc>: <value2>
+	...
+	\-
+.fi
+.LP
+یا، برای تغییر از نوع جایگزینی (replace):
+.LP
+.nf
+	replace: <attributetype>
+	<attrdesc>: <value1>
+	<attrdesc>: <value2>
+	...
+	\-
+.fi
+.LP
+اگر هیچ خط \fIattributetype\fP برای جایگزینی داده نشود، کل مشخصه (در صورت وجود) حذف خواهد شد.
+.LP
+یا، برای تغییر از نوع حذف (delete):
+.LP
+.nf
+	delete: <attributetype>
+	<attrdesc>: <value1>
+	<attrdesc>: <value2>
+	...
+	\-
+.fi
+.LP
+اگر هیچ خط \fIattributetype\fP برای حذف داده نشود، کل مشخصه حذف خواهد شد.
+.LP
+برای \fIchangetype\fP از نوع \fIadd\fP، فرمت به صورت زیر است:
+.LP
+.nf
+	<attrdesc1>: <value1>
+	<attrdesc1>: <value2>
+	...
+	<attrdescN>: <value1>
+	<attrdescN>: <value2>
+.fi
+.LP
+برای \fIchangetype\fP از نوع \fImodrdn\fP یا \fImoddn\fP، فرمت به صورت زیر است:
+.LP
+.nf
+	newrdn: <newrdn>
+	deleteoldrdn: 0 | 1
+	newsuperior: <DN>
+.fi
+.LP
+که در آن مقدار 1 برای deleteoldrdn به معنای حذف مقادیر تشکیل‌دهنده rdn قدیمی از مدخل است، و مقدار 0 به معنای رها کردن مقادیر به عنوان مشخصه‌های غیرمتمایز در مدخل می‌باشد. خط newsuperior اختیاری است و در صورت وجود، والد جدید (superior) را برای انتقال مدخل به آن مشخص می‌کند.
+.LP
+برای \fIchangetype\fP از نوع \fIdelete\fP، اطلاعات دیگری در رکورد لازم نیست.
+.LP
+توجه داشته باشید که مقادیر مشخصه ممکن است با base64 یا در فایل‌ها همان‌طور که برای رکوردهای ورودی شرح داده شد مشخص شوند. خطوط در رکوردهای تغییرات نیز می‌توانند به شیوه‌ای که برای رکوردهای ورودی ذکر شد ادامه یابند.
+.SH "مثال رکورد تغییرات (CHANGE RECORD EXAMPLE)"
+فایل نمونه LDIF زیر حاوی یک رکورد تغییر از هر نوع است:
+.LP
+.nf
+	dn: cn=Babs Jensen,dc=example,dc=com
+	changetype: add
+	objectclass: person
+	objectclass: extensibleObject
+	cn: babs
+	cn: babs jensen
+	sn: jensen
+
+	dn: cn=Babs Jensen,dc=example,dc=com
+	changetype: modify
+	add: givenName
+	givenName: Barbara
+	givenName: babs
+	\-
+	replace: description
+	description: the fabulous babs
+	\-
+	delete: sn
+	sn: jensen
+	\-
+
+	dn: cn=Babs Jensen,dc=example,dc=com
+	changetype: modrdn
+	newrdn: cn=Barbara J Jensen
+	deleteoldrdn: 0
+	newsuperior: ou=People,dc=example,dc=com
+
+	dn: cn=Barbara J Jensen,ou=People,dc=example,dc=com
+	changetype: delete
+.fi
+
+.SH "دستور INCLUDE (INCLUDE STATEMENT)"
+تحلیل‌گر LDIF گسترش یافته است تا از دستور
+.B include
+برای ارجاع به سایر فایل‌های LDIF پشتیبانی کند. دستور
+.B include
+باید توسط یک خط خالی از سایر رکوردها جدا شود. فایل ارجاع داده‌شده با یک URI از نوع file: مشخص می‌شود و تمام محتویات آن به گونه‌ای الحاق می‌شوند که گویی بخشی از فایل LDIF اصلی بوده‌اند. همانند قبل، سایر طرح‌های URI نیز ممکن است پشتیبانی شوند. برای مثال:
+.LP
+.nf
+	dn: dc=example,dc=com
+	objectclass: domain
+	dc: example
+
+	include: file:///tmp/example.com.ldif
+
+	dn: dc=example,dc=org
+	objectclass: domain
+	dc: example
+.fi
+این قابلیت بخشی از مشخصات LDIF در RFC 2849 نیست اما انتظار می‌رود در ویرایش‌های بعدی این استاندارد گنجانده شود. این ویژگی توسط دستورات
+.BR ldapadd (1)،
+.BR ldapmodify (1)
+و
+.BR slapadd (8)
+پشتیبانی می‌شود.
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR ldap (3)،
+.BR ldapsearch (1)،
+.BR ldapadd (1)،
+.BR ldapmodify (1)،
+.BR slapadd (8)،
+.BR slapcat (8)،
+.BR slapd\-ldif (5).
+.LP
+"LDAP Data Interchange Format," Good, G., RFC 2849.
+.SH "قدردانی (ACKNOWLEDGEMENTS)"
+.B "نرم‌افزار OpenLDAP"
+توسط پروژه OpenLDAP در <http://www.openldap.org> توسعه یافته و نگهداری می‌شود.
+.B "نرم‌افزار OpenLDAP"
+از نسخه 3.3 LDAP دانشگاه میشیگان برگرفته شده است.

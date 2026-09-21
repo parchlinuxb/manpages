@@ -1,0 +1,608 @@
+'\" t
+.TH "SYSTEMD\-COREDUMP" "8" "" "systemd 261.2" "systemd-coredump"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+systemd-coredump, systemd-coredump.socket, systemd-coredump@.service \- ابزار و سرویس دریافت و ذخیره‌سازی هسته‌گرفت‌ها (core dumps)
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+/usr/lib/systemd/systemd\-coredump
+.PP
+/usr/lib/systemd/systemd\-coredump
+\fB\-\-backtrace\fR
+.PP
+systemd\-coredump@\&.service
+.PP
+systemd\-coredump\&.socket
+.SH "توضیحات (DESCRIPTION)"
+.PP
+سرویس
+systemd\-coredump@\&.service
+یک سرویس سیستمی برای پردازش هسته‌گرفت‌ها (core dumps) است\&. این سرویس خلاصه‌ای از رویداد را در
+\fBsystemd-journald.service\fR(8)
+ثبت می‌کند، از جمله اطلاعات مربوط به شناسه فرایند، مالک، سیگنالی که فرایند را متوقف کرده است و در صورت امکان ردگیری پشته (stack trace)\&. همچنین ممکن است هسته‌گرفت را برای پردازش‌های بعدی ذخیره کند\&. بخش «اطلاعات درباره فرایند کرش‌کرده» در زیر را ببینید\&.
+.PP
+رفتار یک برنامه خاص هنگام دریافت سیگنال توسط چند عامل کنترل می‌شود که به تفصیل در
+\fBcore\fR(5)
+شرح داده شده‌اند\&. به‌ویژه، هسته‌گرفت تنها زمانی پردازش خواهد شد که محدودیت‌های منابع فرایند مربوطه (\fBRLIMIT_CORE\fR) کافی باشد\&.
+.PP
+هسته‌گرفت‌ها را می‌توان در ژورنال نوشت یا به‌صورت یک فایل ذخیره کرد\&. در هر دو حالت، می‌توان آن‌ها را برای پردازش بیشتر بازیابی کرد، برای مثال در
+\fBgdb\fR(1)\&.
+به
+\fBcoredumpctl\fR(1)،
+به‌ویژه دستورات فرعی
+\fBlist\fR
+و
+\fBdebug\fR
+مراجعه کنید\&.
+.PP
+به‌طور پیش‌فرض،
+\fBsystemd\-coredump\fR
+هسته‌گرفت را همراه با ردگیری پشته (در صورت امکان) در ژورنال ثبت می‌کند و خود هسته‌گرفت (تصویری از محتویات حافظه فرایند) را در یک فایل خارجی در
+/var/lib/systemd/coredump/
+ذخیره می‌نماید\&. این هسته‌گرفت‌ها به‌طور پیش‌فرض پس از چند روز حذف می‌شوند؛ برای جزئیات به
+/usr/lib/tmpfiles\&.d/systemd\&.conf
+مراجعه کنید\&. توجه داشته باشید که حذف فایل‌های هسته از فایل‌سیستم و پاکسازی ورودی‌های ژورنال مستقل از یکدیگر هستند، و ممکن است فایل هسته بدون ورودی ژورنال وجود داشته باشد و ورودی‌های ژورنال ممکن است به فایل‌های هسته‌ای که از آن زمان حذف شده‌اند اشاره کنند\&. برخی از فراداده‌ها در قالب ویژگی‌های گسترش‌یافته (extended attributes) به فایل‌های هسته ضمیمه می‌شوند، بنابراین فایل‌های هسته حتی بدون وجود فراداده کامل در ورودی ژورنال نیز برای برخی اهداف مفید هستند\&.
+.PP
+برای جزئیات بیشتر به
+\m[blue]\fBsystemd Coredump Handling\fR\m[]\&\s-2\u[1]\d\s+2
+مراجعه کنید\&.
+.SS "فراخوانی systemd\-coredump"
+.PP
+برنامه اجرایی
+\fBsystemd\-coredump\fR
+کار اصلی را انجام می‌دهد\&. این برنامه دو بار فراخوانی می‌شود: یک بار توسط هسته به عنوان گرداننده (handler)، و بار دوم در
+systemd\-coredump@\&.service
+تا داده‌ها را در ژورنال بنویسد و فایل هسته را پردازش و ذخیره کند\&.
+.PP
+هنگامی که هسته
+\fBsystemd\-coredump\fR
+را برای مدیریت یک هسته‌گرفت فراخوانی می‌کند، در حالت ممتازه (privileged) اجرا می‌شود و به سوکت ایجادشده توسط واحد
+systemd\-coredump\&.socket
+متصل می‌گردد، که به نوبه خود یک نمونه غیرممتازه از
+systemd\-coredump@\&.service
+را برای پردازش هسته‌گرفت ایجاد می‌کند\&. از این رو
+systemd\-coredump\&.socket
+و
+systemd\-coredump@\&.service
+واحدهای کمکی هستند که پردازش واقعی هسته‌گرفت‌ها را انجام می‌دهند و تحت مدیریت معمول سرویس‌ها قرار دارند\&.
+.PP
+همچنین امکان فراخوانی
+\fBsystemd\-coredump\fR
+با گزینه
+\fB\-\-backtrace\fR
+وجود دارد\&. در این حالت،
+\fBsystemd\-coredump\fR
+انتظار یک ورودی ژورنال در
+\m[blue]\fBJournal Export Format\fR\m[]\&\s-2\u[2]\d\s+2
+روی ورودی استاندارد دارد\&. این ورودی باید حاوی یک فیلد
+\fIMESSAGE=\fR
+و هرگونه فیلد فراداده اضافی باشد که فراخواننده مناسب می‌داند\&.
+\fBsystemd\-coredump\fR
+فیلدهای فراداده اضافی را به همان روشی که برای هسته‌گرفت‌های دریافتی از هسته انجام می‌دهد ضمیمه خواهد کرد\&. در این حالت، هیچ هسته‌گرفتی در ژورنال ذخیره نمی‌شود\&.
+.SS "هسته‌گرفت‌ها در کانتینرها/فضاهای نام"
+.PP
+سرویس
+systemd\-coredump@\&.service
+به‌طور خودکار تلاش می‌کند تا هنگام کرش کردن یک فرایند، یک ردگیری پشته (stacktrace) را از آن استخراج کند\&. برای این ردگیری پشته، نمادها بر اساس اطلاعات اشکال‌زدایی (debug) تعبیه‌شده در تصویر ELF در حال کرش، یا اطلاعات اشکال‌زدایی معادل موجود به صورت جداگانه در سیستم‌عامل میزبان حل و فصل می‌شوند\&. برای فرایندهایی که درون کانتینرهای محلی یا سایر محیط‌های ایزوله (sandboxes) مبتنی بر فضای نام اتصال (mount namespace) کرش می‌کنند، این اطلاعات اشکال‌زدایی کمکی معمولاً روی میزبان در دسترس نیست (صرفاً به این دلیل که کانتینرها معمولاً نسخه‌های نرم‌افزاری متفاوتی نسبت به میزبان اجرا می‌کنند)\&.
+systemd\-coredump
+دو سازوکار برای رفع این مشکل ارائه می‌دهد:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+برای کانتینرهای کامل سیستم‌عامل که systemd را در داخل خود اجرا می‌کنند، ایده خوبی است که
+\fICoredumpReceive=\fR
+را روی واحد فعال کنید (نگاه کنید به
+\fBsystemd.resource-control\fR(5))،
+که تضمین می‌کند هسته‌گرفت‌های یک کانتینر تلاش کنند به
+systemd\-coredump@\&.service
+در حال اجرا در داخل کانتینر فوروارد شوند؛ یعنی کانتینر می‌تواند هسته‌گرفت‌های خود را پردازش و ذخیره کند\&. توجه داشته باشید که
+\fBsystemd-nspawn\fR(8)
+در صورت فراخوانی با سوییچ
+\fB\-\-boot\fR
+به‌طور پیش‌فرض از این حالت استفاده می‌کند\&. این حالت عملیاتی عموماً به دلایل امنیتی توصیه می‌شود: پردازش حساس به امنیت هسته‌گرفت در محدوده خود کانتینر، توسط کد خود کانتینر و با پشتیبانی فضای ذخیره‌سازی خود کانتینر انجام می‌شود\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+در غیر این صورت، برای کانتینرهای محدودتر (که یک سیستم
+init
+مناسب را به عنوان PID 1 اجرا نمی‌کنند) می‌توان پردازش هسته‌گرفت را روی میزبان، با دسترسی به داده‌های اطلاعات اشکال‌زدایی از خود کانتینر فعال کرد\&. این حالت عملیاتی باید از طریق
+\fIEnterNamespace=\fR
+در
+\fBcoredump.conf\fR(5)
+فعال شود، و به دلایل امنیتی به‌طور پیش‌فرض غیرفعال است\&.
+.RE
+.PP
+اگر هم
+\fICoredumpReceive=\fR
+روی واحد کانتینری که هسته‌گرفت متعلق به آن است فعال باشد، و هم
+\fIEnterNamespace=\fR
+در فایل پیکربندی
+coredump\&.conf
+فعال شده باشد، اولی اولویت دارد\&.
+.SH "پیکربندی (CONFIGURATION)"
+.PP
+برای برنامه‌هایی که توسط
+\fBsystemd\fR
+شروع می‌شوند، محدودیت‌های منابع فرایند را می‌توان با دستورالعمل
+\fILimitCORE=\fR
+تنظیم کرد، نگاه کنید به
+\fBsystemd.exec\fR(5)\&.
+.PP
+به منظور استفاده توسط هسته برای مدیریت هسته‌گرفت‌ها،
+\fBsystemd\-coredump\fR
+باید در پارامتر
+\fIkernel\&.core_pattern\fR
+در
+\fBsysctl\fR(8)
+پیکربندی شود\&. نحو این پارامتر در
+\fBcore\fR(5)
+توضیح داده شده است\&. سامانه systemd فایل
+/usr/lib/sysctl\&.d/50\-coredump\&.conf
+را نصب می‌کند که
+\fIkernel\&.core_pattern\fR
+را بر این اساس پیکربندی می‌نماید\&. این فایل ممکن است طبق قوانین معمول
+\fBsysctl.d\fR(5)
+ماسک یا بازنویسی شود تا از تنظیم متفاوتی استفاده گردد\&. اگر پیکربندی sysctl تغییر یابد، قبل از اعمال باید در هسته به‌روزرسانی شود، نگاه کنید به
+\fBsysctl\fR(8)
+و
+\fBsystemd-sysctl\fR(8)\&.
+.PP
+به منظور استفاده در حالت
+\fB\-\-backtrace\fR،
+باید یک گرداننده مناسب ردگیری پشته در سمت فرستنده نصب شده باشد\&. برای مثال، در مورد
+\fBpython\fR(1)،
+این بدان معناست که یک
+\fIsys\&.excepthook\fR
+باید نصب شود، نگاه کنید به
+\m[blue]\fBsystemd\-coredump\-python\fR\m[]\&\s-2\u[3]\d\s+2\&.
+.PP
+رفتار خود
+\fBsystemd\-coredump\fR
+از طریق فایل پیکربندی
+/etc/systemd/coredump\&.conf
+و قطعه‌کدهای مربوطه در
+/etc/systemd/coredump\&.conf\&.d/*\&.conf
+پیکربندی می‌شود، نگاه کنید به
+\fBcoredump.conf\fR(5)\&.
+یک نمونه جدید از
+\fBsystemd\-coredump\fR
+پس از دریافت هر هسته‌گرفت فراخوانی می‌شود\&. بنابراین، تغییرات در این فایل‌ها دفعه بعد که هسته‌گرفتی دریافت شود اعمال خواهد شد\&.
+.PP
+منابع مورد استفاده توسط فایل‌های هسته‌گرفت به دو روش محدود می‌شوند\&. پارامترهایی مانند حداکثر اندازه هسته‌گرفت‌ها و فایل‌های دریافت شده را می‌توان در فایل‌های
+/etc/systemd/coredump\&.conf
+و قطعه‌کدهای ذکر شده در بالا تنظیم کرد\&. علاوه بر این، زمان نگهداری فایل‌های هسته‌گرفت توسط
+\fBsystemd\-tmpfiles\fR
+محدود می‌شود که تنظیمات مربوطه به‌طور پیش‌فرض در
+/usr/lib/tmpfiles\&.d/systemd\&.conf
+قرار دارد\&. حالت پیش‌فرض حذف هسته‌گرفت‌ها پس از چند روز است؛ برای جزئیات به فایل فوق مراجعه کنید\&.
+.SS "غیرفعال‌سازی پردازش هسته‌گرفت"
+.PP
+برای غیرفعال کردن پردازش بالقوه پرمصرف منابع توسط
+\fBsystemd\-coredump\fR،
+مقادیر زیر را در
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Storage=none
+ProcessSizeMax=0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+در
+\fBcoredump.conf\fR(5)
+تنظیم کنید\&.
+.SH "اطلاعات درباره فرایند کرش‌کرده (INFORMATION ABOUT THE CRASHED PROCESS)"
+.PP
+دستور
+\fBcoredumpctl\fR(1)
+را می‌توان برای بازیابی هسته‌گرفت‌های ذخیره‌شده صرف‌نظر از مکان آن‌ها، نمایش اطلاعات، و پردازش آن‌ها مثلاً با ارسال به دیباگر گنو (gdb) استفاده کرد\&.
+.PP
+داده‌های ذخیره‌شده در ژورنال را می‌توان طبق معمول با
+\fBjournalctl\fR(1)
+(یا از هر فرایند دیگر، با استفاده از API مربوط به
+\fBsd-journal\fR(3))
+نیز مشاهده کرد\&. پیام‌های مرتبط دارای
+\fBMESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1\fR
+هستند:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ journalctl MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1 \-o verbose
+\&...
+MESSAGE_ID=fc2e22bc6ee647b6b90729ab34a250b1
+COREDUMP_PID=552351
+COREDUMP_UID=1000
+COREDUMP_GID=1000
+COREDUMP_SIGNAL_NAME=SIGSEGV
+COREDUMP_SIGNAL=11
+COREDUMP_CODE=2
+COREDUMP_TIMESTAMP=1614342930000000
+COREDUMP_COMM=Web Content
+COREDUMP_EXE=/usr/lib64/firefox/firefox
+COREDUMP_USER_UNIT=app\-gnome\-firefox\-552136\&.scope
+COREDUMP_CMDLINE=/usr/lib64/firefox/firefox \-contentproc \-childID 5 \-isForBrowser \&...
+COREDUMP_CGROUP=/user\&.slice/user\-1000\&.slice/user@1000\&.service/app\&.slice/app\-\&...\&.scope
+COREDUMP_FILENAME=/var/lib/systemd/coredump/core\&.Web\&...\&.552351\&.\&...\&.zst
+\&...
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+فیلدهای زیر (در صورت مشخص بودن) همراه با ورودی ژورنال ذخیره می‌شوند:
+.PP
+\fICOREDUMP_UID=\fR, \fICOREDUMP_PID=\fR, \fICOREDUMP_GID=\fR
+.RS 4
+شماره فرایند (PID)، شماره کاربر مالک (UID)، و شماره گروه (GID) فرایند کرش‌کرده\&.
+.sp
+هنگامی که فرایند کرش‌کرده بخشی از یک کانتینر بوده است (یا به‌طور کلی در یک فضای نام فرایند یا کاربر)، این مقادیر آن‌گونه که در
+\fIخارج\fR،
+در فضای نامی که
+systemd\-coredump
+در آن اجرا می‌شود دیده می‌شوند، ثبت می‌گردند\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_BY_PIDFD=\fR
+.RS 4
+اگر فرایند کرش‌کرده با استفاده از یک PIDFD ارائه‌شده توسط هسته تجزیه و تحلیل شده باشد (نیاز به هسته نسخه 6\&.16 دارد)، این فیلد وجود خواهد داشت و روی
+"1"
+تنظیم می‌شود\&. اگر این فیلد تنظیم نشده باشد، فرایند کرش‌کرده از طریق PID تحلیل شده است که مشخصاً در معرض شرایط رقابتی (race conditions) قرار دارد\&.
+.sp
+افزوده‌شده در نسخه 258\&.
+.RE
+.PP
+\fICOREDUMP_TIMESTAMP=\fR
+.RS 4
+زمان کرش بر اساس گزارش هسته (به میکروثانیه از مبدأ زمان یا epoch)\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_RLIMIT=\fR
+.RS 4
+محدودیت نرم منابع برای اندازه فایل هسته، نگاه کنید به
+\fBgetrlimit\fR(2)\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_UNIT=\fR, \fICOREDUMP_SLICE=\fR
+.RS 4
+نام‌های واحد سیستمی و برش (slice)\&.
+.sp
+هنگامی که فرایند کرش‌کرده در کانتینر بوده است، این‌ها نام‌های واحد در
+\fIخارج\fR،
+در مدیر سیستم اصلی هستند\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_CGROUP=\fR
+.RS 4
+سی‌گروپ (cgroup) اصلی واحدِ فرایند کرش‌کرده\&.
+.sp
+هنگامی که فرایند کرش‌کرده در یک کانتینر بوده است، این مسیر کامل آن‌گونه که در خارج از کانتینر دیده می‌شود خواهد بود\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_PROC_CGROUP=\fR
+.RS 4
+اطلاعات گروه کنترلی (Control group) در قالبی که در
+/proc/self/cgroup
+استفاده می‌شود\&. در سیستم‌های دارای سلسله‌مراتب یکپارچه cgroup، این یک مسیر واحد با پیشوند
+"0::"
+است و در سیستم‌های قدیمی چندین مسیر با پیشوند شماره‌های کنترل‌کننده است\&.
+.sp
+هنگامی که فرایند کرش‌کرده در یک کانتینر بوده است، این مسیر کامل آن‌گونه که در خارج از کانتینر دیده می‌شود خواهد بود\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_OWNER_UID=\fR, \fICOREDUMP_USER_UNIT=\fR, \fICOREDUMP_SESSION=\fR
+.RS 4
+شناسه عددی UID کاربری که مالک نشست ورود یا واحد کاربری systemd فرایند کرش‌کرده است، واحد مدیر کاربر، و شناسه نشست\&. هر سه فیلد فقط برای فرایندهای کاربری وجود دارند\&.
+.sp
+هنگامی که فرایند کرش‌کرده در کانتینر بوده است، این‌ها مقادیر در
+\fIخارج\fR،
+در سیستم اصلی هستند\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_SIGNAL_NAME=\fR, \fICOREDUMP_SIGNAL=\fR
+.RS 4
+نام سیگنال پایان‌دهنده (با پیشوند
+"SIG"
+\&\s-2\u[4]\d\s+2) و مقدار عددی آن\&. (هر دو گنجانده شده‌اند زیرا شماره سیگنال‌ها بر اساس معماری متفاوت است\&.)
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_CODE=\fR
+.RS 4
+دلیل ارسال سیگنال به عنوان یک مقدار عددی\&. این کد به عنوان فیلد
+\fIsi_code\fR
+در ساختار
+\fIsiginfo_t\fR
+تعریف شده و در
+\fBsigaction\fR(2)
+مستند شده است\&.
+.sp
+افزوده‌شده در نسخه 261\&.
+.RE
+.PP
+\fICOREDUMP_CWD=\fR, \fICOREDUMP_ROOT=\fR
+.RS 4
+دایرکتوری کاری فعلی و دایرکتوری ریشه فرایند کرش‌کرده\&.
+.sp
+هنگامی که فرایند کرش‌کرده در یک کانتینر است، این مسیرها نسبت به ریشه فضای نام mount کانتینر هستند\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_DUMPABLE=\fR
+.RS 4
+فیلد
+\fBPR_GET_DUMPABLE\fR
+طبق گزارش هسته، نگاه کنید به
+\fBprctl\fR(2)\&.
+.sp
+افزوده‌شده در نسخه 258\&.
+.RE
+.PP
+\fICOREDUMP_OPEN_FDS=\fR
+.RS 4
+اطلاعات مربوط به توصیف‌کننده‌های باز فایل (file descriptors)، در قالب زیر:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\fIfd\fR:\fI/path/to/file\fR
+pos:     \&.\&.\&.
+flags:   \&.\&.\&.
+\&.\&.\&.
+
+\fIfd\fR:\fI/path/to/file\fR
+pos:     \&.\&.\&.
+flags:   \&.\&.\&.
+\&.\&.\&.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+خط اول شامل شماره توصیف‌کننده فایل
+\fIfd\fR
+و مسیر است، در حالی که خطوط بعدی محتویات
+/proc/\fIpid\fR/fdinfo/\fIfd\fR
+را نشان می‌دهند\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_EXE=\fR
+.RS 4
+مقصد پیوند نمادین
+/proc/\fIpid\fR/exe\&.
+.sp
+هنگامی که فرایند کرش‌کرده در یک کانتینر است، آن مسیر نسبت به ریشه فضای نام mount کانتینر است\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_CMDLINE=\fR, \fICOREDUMP_COMM=\fR, \fICOREDUMP_ENVIRON=\fR, \fICOREDUMP_PROC_AUXV=\fR, \fICOREDUMP_PROC_LIMITS=\fR, \fICOREDUMP_PROC_MAPS=\fR, \fICOREDUMP_PROC_MOUNTINFO=\fR, \fICOREDUMP_PROC_STATUS=\fR
+.RS 4
+فیلدهایی که ورودی‌های اختصاصی هر فرایند در فایل‌سیستم
+/proc/
+را نگاشت می‌کنند:
+/proc/\fIpid\fR/cmdline
+(خط فرمان فرایند کرش‌کرده)،
+/proc/\fIpid\fR/comm
+(نام دستور مرتبط با فرایند)،
+/proc/\fIpid\fR/environ
+(بلاک محیطی فرایند کرش‌کرده)،
+/proc/\fIpid\fR/auxv
+(بردار کمکی فرایند کرش‌کرده، نگاه کنید به
+\fBgetauxval\fR(3))،
+/proc/\fIpid\fR/limits
+(محدودیت‌های منابع نرم و سخت)،
+/proc/\fIpid\fR/maps
+(نواحی حافظه قابل مشاهده برای فرایند و مجوزهای دسترسی آن‌ها)،
+/proc/\fIpid\fR/mountinfo
+(نقاط اتصال در فضای نام mount فرایند)،
+/proc/\fIpid\fR/status
+(متاداده‌های مختلف درباره فرایند)\&.
+.sp
+برای اطلاعات بیشتر نگاه کنید به
+\fBproc\fR(5)\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_HOSTNAME=\fR
+.RS 4
+نام میزبان (hostname) سیستم\&.
+.sp
+هنگامی که فرایند کرش‌کرده در کانتینر بوده است، این نام میزبان کانتینر است\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_CONTAINER_CMDLINE=\fR
+.RS 4
+برای فرایندهای در حال اجرا در یک کانتینر، خط فرمان فرایند ایجادکننده کانتینر (اولین فرایند والد با یک فضای نام mount متفاوت)\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP=\fR
+.RS 4
+هنگامی که هسته در ژورنال ذخیره می‌شود، خود تصویر هسته\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_FILENAME=\fR
+.RS 4
+هنگامی که هسته به صورت خارجی ذخیره می‌شود، مسیر فایل هسته\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_TRUNCATED=\fR
+.RS 4
+در صورتی که هسته‌گرفت ذخیره‌شده کوتاه (truncated) شده باشد، روی
+"1"
+تنظیم می‌شود\&. (تصویر جزئی هسته ممکن است هنوز توسط برخی ابزارها پردازش شود، اگرچه مشخصاً همه اطلاعات در دسترس نیست\&.)
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+\fICOREDUMP_PACKAGE_NAME=\fR, \fICOREDUMP_PACKAGE_VERSION=\fR, \fICOREDUMP_PACKAGE_JSON=\fR
+.RS 4
+اگر فایل اجرایی حاوی یادداشت‌های متاداده ELF مربوط به package. باشد، تجزیه و ضمیمه خواهند شد\&. مقادیر
+\fIpackage\fR
+و
+\fIversion\fR
+ماژول اصلی ELF (یعنی فایل اجرایی) به‌صورت جداگانه ضمیمه خواهند شد\&. محتوای قالب‌بندی‌شده با JSON تمام ماژول‌ها به‌صورت یک شیء JSON واحد ضمیمه می‌شود که هرکدام نام ماژول را به عنوان کلید دارند\&. برای اطلاعات بیشتر در مورد این قالب متاداده و محتوای آن، سند
+\m[blue]\fBPackage Metadata for Executable Files\fR\m[]\&\s-2\u[5]\d\s+2
+را ببینید\&.
+.sp
+افزوده‌شده در نسخه 249\&.
+.RE
+.PP
+\fIMESSAGE=\fR
+.RS 4
+پیام تولیدشده توسط
+\fBsystemd\-coredump\fR
+که در صورت تولید موفقیت‌آمیز، شامل ردگیری پشته است\&. هنگامی که
+\fBsystemd\-coredump\fR
+با
+\fB\-\-backtrace\fR
+فراخوانی شود، این فیلد توسط فراخواننده ارائه می‌گردد\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+فیلدهای مختلف دیگری نیز در ورودی ژورنال وجود دارند، اما به فرایند ثبت رویداد، یعنی
+\fBsystemd\-coredump\fR
+مربوط می‌شوند و نه فرایند کرش‌کرده\&. نگاه کنید به
+\fBsystemd.journal-fields\fR(7)\&.
+.PP
+فیلدهای زیر (در صورت مشخص بودن) همراه با فایل خارجی فهرست‌شده در
+\fICOREDUMP_FILENAME=\fR
+به عنوان ویژگی‌های گسترش‌یافته (extended attributes) ذخیره می‌شوند:
+.PP
+\fIuser\&.coredump\&.pid\fR, \fIuser\&.coredump\&.uid\fR, \fIuser\&.coredump\&.gid\fR, \fIuser\&.coredump\&.signal\fR, \fIuser\&.coredump\&.timestamp\fR, \fIuser\&.coredump\&.rlimit\fR, \fIuser\&.coredump\&.hostname\fR, \fIuser\&.coredump\&.comm\fR, \fIuser\&.coredump\&.exe\fR
+.RS 4
+این موارد همان
+\fICOREDUMP_PID=\fR,
+\fICOREDUMP_UID=\fR,
+\fICOREDUMP_GID=\fR,
+\fICOREDUMP_SIGNAL=\fR,
+\fICOREDUMP_TIMESTAMP=\fR,
+\fICOREDUMP_RLIMIT=\fR,
+\fICOREDUMP_HOSTNAME=\fR,
+\fICOREDUMP_COMM=\fR, و
+\fICOREDUMP_EXE=\fR
+هستند که در بالا شرح داده شدند\&.
+.sp
+افزوده‌شده در نسخه 248\&.
+.RE
+.PP
+این موارد را می‌توان با استفاده از
+\fBgetfattr\fR(1)
+مشاهده کرد\&. برای فایل هسته شرح داده شده در ورودی ژورنال نشان داده شده در بالا:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ getfattr \-\-absolute\-names \-d /var/lib/systemd/coredump/core\&.Web\&...\&.552351\&.\&...\&.zst
+# file: /var/lib/systemd/coredump/core\&.Web\&...\&.552351\&.\&...\&.zst
+user\&.coredump\&.pid="552351"
+user\&.coredump\&.uid="1000"
+user\&.coredump\&.gid="1000"
+user\&.coredump\&.signal="11"
+user\&.coredump\&.timestamp="1614342930000000"
+user\&.coredump\&.comm="Web Content"
+user\&.coredump\&.exe="/usr/lib64/firefox/firefox"
+\&...
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBcoredump.conf\fR(5), \fBcoredumpctl\fR(1), \fBsystemd-journald.service\fR(8), \fBsystemd-tmpfiles\fR(8), \fBcore\fR(5), \fBsysctl.d\fR(5), \fBsystemd-sysctl.service\fR(8), \m[blue]\fBsystemd Coredump Handling\fR\m[]\&\s-2\u[1]\d\s+2
+.SH "نکات (NOTES)"
+.IP " 1." 4
+systemd Coredump Handling
+.RS 4
+\%https://systemd.io/COREDUMP
+.RE
+.IP " 2." 4
+Journal Export Format
+.RS 4
+\%https://systemd.io/JOURNAL_EXPORT_FORMATS#journal-export-format
+.RE
+.IP " 3." 4
+systemd-coredump-python
+.RS 4
+\%https://github.com/systemd/systemd-coredump-python
+.RE
+.IP " 4." 4
+دستور
+\fBkill\fR(1)
+نام‌های سیگنال را
+\fIبدون\fR
+پیشوند انتظار دارد؛
+\fBkill\fR(2)
+از پیشوند استفاده می‌کند؛ تمام ابزارهای systemd نام‌های سیگنال را هم با پیشوند و هم بدون پیشوند می‌پذیرند\&.
+.IP " 5." 4
+Package Metadata for Executable Files
+.RS 4
+\%https://systemd.io/PACKAGE_METADATA_FOR_EXECUTABLE_FILES
+.RE

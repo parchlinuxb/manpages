@@ -1,0 +1,813 @@
+.\" Automatically generated from the sudo_logsrv.proto.mdoc.in file.  Do not edit.
+.\"
+.\" SPDX-License-Identifier: ISC
+.\"
+.\" Copyright (c) 2019-2022 Todd C. Miller <Todd.Miller@sudo.ws>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd September 13, 2022
+.Dt SUDO_LOGSRV.PROTO 5
+.Os Sudo 1.9.17p2
+.Sh "نام (NAME)"
+.Nm sudo_logsrv.proto
+.Nd پروتکل سرویس لاگ رخدادها و نشستهای sudo
+.Sh "توضیحات (DESCRIPTION)"
+از نسخهٔ 1.9.0 به بعد،
+.Nm sudo
+از ارسال لاگ‌های رخداد و ورودی/خروجی (I/O) به یک سرور لاگ پشتیبانی می‌کند.
+پروتکل مورد استفاده در زبان ویژه‌دامنهٔ Protocol Buffers گوگل نوشته شده است.
+بخش
+.Sx "مثال‌ها (EXAMPLES)"
+شامل توصیف کاملی از این پروتکل در قالب Protocol Buffers است.
+.Pp
+از آنجا که هنگام استفاده از Protocol Buffers راهی برای تعیین مرز پیام‌ها وجود ندارد،
+اندازه ارسالی هر پیام روی شبکه، بلافاصله پیش از خود پیام به صورت یک عدد صحیح ۳۲ بیتی بدون علامت در ترتیب بایتی شبکه (network byte order) فرستاده می‌شود.
+به این روش
+.Dq length-prefix framing
+(قاب‌بندی با پیشوند طول) گفته می‌شود و همان شیوه‌ای است که گوگل برای مدیریت نبود جداکننده‌های پیام پیشنهاد می‌کند.
+.Pp
+این پروتکل از دو پیام اصلی تشکیل شده است:
+.Em ClientMessage
+و
+.Em ServerMessage
+که در زیر شرح داده شده‌اند.
+سرور باید پیام‌هایی تا اندازهٔ دو مگابایت را بپذیرد.
+در صورتی که کلاینت پیامی بزرگ‌تر از دو مگابایت ارسال کند، سرور ممکن است یک خطا برگرداند.
+.Sh "پیام‌های کلاینت (CLIENT MESSAGES)"
+یک
+.Em ClientMessage
+ظرفی است که برای کپسوله‌سازی تمام انواع پیام‌های ممکنی که یک کلاینت ممکن است به سرور ارسال کند، به کار می‌رود.
+.Bd -literal
+message ClientMessage {
+  oneof type {
+    AcceptMessage accept_msg = 1;
+    RejectMessage reject_msg = 2;
+    ExitMessage exit_msg = 3;
+    RestartMessage restart_msg = 4;
+    AlertMessage alert_msg = 5;
+    IoBuffer ttyin_buf = 6;
+    IoBuffer ttyout_buf = 7;
+    IoBuffer stdin_buf = 8;
+    IoBuffer stdout_buf = 9;
+    IoBuffer stderr_buf = 10;
+    ChangeWindowSize winsize_event = 11;
+    CommandSuspend suspend_event = 12;
+    ClientHello hello_msg = 13;
+  }
+}
+.Ed
+.Pp
+زیرپیام‌های مختلف
+.Em ClientMessage
+که کلاینت ممکن است به سرور ارسال کند در ادامه شرح داده شده‌اند.
+.Ss TimeSpec
+.Bd -literal
+message TimeSpec {
+    int64 tv_sec = 1;
+    int32 tv_nsec = 2;
+}
+.Ed
+.Pp
+یک
+.Em TimeSpec
+معادل ساختار
+.Vt struct timespec
+در POSIX است که شامل اعضای ثانیه و نانوثانیه می‌باشد.
+عضو
+.Em tv_sec
+یک عدد صحیح ۶۴ بیتی است تا از تاریخ‌های پس از سال ۲۰۳۸ پشتیبانی کند.
+.Ss InfoMessage
+.Bd -literal
+message InfoMessage {
+  message StringList {
+    repeated string strings = 1;
+  }
+  message NumberList {
+    repeated int64 numbers = 1;
+  }
+  string key = 1;
+  oneof value {
+    int64 numval = 2;
+    string strval = 3;
+    StringList strlistval = 4;
+    NumberList numlistval = 5;
+  }
+}
+.Ed
+.Pp
+یک
+.Em InfoMessage
+برای نشان دادن اطلاعات دربارهٔ کاربر فراخواننده و همچنین محیط اجرایی که دستور در آن اجرا می‌شود به صورت جفت‌های کلید-مقدار استفاده می‌شود.
+کلید همیشه یک رشته است، اما مقدار ممکن است یک عدد صحیح ۶۴ بیتی، یک رشته، آرایه‌ای از رشته‌ها، یا آرایه‌ای از اعداد صحیح ۶۴ بیتی باشد.
+داده‌های لاگ رخداد از مدخل‌های
+.Em InfoMessage
+تشکیل شده‌اند.
+برای اطلاعات بیشتر بخش
+.Sx "متغیرهای لاگ رخداد (EVENT LOG VARIABLES)"
+را ببینید.
+.Ss ClientHello hello_msg
+.Bd -literal
+message ClientHello {
+  string client_id = 1;
+}
+.Ed
+.Pp
+یک پیام
+.Em ClientHello
+شامل اطلاعات کلاینت است که ممکن است هنگام اولین اتصال کلاینت به سرور فرستاده شود.
+.Bl -tag -width Ds
+.It client_id
+توصیفی با ساختار آزاد از کلاینت.
+این مقدار معمولاً شامل نام و نسخهٔ پیاده‌سازی کلاینت است.
+.El
+.Ss AcceptMessage accept_msg
+.Bd -literal
+message AcceptMessage {
+  TimeSpec submit_time = 1;
+  repeated InfoMessage info_msgs = 2;
+  bool expect_iobufs = 3;
+}
+.Ed
+.Pp
+یک
+.Em AcceptMessage
+هنگامی توسط کلاینت ارسال می‌شود که یک دستور توسط خط‌مشی امنیتی مجاز دانسته شود.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It submit_time
+زمان ساعت دیواری هنگام ارسال دستور به خط‌مشی امنیتی.
+.It info_msgs
+آرایه‌ای از
+.Em InfoMessage
+توصیف‌کنندهٔ کاربری که دستور را ارسال کرده و همچنین محیط اجرای دستور.
+این اطلاعات برای تولید یک مدخل لاگ رخداد استفاده می‌شود و ممکن است توسط سرور نیز برای تعیین مکان و چگونگی ذخیره‌سازی لاگ I/O به کار رود.
+.It expect_iobufs
+اگر سرور باید در ادامه منتظر پیام‌های
+.Em IoBuffer
+باشد (برای لاگ‌گیری I/O) روی true تنظیم می‌شود، یا اگر سرور تنها باید لاگ رخداد را ذخیره کند روی false قرار می‌گیرد.
+.El
+.Pp
+در صورت ارسال یک
+.Em AcceptMessage ،
+کلاینت نباید یک
+.Em RejectMessage
+یا
+.Em RestartMessage
+ارسال کند.
+.Ss RejectMessage reject_msg
+.Bd -literal
+message RejectMessage {
+  TimeSpec submit_time = 1;
+  string reason = 2;
+  repeated InfoMessage info_msgs = 3;
+}
+.Ed
+.Pp
+یک
+.Em RejectMessage
+هنگامی توسط کلاینت ارسال می‌شود که یک دستور توسط خط‌مشی امنیتی رد شود.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It submit_time
+زمان ساعت دیواری هنگامی که دستور به خط‌مشی امنیتی ارائه شد.
+.It reason
+دلیلی که خط‌مشی امنیتی برای رد کردن دستور ارائه داده است.
+.It info_msgs
+آرایه‌ای از
+.Em InfoMessage
+توصیف‌کنندهٔ کاربری که دستور را ارسال کرده و همچنین محیط اجرای دستور.
+این اطلاعات برای تولید یک مدخل لاگ رخداد استفاده می‌شود.
+.El
+.Pp
+در صورت ارسال یک
+.Em RejectMessage ،
+کلاینت نباید یک
+.Em AcceptMessage
+یا
+.Em RestartMessage
+ارسال کند.
+.Ss ExitMessage exit_msg
+.Bd -literal
+message ExitMessage {
+  TimeSpec run_time = 1;
+  int32 exit_value = 2;
+  bool dumped_core = 3;
+  string signal = 4;
+  string error = 5;
+}
+.Ed
+.Pp
+یک
+.Em ExitMessage
+توسط کلاینت پس از خروج دستور یا خاتمه یافتن آن توسط یک سیگنال ارسال می‌شود.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It run_time
+کل مدت‌زمان سپری‌شده از زمان آغاز دستور، که در صورت امکان با استفاده از یک ساعت یکنواخت (monotonic clock) محاسبه می‌شود.
+این مقدار زمان ساعت دیواری نیست.
+.It exit_value
+مقدار خروج دستور در بازهٔ ۰ تا ۲۵۵.
+.It dumped_core
+در صورتی که دستور توسط یک سیگنال خاتمه یافته و core dump تولید کرده باشد، برابر با true خواهد بود.
+.It signal
+اگر دستور توسط یک سیگنال پایان یافته باشد، این مقدار روی نام سیگنال بدون پیشوند
+.Dq SIG
+تنظیم می‌شود.
+برای نمونه:
+.Dv INT ,
+.Dv TERM ,
+.Dv KILL ,
+.Dv SEGV .
+.It error
+پیامی از کلاینت که نشان می‌دهد دستور به دلیل یک خطا به طور غیرمنتظره خاتمه یافته است.
+.El
+.Pp
+هنگام انجام لاگ‌گیری I/O، کلاینت باید پیش از بستن اتصال منتظر یک
+.Em commit_point
+متناظر با آخرین
+.Em IoBuffer
+بماند، مگر آنکه آخرین
+.Em commit_point
+قبلاً دریافت شده باشد.
+.Ss RestartMessage restart_msg
+.Bd -literal
+message RestartMessage {
+  string log_id = 1;
+  TimeSpec resume_point = 2;
+}
+.Ed
+.Pp
+یک
+.Em RestartMessage
+توسط کلاینت برای ازسرگیری ارسال یک لاگ I/O موجود که قبلاً متوقف شده بود ارسال می‌شود.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It log_id
+نام سمت سرور برای یک لاگ I/O که قبلاً توسط سرور به کلاینت فرستاده شده بود.
+این مقدار ممکن است یک مسیر در سرور یا نوع دیگری از شناسهٔ سمت سرور باشد.
+.It resume_point
+نقطهٔ زمانی که لاگ I/O باید پس از آن از سر گرفته شود.
+این مقدار در قالب یک
+.Em TimeSpec
+است که بیانگر مدت‌زمان سپری‌شده از زمان آغاز دستور است، نه زمان ساعت دیواری.
+مقدار
+.Em resume_point
+باید با یک
+.Em commit_point
+که قبلاً توسط سرور به کلاینت فرستاده شده بود همخوانی داشته باشد.
+اگر سرور یک
+.Em RestartMessage
+دریافت کند که شامل یک
+.Em resume_point
+باشد که پیش‌تر ندیده است، خطایی به کلاینت بازگردانده شده و اتصال قطع می‌شود.
+.El
+.Pp
+در صورت ارسال یک
+.Em RestartMessage ،
+کلاینت نباید یک
+.Em AcceptMessage
+یا
+.Em RejectMessage
+ارسال کند.
+.Ss AlertMessage alert_msg
+.Bd -literal
+message AlertMessage {
+  TimeSpec alert_time = 1;
+  string reason = 2;
+  repeated InfoMessage info_msgs = 3;
+}
+.Ed
+.Pp
+یک
+.Em AlertMessage
+توسط کلاینت فرستاده می‌شود تا مشکلی را که در حین اجرای دستور توسط خط‌مشی امنیتی شناسایی شده و باید در لاگ رخداد ذخیره شود نشان دهد.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It alert_time
+زمان ساعت دیواری هنگام رخ دادن هشدار.
+.It reason
+دلیل هشدار.
+.It info_msgs
+آرایه‌ای اختیاری از
+.Em InfoMessage
+توصیف‌کنندهٔ کاربری که دستور را ارائه کرده و همچنین محیط اجرای دستور.
+این اطلاعات برای تولید یک مدخل لاگ رخداد استفاده می‌شود.
+.El
+.Ss IoBuffer ttyin_buf | ttyout_buf | stdin_buf | stdout_buf | stderr_buf
+.Bd -literal
+message IoBuffer {
+  TimeSpec delay = 1;
+  bytes data = 2;
+}
+.Ed
+.Pp
+یک
+.Em IoBuffer
+برای نمایش داده‌های ورودی ترمینال، خروجی ترمینال، ورودی استاندارد، خروجی استاندارد، یا خطای استاندارد استفاده می‌شود.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It delay
+زمان سپری‌شده از آخرین رکورد در قالب یک
+.Em TimeSpec .
+مقدار
+.Em delay
+در صورت امکان باید با استفاده از یک ساعت یکنواخت محاسبه شود.
+.It data
+داده‌های باینری لاگ I/O از ورودی ترمینال، خروجی ترمینال، ورودی استاندارد، خروجی استاندارد، یا خطای استاندارد.
+.El
+.Ss ChangeWindowSize winsize_event
+.Bd -literal
+message ChangeWindowSize {
+  TimeSpec delay = 1;
+  int32 rows = 2;
+  int32 cols = 3;
+}
+.Ed
+.Pp
+یک پیام
+.Em ChangeWindowSize
+هنگامی توسط کلاینت ارسال می‌شود که اندازهٔ ترمینال اجراکنندهٔ دستور تغییر کند.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It delay
+زمان سپری‌شده از آخرین رکورد در قالب یک
+.Em TimeSpec .
+مقدار
+.Em delay
+در صورت امکان باید با استفاده از یک ساعت یکنواخت محاسبه شود.
+.It rows
+تعداد سطرهای جدید ترمینال.
+.It cols
+تعداد ستون‌های جدید ترمینال.
+.El
+.Ss CommandSuspend suspend_event
+.Bd -literal
+message CommandSuspend {
+  TimeSpec delay = 1;
+  string signal = 2;
+}
+.Ed
+.Pp
+یک پیام
+.Em CommandSuspend
+توسط کلاینت هنگامی ارسال می‌شود که دستور معلق یا ازسرگرفته شود.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It delay
+زمان سپری‌شده از آخرین رکورد در قالب یک
+.Em TimeSpec .
+مقدار
+.Em delay
+در صورت امکان باید با استفاده از یک ساعت یکنواخت محاسبه شود.
+.It signal
+نام سیگنال بدون پیشوند
+.Dq SIG .
+برای نمونه:
+.Dv STOP ,
+.Dv TSTP ,
+.Dv CONT .
+.El
+.Sh "پیام‌های سرور (SERVER MESSAGES)"
+یک
+.Em ServerMessage
+ظرفی است که برای کپسوله‌سازی تمام انواع پیام‌های ممکنی که سرور ممکن است به یک کلاینت بفرستد استفاده می‌شود.
+.Bd -literal
+message ServerMessage {
+  oneof type {
+    ServerHello hello = 1;
+    TimeSpec commit_point = 2;
+    string log_id = 3;
+    string error = 4;
+    string abort = 5;
+  }
+}
+.Ed
+.Pp
+زیرپیام‌های مختلف
+.Em ServerMessage
+که سرور ممکن است به کلاینت ارسال کند در ادامه شرح داده شده‌اند.
+.Ss ServerHello hello
+.Bd -literal
+message ServerHello {
+  string server_id = 1;
+  string redirect = 2;
+  repeated string servers = 3;
+  bool subcommands = 4;
+}
+.Ed
+.Pp
+پیام
+.Em ServerHello
+شامل اطلاعات سرور است که هنگام اولین اتصال کلاینت ارسال می‌شود.
+این پیام شامل اعضای زیر است:
+.Bl -tag -width Ds
+.It server_id
+توصیفی با فرمت آزاد از سرور.
+معمولاً شامل نام و نسخهٔ پیاده‌سازی اجراشده روی سرور لاگ است.
+این عضو همیشه وجود دارد.
+.It redirect
+یک میزبان و پورت که با دو نقطه
+.Pq Ql :
+از هم جدا شده‌اند و کلاینت باید به جای آن به این آدرس متصل شود.
+میزبان می‌تواند یک نام میزبان، یک آدرس IPv4، یا یک آدرس IPv6 در داخل براکت‌ها باشد.
+این ویژگی ممکن است برای توازن بار سرور (load balancing) استفاده شود.
+سرور پس از ارسال
+.Em ServerHello
+در صورتی که شامل یک
+.Sy redirect
+باشد ارتباط را قطع خواهد کرد.
+.It servers
+فهرستی از دیگر سرورهای لاگ شناخته‌شده.
+این مورد می‌تواند برای پیاده‌سازی افزونگی (redundancy) سرور لاگ استفاده شود و به کلاینت امکان می‌دهد تمامی سرورهای لاگ دیگر را صرفاً با اتصال به یک سرور شناخته‌شده کشف کند.
+در صورتی که فقط یک سرور لاگ وجود داشته باشد، این عضو ممکن است حذف شود.
+.It subcommands
+اگر تنظیم شده باشد، سرور از لاگ‌گیری دستورات اضافی در طول یک نشست پشتیبانی می‌کند.
+کلاینت ممکن است هنگامی که
+.Nm sudo
+در حالت
+.Em intercept
+(رهگیری) در حال اجرا است یک
+.Em AcceptMessage
+یا
+.Em RejectMessage
+ارسال کند.
+در این حالت، دستوراتی که از دل دستور اولیه‌ای که توسط
+.Nm sudo
+مجاز شده بود ایجاد می‌شوند نیز مشمول محدودیت‌های خط‌مشی بوده و/یا ثبت می‌شوند.
+اگر
+.Em subcommands
+برابر با false باشد، کلاینت نباید برای ثبت لاگ دستورات اضافی تلاش کند.
+.El
+.Ss TimeSpec commit_point
+یک برچسب زمانی دوره‌ای ارسال‌شده توسط سرور است که نشان می‌دهد بافرهای لاگ I/O در چه زمانی در فضای ذخیره‌سازی ثبت نهایی (commit) شده‌اند.
+این پیام پس از هر
+.Em IoBuffer
+ارسال نمی‌شود بلکه در بازه‌های زمانی قابل‌پیکربندی روی سرور ارسال می‌گردد.
+هنگامی که سرور یک
+.Em ExitMessage
+دریافت می‌کند، پیش از بستن اتصال با یک
+.Em commit_point
+متناظر با آخرین
+.Em IoBuffer
+دریافت‌شده پاسخ خواهد داد.
+.Ss string log_id
+شناسهٔ سمت سرور برای لاگ I/O در حال ذخیره‌سازی که در پاسخ به یک
+.Em AcceptMessage
+که در آن
+.Em expect_iobufs
+برابر با true است ارسال می‌شود.
+.Ss string error
+یک خطای مهلک سمت سرور.
+سرور پس از ارسال پیام
+.Em error
+اتصال را خواهد بست.
+.Ss string abort
+یک پیام
+.Em abort
+از سوی سرور نشان می‌دهد کلاینت باید دستور را خاتمه داده (kill) و نشست را پایان دهد.
+این پیام ممکن است برای اعمال خط‌مشی ساده در سمت سرور استفاده شود.
+سرور پس از ارسال پیام
+.Em abort
+اتصال را خواهد بست.
+.Sh "جریان کنترل پروتکل (PROTOCOL FLOW OF CONTROL)"
+جریان مورد انتظار پروتکل به شرح زیر است:
+.Bl -enum
+.It
+کلاینت به نخستین سرور در دسترس متصل می‌شود.
+اگر کلاینت برای استفاده از TLS پیکربندی شده باشد، یک دست‌تکانی (handshake) TLS انجام خواهد گرفت.
+.It
+کلاینت پیام
+.Em ClientHello
+را ارسال می‌کند.
+این پیام در حال حاضر اختیاری است اما به سرور امکان می‌دهد اتصال غیر TLS را روی پورت TLS تشخیص دهد.
+.It
+سرور پیام
+.Em ServerHello
+را ارسال می‌کند.
+.It
+کلاینت با یکی از پیام‌های
+.Em AcceptMessage ،
+.Em RejectMessage
+یا
+.Em RestartMessage
+پاسخ می‌دهد.
+.It
+اگر کلاینت یک
+.Em AcceptMessage
+همراه با تنظیم بودن
+.Em expect_iobufs
+ارسال کرده باشد، سرور یک لاگ I/O جدید ایجاد کرده و با یک
+.Em log_id
+پاسخ می‌دهد.
+.It
+کلاینت صفر یا چند پیام
+.Em IoBuffer
+ارسال می‌کند.
+.It
+سرور به طور دوره‌ای به پیام‌های
+.Em IoBuffer
+با یک
+.Em commit_point
+پاسخ می‌دهد.
+.It
+کلاینت هنگام خروج یا کشته شدن دستور یک
+.Em ExitMessage
+ارسال می‌کند.
+.It
+اگر یک
+.Em commit_point
+معلق مانده باشد، سرور آخرین
+.Em commit_point
+را ارسال می‌کند.
+.It
+سرور اتصال را می‌بندد.
+پس از دریافت آخرین
+.Em commit_point ،
+اگر TLS در حال استفاده باشد کلاینت سمت خود از اتصال TLS را خاموش کرده و اتصال را می‌بندد.
+.It
+سرور در صورت استفاده از TLS سمت خود از اتصال TLS را خاموش کرده و اتصال را می‌بندد.
+.El
+.Pp
+در هر لحظه، سرور ممکن است یک پیام
+.Em error
+یا
+.Em abort
+به کلاینت ارسال کند که در این صورت سرور اتصال را خواهد بست.
+اگر یک پیام
+.Em abort
+دریافت شود، کلاینت باید اجرای دستور جاری را متوقف کند.
+.Sh "متغیرهای لاگ رخداد (EVENT LOG VARIABLES)"
+کلاس‌های
+.Em AcceptMessage ،
+.Em AlertMessage
+و
+.Em RejectMessage
+شامل آرایه‌ای از
+.Em InfoMessage
+هستند که باید حاوی اطلاعاتی دربارهٔ کاربری که دستور را ارسال کرده و همچنین اطلاعات مربوط به محیط اجرای دستور در صورت پذیرفته شدن آن باشند.
+.Pp
+برخی متغیرها دارای پیشوند
+.Em client ،
+.Em run
+یا
+.Em submit
+هستند.
+این پیشوندها برای رفع ابهام برای متغیرهایی به کار می‌روند که ممکن است برای برنامهٔ کلاینت، کاربر ارسال‌کنندهٔ دستور، یا دستوری که اجرا می‌شود صدق کنند.
+متغیرهایی با پیشوند
+.Em client
+مربوط به برنامه‌ای هستند که اتصال را با سرور لاگ برقرار می‌کند، برای نمونه
+.Nm sudo .
+متغیرهایی با پیشوند
+.Em run
+مربوط به دستوری هستند که کاربر درخواست اجرای آن را داشته است.
+متغیرهایی با پیشوند
+.Em submit
+مربوط به کاربری هستند که درخواست را ارسال کرده است
+.Pq کاربری که Nm sudo را اجرا می‌کند .
+.Pp
+مدخل‌های
+.Em InfoMessage
+زیر الزامی هستند:
+.Bl -column "submitgroup" "stringlist" "name of host the command was submitted on"
+.It Sy کلید Ta Sy نوع Ta Sy توضیحات
+.It command Ta string Ta دستوری که ارسال شد
+.It runuser Ta string Ta نام کاربری که دستور با هویت او اجرا شد
+.It submithost Ta string Ta نام میزبانی که دستور روی آن ارسال شد
+.It submituser Ta string Ta نام کاربری که دستور را ارسال کرد
+.El
+.Pp
+مدخل‌های
+.Em InfoMessage
+زیر شناخته‌شده هستند، اما الزامی نیستند:
+.Bl -column "submitgroup" "stringlist" "name of host the command was submitted on"
+.It Sy کلید Ta Sy نوع Ta Sy توضیحات
+.It clientargv Ta StringList Ta بردار آرگومان اصلی کلاینت
+.It clientpid Ta int64 Ta شناسه پردازه (PID) کلاینت
+.It clientppid Ta int64 Ta شناسه پردازه والد (PPID) کلاینت
+.It clientsid Ta int64 Ta شناسه نشست ترمینال کلاینت
+.It columns Ta int64 Ta تعداد ستون‌های ترمینال
+.It lines Ta int64 Ta تعداد خطوط ترمینال
+.It runargv Ta StringList Ta بردار آرگومان دستوری که اجرا می‌شود
+.It runchroot Ta string Ta دایرکتوری ریشه دستوری که اجرا می‌شود
+.It runcwd Ta string Ta دایرکتوری کاری دستوری که در حال اجرا است
+.It runenv Ta StringList Ta متغیرهای محیطی دستور در حال اجرا
+.It rungid Ta int64 Ta شناسه گروه اصلی (GID) دستور
+.It rungids Ta NumberList Ta شناسه‌های گروه تکمیلی برای دستور
+.It rungroup Ta string Ta نام گروه اصلی دستور
+.It rungroups Ta StringList Ta نام‌های گروه‌های تکمیلی برای دستور
+.It runuid Ta int64 Ta شناسه کاربری (UID) دستوری که اجرا می‌شود
+.It submitcwd Ta string Ta دایرکتوری کاری جاری کاربر ارسال‌کننده
+.It submitenv Ta StringList Ta متغیرهای محیطی کاربر ارسال‌کننده
+.It submitgid Ta int64 Ta شناسه گروه اصلی (GID) کاربر ارسال‌کننده
+.It submitgids Ta NumberList Ta شناسه‌های گروه تکمیلی کاربر ارسال‌کننده
+.It submitgroup Ta string Ta نام گروه اصلی کاربر ارسال‌کننده
+.It submitgroups Ta StringList Ta نام گروه‌های تکمیلی کاربر ارسال‌کننده
+.It submituid Ta int64 Ta شناسه کاربری (UID) کاربر ارسال‌کننده
+.It ttyname Ta string Ta ترمینالی که دستور از آن ارسال شده است
+.El
+.Pp
+سرور باید متغیرهای دیگری را که در بالا فهرست نشده‌اند بپذیرد، اما می‌تواند آن‌ها را نادیده بگیرد.
+.Sh "مثال‌ها (EXAMPLES)"
+توصیف پروتکل سرور لاگ در Protocol Buffers با استفاده از نحو
+.Dq proto3
+به طور کامل در ادامه آورده شده است.
+.Bd -literal
+syntax = "proto3";
+
+/*
+ * Client message to the server.  Messages on the wire are
+ * prefixed with a 32-bit size in network byte order.
+ */
+message ClientMessage {
+  oneof type {
+    AcceptMessage accept_msg = 1;
+    RejectMessage reject_msg = 2;
+    ExitMessage exit_msg = 3;
+    RestartMessage restart_msg = 4;
+    AlertMessage alert_msg = 5;
+    IoBuffer ttyin_buf = 6;
+    IoBuffer ttyout_buf = 7;
+    IoBuffer stdin_buf = 8;
+    IoBuffer stdout_buf = 9;
+    IoBuffer stderr_buf = 10;
+    ChangeWindowSize winsize_event = 11;
+    CommandSuspend suspend_event = 12;
+  }
+}
+
+/* Equivalent of POSIX struct timespec */
+message TimeSpec {
+    int64 tv_sec = 1;		/* seconds */
+    int32 tv_nsec = 2;		/* nanoseconds */
+}
+
+/* I/O buffer with keystroke data */
+message IoBuffer {
+  TimeSpec delay = 1;		/* elapsed time since last record */
+  bytes data = 2;		/* keystroke data */
+}
+
+/*
+ * Key/value pairs, like Privilege Manager struct info.
+ * The value may be a number, a string, or a list of strings.
+ */
+message InfoMessage {
+  message StringList {
+    repeated string strings = 1;
+  }
+  message NumberList {
+    repeated int64 numbers = 1;
+  }
+  string key = 1;
+  oneof value {
+    int64 numval = 2;
+    string strval = 3;
+    StringList strlistval = 4;
+    NumberList numlistval = 5;
+  }
+}
+
+/*
+ * Event log data for command accepted by the policy.
+ */
+message AcceptMessage {
+  TimeSpec submit_time = 1;		/* when command was submitted */
+  repeated InfoMessage info_msgs = 2;	/* key,value event log data */
+  bool expect_iobufs = 3;		/* true if I/O logging enabled */
+}
+
+/*
+ * Event log data for command rejected by the policy.
+ */
+message RejectMessage {
+  TimeSpec submit_time = 1;		/* when command was submitted */
+  string reason = 2;			/* reason command was rejected */
+  repeated InfoMessage info_msgs = 3;	/* key,value event log data */
+}
+
+/* Message sent by client when command exits. */
+/* Might revisit runtime and use end_time instead */
+message ExitMessage {
+  TimeSpec run_time = 1;	/* total elapsed run time */
+  int32 exit_value = 2;		/* 0\(en255 */
+  bool dumped_core = 3;		/* true if command dumped core */
+  string signal = 4;		/* signal name if killed by signal */
+  string error = 5;		/* if killed due to other error */
+}
+
+/* Alert message, policy module-specific. */
+message AlertMessage {
+  TimeSpec alert_time = 1;		/* time alert message occurred */
+  string reason = 2;			/* policy alert error string */
+  repeated InfoMessage info_msgs = 3;	/* key,value event log data */
+}
+
+/* Used to restart an existing I/O log on the server. */
+message RestartMessage {
+  string log_id = 1;		/* ID of log being restarted */
+  TimeSpec resume_point = 2;	/* resume point (elapsed time) */
+}
+
+/* Window size change event. */
+message ChangeWindowSize {
+  TimeSpec delay = 1;		/* elapsed time since last record */
+  int32 rows = 2;		/* new number of rows */
+  int32 cols = 3;		/* new number of columns */
+}
+
+/* Command suspend/resume event. */
+message CommandSuspend {
+  TimeSpec delay = 1;		/* elapsed time since last record */
+  string signal = 2;		/* signal that caused suspend/resume */
+}
+
+/*
+ * Server messages to the client.  Messages on the wire are
+ * prefixed with a 32-bit size in network byte order.
+ */
+message ServerMessage {
+  oneof type {
+    ServerHello hello = 1;	/* server hello message */
+    TimeSpec commit_point = 2;	/* cumulative time of records stored */
+    string log_id = 3;		/* ID of server-side I/O log */
+    string error = 4;		/* error message from server */
+    string abort = 5;		/* abort message, kill command */
+  }
+}
+
+/* Hello message from server when client connects. */
+message ServerHello {
+  string server_id = 1;		/* free-form server description */
+  string redirect = 2;		/* optional redirect if busy */
+  repeated string servers = 3;	/* optional list of known servers */
+}
+.Ed
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr sudo_logsrvd.conf 5 ,
+.Xr sudoers 5 ,
+.Xr sudo 8 ,
+.Xr sudo_logsrvd 8
+.Rs
+.%T Protocol Buffers
+.%U https://protobuf.dev
+.Re
+.Sh "نویسندگان (AUTHORS)"
+افراد زیادی در طول سال‌ها روی
+.Nm sudo
+کار کرده‌اند؛ این نسخه شامل کدهایی است که عمدتاً توسط افراد زیر نوشته شده است:
+.Bd -ragged -offset indent
+.An Todd C. Miller
+.Ed
+.Pp
+برای فهرست کاملی از افرادی که در
+.Nm sudo
+مشارکت داشته‌اند، پروندهٔ CONTRIBUTORS.md را در توزیع
+.Nm sudo
+(https://www.sudo.ws/about/contributors)
+ببینید.
+.Sh "گزارش باگ‌ها (BUGS)"
+اگر فکر می‌کنید باگی در
+.Nm
+یافته‌اید، می‌توانید یک گزارش باگ در پایگاه‌داده باگ‌های sudo در
+https://bugzilla.sudo.ws
+ثبت کنید، یا یک issue در
+https://github.com/sudo-project/sudo/issues
+باز کنید.
+اگر ترجیح می‌دهید از رایانامه استفاده کنید، پیام‌ها می‌توانند به فهرست پستی sudo-workers در
+https://www.sudo.ws/mailman/listinfo/sudo-workers
+(عمومی) یا به
+<sudo@sudo.ws>
+(خصوصی) ارسال شوند.
+.Pp
+لطفاً آسیب‌پذیری‌های امنیتی را از طریق issueهای عمومی گیت‌هاب، باگزیلا یا فهرست‌های پستی گزارش ندهید.
+در عوض، آن‌ها را از طریق رایانامه به
+<Todd.Miller@sudo.ws>
+گزارش کنید.
+در صورت تمایل می‌توانید پیام خود را با استفاده از کلید موجود در
+https://www.sudo.ws/dist/PGPKEYS
+توسط PGP رمزنگاری کنید.
+.Sh "پشتیبانی (SUPPORT)"
+پشتیبانی محدود رایگان از طریق فهرست پستی sudo-users در دسترس است؛ برای عضویت یا جستجو در بایگانی‌ها به
+https://www.sudo.ws/mailman/listinfo/sudo-users
+مراجعه کنید.
+.Sh "سلب مسئولیت (DISCLAIMER)"
+.Nm sudo
+به صورت
+.Dq "همان‌طور که هست"
+(AS IS) ارائه می‌شود و هرگونه ضمانت صریح یا ضمنی، از جمله، اما نه محدود به، ضمانت‌های ضمنی قابلیت فروش و تناسب برای یک هدف خاص سلب می‌گردد.
+برای جزئیات کامل، پروندهٔ LICENSE.md توزیع‌شده با
+.Nm sudo
+یا
+https://www.sudo.ws/about/license
+را ببینید.

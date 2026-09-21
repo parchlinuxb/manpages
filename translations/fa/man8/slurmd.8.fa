@@ -1,0 +1,333 @@
+.TH slurmd "8" "Slurm Daemon" "Slurm 26.05" "Slurm Daemon"
+
+.SH "نام (NAME)"
+slurmd \- دیمن گره محاسباتی برای Slurm.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBslurmd\fR [\fIOPTIONS\fR...]
+
+.SH "توضیحات (DESCRIPTION)"
+\fBslurmd\fR دیمن گره محاسباتی Slurm است. این دیمن بر تمام وظایف (tasks) در حال اجرا روی گره محاسباتی نظارت می‌کند، کارها (وظایف) را می‌پذیرد، آن‌ها را راه‌اندازی می‌کند و در صورت درخواست، وظایف در حال اجرا را خاتمه می‌دهد (kill می‌کند).
+
+.SH "گزینه‌ها (OPTIONS)"
+
+.TP
+\fB\--authinfo\fR
+همراه با configless برای تعیین پارامتر جایگزین AuthInfo به منظور برقراری ارتباط با slurmctld پیش از دریافت فایل پیکربندی به کار می‌رود. (برای نمونه، جهت تعیین مسیر سوکت جایگزین MUNGE.)
+.IP
+
+.TP
+\fB\-b\fR
+گزارش راه‌اندازی مجدد گره (reboot) هنگام ری‌استارت شدن دیمن. برای اهداف آزمایشی استفاده می‌شود.
+.IP
+
+.TP
+\fB\-c\fR
+پاکسازی قفل‌های سیستم در صورت نیاز. این گزینه در صورتی که \fBslurmd\fR به صورت غیرعادی متوقف شده باشد ممکن است ضروری باشد.
+.IP
+
+.TP
+\fB\-C\fR
+چاپ پیکربندی واقعی سخت‌افزار (نه پیکربندی مندرج در فایل slurm.conf) و خروج.
+قالب خروجی مشابه قالبی است که در \fBslurm.conf\fR برای توصیف پیکربندی گره به علاوه زمان فعالیت (uptime) آن استفاده می‌شود. می‌توانید از \fB\--parameters\fR برای تعیین گزینه‌هایی مانند 'l3cache_as_socket' که ممکن است ساختار توپولوژی گزارش‌شده گره را تغییر دهند، استفاده کنید.
+.IP
+
+.TP
+\fB\-\-ca\-cert\-file <file>\fR
+مسیر مطلق به گواهی CA که برای دریافت پیکربندی هنگام اجرای configless در یک کلاستر فعال با TLS استفاده می‌شود.
+.IP
+
+.TP
+\fB\-\-conf <node parameters>\fR
+در ترکیب با گزینه \fB\-Z\fR استفاده می‌شود. برای بازنویسی یا تعیین پارامترهای اضافی یک گره پویا (dynamic node) با استفاده از همان ساختار نحوی و پارامترهای به‌کاررفته برای تعریف گره‌ها در slurm.conf استفاده می‌شود. مشخص کردن هر یک از موارد \fBCPUs\fR،
+\fBBoards\fR، \fBSocketsPerBoard\fR، \fBCoresPerSocket\fR یا
+\fBThreadsPerCore\fR مقادیر پیش‌فرض تعیین‌شده توسط گزینه \fB\-C\fR را بازنویسی خواهد کرد. گزینه‌های \fBNodeName\fR و \fBPort\fR پشتیبانی نمی‌شوند.
+این گزینه همچنین می‌تواند برای مشخص کردن توپولوژی گره ابری (cloud node) استفاده شود، که در این حالت پرچم \fB\-Z\fR نباید استفاده شود (برای نمونه:
+\-\-conf="topology=topo-switch:s1")
+
+.br
+برای مثال اگر \fIslurmd \-C\fR مقدار زیر را گزارش دهد:
+.nf
+NodeName=node1 CPUs=16 Boards=1 SocketsPerBoard=1 CoresPerSocket=8 ThreadsPerCore=2 RealMemory=31848
+.fi
+
+مشخصه‌های --conf زیر تعاریف متناظر گره را ایجاد خواهند کرد:
+.nf
+\-\-conf "Gres=gpu:2"
+NodeName=node1 CPUs=16 Boards=1 SocketsPerBoard=1 CoresPerSocket=8 ThreadsPerCore=2 RealMemory=31848 Gres=gpu:2
+.fi
+
+.nf
+\-\-conf "RealMemory=30000"
+NodeName=node1 CPUs=16 Boards=1 SocketsPerBoard=1 CoresPerSocket=8 ThreadsPerCore=2 RealMemory=30000
+.fi
+
+.nf
+\-\-conf "CPUs=16"
+NodeName=node1 CPUs=16 RealMemory=331848
+.fi
+
+.nf
+\-\-conf "CPUs=16 RealMemory=30000 Gres=gpu:2"
+NodeName=node1 CPUs=16 RealMemory=30000 Gres=gpu:2"
+.fi
+
+تشخیص GPU به صورت خودکار رخ می‌دهد اگر:
+.RS
+.TP
+\[bu] گزینه \fB\-\-conf\fR هیچ GPU GRES مشخص نکرده باشد
+.IP
+.TP
+\[bu] فایل \fBgres.conf\fR حاوی هیچ رکورد صریح GPU GRES برای این گره نباشد
+.IP
+.TP
+\[bu] فایل \fBgres.conf\fR حاوی \fBAutoDetect=off\fR نباشد
+.IP
+.RE
+
+اگر \fBAutoDetect\fR در \fBgres.conf\fR سازوکار تشخیص خاصی را مشخص کند (مانند \fBNVML\fR، \fBNVIDIA\fR، \fBRSMI\fR، \fBoneAPI\fR، \fBNRT\fR)،
+از همان سازوکار برای تلاش جهت تشخیص GPU استفاده خواهد کرد. اگر هیچ \fBAutoDetect\fR مشخص نشده باشد، slurmd به صورت پیش‌فرض از روش تشخیص \fBfull\fR برای GPU استفاده می‌کند.
+
+موارد زیر رفتار تشخیص خودکار GPU را برای گره‌ای با ۲ پردازنده گرافیکی محلی A100 نشان می‌دهد:
+
+بدون \-\-conf و بدون AutoDetect در gres.conf:
+.nf
+NodeName=node1 CPUs=16 Boards=1 SocketsPerBoard=1 CoresPerSocket=8 ThreadsPerCore=2 RealMemory=31848 Gres=gpu:a100:2
+.fi
+
+همراه با \-\-conf "Gres=tmpfs:1000" و بدون AutoDetect در gres.conf:
+.nf
+NodeName=node1 CPUs=16 Boards=1 SocketsPerBoard=1 CoresPerSocket=8 ThreadsPerCore=2 RealMemory=31848 Gres=tmpfs:1000,gpu:a100:2
+.fi
+
+همراه با \-\-conf "Gres=tmpfs:1000" و AutoDetect=nvml در gres.conf:
+.nf
+NodeName=node1 CPUs=16 Boards=1 SocketsPerBoard=1 CoresPerSocket=8 ThreadsPerCore=2 RealMemory=31848 Gres=tmpfs:1000,gpu:a100:2
+.fi
+
+همراه با \-\-conf "Gres=tmpfs:1000" و AutoDetect=off در gres.conf:
+.nf
+NodeName=node1 CPUs=16 Boards=1 SocketsPerBoard=1 CoresPerSocket=8 ThreadsPerCore=2 RealMemory=31848 Gres=tmpfs:1000
+.fi
+.IP
+
+.TP
+\fB\-\-conf\-server <host|ip address>[:<port>]\fR
+فهرست جداشده با کاما از کنترلرها، که اولین آن‌ها slurmctld اصلی است. یک
+پورت را می‌توان (به صورت اختیاری) برای هر کنترلر مشخص کرد. این میزبان‌ها همان‌هایی هستند که
+slurmd هنگام اجرا در حالت "configless" پیکربندی را از آن‌ها دریافت می‌کند.
+\fBنکته\fR: در صورت تعیین یک آدرس IPv6، عبارت <ip address> را داخل [] قرار دهید تا
+آدرس از پورت متمایز گردد. این کار حتی اگر هیچ پورتی مشخص نشده باشد الزامی است.
+.IP
+
+.TP
+\fB\-d <file>\fR
+مسیر کاملاً مشخص به برنامه \fBslurmstepd\fR را که برای سرپرستی و هدایت مراحل کار کاربران استفاده می‌شود مشخص می‌کند. این گزینه می‌تواند برای اهداف آزمایشی مفید باشد.
+.IP
+
+.TP
+\fB\-D\fR
+اجرای \fBslurmd\fR در پیش‌زمینه همراه با کپی گزارش‌ها در خروجی خطای استاندارد (stderr).
+.IP
+
+.TP
+\fB\-\-extra <arbitrary string>\fR
+تنظیم داده‌های "extra" هنگام راه‌اندازی گره. اگر این مقدار یک رشته json باشد و
+\fBSchedulerParameters=extra_constraints\fR در slurm.conf تنظیم شده باشد، مشاغل می‌توانند
+از گزینه \-\-extra برای فیلتر کردن بر اساس این داده‌های "extra" استفاده کنند.
+.IP
+
+.TP
+\fB\-f <file>\fR
+خواندن پیکربندی از فایل مشخص‌شده. بخش \fBنکات (NOTES)\fR در ادامه را ببینید.
+.IP
+
+.TP
+\fB\-F[feature]\fR
+راه‌اندازی این گره به عنوان یک Dynamic Future node. تلاش خواهد کرد تا با یک تعریف
+گره با وضعیت \fBFUTURE\fR مطابقت یابد، و به صورت اختیاری از ویژگی مشخص‌شده برای تطابق با تعریف گره استفاده می‌کند.
+.IP
+
+.TP
+\fB\-G\fR
+چاپ پیکربندی منبع عمومی (Generic RESource - GRES) (بر پایه GRES در slurm.conf ادغام‌شده
+با محتویات gres.conf برای این گره) و خروج.
+.IP
+
+.TP
+\fB\-h\fR
+راهنما؛ چاپ خلاصه‌ای کوتاه از گزینه‌های دستور.
+.IP
+
+.TP
+\fB\-\-instance\-id <cloud instance id>\fR
+تنظیم شناسه نمونه ابری (cloud instance ID) هنگام راه‌اندازی گره.
+.IP
+
+.TP
+\fB\-\-instance\-type <cloud instance type>\fR
+تنظیم نوع نمونه ابری (cloud instance type) هنگام راه‌اندازی گره.
+.IP
+
+.TP
+\fB\-L <file>\fR
+نوشتن پیام‌های لاگ در فایل مشخص‌شده.
+.IP
+
+.TP
+\fB\-M\fR
+قفل کردن صفحات slurmd در حافظه سیستم با استفاده از mlockall (2) به منظور غیرفعال کردن
+صفحه‌بندی (paging) فرآیند slurmd. این کار در مواردی که گره‌ها در طول دوره‌های فعالیت سنگین swap به عنوان DOWN علامت‌گذاری می‌شوند ممکن است کمک کند. اگر فراخوان سیستمی mlockall (2)
+در دسترس نباشد، خطایی در لاگ چاپ خواهد شد
+و slurmd به کار عادی خود ادامه می‌دهد.
+
+پیشنهاد می‌شود هنگام تنظیم \fB\-M\fR، پارامتر \fBLaunchParameters=slurmstepd_memlock\fR را نیز در
+\fBslurm.conf\fR(5) تنظیم نمایید.
+.IP
+
+.TP
+\fB\-n <value>\fR
+تنظیم مقدار nice دیمن روی مقدار مشخص‌شده، معمولاً یک عدد منفی.
+همچنین به پارامتر پیکربندی \fBPropagatePrioProcess\fR توجه داشته باشید.
+.IP
+
+.TP
+\fB\-N <nodename>\fR
+اجرای دیمن با نام گره داده‌شده. برای شبیه‌سازی یک سیستم بزرگ‌تر با بیش از یک دیمن slurmd در هر گره استفاده می‌شود. مستلزم آن است که Slurm با گزینه پیکربندی \-\-enable\-multiple\-slurmd کامپایل شده باشد.
+.IP
+
+.TP
+\fB\--parameters <slurmd parameters>\fR
+امکان تغییرات موقت مختص گره را در SlurmdParameters فراهم می‌کند. می‌تواند
+همراه با \fB\-C\fR برای تعیین گزینه‌هایی مانند 'l3cache_as_socket' که ممکن است
+توپولوژی گزارش‌شده گره را تغییر دهند استفاده شود. این پارامترها به هر پارامتر مختص گره تعریف‌شده در slurm.conf افزوده می‌شوند.
+.IP
+
+.TP
+\fB\-s\fR
+تغییر دایرکتوری کاری slurmd به مسیر SlurmdLogFile در صورت امکان، یا به
+SlurmdSpoolDir در غیر این صورت. اگر هر دو ناموفق باشند، به مسیر /var/tmp بازمی‌گردد.
+.IP
+
+.TP
+\fB\-\-systemd\fR
+هنگام راه‌اندازی دیمن با systemd استفاده می‌شود. این کار به slurmd امکان می‌دهد تا هنگام استفاده از 'scontrol reconfigure'، شناسه فرآیند (PID) جدید را به systemd اطلاع دهد.
+.IP
+
+.TP
+\fB\-v\fR
+عملیات پرجزئیات (verbose). استفاده مکرر از \-v سطح جزئیات را افزایش می‌دهد.
+.IP
+
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+چاپ اطلاعات نگارش و خروج.
+.IP
+
+.TP
+\fB\-Z\fR
+راه‌اندازی این گره به عنوان یک Dynamic Normal node. اگر هیچ \fB\-\-conf\fR مشخص نشده باشد،
+آن‌گاه slurmd با همان پیکربندی سخت‌افزاری (به جز GRES) که توسط گزینه \fB\-C\fR تعریف شده است ثبت نام خواهد کرد.
+.IP
+
+.SH "متغیرهای محیطی (ENVIRONMENT VARIABLES)"
+متغیرهای محیطی زیر می‌توانند برای بازنویسی تنظیمات کامپایل‌شده در slurmd استفاده شوند.
+
+.TP 20
+\fBABORT_ON_FATAL\fR
+هنگامی که یک خطای مهلک شناسایی شد، به جای exit() از abort() برای خاتمه دادن به فرآیند استفاده شود. این کار امکان ثبت backtrace را بدون کامپایل مجدد Slurm فراهم می‌کند.
+.IP
+
+.TP
+\fBSLURM_CONF\fR
+مسیر فایل پیکربندی Slurm. این مقدار با مشخص کردن صریح یک فایل پیکربندی در خط فرمان بازنویسی می‌شود.
+.IP
+
+.TP
+\fBSLURM_DEBUG_FLAGS\fR
+تعیین فلگ‌های اشکال‌زدایی برای استفاده توسط slurmd. برای فهرست کامل پرچم‌ها، DebugFlags را در صفحه راهنمای \fBslurm.conf\fR(5) ببینید. متغیر محیطی بر تنظیمات موجود در slurm.conf اولویت دارد.
+.IP
+
+.SH "سرور HTTP (HTTP server)"
+
+مگر اینکه از طریق \fICommunicationParameters=disable_http\fR در
+\fBslurm.conf\fR غیرفعال شده باشد، \fBslurmd\fR درخواست‌های منطبق با HTTP/1.1 ورودی را به هر سوکت در حال شنود طبق پیکربندی \fBSlurmdPort\fR در
+\fBslurm.conf\fR خواهد پذیرفت. احراز هویت درخواست‌های HTTP پشتیبانی نمی‌شود. پوشش‌دهی با TLS به صورت اختیاری و بدون نیاز به \fBTLSType\fR در
+\fBslurm.conf\fR پشتیبانی می‌شود. در حال حاضر نقاط پایانی (endpoints) زیر پشتیبانی می‌شوند:
+
+.TP
+\fBGET /\fR
+دریافت فهرست نقاط پایانی.
+.IP
+
+.TP
+\fBGET /healthz\fR
+آزمایش اینکه آیا \fBslurmd\fR با موفقیت بارگذاری شده است یا خیر.
+.IP
+
+.TP
+\fBGET /livez\fR
+آزمایش اینکه آیا \fBslurmd\fR با موفقیت بارگذاری شده است یا خیر.
+.IP
+
+.TP
+\fBGET /readyz\fR[\fB?verbose\fR]
+آزمایش اینکه آیا \fBslurmd\fR آماده پذیرش RPCهای ورودی است یا خیر. افزودن پارامتر پرس‌وجوی
+\fBverbose\fR خروجی پرجزئیات مربوط به هر بررسی را در پاسخ بازمی‌گرداند.
+.IP
+
+.SH "سیگنال‌ها (SIGNALS)"
+
+.TP
+\fBSIGTERM SIGINT SIGQUIT\fR
+\fBslurmd\fR به صورت تمیز خاموش خواهد شد.
+.IP
+
+.TP
+\fBSIGHUP\fR
+فایل‌های پیکربندی slurm را مشابه 'scontrol reconfigure' مجدداً بارگذاری می‌کند.
+.IP
+
+.TP
+\fBSIGUSR2\fR
+سطح لاگ را مجدداً از پیکربندی‌ها خوانده و سپس فایل لاگ را بازگشایی می‌کند. این گزینه هنگام تنظیم \fBlogrotate\fR(8) باید استفاده شود.
+.IP
+
+.TP
+\fBSIGPIPE\fR
+این سیگنال به طور صریح نادیده گرفته می‌شود.
+.IP
+
+.SH "محل فایل هسته (CORE FILE LOCATION)"
+اگر slurmd با گزینه \fB\-D\fR راه‌اندازی شود، فایل core در دایرکتوری کاری جاری نوشته خواهد شد.
+در غیر این صورت، اگر \fBSlurmdLogFile\fR یک مسیر کامل و مطلق (که با اسلش شروع می‌شود) باشد، فایل core در همان دایرکتوری فایل لاگ نوشته خواهد شد. در غیر این صورت، فایل core در
+دایرکتوری \fBSlurmdSpoolDir\fR یا به عنوان آخرین راهکار در "/var/tmp/" نوشته خواهد شد. اگر
+نوشتن در هیچ‌یک از دایرکتوری‌های فوق امکان‌پذیر نباشد، هیچ فایل core تولید نخواهد شد.
+
+.SH "نکات (NOTES)"
+آزمایش پارامترهای پیکربندی خاص \fBslurmd\fR با استفاده از یک فایل پیکربندی جداگانه (برای نمونه، مهلت‌های زمانی) ممکن است مفید باشد. با این حال، این فایل پیکربندی ویژه توسط دیمن \fBslurmctld\fR یا برنامه‌های Slurm استفاده نخواهد شد، مگر اینکه به طور مشخص به هر یک از آن‌ها دستور استفاده از آن را بدهید. اگر مایل به تغییر درگاه‌های ارتباطی، مکان فایل‌سیستم موقت، یا سایر پارامترهای مورد استفاده توسط سایر اجزای Slurm هستید، فایل پیکربندی مشترک، یعنی \fBslurm.conf\fR را تغییر دهید.
+
+اگر از حالت configless به همراه یک گره ورود (login node) که دستورات کاربری زیادی را اجرا می‌کند استفاده می‌کنید، می‌توانید اجرای \fBslurmd\fR را روی آن ماشین مد نظر قرار دهید تا بتواند نسخه‌ای کش‌شده از فایل‌های پیکربندی را مدیریت کند. در غیر این صورت، هر دستور کاربر از رکورد DNS برای ارتباط با کنترلر و دریافت اطلاعات پیکربندی استفاده خواهد کرد که می‌تواند بار مضاعفی را روی کنترلر تحمیل کند.
+
+.SH "حق نشر (COPYING)"
+Copyright (C) 2002\-2007 The Regents of the University of California.
+.br
+Copyright (C) 2008\-2010 Lawrence Livermore National Security.
+.br
+Copyright (C) 2010\-2022 SchedMD LLC.
+.br
+Produced at Lawrence Livermore National Laboratory (cf, DISCLAIMER).
+.LP
+این فایل بخشی از Slurm، یک برنامه مدیریت منابع است.
+برای جزئیات بیشتر، <https://slurm.schedmd.com> را ببینید.
+.LP
+Slurm یک نرم‌افزار آزاد است؛ شما می‌توانید آن را تحت شرایط مجوز عمومی همگانی گنو (GNU GPL) همان‌طور که توسط بنیاد نرم‌افزارهای آزاد منتشر شده است، چه نگارش 2 مجوز و چه (به انتخاب خودتان) هر نگارش بالاتری بازتوزیع کرده یا تغییر دهید.
+.LP
+نرم‌افزار Slurm به این امید توزیع شده است که مفید واقع شود، اما بدون هرگونه ضمانت؛ حتی بدون ضمانت ضمنی قابل فروش بودن یا مناسب بودن برای یک هدف خاص. برای جزئیات بیشتر به مجوز عمومی همگانی گنو مراجعه کنید.
+
+.SH "فایل‌ها (FILES)"
+.LP
+/etc/slurm.conf
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBslurm.conf\fR(5), \fBslurmctld\fR(8)

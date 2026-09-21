@@ -1,0 +1,173 @@
+.\"  This page Copyright (C) 2010 - 2015 Len Brown <len.brown@intel.com>
+.\"  Distributed under the GPL, Copyleft 1994.
+.TH X86_ENERGY_PERF_POLICY 8
+.SH "نام (NAME)"
+x86_energy_perf_policy \- مدیریت سیاست مصرف انرژی در برابر کارایی
+.SH "خلاصه دستور (SYNOPSIS)"
+.B x86_energy_perf_policy
+.RB "[ گزینه‌ها ] [ محدوده ] [فیلد \ مقدار]"
+.br
+.RB "محدوده: \-\-cpu\ cpu-list | \-\-pkg\ pkg-list"
+.br
+.RB "cpu-list, pkg-list: # | #,# | #-# | all"
+.br
+.RB "فیلد: \-\-all | \-\-epb | \-\-hwp-epp | \-\-hwp-min | \-\-hwp-max | \-\-hwp-desired"
+.br
+.RB "سایر: (\-\-force | \-\-hwp-enable | \-\-turbo-enable)  مقدار)"
+.br
+.RB "soc-slider: --soc-slider-balance # | --soc-slider-offset # | --platform-profile <name>"
+.br
+.RB "مقدار: # | default | performance | balance-performance | balance-power | power"
+.SH "شرح (DESCRIPTION)"
+دستور
+\fBx86_energy_perf_policy\fP
+تنظیمات سیاست مصرف انرژی و کارایی مربوط به پردازنده‌های معماری اینتل (Intel Architecture Processors) را نمایش داده و به‌روزرسانی می‌کند. این ابزار تنظیمات موجود در رابط‌های استاندارد لینوکس (مانند cpufreq) را خلاصه کرده و ثبات‌های خاص مدل (MSRs) سخت‌افزار را رمزگشایی می‌نماید. اگرچه \fBx86_energy_perf_policy\fP می‌تواند این سیاست‌ها را تنها با دسترسی مستقیم به MSR مدیریت کند، اما در صورت در دسترس بودن، رابط‌های استاندارد هسته لینوکس را ترجیح می‌دهد.
+
+.SH "پیش‌زمینه (BACKGROUND)"
+سیاست موجود در ثبات MSR_IA32_ENERGY_PERF_BIAS (کوتاه‌شده EPB) ممکن است طیف وسیعی از تصمیمات سخت‌افزاری را تحت تأثیر قرار دهد؛ مانند شدت و سرعت ورود و خروج سخت‌افزار به حالت‌های بیکاری پردازنده (C-states) و وضعیت‌های کارایی پردازنده (P-states). این راهنمای سیاست‌گذاری جایگزین انتخاب صریح C-state و P-state توسط سیستم‌عامل نمی‌شود، بلکه به سخت‌افزار می‌گوید که این انتخاب‌ها را با چه میزان تهاجمی پیاده‌سازی کند. علاوه بر این، به سیستم‌عامل اجازه می‌دهد بر توازن انرژی/کارایی در بخش‌هایی که هیچ رابط نرم‌افزاری برای آن‌ها وجود ندارد (مانند محدوده فرصت‌طلبانه P-state در حالت "turbo-mode") تأثیر بگذارد.
+توجه داشته باشید که MSR_IA32_ENERGY_PERF_BIAS به ازای هر پردازنده (CPU) تعریف شده است، اما برخی پیاده‌سازی‌ها یک MSR واحد را میان تمام پردازنده‌های یک بسته پردازنده (package) به اشتراک می‌گذارند. در چنین سیستم‌هایی، نوشتن در EPB روی یک پردازنده، برای تمام پردازنده‌های موجود در همان بسته پردازنده قابل مشاهده بوده و روی آن‌ها تأثیر خواهد گذاشت.
+
+وضعیت‌های کارایی سخت‌افزاری (HWP) در واقع گسترش کنترل سخت‌افزاری P-state از حالت توربو به کل محدوده وضعیت‌های P-state موجود هستند. در پردازنده‌های Broadwell Xeon که اولین پیاده‌سازی HWP در آن‌ها انجام شد، EPB روی HWP تأثیر داشت. این تأثیر در نسل‌های بعدی حذف شد و به فیلد Energy_Performance_Preference (کوتاه‌شده EPP) در دو MSR اختصاصی (MSR_IA32_HWP_REQUEST و MSR_IA32_HWP_REQUEST_PKG) منتقل گردید.
+
+گزینه EPP رایج‌ترین دستگیره کنترلی در حالت HWP است، اما ثبات MSR_IA32_HWP_REQUEST به کاربر امکان می‌دهد حداقل فرکانس را برای کیفیت خدمات (QoS) و حداکثر فرکانس را برای محدود کردن توان مصرفی (power-capping) مشخص کند. ثبات MSR_IA32_HWP_REQUEST به ازای هر CPU تعریف شده است.
+
+ثبات MSR_IA32_HWP_REQUEST_PKG همان قابلیت‌های MSR_IA32_HWP_REQUEST را دارد، اما می‌تواند سیاست پیش‌فرض را به‌طور هم‌زمان برای تمام پردازنده‌های درون یک بسته پردازنده تنظیم کند. یک بیت در ثبات MSR_IA32_HWP_REQUEST هر پردازنده مشخص می‌کند که آیا این تنظیم تحت حاکمیت تنظیمات بسته پردازنده قرار گیرد یا از آن مستثنی باشد.
+
+ثبات MSR_HWP_CAPABILITIES مقادیر پیش‌فرض فیلدهای موجود در MSR_IA32_HWP_REQUEST را نشان می‌دهد. این اطلاعات زمانی نمایش داده می‌شوند که مقداری در حال نوشتن نباشد.
+
+.SS "گزینه‌های محدوده (SCOPE OPTIONS)"
+.PP
+\fB-c, --cpu\fP اعمال عملیات روی MSR_IA32_HWP_REQUEST برای هر CPU در لیست مشخص‌شده.
+لیست پردازنده‌ها می‌تواند شامل شماره‌های پردازنده جدا شده با کاما، خط تیره برای بازه یا رشته "all" باشد؛ مانند '--cpu 1,4,6-8' یا '--cpu all'.
+هنگامی که --cpu استفاده می‌شود، گزینه \fB--hwp-use-pkg\fP نیز در دسترس خواهد بود که مشخص می‌کند آیا MSR_IA32_HWP_REQUEST اختصاصی هر CPU باید تحت حاکمیت MSR_IA32_HWP_REQUEST_PKG باشد (1) یا از آن معاف گردد (0).
+
+\fB-p, --pkg\fP اعمال عملیات روی MSR_IA32_HWP_REQUEST_PKG برای هر بسته در لیست بسته‌ها.
+لیست شامل رشته‌ای از شماره‌های اختصاصی بسته‌ها است که با کاما یا خط تیره جدا شده‌اند، یا رشته "all"؛ برای مثال '--pkg 1,3' یا '--pkg all'.
+
+.SS "گزینه‌های مقادیر (VALUE OPTIONS)"
+.PP
+.I normal | default
+تنظیم سیاستی با توازن عادی میان کارایی و بهینه‌سازی انرژی.
+پردازنده افت اندک در کارایی را برای دستیابی به صرفه‌جویی بالقوه قابل توجه در انرژی می‌پذیرد.
+این حالت یک پیش‌فرض منطقی برای بیشتر رایانه‌های رومیزی و سرورها است.
+کلمه "default" مترادف "normal" است.
+.PP
+.I performance
+تنظیم سیاست برای حداکثر کارایی، بدون پذیرش هیچ‌گونه فدا کردن کارایی به نفع بهینه‌سازی مصرف انرژی.
+.PP
+.I balance-performance
+تنظیم سیاست با اولویت بالا روی کارایی، اما با پذیرش افت اندک کارایی برای بهره‌مندی از بهینه‌سازی مصرف انرژی.
+.PP
+.I balance-power
+تنظیم سیاستی که در آن کارایی و توان مصرفی متوازن هستند. این حالت پیش‌فرض است.
+.PP
+.I power
+تنظیم سیاستی که در آن پردازنده افت کارایی ملموس را برای به حداکثر رساندن بهینه‌سازی مصرف انرژی می‌پذیرد.
+
+.PP
+جدول زیر نگاشت میان رشته‌های مقادیر بالا و مقادیر واقعی MSR را نشان می‌دهد.
+این نگاشت در فایل هدر هسته لینوکس (msr-index.h) تعریف شده است:
+
+.nf
+VALUE STRING      	EPB	EPP
+performance       	0	0
+balance-performance	4	128
+normal, default		6	128
+balance-power	 	8	192
+power       		15	255
+.fi
+.PP
+برای فیلدهای کارایی MSR_IA32_HWP_REQUEST (شامل --hwp-min, --hwp-max, --hwp-desired)، گزینه مقدار بر حسب مضارب ۱۰۰ مگاهرتز است؛ برای مثال مقدار ۱۲ نمایانگر ۱۲۰۰ مگاهرتز است.
+
+.SS "گزینه‌های فیلدها (FIELD OPTIONS)"
+\fB-a, --all value-string\fP تمام فیلدهای محدودیت EPB، EPP و HWP را روی مقدار مرتبط با value-string تنظیم می‌کند. علاوه بر این، در صورت غیرفعال بودن حالت‌های turbo و HWP، آن‌ها را فعال می‌نماید. بدین ترتیب دستور "--all normal" سیستمی بدون cpufreq را در یک پیکربندی شناخته‌شده و پایدار قرار می‌دهد.
+.PP
+\fB-B, --epb\fP تنظیم EPB به ازای هر هسته یا هر بسته. مقادیر رشته‌ای را در جدول بالا ببینید.
+.PP
+\fB-d, --debug\fP حالت اشکال‌زدایی با افزایش جزئیات خروجی. به‌طور پیش‌فرض x86_energy_perf_policy برای به‌روزرسانی‌ها بی‌صدا و برای حالت فقط‌خواندنی دارای جزئیات است.
+.PP
+\fB-P, --hwp-epp\fP تنظیم HWP.EPP به ازای هر هسته یا هر بسته پردازنده. مقادیر مجاز را در جدول بالا مشاهده کنید.
+.PP
+\fB-m, --hwp-min\fP درخواست از HWP برای نرفتن به زیر ضریب نسبت هسته/گذرگاه مشخص‌شده. مقدار "default" همان مقداری است که در IA32_HWP_CAPABILITIES.min یافت می‌شود.
+.PP
+\fB-M, --hwp-max\fP درخواست از HWP برای تجاوز نکردن از ضریب نسبت هسته/گذرگاه مشخص‌شده. مقدار "default" همان مقداری است که در IA32_HWP_CAPABILITIES.max قرار دارد.
+.PP
+\fB-D, --hwp-desired\fP درخواست فرکانس دلخواه (desired) از HWP. تنظیم "normal" برابر ۰ است که متناظر با کنترل کاملاً خودکار (autonomous) HWP است. مقادیر غیرصفر کارایی، سطح کارایی مشخصی را روی این پردازنده به مضارب ۱۰۰ مگاهرتز درخواست می‌کنند.
+.PP
+\fB-w, --hwp-window\fP مشخص کردن عدد صحیح پنجره لغزان بر حسب میکروثانیه که HWP برای حفظ میانگین فرکانس استفاده می‌کند. این پارامتر تنها زمانی معنادار است که فیلد "desired" غیرصفر باشد. پیش‌فرض ۰ است که انتخاب را به سخت‌افزار واگذار می‌کند.
+
+.SH "گزینه‌های لغزنده SOC (SOC SLIDER OPTIONS)"
+.PP
+توجه داشته باشید که نام نمایه پلتفرم باید "SoC Slider" و وضعیت آن روی "balanced" باشد تا گزینه‌های --soc-slider-balance و --soc-slider-offset اعمال شوند.
+.PP
+\fB--soc-slider-balance #\fP نوشتن مقدار عددی در لغزنده SoC Slider. مقادیر در بازه ۰ تا ۶ قرار دارند. مقادیر پایین‌تر کارایی بالاتر و مقادیر بالاتر بهره‌وری مصرف انرژی را افزایش می‌دهند. مقادیر واقعی وابسته به مدل پردازنده هستند.
+.PP
+\fB--soc-slider-offset #\fP نوشتن مقدار عددی در افست لغزنده SoC Slider Offset. این مقدار حداکثری است که نرم‌افزار به SoC اجازه می‌دهد تا به منظور بهبود مصرف انرژی به لغزنده اضافه کند. مقدار ۰ مانع تغییر خودکار لغزنده توسط SoC می‌شود.
+.PP
+\fB--platform-profile <name>\fP تنظیم نمایه پلتفرم روی نام مشخص‌شده. گزینه‌های در دسترس در مسیر platform-profile-0/choices قرار دارند. درایور Soc Slider در حال حاضر از گزینه‌های "low-power"، "balanced" و "performance" پشتیبانی می‌کند.
+
+.SH "سایر گزینه‌ها (OTHER OPTIONS)"
+.PP
+\fB-f, --force\fP نوشتن مقادیر مشخص‌شده بدون بررسی محدوده و اعتبارسنجی مقادیر.
+.PP
+\fB-U, --hwp-use-pkg\fP مقادیر (0 | 1)؛ هنگامی که در ترکیب با --cpu استفاده شود، مشخص می‌کند که آیا تنظیمات اختصاصی CPU در MSR_IA32_HWP_REQUEST باید تحت حاکمیت تنظیمات بسته (1) باشند یا از آن معاف شوند (0). پیش‌فرض حالت معاف است.
+.PP
+\fB-H, --hwp-enable\fP فعال کردن حالت وضعیت‌های کارایی سخت‌افزاری (HWP). پس از فعال شدن، برای غیرفعال کردن آن راه‌اندازی مجدد سیستم (RESET) الزامی است.
+.PP
+\fB-t, --turbo-enable\fP فعال کردن (1) یا غیرفعال کردن (0) حالت توربو.
+.PP
+\fB-v, --version\fP چاپ نسخه برنامه و خروج.
+.PP
+اگر درخواستی برای تغییر سیاست داده نشود، رفتار پیش‌فرض خواندن و نمایش وضعیت فعلی سیستم به همراه قابلیت‌های پیش‌فرض خواهد بود.
+
+.SH "هشدار (WARNING)"
+.PP
+این ابزار مستقیماً در ثبات‌های خاص مدل (MSR) می‌نویسد. هیچ‌گونه قفل‌گذاری یا هماهنگی در صورتی که این ابزار هم‌زمان با دسترسی ویژگی‌های sysfs مربوط به intel_pstate اقدام به تغییر فیلدهای HWP کند، وجود ندارد.
+.PP
+توجه داشته باشید که گزینه‌های --hwp-desired و --hwp-window آزمایشی تلقی می‌شوند. نسخه‌های آینده لینوکس حق دسترسی داخلی به این فیلدها را برای خود محفوظ می‌دارند که ممکن است با دسترسی فضای کاربر تداخل پیدا کند.
+
+.SH "مثال (EXAMPLE)"
+.nf
+# sudo x86_energy_perf_policy
+cpu0: EPB 6
+cpu0: HWP_REQ: min 6 max 35 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
+cpu0: HWP_CAP: low 1 eff 8 guar 27 high 35
+cpu1: EPB 6
+cpu1: HWP_REQ: min 6 max 35 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
+cpu1: HWP_CAP: low 1 eff 8 guar 27 high 35
+cpu2: EPB 6
+cpu2: HWP_REQ: min 6 max 35 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
+cpu2: HWP_CAP: low 1 eff 8 guar 27 high 35
+cpu3: EPB 6
+cpu3: HWP_REQ: min 6 max 35 des 0 epp 128 window 0x0 (0*10^0us) use_pkg 0
+cpu3: HWP_CAP: low 1 eff 8 guar 27 high 35
+.fi
+
+.SH "نکات (NOTES)"
+ابزار
+.B x86_energy_perf_policy
+تنها با دسترسی ریشه (root) اجرا می‌شود.
+
+.SH "فایل‌ها (FILES)"
+.ta
+.nf
+EPB: /sys/devices/system/cpu/cpu*/power/energy_perf_bias
+EPP: /sys/devices/system/cpu/cpu*/cpufreq/energy_performance_preference
+MSR: /dev/cpu/*/msr
+Platform Profile Name: /sys/class/platform-profile/platform-profile-0/name
+Platform Profile: /sys/class/platform-profile/platform-profile-0/profile
+SOC Slider Balanced: /sys/module/processor_thermal_soc_slider/parameters/slider_balance
+SOC Slider Balanced Offset: /sys/module/processor_thermal_soc_slider/parameters/slider_offset
+.fi
+
+.SH "همچنین ببینید (SEE ALSO)"
+.nf
+msr(4)
+Intel(R) 64 and IA-32 Architectures Software Developer's Manual
+.fi
+.PP
+
+.SH "نویسندگان (AUTHORS)"
+.nf
+Len Brown
+.fi

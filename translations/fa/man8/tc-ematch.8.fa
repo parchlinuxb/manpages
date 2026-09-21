@@ -1,0 +1,160 @@
+.TH tc-ematch 8 "6 August 2012" iproute2 Linux
+.
+.SH "نام (NAME)"
+tc-ematch \- تطابق‌های توسعه‌یافته برای استفاده با فیلترهای "basic" ،"cgroup" یا "flow"
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.ad l
+.B "tc filter add .. basic match"
+.RI EXPR
+.B .. flowid ..
+.sp
+
+.IR EXPR " := " TERM " [ { "
+.B and | or
+}
+.IR EXPR
+]
+
+.IR TERM " := [ " \fBnot " ] { " MATCH " | '(' " EXPR " ')' } "
+
+.IR MATCH " := " module " '(' " ARGS " ')' "
+
+.IR ARGS " := " ARG1 " " ARG2 " ..
+
+.SH "تطابق‌ها (MATCHES)"
+
+.SS cmp
+تطابق مقایسه‌ای ساده: مقایسه حسابی داده‌های بسته با یک مقدار مشخص.
+
+.IR cmp "( " ALIGN " at " OFFSET " [ " ATTRS " ] { " eq " | " lt " | " gt " } " VALUE " )
+
+.IR ALIGN " := { " u8 " | " u16 " | " u32 " } "
+
+.IR ATTRS " := [ layer " LAYER " ] [ mask " MASK " ] [ trans ]
+
+.IR LAYER " := { " link " | " network " | " transport " | " 0..2 " }
+
+.SS meta
+تطابق فرارداده (Metadata)
+
+.IR meta "( " OBJECT " { " eq " | " lt " |" gt " } " OBJECT " )
+
+.IR OBJECT " := { " META_ID " |  " VALUE " }
+
+.IR META_ID " := " id " [ shift " SHIFT " ] [ mask " MASK " ]
+
+.TP
+ویژگی‌های متادیتا:
+
+\fBrandom\fP مقدار تصادفی ۳۲ بیتی
+
+\fBloadavg_1\fP میانگین بار سیستم در ۵ دقیقه گذشته
+
+\fBnf_mark\fP نشان نت‌فیلتر (Netfilter mark)
+
+\fBvlan\fP برچسب وی‌لن (VLAN tag)
+
+\fBsk_rcvbuf\fP اندازه بافر دریافت
+
+\fBsk_snd_queue\fP طول صف ارسال
+
+.PP
+فهرست کاملی از ویژگی‌های متادیتا را می‌توان با دستور زیر به دست آورد:
+
+# tc filter add dev eth1 basic match 'meta(list)'
+
+.SS nbyte
+تطبیق توالی بایت‌های داده بسته
+
+.IR nbyte "( " NEEDLE  " at " OFFSET " [ layer " LAYER " ] )
+
+.IR NEEDLE  " := { " string " | " c-escape-sequence "  } "
+
+.IR OFFSET  " := " int
+
+.IR LAYER " := { " link " | " network " | " transport " | " 0..2 " }
+
+.SS u32
+تطابق u32
+
+.IR u32 "( " ALIGN " " VALUE " " MASK " at [ nexthdr+ ] " OFFSET " )
+
+.IR ALIGN " := { " u8 " | " u16 " | " u32 " }
+
+.SS ipset
+بررسی بسته در برابر عضویت در ipset
+
+.IR ipset "( " SETNAME " " FLAGS " )
+
+.IR SETNAME " := " string
+
+.IR FLAGS " := { " FLAG " [, " FLAGS "] }
+
+گزینه‌های فلگ همان مواردی هستند که در تطابق «set» مربوط به iptables استفاده می‌شوند.
+
+هنگام استفاده از ematch برای ipset با نوع مجموعه «ip_set_hash:net,iface»، رابط را می‌توان با ساختار دستوری «src,dst» (آدرس IP مبدأ، رابط خروجی) یا «src,src» (آدرس IP مبدأ، رابط ورودی) مورد استعلام قرار داد.
+
+.SS ipt
+بررسی بسته در برابر تطابق‌های xtables
+
+.IR ipt "( " [-6] " "-m " " MATCH_NAME " " FLAGS " )
+
+.IR MATCH_NAME " := " string
+
+.IR FLAGS " := { " FLAG " [, " FLAGS "] }
+
+گزینه‌های فلگ همان مواردی هستند که توسط تطابق xtable مورد استفاده قرار می‌گیرند.
+
+.SS canid
+قاعده ematch برای تطبیق فریم‌های CAN
+
+.IR canid "( " IDLIST " )
+
+.IR IDLIST " :=  " IDSPEC [ IDLIST ]
+
+.IR IDSPEC " := { ’sff’ " CANID " | ’eff’ " CANID " }
+
+.IR CANID " := " ID [ ":MASK" ]
+
+.IR ID ", " MASK " := عدد هگزادسیمال (مانند 0x123)
+
+.SH "نکات و هشدارها (CAVEATS)"
+
+ساختار دستوری ematch از «(» و «)» برای گروه‌بندی عبارات استفاده می‌کند. تمام پرانتزها باید به‌درستی اسکیپ (escape) شوند تا از تفسیر مستقیم آن‌ها توسط خط فرمان پوسته جلوگیری شود.
+
+هنگام استفاده از ematch برای ipset با دستگاه «ifb»، دستگاه خروجی خود دستگاه ifb خواهد بود (مانند «ifb0»).
+رابط اصلی (یعنی دستگاهی که بسته از طریق آن دریافت شده است) به عنوان رابط ورودی در نظر گرفته می‌شود.
+
+.SH "مثال‌ها و کاربرد (EXAMPLE & USAGE)"
+
+# tc filter add .. basic match ...
+
+# 'cmp(u16 at 3 layer 2 mask 0xff00 gt 20)'
+
+# 'meta(nfmark gt 24)' and 'meta(tcindex mask 0xf0 eq 0xf0)'
+
+# 'nbyte("ababa" at 12 layer 1)'
+
+# 'u32(u16 0x1122 0xffff at nexthdr+4)'
+
+بررسی اینکه آیا آدرس IP مبدأ بسته عضو مجموعه‌ای به نام
+.B bulk
+است:
+
+# 'ipset(bulk src)'
+
+بررسی اینکه آیا آدرس IP مبدأ بسته و رابطی که بسته از آن دریافت شده عضو مجموعه «hash:net,iface» به نام
+.B interactive
+است:
+
+# 'ipset(interactive src,src)'
+
+بررسی اینکه آیا بسته با وضعیت IPSec با reqid برابر با 1 مطابقت دارد:
+
+# 'ipt(-m policy --dir in --pol ipsec --reqid 1)'
+
+.SH "نویسنده (AUTHOR)"
+
+زیرساخت تطابق توسعه‌یافته توسط Thomas Graf اضافه شده است.

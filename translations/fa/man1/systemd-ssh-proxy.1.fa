@@ -1,0 +1,193 @@
+'\" t
+.TH "SYSTEMD\-SSH\-PROXY" "1" "" "systemd 261.2" "systemd-ssh-proxy"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+systemd-ssh-proxy \- پروکسی اتصال SSH به ماشین‌های مجازی و کانتینرهای محلی
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.nf
+Host unix/* unix%* vsock/* vsock%* vsock\-mux/* vsock\-mux%*
+    ProxyCommand /usr/lib/systemd/systemd\-ssh\-proxy %h %p
+    ProxyUseFdpass yes
+.fi
+.HP \w'\fB/usr/lib/systemd/systemd\-ssh\-proxy\fR\ 'u
+\fB/usr/lib/systemd/systemd\-ssh\-proxy\fR [ADDRESS] [PORT]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBsystemd\-ssh\-proxy\fR
+یک افزونه «پروکسی» کوچک برای ابزار
+\fBssh\fR(1)
+است که امکان اتصال به سوکت‌های
+\fBAF_UNIX\fR
+و
+\fBAF_VSOCK\fR
+را فراهم می‌کند\&. این ابزار رابط تعریف‌شده توسط گزینه پیکربندی
+\fIProxyCommand\fR
+در
+ssh
+را پیاده‌سازی می‌کند\&. این ابزار قرار است با یک قطعه‌پیکربندی در
+\fBssh_config\fR(5)
+مانند زیر استفاده شود:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Host unix/* unix%* vsock/* vsock%* vsock\-mux/* vsock\-mux%*
+    ProxyCommand /usr/lib/systemd/systemd\-ssh\-proxy %h %p
+    ProxyUseFdpass yes
+    CheckHostIP no
+
+Host \&.host
+    ProxyCommand /usr/lib/systemd/systemd\-ssh\-proxy unix/run/ssh\-unix\-local/socket %p
+    ProxyUseFdpass yes
+    CheckHostIP no
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+یک قطعه‌پیکربندی مشابه این موارد به‌طور پیش‌فرض در
+/etc/ssh/ssh_config\&.d/20\-systemd\-ssh\-proxy\&.conf
+نصب می‌شود\&.
+.PP
+با اعمال این تنظیمات، اتصالات SSH به رشته میزبان
+"unix/"
+که پس از آن یک مسیر مطلق فایل‌سیستم
+\fBAF_UNIX\fR
+به یک سوکت آمده باشد، به سوکت مشخص‌شده هدایت خواهند شد؛ این سوکت باید از نوع
+\fBSOCK_STREAM\fR
+باشد\&. به‌طور مشابه، اتصالات SSH به
+"vsock/"
+که پس از آن یک
+CID
+مربوط به
+\fBAF_VSOCK\fR
+آمده باشد، منجر به برقراری اتصال SSH به آن CID خواهد شد\&.
+"vsock\-mux/"
+به همراه یک مسیر مطلق فایل‌سیستم
+\fBAF_UNIX\fR
+به یک سوکت نیز مشابه است اما برای cloud\-hypervisor/firecracker کاربرد دارد که اجازه ارتباط مستقیم
+\fBAF_VSOCK\fR
+بین میزبان و مهمان‌ها را نمی‌دهند و مالتی‌پلکسر اختصاصی خود را روی سوکت‌های
+\fBAF_UNIX\fR
+فراهم می‌کنند\&. نگاه کنید به
+\m[blue]\fBپشتیبانی VSOCK در cloud\-hypervisor\fR\m[]\&\s-2\u[1]\d\s+2
+و
+\m[blue]\fBاستفاده از دستگاه Virtio\-vsock در Firecracker\fR\m[]\&\s-2\u[2]\d\s+2\&. توجه داشته باشید که می‌توان از
+"%"
+به‌عنوان جداکننده به‌جای
+"/"
+استفاده کرد تا با ابزارهایی مانند
+"scp"
+و
+"rsync"
+سازگار باشد\&.
+.PP
+علاوه بر این، اتصال به
+"\&.host"
+بدون درگیر کردن شبکه، از طریق SSH به میزبان محلی متصل می‌شود\&.
+.PP
+این ابزار قرار است همراه با
+\fBsystemd-ssh-generator\fR(8)
+استفاده شود که هنگام اجرا در داخل یک ماشین مجازی (VM) یا کانتینر، SSH را به نشانی‌های مناسب متصل (bind) می‌کند\&.
+\fBsystemd\-ssh\-generator\fR
+باید در کانتینر یا مهمان VM اجرا شود و
+\fBsystemd\-ssh\-proxy\fR
+روی میزبان اجرا می‌شود تا به کانتینر یا مهمان VM متصل شود\&.
+.SH "کدهای خروج (EXIT STATUS)"
+.PP
+در صورت موفقیت، 0 برگردانده می‌شود؛ در غیر این صورت یک کد خطای غیر صفر برگردانده خواهد شد\&.
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+\fBمثال\ \&1.\ \&ارتباط با یک ماشین مجازی محلی با CID 4711\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ssh vsock/4711
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBمثال\ \&2.\ \&ارتباط با یک ماشین مجازی مهمان میزبانی‌شده با cloud\-hypervisor/firecracker\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ssh vsock\-mux/run/vm\-1234\&.sock
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBمثال\ \&3.\ \&ارتباط با میزبان محلی از طریق ssh\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ssh \&.host
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+یا معادل آن:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ssh unix/run/ssh\-unix\-local/socket
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBمثال\ \&4.\ \&کپی کردن فایل محلی \*(Aqfoo\*(Aq به یک ماشین مجازی محلی با CID 1348\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+scp foo vsock%1348:
+.fi
+.if n \{\
+.RE
+.\}
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsystemd\fR(1), \fBsystemd-ssh-generator\fR(8), \fBvsock\fR(7), \fBunix\fR(7), \fBssh\fR(1), \fBsshd\fR(8)
+.SH "نکات (NOTES)"
+.IP " 1." 4
+پشتیبانی VSOCK در cloud-hypervisor (cloud-hypervisor VSOCK support)
+.RS 4
+\%https://github.com/cloud-hypervisor/cloud-hypervisor/blob/main/docs/vsock.md
+.RE
+.IP " 2." 4
+استفاده از دستگاه Virtio-vsock در Firecracker (Using the Firecracker Virtio-vsock Device)
+.RS 4
+\%https://github.com/firecracker-microvm/firecracker/blob/main/docs/vsock.md
+.RE

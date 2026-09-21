@@ -1,0 +1,133 @@
+.\" Process this file with
+.\" groff -mdoc -Tascii checksec.1
+.\"
+.Dd February 2026
+.Dt CHECKSEC 1
+.Os
+.Sh "نام (NAME)"
+.Nm checksec
+.Nd بررسی ویژگی‌های امنیتی فایل‌های اجرایی و هسته
+.Sh "خلاصه دستور (SYNOPSIS)"
+.Nm
+.Op Fl -help
+.Op Fl -version
+.Op Fl -output Ar table|xml|json|yaml
+.Op Fl -libc Ar path
+.Op Fl -no-banner
+.Op Fl -no-headers
+.Op Fl -no-warnings
+.Op Fl -color Ar auto|always|never
+.Ar command
+.Op Ar command-options
+.Sh "توضیحات (DESCRIPTION)"
+.Nm
+یک پیاده‌سازی Go از ابزار checksec است. این ابزار فایل‌های اجرایی ELF و هسته در حال اجرا را از نظر ویژگی‌های متداول مقاوم‌سازی (hardening) مانند RELRO، NX، PIE، RPATH/RUNPATH، قناری‌های پشته (stack canaries)، نشانه‌های Clang CFI و نحوه استفاده قابل مقاوم‌سازی از libc بررسی می‌کند. نتایج را می‌توان به صورت یک جدول چاپ کرد یا برای پردازش توسط ماشین سریال‌سازی نمود.
+.Sh "گزینه‌های عمومی (GLOBAL OPTIONS)"
+.Bl -tag -width Ds
+.It Fl h , Fl -help
+نمایش راهنما و خروج.
+.It Fl v , Fl -version
+نمایش نسخه و خروج.
+.It Fl o , Fl -output Ns = Ns Ar table|xml|json|yaml
+تنظیم قالب خروجی. پیش‌فرض
+.Sy table
+است.
+.It Fl l , Fl -libc Ns = Ns Ar path
+تنظیم مکان libc (مفید برای بررسی‌های
+.Sy fortify
+روی سیستم‌فایل‌های آفلاین یا سامانه‌های تعبیه‌شده).
+.It Fl -no-banner
+غیرفعال کردن بنر ابتدایی.
+.It Fl -no-headers
+غیرفعال کردن سرایند جدول‌ها.
+.It Fl -no-warnings
+نادیده گرفتن پیام‌های هشدار (مانند نبود libc، غیرقابل خواندن بودن جدول نمادها).
+.It Fl -color Ns = Ns Ar auto|always|never
+کنترل خروجی رنگی. پیش‌فرض
+.Sy auto
+است (رنگی هنگام ارسال خروجی به ترمینال).
+از
+.Sy always
+برای حفظ رنگ‌ها درون لوله‌ها (pipes) استفاده کنید.
+.El
+.Sh "دستورات (COMMANDS)"
+.Bl -tag -width Ds
+.It Cm file Ar path
+بررسی یک فایل ELF منفرد.
+.It Cm dir Ar directory
+بررسی تمام فایل‌های ELF در یک دایرکتوری. از
+.Fl r , Fl -recursive
+برای پیمایش بازگشتی در زیردایرکتوری‌ها استفاده کنید.
+.It Cm fortifyFile Ar path
+گزارش فراخوانی‌های مقاوم‌شده یا قابل مقاوم‌سازی libc در یک فایل.
+.It Cm fortifyProc Ar pid
+گزارش فراخوانی‌های مقاوم‌شده یا قابل مقاوم‌سازی libc برای شناسه فرایند در حال اجرا.
+.It Cm kernel Op Ar config
+بررسی مقاوم‌سازی هسته از طریق
+.Pa /proc/config.gz
+،
+.Pa /boot/config-<release>
+یا مسیر پیکربندی ارائه‌شده.
+.It Cm proc Ar pid
+بررسی فایل اجرایی شناسه فرایند در حال اجرا.
+.It Cm procAll
+بررسی تمام فرایندهای در حال اجرا. رشته‌های هسته (kernel threads) و فرایندهای فاقد فایل قابل خواندن
+.Pa /proc/<pid>/exe
+نادیده گرفته می‌شوند.
+.El
+.Sh "نکات سازگاری (COMPATIBILITY NOTES)"
+.Bl -bullet
+.It
+گزینه‌های موروثی v2/bash مانند
+.Sy --file ،
+.Sy --dir
+و
+.Sy --proc-all
+رابط اصلی نگارش ۳ نیستند.
+.It
+به جای آن‌ها از زیردستورات نگارش ۳ استفاده کنید (برای مثال،
+.Sy checksec file /path/to/bin
+یا
+.Sy checksec procAll ) .
+.It
+اگر خروجی فشرده مشابه نسخه‌های قدیمی می‌خواهید، از
+.Sy --no-banner
+(و به دلخواه
+.Sy --no-headers )
+استفاده کنید.
+.El
+.Sh "مثال‌ها (EXAMPLES)"
+.Bl -tag -width Ds
+.It
+.Sy checksec file /bin/ls
+.It
+.Sy checksec --no-banner --no-warnings file /bin/ls
+.It
+.Sy checksec --color=always file /bin/ls | grep RELRO
+.It
+.Sy checksec --output json dir /usr/bin
+.It
+.Sy checksec dir /usr/bin --recursive
+.It
+.Sy checksec proc 1
+.It
+.Sy checksec kernel
+.It
+.Sy checksec kernel /path/to/config
+.El
+.Sh "عیب‌یابی (DIAGNOSTICS)"
+بیشتر دستورات در مواجهه با خطاهای مهلک (مانند فایل‌های غیرقابل خواندن) با وضعیت غیرصفر خارج می‌شوند. دستور
+.Cm procAll
+از فرایندهایی که توانایی خواندن آن‌ها را ندارد صرف‌نظر کرده و ادامه می‌دهد.
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr hardening-check 1 ,
+.Xr feature_test_macros 7 ,
+.Xr gcc 1 ,
+.Xr ld 1
+.Sh "تاریخچه (HISTORY)"
+.Nm
+در اصل توسط
+.An Tobias Klein
+نوشته شده است. پروژه کنونی توسط
+.An Brian Davis Aq Mt slimm609@gmail.com
+نگهداری می‌شود.

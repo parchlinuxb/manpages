@@ -1,0 +1,1723 @@
+.TH "SUDOERS.LDAP" "5" "مه ۲۰۲۵" "sudo" "فایلهای پیکربندی"
+.nh
+.if n .ad l
+.SH "نام (NAME)"
+sudoers.ldap \- پیکربندی دسترسیهای sudoers در سرویس LDAP
+.SH "توضیحات (DESCRIPTION)"
+پرونده \fIsudoers.ldap\fR ساختار و نحوه واکشی و نگهداری قوانین و مجوزهای دسترسی دستور sudo را در دایرکتوری متمرکز LDAP شرح میدهد.
+.PP
+علاوه بر فایل استاندارد
+\fIsudoers\fR،
+دستور
+\fBsudo\fR
+می‌تواند از طریق LDAP نیز پیکربندی شود.
+این قابلیت به‌ویژه برای همگام‌سازی
+\fIsudoers\fR
+در یک محیط توزیع‌شده و بزرگ بسیار سودمند است.
+.PP
+استفاده از LDAP برای
+\fIsudoers\fR
+مزایای متعددی دارد:
+.TP 3n
+\fB\(bu\fR
+دستور
+\fBsudo\fR
+دیگر نیازی به خواندن تمام و کمال فایل
+\fIsudoers\fR
+ندارد.
+هنگام استفاده از LDAP، در هر بار اجرای دستور تنها دو یا سه پرس‌وجوی LDAP انجام می‌شود.
+این امر اجرای آن را بسیار سریع کرده و استفاده از آن را در محیط‌های مبتنی بر LDAP بهینه می‌سازد.
+.TP 3n
+\fB\(bu\fR
+امکان تعیین گزینه‌ها به ازای هر ورودی مشخص وجود دارد که گزینه‌های پیش‌فرض سراسری را بازنویسی (override) می‌کنند.
+فایل
+\fI/etc/sudoers\fR
+تنها از گزینه‌های پیش‌فرض و گزینه‌های محدودی در ارتباط با کاربران، میزبان‌ها، دستورات و نام‌های مستعار پشتیبانی می‌کند.
+سینتکس آن پیچیده است و درک آن برای کاربران دشوار است.
+قرار دادن گزینه‌ها مستقیماً درون خود ورودی بسیار طبیعی‌تر است.
+.TP 3n
+\fB\(bu\fR
+دیگر نیازی به برنامه
+\fBvisudo\fR
+نیست.
+برنامه
+\fBvisudo\fR
+قفل‌گذاری و بررسی سینتکس فایل
+\fI/etc/sudoers\fR
+را فراهم می‌کند.
+از آنجا که به‌روزرسانی‌ها در LDAP به صورت اتمیک (تراکنشی) هستند، قفل‌گذاری دیگر لزومی ندارد.
+همچنین از آنجا که ساختار نحوی هنگام درج داده‌ها در LDAP بررسی می‌شود، نیازی به ابزار اختصاصی برای بررسی سینتکس نخواهد بود.
+.SS "ظرف LDAP قوانین SUDOers (SUDOers LDAP container)"
+پیکربندی
+\fIsudoers\fR
+درون ظرف (کانتینر) LDAP با نام
+\(oqou=SUDOers\(cq
+نگهداری می‌شود.
+.PP
+دستور sudo ابتدا به دنبال ورودی
+\(oqcn=defaults\(cq
+در کانتینر SUDOers می‌گردد.
+در صورت یافت شدن، صفت چندمقداره
+\fIsudoOption\fR
+دقیقاً مشابه با یک خط سراسری
+\fIDefaults\fR
+در فایل
+\fI/etc/sudoers\fR
+تجزیه و تحلیل می‌شود.
+در مثال زیر، متغیر محیطی
+\fRSSH_AUTH_SOCK\fR
+برای تمامی کاربران در محیط اجرا حفظ خواهد شد:
+.nf
+.sp
+.RS 4n
+dn: cn=defaults,ou=SUDOers,dc=my-domain,dc=com
+objectClass: top
+objectClass: sudoRole
+cn: defaults
+description: Default sudoOption's go here
+sudoOption: env_keep+=SSH_AUTH_SOCK
+.RE
+.fi
+.PP
+معادل یک مدخل sudoer در LDAP، یک شیء
+\fIsudoRole\fR
+است.
+این شیء شامل صفت‌های زیر می‌باشد:
+.TP 6n
+\fBsudoUser\fR
+یک نام کاربری، شناسه کاربری (با پیشوند
+\(oq#\(cq)،
+نام یا شناسه گروه یونیکس (به ترتیب با پیشوند
+\(oq%\(cq
+یا
+\(oq%#\(cq)،
+نت‌گروپ کاربر (با پیشوند
+\(oq+\(cq)،
+یا نام یا شناسه گروه غیر یونیکسی (به ترتیب با پیشوند
+\(oq%:\(cq
+یا
+\(oq%:#\(cq).
+تطبیق نت‌گروپ‌های کاربر تنها با استفاده از اعضای کاربر و دامنه صورت می‌گیرد؛
+عضو میزبان هنگام تطبیق استفاده نمی‌شود.
+پشتیبانی از گروه‌های غیر یونیکسی تنها زمانی در دسترس است که یک
+\fIgroup_plugin\fR
+مناسب در شیء سراسری
+\fIdefaults\fR
+در
+\fIsudoRole\fR
+تعریف شده باشد.
+اگر یک ورودی
+\fIsudoUser\fR
+با علامت تعجب
+(\(oq!\(cq)
+شروع شود و آن ورودی تطبیق یابد، کل
+\fIsudoRole\fR
+مربوطه نادیده گرفته خواهد شد.
+ورودی‌های نفی‌شده
+\fIsudoUser\fR
+تنها در نسخه ۱.۹.۹ یا بالاتر پشتیبانی می‌شوند.
+.TP 6n
+\fBsudoHost\fR
+یک نام میزبان، آدرس IP، شبکه IP، یا نت‌گروپ میزبان (با پیشوند
+\(oq+\(cq).
+مقدار ویژه
+\fBALL\fR
+با هر میزبانی تطبیق پیدا می‌کند.
+نت‌گروپ‌های میزبان تنها با استفاده از اعضای میزبان (هم با نام کامل و هم بدون دامنه) و دامنه مطابقت داده می‌شوند؛
+عضو کاربر در هنگام تطبیق به کار نمی‌رود.
+اگر یک ورودی
+\fIsudoHost\fR
+با علامت تعجب
+(\(oq!\(cq)
+شروع شود و تطبیق یابد، آن
+\fIsudoRole\fR
+نادیده گرفته می‌شود.
+ورودی‌های نفی‌شده
+\fIsudoHost\fR
+تنها از نسخه ۱.۸.۱۸ یا بالاتر پشتیبانی می‌شوند.
+.TP 6n
+\fBsudoCommand\fR
+یک نام دستور یونیکسی با مسیر کامل به همراه آرگومان‌های اختیاری خط فرمان، احتمالاً شامل نویسه‌های الگو (وایلدکارت‌ها).
+اگر نام دستور با علامت تعجب
+(\(oq!\(cq)
+شروع شود، کاربر از اجرای آن دستور منع خواهد شد.
+.sp
+دستور توکار
+\(lqsudoedit\(rq
+برای اجازه دادن به کاربر جهت اجرای
+\fBsudo\fR
+با گزینه
+\fB\-e\fR
+(یا به عنوان
+\fBsudoedit\fR)
+به کار می‌رود.
+این دستور مانند یک دستور معمولی می‌تواند آرگومان‌های خط فرمان بپذیرد.
+برخلاف سایر دستورات،
+\(lqsudoedit\(rq
+درون خود
+\fBsudo\fR
+تعبیه شده است و باید بدون مسیر ابتدایی مشخص شود.
+.sp
+مقدار ویژه
+\fBALL\fR
+با هر دستوری تطبیق می‌یابد.
+.sp
+اگر نام یک دستور با یک چکیده رمزنقاری SHA-2 پیشوند شده باشد، اجرای دستور تنها در صورتی مجاز خواهد بود که چکیده هش آن مطابقت داشته باشد.
+این ویژگی ممکن است در شرایطی مفید باشد که کاربری که
+\fBsudo\fR
+را اجرا می‌کند به خود دستور یا دایرکتوری والد آن دسترسی نوشتن داشته باشد.
+قالب‌های چکیده زیر پشتیبانی می‌شوند: sha224، sha256، sha384 و sha512.
+نام چکیده باید به دنبال یک دونقطه
+(\(oq:\(cq)
+و سپس خود چکیده به صورت هگزادسیمال یا base64 بیاید.
+برای نمونه با مقدار زیر برای sudoCommand:
+.nf
+.sp
+.RS 10n
+sha224:0GomF8mNN3wlDt1HD9XldjJ3SNgpFdbjO1+NsQ /bin/ls
+.RE
+.fi
+.RS 6n
+.sp
+کاربر تنها در صورتی می‌تواند
+\fI/bin/ls\fR
+را اجرا کند که چکیده sha224 آن با مقدار مشخص‌شده یکسان باشد.
+چکیده‌های دستور تنها از نسخه ۱.۸.۷ به بعد پشتیبانی می‌شوند.
+.RE
+.TP 6n
+\fBsudoOption\fR
+از نظر عملکردی مشابه با گزینه‌های سراسری توصیف‌شده در بالا است، اما مختص به همان
+\fIsudoRole\fR
+می‌باشد که در آن تعریف شده است.
+.TP 6n
+\fBsudoRunAsUser\fR
+یک نام کاربری یا شناسه کاربری (با پیشوند
+\(oq#\(cq)
+که دستورات می‌توانند در قالب آن اجرا شوند، یا یک گروه یونیکس (با پیشوند
+\(oq%\(cq)
+یا نت‌گروپ کاربر (با پیشوند
+\(oq+\(cq)
+شامل فهرستی از کاربرانی که دستورات می‌توانند در قالب آن‌ها اجرا گردند.
+مقدار ویژه
+\fBALL\fR
+با هر کاربری تطبیق می‌یابد.
+اگر یک ورودی
+\fIsudoRunAsUser\fR
+با علامت تعجب
+(\(oq!\(cq)
+آغاز شود و تطبیق پیدا کند، آن
+\fIsudoRole\fR
+نادیده گرفته خواهد شد.
+اگر
+\fIsudoRunAsUser\fR
+مشخص شده ولی خالی باشد، با کاربر فراخواننده تطبیق داده می‌شود.
+اگر هیچ‌کدام از
+\fIsudoRunAsUser\fR
+و
+\fIsudoRunAsGroup\fR
+وجود نداشته باشند، مقدار
+\fIsudoOption\fR
+با نام
+\fIrunas_default\fR
+استفاده می‌شود (پیش‌فرض root است).
+.sp
+صفت
+\fIsudoRunAsUser\fR
+تنها در نسخه ۱.۷.۰ و بالاتر
+\fBsudo\fR
+در دسترس است.
+نسخه‌های قدیمی‌تر
+\fBsudo\fR
+به جای آن از صفت
+\fIsudoRunAs\fR
+استفاده می‌کردند.
+ورودی‌های نفی‌شده
+\fIsudoRunAsUser\fR
+تنها در نسخه ۱.۸.۲۶ یا بالاتر پشتیبانی می‌شوند.
+.TP 6n
+\fBsudoRunAsGroup\fR
+یک گروه یونیکس یا شناسه گروه (با پیشوند
+\(oq#\(cq)
+که دستورات می‌توانند تحت آن گروه اجرا شوند.
+مقدار ویژه
+\fBALL\fR
+با هر گروهی تطبیق پیدا می‌کند.
+اگر یک ورودی
+\fIsudoRunAsGroup\fR
+با علامت تعجب
+(\(oq!\(cq)
+آغاز شده و تطبیق یابد، آن
+\fIsudoRole\fR
+نادیده گرفته خواهد شد.
+.sp
+صفت
+\fIsudoRunAsGroup\fR
+تنها در نسخه ۱.۷.۰ و بالاتر
+\fBsudo\fR
+در دسترس است.
+ورودی‌های نفی‌شده
+\fIsudoRunAsGroup\fR
+تنها در نسخه ۱.۸.۲۶ یا بالاتر پشتیبانی می‌شوند.
+.TP 6n
+\fBsudoNotBefore\fR
+یک برچسب زمانی به قالب
+\(oqyyyymmddHHMMSSZ\(cq
+که می‌تواند برای تعیین زمان و تاریخ آغاز معتبر شدن
+\fIsudoRole\fR
+به کار رود.
+اگر چند ورودی
+\fIsudoNotBefore\fR
+وجود داشته باشد، زودترین آن‌ها استفاده می‌شود.
+برچسب‌های زمانی باید در قالب ساعت هماهنگ جهانی (UTC) باشند و نه منطقه زمانی محلی.
+بخش‌های دقیقه و ثانیه اختیاری هستند، اما برخی کارگزارهای LDAP بر خلاف RFC الزام دارند که حتماً قید شوند.
+.sp
+صفت
+\fIsudoNotBefore\fR
+تنها در نسخه ۱.۷.۵ و بالاتر
+\fBsudo\fR
+در دسترس است و باید صراحتاً از طریق گزینه
+\fBSUDOERS_TIMED\fR
+در فایل
+\fI/etc/openldap/ldap.conf\fR
+فعال شده باشد.
+.TP 6n
+\fBsudoNotAfter\fR
+یک برچسب زمانی به قالب
+\(oqyyyymmddHHMMSSZ\(cq
+که تاریخ/زمان انقضا را مشخص می‌کند، و پس از آن تاریخ
+\fIsudoRole\fR
+دیگر معتبر نخواهد بود.
+اگر چند ورودی
+\fIsudoNotAfter\fR
+وجود داشته باشد، آخرین مورد استفاده خواهد شد.
+برچسب‌های زمانی باید در قالب ساعت هماهنگ جهانی (UTC) باشند و نه زمان محلی.
+بخش‌های دقیقه و ثانیه اختیاری هستند، اما برخی سرورهای LDAP حضور آن‌ها را الزامی می‌دانند.
+.sp
+صفت
+\fIsudoNotAfter\fR
+تنها در نسخه ۱.۷.۵ و بالاتر
+\fBsudo\fR
+در دسترس است و باید صراحتاً از طریق گزینه
+\fBSUDOERS_TIMED\fR
+در
+\fI/etc/openldap/ldap.conf\fR
+فعال گردد.
+.TP 6n
+\fBsudoOrder\fR
+ورودی‌های
+\fIsudoRole\fR
+دریافت‌شده از دایرکتوری LDAP هیچ ترتیب ذاتی و پیش‌فرضی ندارند.
+صفت
+\fIsudoOrder\fR
+یک عدد صحیح (یا در سرورهایی که پشتیبانی می‌کنند عدد اعشاری) است که برای مرتب‌سازی ورودی‌های منطبق استفاده می‌شود.
+این صفت به ورودی‌های sudoers مبتنی بر LDAP اجازه می‌دهد رفتار فایل sudoers را با دقت بیشتری تقلید کنند، جایی که ترتیب خطوط بر نتیجه تاثیر می‌گذارد.
+اگر چندین ورودی تطبیق پیدا کنند، ورودی با بالاترین صفت
+\fIsudoOrder\fR
+انتخاب می‌شود.
+این متناظر با رفتار «آخرین تطبیق» (last match) در فایل sudoers است.
+اگر صفت
+\fIsudoOrder\fR
+وجود نداشته باشد، مقدار ۰ در نظر گرفته می‌شود.
+.sp
+صفت
+\fIsudoOrder\fR
+تنها در نسخه‌های ۱.۷.۵ و بالاتر
+\fBsudo\fR
+موجود است.
+.PP
+هر صفت ذکرشده در بالا باید شامل یک مقدار واحد باشد، اما ممکن است چندین نمونه از هر نوع صفت در یک شیء وجود داشته باشد.
+یک
+\fIsudoRole\fR
+باید حداقل شامل یکی از هر صفت‌های
+\fIsudoUser\fR،
+\fIsudoHost\fR
+و
+\fIsudoCommand\fR
+باشد.
+.PP
+مثال زیر به کاربران گروه wheel اجازه می‌دهد هر دستوری را بر روی هر میزبانی از طریق
+\fBsudo\fR
+اجرا کنند:
+.nf
+.sp
+.RS 4n
+dn: cn=%wheel,ou=SUDOers,dc=my-domain,dc=com
+objectClass: top
+objectClass: sudoRole
+cn: %wheel
+sudoUser: %wheel
+sudoHost: ALL
+sudoCommand: ALL
+.RE
+.fi
+.SS "کالبدشناسی و ساختار جستجوی sudoers در LDAP (Anatomy of LDAP sudoers lookup)"
+هنگام جستجوی یک sudoer با استفاده از LDAP، در هر فراخوانی تنها دو یا سه پرس‌وجوی LDAP انجام می‌شود.
+پرس‌وجوی اول برای تجزیه گزینه‌های سراسری است.
+پرس‌وجوی دوم برای تطبیق دادن با نام کاربر و گروه‌هایی است که کاربر به آن‌ها تعلق دارد.
+(تگ ویژه
+\fBALL\fR
+نیز در همین پرس‌وجو بررسی می‌شود.)
+اگر هیچ تطبیقی برای نام کاربر و گروه‌هایش یافت نشد، پرس‌وجوی سوم تمام ورودی‌های حاوی نت‌گروپ‌های کاربر و سایر گروه‌های غیر یونیکسی را برمی‌گرداند و بررسی می‌کند که آیا کاربر عضو هیچ‌یک از آن‌ها است یا خیر.
+.PP
+اگر ورودی‌های زمان‌دار با پارامتر
+\fBSUDOERS_TIMED\fR
+فعال شده باشند، پرس‌وجوهای LDAP شامل یک زیرفیلتر خواهند بود که بازیابی را به ورودی‌هایی محدود می‌کند که در صورت وجود قیود زمانی، آن‌ها را برآورده سازند.
+.PP
+اگر پارامتر
+\fBNETGROUP_BASE\fR
+حضور داشته باشد و
+\fBNETGROUP_QUERY\fR
+غیرفعال نشده باشد (بخش
+\fIپیکربندی ldap.conf\fR
+در ادامه را ببینید)، پرس‌وجوهایی برای تعیین فهرست نت‌گروپ‌هایی که کاربر قبل از پرس‌وجوی sudoers به آن‌ها تعلق دارد اجرا می‌شود.
+این امر باعث می‌شود بتوان نت‌گروپ‌ها را نیز همانند گروه‌های یونیکس در رشته پرس‌وجوی اصلی sudoers گنجاند.
+پرس‌وجوی سوم ذکرشده در بالا انجام نمی‌شود مگر اینکه یک افزونه تامین‌کننده گروه نیز پیکربندی شده باشد.
+پرس‌وجوهای واقعی LDAP که توسط
+\fBsudo\fR
+انجام می‌شوند به شرح زیر هستند:
+.TP 5n
+1.\&
+تطبیق تمامی رکوردهای
+\fInisNetgroup\fR
+با یک
+\fInisNetgroupTriple\fR
+حاوی کاربر، میزبان و دامنه NIS.
+پرس‌وجو رکوردهای
+\fInisNetgroupTriple\fR
+را با نام میزبان کوتاه، نام کامل، یا بدون مشخص بودن نام میزبان در تاپل مطابقت می‌دهد.
+اگر دامنه NIS تعیین شده باشد، پرس‌وجو تنها رکوردهایی را مطابقت می‌دهد که شامل دامنه باشند یا هیچ دامنه‌ای در آن‌ها وجود نداشته باشد.
+اگر دامنه NIS تنظیم
+\fIنشده\fR
+باشد، یک نویسه عمومی (wildcard) برای تطبیق با هر نام دامنه‌ای استفاده می‌شود، اما توجه داشته باشید که طرحواره NIS در برخی سرورهای LDAP ممکن است از وایلدکارت‌ها برای
+\fInisNetgroupTriple\fR
+پشتیبانی نکند.
+.TP 5n
+2.\&
+پرس‌وجوهای مکرر برای یافتن رکوردهای تودرتوی
+\fInisNetgroup\fR
+با ورودی
+\fImemberNisNetgroup\fR
+که به رکوردی اشاره دارند که قبلاً تطبیق یافته است، اجرا می‌شوند.
+.PP
+برای سازمان‌هایی با تعداد زیادی نت‌گروپ، استفاده از
+\fBNETGROUP_BASE\fR
+می‌تواند زمان اجرای
+\fBsudo\fR
+را به طور چشمگیری کاهش دهد، مشروط بر اینکه سرور LDAP از پرس‌وجوی شیء
+\fInisNetgroup\fR
+بر اساس صفت
+\fInisNetgroupTriple\fR
+پشتیبانی نماید.
+.SS "تفاوت‌های میان sudoers مبتنی بر LDAP و فایل معمولی (Differences between LDAP and non-LDAP sudoers)"
+یکی از تفاوت‌های عمده میان LDAP و فایل
+\fIsudoers\fR
+معمولی این است که در LDAP، نام‌های مستعار (Aliases) اختصاصی
+\fBsudo\fR
+پشتیبانی نمی‌شوند.
+.PP
+در بیشتر موارد، نیاز چندانی به نام‌های مستعار اختصاصی
+\fBsudo\fR
+وجود ندارد.
+گروه‌های یونیکس، گروه‌های غیر یونیکسی (از طریق
+\fIgroup_plugin\fR)،
+یا نت‌گروپ‌های کاربری می‌توانند به جای User_Aliases و Runas_Aliases استفاده شوند.
+نت‌گروپ‌های میزبان می‌توانند به جای Host_Aliases استفاده گردند.
+از آنجا که گروه‌ها و نت‌گروپ‌ها نیز می‌توانند در LDAP ذخیره شوند، نیاز واقعی به نام‌های مستعار ویژه
+\fBsudo\fR
+وجود ندارد.
+.PP
+همچنین تفاوت‌های ظریفی در نحوه رفتار با قوانین sudoers پس از انتقال به LDAP وجود دارد.
+شاید بزرگ‌ترین تفاوت این باشد که طبق استانداردهای RFC، ترتیب در LDAP دلخواه و نامعین است و نمی‌توان انتظار داشت که صفت‌ها و ورودی‌ها با ترتیب خاصی بازگردانده شوند.
+.PP
+ترتیبی که ورودی‌های مختلف بر اساس آن اعمال می‌شوند می‌تواند با صفت
+\fIsudoOrder\fR
+کنترل شود، اما هیچ راهی برای تضمین ترتیب صفت‌ها در یک ورودی مشخص وجود ندارد.
+اگر قواعد دستوری متناقضی در یک ورودی وجود داشته باشد، قاعده منفی (نهی‌کننده) اولویت خواهد داشت.
+این رفتار اصطلاحاً رفتار محتاطانه (paranoid) نامیده می‌شود (که لزوماً خاص‌ترین تطبیق نیست).
+.PP
+یک مثال در زیر آمده است:
+.nf
+.sp
+.RS 4n
+# /etc/sudoers:
+# Allow all commands except shell
+johnny  ALL=(root) ALL,!/bin/sh
+# Always allows all commands because ALL is matched last
+puddles ALL=(root) !/bin/sh,ALL
+
+# LDAP equivalent of johnny
+# Allows all commands except shell
+dn: cn=role1,ou=Sudoers,dc=my-domain,dc=com
+objectClass: sudoRole
+objectClass: top
+cn: role1
+sudoUser: johnny
+sudoHost: ALL
+sudoCommand: ALL
+sudoCommand: !/bin/sh
+
+# LDAP equivalent of puddles
+# Notice that even though ALL comes last, it still behaves like
+# role1 since the LDAP code assumes the more paranoid configuration
+dn: cn=role2,ou=Sudoers,dc=my-domain,dc=com
+objectClass: sudoRole
+objectClass: top
+cn: role2
+sudoUser: puddles
+sudoHost: ALL
+sudoCommand: !/bin/sh
+sudoCommand: ALL
+.RE
+.fi
+.SS "تبدیل میان sudoers مبتنی بر فایل و LDAP (Converting between file-based and LDAP sudoers)"
+ابزار
+cvtsudoers(1)
+می‌تواند برای تبدیل میان
+\fIsudoers\fR
+مبتنی بر فایل و مبتنی بر LDAP استفاده شود.
+با این حال، ویژگی‌هایی در sudoers مبتنی بر فایل وجود دارد که هیچ معادلی در sudoers مبتنی بر LDAP ندارند (و برعکس).
+این ویژگی‌ها را نمی‌توان به صورت خودکار تبدیل نمود.
+.PP
+برای نمونه، یک Cmnd_Alias در فایل
+\fIsudoers\fR
+ممکن است به یک
+\fIsudoRole\fR
+تبدیل شود که شامل چندین دستور است.
+کاربران و/یا گروه‌های متعددی می‌توانند به آن
+\fIsudoRole\fR
+اختصاص داده شوند.
+.PP
+همچنین، مقادیر
+\fIDefaults\fR
+مبتنی بر میزبان، کاربر، runas و دستور پشتیبانی نمی‌شوند.
+با این وجود، یک
+\fIsudoRole\fR
+می‌تواند شامل یک یا چند صفت
+\fIsudoOption\fR
+باشد که معمولاً می‌توانند همان هدف را محقق کنند.
+.PP
+خطوط زیر از
+\fIsudoers\fR
+را در نظر بگیرید:
+.nf
+.sp
+.RS 4n
+Cmnd_Alias PAGERS = /usr/bin/more, /usr/bin/pg, /usr/bin/less
+Defaults!PAGERS noexec
+alice, bob ALL = ALL
+.RE
+.fi
+.PP
+در این مثال، alice و bob مجاز به اجرای تمامی دستورات هستند، اما دستورات فهرست‌شده در PAGERS دارای فلگ noexec خواهند بود تا از گریز به شل (shell escape) جلوگیری شود.
+.PP
+هنگام تبدیل این پیکربندی به LDAP، می‌توان از دو شیء sudoRole استفاده کرد:
+.nf
+.sp
+.RS 4n
+dn: cn=PAGERS,ou=SUDOers,dc=my-domain,dc=com
+objectClass: top
+objectClass: sudoRole
+cn: PAGERS
+sudoUser: alice
+sudoUser: bob
+sudoHost: ALL
+sudoCommand: /usr/bin/more
+sudoCommand: /usr/bin/pg
+sudoCommand: /usr/bin/less
+sudoOption: noexec
+sudoOrder: 900
+
+dn: cn=ADMINS,ou=SUDOers,dc=my-domain,dc=com
+objectClass: top
+objectClass: sudoRole
+cn: ADMINS
+sudoUser: alice
+sudoUser: bob
+sudoHost: ALL
+sudoCommand: ALL
+sudoOrder: 100
+.RE
+.fi
+.PP
+در نسخه LDAP، از صفت sudoOrder استفاده شده تا اطمینان حاصل شود که sudoRole مربوط به PAGERS با گزینه
+\fInoexec\fR
+اولویت دارد.
+برخلاف نسخه
+\fIsudoers\fR،
+نسخه LDAP مستلزم آن است که تمامی کاربرانی که محدودیت باید روی آن‌ها اعمال شود، صراحتاً به sudoRole با نام PAGERS منتسب شوند.
+استفاده از یک گروه یونیکس یا نت‌گروپ در PAGERS به جای فهرست کردن تک‌تک کاربران، نگهداری آن را آسان‌تر می‌کند.
+.PP
+مدخل‌های
+\fIDefaults\fR
+به ازای هر کاربر را می‌توان با استفاده از یک یا چند صفت sudoOption در یک sudoRole شبیه‌سازی کرد.
+خطوط زیر در
+\fIsudoers\fR
+را در نظر بگیرید:
+.nf
+.sp
+.RS 4n
+User_Alias ADMINS = john, sally
+Defaults:ADMINS !authenticate
+ADMINS ALL = (ALL:ALL) ALL
+.RE
+.fi
+.PP
+در این مثال، john و sally مجاز به اجرای هر دستوری در قالب هر کاربر یا گروهی هستند.
+.PP
+هنگام تبدیل به LDAP، می‌توانیم به جای User_Alias از یک گروه یونیکس استفاده کنیم:
+.nf
+.sp
+.RS 4n
+dn: cn=admins,ou=SUDOers,dc=my-domain,dc=com
+objectClass: top
+objectClass: sudoRole
+cn: admins
+sudoUser: %admin
+sudoHost: ALL
+sudoRunAsUser: ALL
+sudoRunAsGroup: ALL
+sudoCommand: ALL
+sudoOption: !authenticate
+.RE
+.fi
+.PP
+این پیکربندی فرض می‌کند که کاربران john و sally عضو گروه یونیکسی
+\(lqadmins\(cq
+هستند.
+.SS "طرحواره Sudoers (Sudoers schema)"
+به منظور استفاده از پشتیبانی LDAP در
+\fBsudo\fR،
+طرحواره (اسکیما)
+\fBsudo\fR
+باید روی سرور LDAP شما نصب شود.
+علاوه بر این، حتماً اطمینان حاصل کنید که صفت
+\fIsudoUser\fR
+ایندکس‌گذاری شده باشد.
+.PP
+توزیع
+\fBsudo\fR
+شامل نسخه‌هایی از طرحواره
+\fBsudoers\fR
+برای سرورهای مختلف LDAP است:
+.TP 6n
+\fIschema.ActiveDirectory\fR
+مایکروسافت اکتیو دایرکتوری (Microsoft Active Directory)
+.TP 6n
+\fIschema.IBM_LDAP\fR
+سرور دایرکتوری آی‌بی‌ام (IBM Directory Server)، همچنین شناخته‌شده با نام‌های IBM Tivoli Directory Server، IBM Security Directory Server، و IBM Security Verify Directory
+.TP 6n
+\fIschema.iPlanet\fR
+سرورهای مشتق‌شده از نت‌اسکیپ مانند سرورهای دایرکتوری iPlanet، Oracle و 389 Directory Server
+.TP 6n
+\fIschema.olcSudo\fR
+سرور OpenLDAP slapd نسخه ۲.۳ و بالاتر زمانی که پیکربندی برخط (on-line) فعال است
+.TP 6n
+\fIschema.OpenLDAP\fR
+سرور OpenLDAP slapd و OpenBSD ldapd
+.PP
+طرحواره در قالب OpenLDAP در بخش
+\fIمثال‌ها (EXAMPLES)\fR
+نیز آورده شده است.
+.SS "پیکربندی ldap.conf (Configuring ldap.conf)"
+دستور sudo فایل
+\fI/etc/openldap/ldap.conf\fR
+را برای پیکربندی‌های اختصاصی LDAP می‌خواند.
+معمولاً این فایل بین کلاینت‌های مختلف سازگار با LDAP به اشتراک گذاشته می‌شود.
+به این ترتیب، بیشتر تنظیمات اختصاصی
+\fBsudo\fR
+نیستند.
+فایل
+\fI/etc/openldap/ldap.conf\fR
+مستقیماً توسط خود
+\fBsudo\fR
+تجزیه می‌شود و ممکن است از گزینه‌هایی پشتیبانی کند که با گزینه‌های شرح داده‌شده در راهنمای سیستم
+ldap.conf(5)
+متفاوت باشد.
+مسیر
+\fIldap.conf\fR
+می‌تواند از طریق آرگومان افزونه
+\fIldap_conf\fR
+در فایل
+sudo.conf(5)
+بازنویسی شود.
+.PP
+در سیستم‌هایی که از کتابخانه‌های OpenLDAP استفاده می‌کنند، مقادیر پیش‌فرض مشخص‌شده در
+\fI/etc/openldap/ldap.conf\fR
+یا فایل‌های
+\fI.ldaprc\fR
+کاربر استفاده نمی‌شوند.
+.PP
+دستور
+\fBsudo\fR
+از پیاده‌سازی‌های مختلف کتابخانه LDAP پشتیبانی می‌کند، از جمله OpenLDAP، کتابخانه‌های مشتق از Netscape (که در Solaris و HP-UX نیز استفاده می‌شوند)، و IBM LDAP (معروف به Tivoli).
+برخی گزینه‌ها مختص پیاده‌سازی‌های خاصی از LDAP هستند یا رفتار وابسته به پیاده‌سازی دارند.
+این تفاوت‌ها در ادامه در بخش‌های مربوطه ذکر شده‌اند.
+.PP
+تنها گزینه‌هایی که صراحتاً در
+\fI/etc/openldap/ldap.conf\fR
+به عنوان موارد پشتیبانی‌شده توسط
+\fBsudo\fR
+فهرست شده‌اند مورد استفاده قرار می‌گیرند.
+گزینه‌های پیکربندی در ادامه با حروف بزرگ آمده‌اند اما به صورت غیرحساس به بزرگی و کوچکی حروف تجزیه می‌شوند.
+.PP
+خطوطی که با علامت هش
+(\(oq#\(cq)
+آغاز می‌شوند نادیده گرفته خواهند شد.
+فاصله‌های خالی ابتدای خطوط حذف می‌شوند.
+.TP 6n
+\fBBIND_TIMELIMIT\fR \fIseconds\fR
+پارامتر
+\fBBIND_TIMELIMIT\fR
+مدت زمان (به ثانیه) انتظار در حین تلاش برای اتصال به یک سرور LDAP را مشخص می‌کند.
+اگر چندین
+\fBURI\fR
+یا
+\fBHOST\fR
+تعیین شده باشد، این زمان مدت انتظاری است که قبل از رفتن به سرور بعدی در فهرست اعمال می‌شود.
+.TP 6n
+\fBBINDDN\fR \fIDN\fR
+پارامتر
+\fBBINDDN\fR
+هویت مورد نظر برای انجام عملیات LDAP را در قالب یک نام متمایز (DN) تعیین می‌کند.
+اگر مشخص نشود، عملیات LDAP با هویت ناشناس (anonymous) انجام می‌شود.
+به طور پیش‌فرض، اکثر سرورهای LDAP دسترسی ناشناس را مجاز می‌دانند.
+.TP 6n
+\fBBINDPW\fR \fIsecret\fR
+پارامتر
+\fBBINDPW\fR
+گذرواژه مورد استفاده هنگام انجام عملیات LDAP را تعیین می‌کند.
+این گزینه معمولاً همراه با پارامتر
+\fBBINDDN\fR
+به کار می‌رود.
+مقدار
+\fIsecret\fR
+می‌تواند یک گذرواژه متنی ساده یا یک رشته کدگذاری‌شده با Base64 دارای پیشوند
+\(lqbase64:\(rq
+باشد.
+برای مثال:
+.nf
+.sp
+.RS 10n
+BINDPW base64:dGVzdA==
+.RE
+.fi
+.RS 6n
+.sp
+اگر از گذرواژه متنی ساده استفاده شود، باید یک رشته ساده بدون کوتیشن باشد.
+گذرواژه‌های متنی ساده نباید شامل نویسه کامنت
+(\(oq#\(cq)
+باشند و اسکیپ کردن نویسه‌های خاص با بک‌اسلش
+(\(oq\e\(cq)
+پشتیبانی نمی‌شود.
+.RE
+.TP 6n
+\fBDEREF\fR \fInever/searching/finding/always\fR
+نحوه ارجاع‌زدایی نام‌های مستعار (alias dereferencing) در هنگام جستجو را مشخص می‌کند.
+توضیح کامل این گزینه را در راهنمای
+ldap.conf(5)
+ببینید.
+.TP 6n
+\fBHOST\fR \fIname[:port] ...\fR
+اگر هیچ
+\fBURI\fR
+مشخص نشده باشد (به پایین مراجعه کنید)، پارامتر
+\fBHOST\fR
+فهرستی از سرورهای LDAP که با فاصله از هم جدا شده‌اند را برای اتصال مشخص می‌سازد.
+هر میزبان می‌تواند شامل یک پورت اختیاری باشد که با دونقطه
+(\(oq:\(cq)
+جدا می‌شود.
+پارامتر
+\fBHOST\fR
+منسوخ شده و تعیین
+\fBURI\fR
+توصیه می‌شود و تنها برای سازگاری با نسخه‌های پیشین حفظ شده است.
+.TP 6n
+\fBKRB5_CCNAME\fR \fIfile name\fR
+مسیر حافظه پنهان گواهی کربروس ۵ (Kerberos 5 credential cache) جهت استفاده هنگام احراز هویت با سرور راه دور.
+.sp
+این گزینه تنها هنگام استفاده از احراز هویت SASL کاربرد دارد (به پایین مراجعه کنید).
+.TP 6n
+\fBLDAP_VERSION\fR \fInumber\fR
+نسخه پروتکل LDAP برای اتصال به سرور.
+مقدار پیش‌فرض، پروتکل نسخه ۳ است.
+.TP 6n
+\fBNETGROUP_BASE\fR \fIbase\fR
+پایه DN برای انجام پرس‌وجوهای نت‌گروپ LDAP.
+معمولاً برای دامنه my-domain.com به صورت
+\(oqou=netgroup,dc=my-domain,dc=com\(cq
+است.
+می‌توان چندین خط
+\fBNETGROUP_BASE\fR
+تعیین کرد، که در این صورت با همان ترتیبی که مشخص شده‌اند پرس‌وجو می‌شوند.
+.sp
+هنگامی که این گزینه فعال باشد،
+\fBsudo\fR
+به هنگام تطبیق نت‌گروپ‌های موجود در یک
+\fIsudoRole\fR
+به جای اتکا به تابع
+\fBinnetgr\fR()
+در کتابخانه C، مستقیماً از سرور LDAP پرس‌وجو می‌کند.
+.sp
+علاوه بر این، اگر پارامتر
+\fBNETGROUP_QUERY\fR
+(که به طور پیش‌فرض فعال است) غیرفعال نشده باشد، نت‌گروپ‌های کاربر مستقیماً از طریق LDAP برای استفاده در پرس‌وجوی اصلی sudoers استعلام می‌شوند.
+این روش معمولاً بسیار سریع‌تر از دریافت تک‌تک اشیاء
+\fIsudoRole\fR
+شامل
+\fIsudoUser\fR
+با پیشوند
+\(oq+\(cq
+و سپس بررسی عضویت کاربر در هر کدام از آن‌ها است.
+طرحواره NIS مورد استفاده در برخی سرورهای LDAP نیاز به اصلاحی دارد تا از پرس‌وجوی شیء
+\fInisNetgroup\fR
+بر اساس صفت
+\fInisNetgroupTriple\fR
+پشتیبانی کند.
+برای مثال،
+\fBslapd\fR
+در OpenLDAP نیازمند تغییر زیر در صفت
+\fInisNetgroupTriple\fR
+می‌باشد:
+.nf
+.sp
+.RS 10n
+attributetype ( 1.3.6.1.1.1.1.14 NAME 'nisNetgroupTriple'
+   DESC 'Netgroup triple'
+   EQUALITY caseIgnoreIA5Match
+   SUBSTR caseIgnoreIA5SubstringsMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+.RE
+.fi
+.RS 6n
+.sp
+پیش از فعال‌سازی
+\fBNETGROUP_BASE\fR،
+باید بررسی کنید که سرور LDAP شما از تطبیق
+\fInisNetgroupTriple\fR
+پشتیبانی می‌کند.
+برای مثال با استفاده از
+\fBldapsearch\fR:
+.nf
+.sp
+.RS 10n
+$ ldapsearch -b $NETGROUP_BASE \e
+  '(&(objectClass=nisNetgroup)(nisNetgroupTriple=\e28*,USER,\e29))'
+.RE
+.fi
+.sp
+جایی که داده‌های
+\fInisNetgroup\fR
+شما شامل شیئی با
+\fInisNetgroupTriple\fR
+زیر باشد:
+.sp
+.RS 12n
+nisNetgroupTriple: (,USER,)
+.RE
+.RE
+.TP 6n
+\fBNETGROUP_QUERY\fR \fIon/true/yes/off/false/no\fR
+پارامتر
+\fBNETGROUP_QUERY\fR
+مشخص می‌کند که آیا سرور LDAP از پرس‌وجوی اشیاء
+\fInisNetgroup\fR
+بر اساس صفت
+\fInisNetgroupTriple\fR
+پشتیبانی می‌کند یا خیر.
+به طور پیش‌فرض،
+\fBsudoers\fR
+هنگامی که
+\fBNETGROUP_BASE\fR
+تنظیم شده باشد انتظار دارد که بتواند پرس‌وجوهایی منطبق بر صفت‌های
+\fInisNetgroupTriple\fR
+انجام دهد، اما تمام سرورهای LDAP از این قابلیت پشتیبانی نمی‌کنند.
+.sp
+اگر
+\fBNETGROUP_QUERY\fR
+غیرفعال شود،
+\fBsudoers\fR
+تلاشی برای تعیین فهرست نت‌گروپ‌هایی که کاربر به آن‌ها تعلق دارد نخواهد کرد، اما همچنان هنگام تطبیق نت‌گروپ‌ها مستقیماً از
+\fBNETGROUP_BASE\fR
+استفاده می‌کند.
+این مورد می‌تواند برای پشتیبانی از نت‌گروپ‌ها در سیستم‌هایی که فاقد تابع کتابخانه‌ای
+\fBinnetgr\fR()
+هستند استفاده شود.
+برای اطلاعات بیشتر به توضیحات پارامتر
+\fBNETGROUP_BASE\fR
+مراجعه نمایید.
+.TP 6n
+\fBNETGROUP_SEARCH_FILTER\fR \fIldap_filter\fR
+یک فیلتر LDAP که برای محدود کردن مجموعه رکوردهای بازگردانده‌شده در هنگام اجرای پرس‌وجوی نت‌گروپ LDAP به کار می‌رود.
+معمولاً این فیلتر به شکل
+\(oqattribute=value\(cq
+یا
+\(oq(&(attribute=value)(attribute2=value2))\(cq
+می‌باشد.
+فیلتر جستجوی پیش‌فرض عبارت است از:
+\(oqobjectClass=nisNetgroup\(cq.
+اگر
+\fIldap_filter\fR
+حذف شود، هیچ فیلتر جستجویی استفاده نخواهد شد.
+.sp
+این گزینه تنها زمانی استفاده می‌شود که نت‌گروپ‌ها مستقیماً از طریق LDAP پرس‌وجو شوند.
+.TP 6n
+\fBNETWORK_TIMEOUT\fR \fIseconds\fR
+یک نام مستعار برای
+\fBBIND_TIMELIMIT\fR
+جهت سازگاری با OpenLDAP.
+.TP 6n
+\fBPORT\fR \fIport_number\fR
+اگر هیچ
+\fBURI\fR
+مشخص نشده باشد، پارامتر
+\fBPORT\fR
+پورت پیش‌فرض برای اتصال به سرور LDAP را تعیین می‌کند در صورتی که پارامتر
+\fBHOST\fR
+پورت را مشخص نکرده باشد.
+اگر پارامتر
+\fBPORT\fR
+تعیین نشود، مقدار پیش‌فرض ۳۸۹ برای LDAP و ۶۳۶ برای LDAP بر روی TLS (SSL) است.
+پارامتر
+\fBPORT\fR
+منسوخ شده و تعیین
+\fBURI\fR
+توصیه می‌شود و تنها برای سازگاری به عقب حفظ گردیده است.
+.TP 6n
+\fBROOTBINDDN\fR \fIDN\fR
+پارامتر
+\fBROOTBINDDN\fR
+هویت را در قالب یک نام متمایز (DN) برای انجام عملیات دارای مجوز ارشد LDAP مانند پرس‌وجوهای
+\fIsudoers\fR
+مشخص می‌کند.
+گذرواژه مربوط به این هویت باید در فایلی نگهداری شود که مسیر آن توسط آرگومان افزونه
+\fIldap_secret\fR
+در
+sudo.conf(5)
+تعیین می‌شود، و پیش‌فرض آن
+\fI/etc/ldap.secret\fR
+است.
+اگر
+\fBROOTBINDDN\fR
+مشخص نشود، هویت
+\fBBINDDN\fR
+(در صورت وجود) به کار می‌رود.
+.TP 6n
+\fBROOTUSE_SASL\fR \fIon/true/yes/off/false/no\fR
+مقدار
+\fBROOTUSE_SASL\fR
+را فعال کنید تا احراز هویت SASL هنگام اتصال به سرور LDAP از یک فرایند ارشد، مانند
+\fBsudo\fR
+فعال شود.
+.TP 6n
+\fBSASL_AUTH_ID\fR \fIidentity\fR
+نام کاربری SASL جهت اتصال به سرور LDAP.
+به طور پیش‌فرض،
+\fBsudo\fR
+از اتصال ناشناس استفاده می‌کند.
+.sp
+این گزینه تنها هنگام استفاده از احراز هویت SASL کاربرد دارد.
+.TP 6n
+\fBSASL_MECH\fR \fImechanisms\fR
+فهرستی جداشده با فاصله از سازوکارهای احراز هویت SASL برای استفاده.
+به طور پیش‌فرض،
+\fBsudo\fR
+از احراز هویت
+\fRGSSAPI\fR
+استفاده می‌کند.
+.TP 6n
+\fBSASL_SECPROPS\fR \fInone/properties\fR
+ویژگی‌های امنیتی SASL یا
+\fInone\fR
+برای عدم استفاده از ویژگی‌ها.
+برای جزئیات راهنمای برنامه‌نویس SASL را مشاهده کنید.
+.sp
+این گزینه تنها هنگام استفاده از احراز هویت SASL کاربرد دارد.
+.TP 6n
+\fBSSL\fR \fIon/true/yes/off/false/no\fR
+اگر پارامتر
+\fBSSL\fR
+روی
+\fIon\fR،
+\fItrue\fR
+یا
+\fIyes\fR
+تنظیم شود، رمزنگاری TLS (SSL) همیشه هنگام برقراری ارتباط با سرور LDAP به کار می‌رود.
+معمولاً این امر شامل اتصال به سرور روی پورت ۶۳۶ (ldaps) است.
+.TP 6n
+\fBSSL\fR \fIstart_tls\fR
+اگر پارامتر
+\fBSSL\fR
+روی
+\fIstart_tls\fR
+تنظیم شود، اتصال سرور LDAP به صورت عادی آغاز شده و رمزنگاری TLS پیش از ارسال اعتبارنامه‌های bind آغاز می‌گردد.
+این حالت این مزیت را دارد که نیازی به یک پورت اختصاصی برای ارتباطات رمزنگاری‌شده ندارد.
+این پارامتر تنها توسط سرورهای LDAP پشتیبانی می‌شود که از افزونه
+\fIstart_tls\fR
+پشتیبانی می‌کنند، مانند سرورهای دایرکتوری OpenLDAP و IBM Tivoli.
+.TP 6n
+\fBSUDOERS_BASE\fR \fIbase\fR
+پایه DN برای استفاده هنگام انجام پرس‌وجوهای
+\fBsudo\fR
+در LDAP.
+معمولاً برای دامنه my-domain.com به صورت
+\(oqou=SUDOers,dc=my-domain,dc=com\(cq
+است.
+می‌توان چندین خط
+\fBSUDOERS_BASE\fR
+تعیین کرد، که در این صورت با ترتیبی که نوشته شده‌اند پرس‌وجو می‌شوند.
+.TP 6n
+\fBSUDOERS_DEBUG\fR \fIdebug_level\fR
+سطح اشکال‌زدایی (دیباگ) را برای پرس‌وجوهای
+\fBsudo\fR
+در LDAP تنظیم می‌کند.
+اطلاعات اشکال‌زدایی در خروجی خطای استاندارد چاپ می‌شود.
+مقدار ۱ منجر به حجم متوسطی از اطلاعات دیباگ می‌شود.
+مقدار ۲ نتایج خود تطبیق‌ها را نشان می‌دهد.
+این پارامتر نباید در یک محیط عملیاتی تنظیم شود زیرا اطلاعات اضافی به احتمال زیاد باعث سردرگمی کاربران می‌گردد.
+.sp
+پارامتر
+\fBSUDOERS_DEBUG\fR
+منسوخ شده و در نسخه‌های آینده حذف خواهد شد.
+همین اطلاعات اکنون از طریق چارچوب اشکال‌زدایی
+\fBsudo\fR
+با استفاده از زیرسیستم
+\(lqldap\(rq
+در اولویت‌های
+\fIdiag\fR
+و
+\fIinfo\fR
+به ترتیب برای مقادیر ۱ و ۲
+\fIdebug_level\fR
+ثبت می‌شوند.
+برای جزئیات بیشتر در مورد نحوه پیکربندی اشکال‌زدایی
+\fBsudo\fR
+به راهنمای
+sudo.conf(5)
+مراجعه کنید.
+.TP 6n
+\fBSUDOERS_SEARCH_FILTER\fR \fIldap_filter\fR
+یک فیلتر LDAP که برای محدود کردن مجموعه رکوردهای بازگردانده‌شده در هنگام انجام یک پرس‌وجوی
+\fBsudo\fR
+در LDAP به کار می‌رود.
+معمولاً به فرمت
+\(oqattribute=value\(cq
+یا
+\(oq(&(attribute=value)(attribute2=value2))\(cq
+می‌باشد.
+فیلتر جستجوی پیش‌فرض برابر است با:
+\(oqobjectClass=sudoRole\(cq.
+اگر
+\fIldap_filter\fR
+حذف شود، هیچ فیلتر جستجویی استفاده نخواهد شد.
+.TP 6n
+\fBSUDOERS_TIMED\fR \fIon/true/yes/off/false/no\fR
+مشخص می‌کند که آیا صفت‌های
+\fIsudoNotBefore\fR
+و
+\fIsudoNotAfter\fR
+که ورودی‌های زمان‌دار sudoers را پیاده‌سازی می‌کنند ارزیابی شوند یا خیر.
+.TP 6n
+\fBTIMELIMIT\fR \fIseconds\fR
+پارامتر
+\fBTIMELIMIT\fR
+میزان زمان انتظار (به ثانیه) برای دریافت پاسخ پرس‌وجوی LDAP را مشخص می‌کند.
+.TP 6n
+\fBTIMEOUT\fR \fIseconds\fR
+پارامتر
+\fBTIMEOUT\fR
+مدت زمان انتظار (به ثانیه) برای دریافت پاسخ از APIهای مختلف LDAP را مشخص می‌کند.
+.TP 6n
+\fBTLS_CACERT\fR \fIfile name\fR
+نام مستعار برای
+\fBTLS_CACERTFILE\fR
+جهت سازگاری با OpenLDAP.
+.TP 6n
+\fBTLS_CACERTFILE\fR \fIfile name\fR
+مسیر به یک بسته مراجع صدور گواهی (CA bundle) که شامل گواهی‌های تمام مراجع صدور گواهی معتبر شناخته‌شده توسط کلاینت است، برای مثال
+\fI/etc/ssl/ca-bundle.pem\fR.
+.sp
+این گزینه تنها توسط کتابخانه‌های OpenLDAP پشتیبانی می‌شود.
+کتابخانه‌های LDAP مشتق از Netscape از همان پایگاه داده گواهی برای گواهی‌های CA و کلاینت استفاده می‌کنند (گزینه
+\fBTLS_CERT\fR
+را ببینید).
+.TP 6n
+\fBTLS_CACERTDIR\fR \fIdirectory\fR
+مشابه با
+\fBTLS_CACERTFILE\fR
+اما به جای فایل، پوشه‌ای شامل گواهی‌های مجزای مراجع صدور گواهی است، برای مثال
+\fI/etc/ssl/certs\fR.
+دایرکتوری مشخص‌شده توسط
+\fBTLS_CACERTDIR\fR
+پس از
+\fBTLS_CACERTFILE\fR
+بررسی می‌شود.
+.sp
+این گزینه تنها توسط کتابخانه‌های OpenLDAP پشتیبانی می‌شود.
+.TP 6n
+\fBTLS_CERT\fR \fIfile name\fR
+مسیر یک فایل حاوی گواهی کلاینت که می‌تواند برای احراز هویت کلاینت نزد سرور LDAP استفاده شود.
+نوع گواهی به کتابخانه‌های LDAP مورد استفاده بستگی دارد.
+.PP
+.RS 6n
+.PD 0
+.TP 6n
+OpenLDAP:
+\(oqtls_cert /etc/ssl/client_cert.pem\(cq
+.PD
+.TP 6n
+مشتق از Netscape:
+\(oqtls_cert /var/ldap/cert7.db\(cq
+.TP 6n
+IBM LDAP:
+استفاده نمی‌شود؛ پایگاه‌داده کلید مشخص‌شده با
+\fBTLS_KEY\fR
+شامل هر دو کلیدها و گواهی‌ها است.
+.PP
+هنگام استفاده از کتابخانه‌های مشتق از Netscape، این فایل ممکن است شامل گواهی‌های مرجع صدور گواهی (CA) نیز باشد.
+.RE
+.TP 6n
+\fBTLS_CHECKPEER\fR \fIon/true/yes/off/false/no\fR
+اگر فعال باشد،
+\fBTLS_CHECKPEER\fR
+باعث اعتبارسنجی گواهی TLS سرور LDAP می‌شود.
+اگر گواهی TLS سرور تایید نشود (معمولاً به این دلیل که توسط یک مرجع صدور گواهی ناشناخته امضا شده است)،
+\fBsudo\fR
+قادر به اتصال به آن نخواهد بود.
+اگر
+\fBTLS_CHECKPEER\fR
+غیرفعال باشد، هیچ بررسی انجام نمی‌شود.
+غیرفعال کردن این بررسی فرصتی برای حملات مرد میانی (man-in-the-middle) ایجاد می‌کند زیرا هویت سرور احراز نمی‌شود.
+در صورت امکان، گواهی CA باید به صورت محلی نصب شود تا قابل اعتبارسنجی باشد.
+.sp
+این گزینه توسط کتابخانه‌های IBM LDAP پشتیبانی نمی‌شود.
+.TP 6n
+\fBTLS_KEY\fR \fIfile name\fR
+مسیر یک فایل حاوی کلید خصوصی که با گواهی مشخص‌شده توسط
+\fBTLS_CERT\fR
+تطابق دارد.
+کلید خصوصی نباید با گذرواژه محافظت شده باشد.
+نوع کلید به کتابخانه‌های LDAP مورد استفاده بستگی دارد.
+.PP
+.RS 6n
+.PD 0
+.TP 6n
+OpenLDAP:
+\(oqtls_key /etc/ssl/client_key.pem\(cq
+.PD
+.TP 6n
+مشتق از Netscape:
+\(oqtls_key /var/ldap/key3.db\(cq
+.TP 6n
+IBM LDAP:
+\(oqtls_key /usr/ldap/ldapkey.kdb\(cq
+.PP
+هنگام استفاده از کتابخانه‌های IBM LDAP، این فایل همچنین ممکن است شامل گواهی‌های مرجع صدور گواهی و کلاینت باشد و ممکن است رمزنگاری شده باشد.
+.RE
+.TP 6n
+\fBTLS_CIPHERS\fR \fIcipher list\fR
+پارامتر
+\fBTLS_CIPHERS\fR
+به مدیر سیستم اجازه می‌دهد الگوریتم‌های رمزنگاری مجاز برای اتصالات TLS (SSL) را محدود کند.
+برای فهرستی از سایفرهای معتبر به راهنمای OpenLDAP یا IBM Tivoli Directory Server مراجعه کنید.
+.sp
+این گزینه توسط کتابخانه‌های مشتق از Netscape پشتیبانی نمی‌شود.
+.TP 6n
+\fBTLS_KEYPW\fR \fIsecret\fR
+شامل گذرواژه مورد استفاده برای رمزگشایی پایگاه‌داده کلید در کلاینت‌هایی است که از کتابخانه IBM LDAP استفاده می‌کنند.
+مقدار
+\fIsecret\fR
+می‌تواند یک گذرواژه متنی ساده یا یک رشته کدگذاری‌شده با Base64 دارای پیشوند
+\(lqbase64:\(rq
+باشد.
+برای مثال:
+.nf
+.sp
+.RS 10n
+TLS_KEYPW base64:dGVzdA==
+.RE
+.fi
+.RS 6n
+.sp
+اگر گذرواژه متنی ساده استفاده شود، باید یک رشته ساده بدون کوتیشن باشد.
+گذرواژه‌های متنی ساده نباید حاوی نویسه کامنت
+(\(oq#\(cq)
+باشند و اسکیپ کردن کاراکترهای خاص با بک‌اسلش
+(\(oq\e\(cq)
+پشتیبانی نمی‌شود.
+اگر از این گزینه استفاده شود، فایل
+\fI/etc/openldap/ldap.conf\fR
+برای جلوگیری از افشای گذرواژه نباید توسط همه کاربران قابل خواندن باشد.
+همچنین، می‌توان از یک
+\fIstash file\fR
+برای ذخیره گذرواژه در قالب رمزنگاری‌شده استفاده کرد (به پایین مراجعه کنید).
+.sp
+اگر هیچ
+\fBTLS_KEYPW\fR
+مشخص نشده باشد، در صورت وجود از یک
+\fIstash file\fR
+استفاده خواهد شد.
+فایل
+\fIstash file\fR
+باید همان مسیر فایل مشخص‌شده با
+\fBTLS_KEY\fR
+را داشته باشد اما از پسوند
+\(oq.sth\(cq
+به جای
+\(oq.kdb\(cq
+استفاده کند، برای مثال
+\(oqldapkey.sth\(cq.
+فایل پیش‌فرض
+\(oqldapkey.kdb\(cq
+که همراه با IBM Tivoli Directory Server عرضه می‌شود با گذرواژه
+\(oqssl_password\(cq
+رمزنگاری شده است.
+ابزار
+\fIgsk8capicmd\fR
+می‌تواند برای مدیریت پایگاه‌داده کلید و ایجاد
+\fIstash file\fR
+استفاده شود.
+.sp
+این گزینه تنها توسط کتابخانه‌های IBM LDAP پشتیبانی می‌شود.
+.RE
+.TP 6n
+\fBTLS_REQCERT\fR \fIlevel\fR
+پارامتر
+\fBTLS_REQCERT\fR
+نحوه اعتبارسنجی گواهی TLS سرور LDAP را کنترل می‌کند (در صورت انجام بررسی).
+اگر گواهی TLS سرور تایید نشود (معمولاً به دلیل اینکه توسط یک مرجع صدور گواهی ناشناخته امضا شده است)،
+\fBsudo\fR
+قادر به اتصال به آن نخواهد بود.
+مقادیر زیر برای
+\fIlevel\fR
+پشتیبانی می‌شوند:
+.RS 10n
+.TP 6n
+never
+.br
+گواهی سرور درخواست یا بررسی نمی‌شود.
+.TP 6n
+allow
+.br
+گواهی سرور درخواست می‌شود.
+گواهی نامعتبر یا گم‌شده نادیده گرفته شده و خطا تلقی نمی‌شود.
+.TP 6n
+try
+گواهی سرور درخواست می‌شود.
+گواهی ناموجود نادیده گرفته می‌شود اما گواهی نامعتبر منجر به خطای اتصال خواهد شد.
+.TP 6n
+demand | \fIhard\fR
+گواهی سرور درخواست خواهد شد.
+نبود گواهی یا نامعتبر بودن آن منجر به خطای اتصال می‌شود.
+این رفتار پیش‌فرض است.
+.RE
+.RS 6n
+.sp
+این گزینه تنها توسط کتابخانه‌های OpenLDAP پشتیبانی می‌شود.
+سایر کتابخانه‌های LDAP تنها از پارامتر
+\fBTLS_CHECKPEER\fR
+پشتیبانی می‌کنند.
+.RE
+.TP 6n
+\fBTLS_RANDFILE\fR \fIfile name\fR
+پارامتر
+\fBTLS_RANDFILE\fR
+مسیر منبع آنتروپی را برای سیستم‌هایی که فاقد دستگاه اعداد تصادفی هستند مشخص می‌کند.
+عموماً همراه با
+\fIprngd\fR
+یا
+\fIegd\fR
+به کار می‌رود.
+.sp
+این گزینه تنها توسط کتابخانه‌های OpenLDAP پشتیبانی می‌شود.
+.TP 6n
+\fBURI\fR \fIldap[s]://[hostname[:port]] ...\fR
+فهرستی از یک یا چند URI جداشده با فاصله را که سرور(های) LDAP مورد اتصال را توصیف می‌کنند مشخص می‌سازد.
+پروتکل
+\fIprotocol\fR
+می‌تواند
+\fIldap\fR
+یا
+\fIldaps\fR
+باشد، که دومی برای سرورهایی است که از رمزنگاری TLS (SSL) پشتیبانی می‌کنند.
+اگر هیچ پورتی مشخص نشده باشد، پورت پیش‌فرض ۳۸۹ برای
+\(oqldap://\(cq
+یا ۶۳۶ برای
+\(oqldaps://\(cq
+است.
+اگر هیچ نام میزبانی مشخص نشود،
+\fBsudo\fR
+به
+\fIlocalhost\fR
+متصل خواهد شد.
+خطوط متعدد
+\fBURI\fR
+دقیقاً مشابه با یک خط
+\fBURI\fR
+حاوی چندین ورودی رفتار می‌کنند.
+تنها سیستم‌هایی که از کتابخانه‌های OpenSSL استفاده می‌کنند از ترکیب URIهای
+\(oqldap://\(cq
+و
+\(oqldaps://\(cq
+پشتیبانی می‌نمایند.
+هر دو کتابخانه مشتق از Netscape و IBM LDAP که در بیشتر نسخه‌های تجاری یونیکس استفاده می‌شوند تنها قادر به پشتیبانی از یکی از آن‌ها هستند.
+.TP 6n
+\fBUSE_SASL\fR \fIon/true/yes/off/false/no\fR
+گزینه
+\fBUSE_SASL\fR
+را برای سرورهای LDAP که از احراز هویت SASL پشتیبانی می‌کنند فعال کنید.
+.TP 6n
+\fBROOTSASL_AUTH_ID\fR \fIidentity\fR
+نام کاربری SASL برای استفاده هنگامی که
+\fBROOTUSE_SASL\fR
+فعال باشد.
+.PP
+مدخل
+\fIldap.conf\fR
+در بخش
+\fIمثال‌ها (EXAMPLES)\fR
+را ببینید.
+.SS "پیکربندی nsswitch.conf (Configuring nsswitch.conf)"
+مگر در مواردی که در زمان ساخت برنامه غیرفعال شده باشد،
+\fBsudo\fR
+فایل Name Service Switch یعنی
+\fI/etc/nsswitch.conf\fR
+را برای تعیین ترتیب جستجوی
+\fIsudoers\fR
+بررسی می‌کند.
+دستور sudo به دنبال خطی می‌گردد که با
+\fIsudoers\fR:
+آغاز شود و از آن برای تعیین ترتیب جستجو استفاده می‌کند.
+به طور پیش‌فرض،
+\fBsudo\fR
+پس از اولین تطبیق جستجو را متوقف نمی‌کند و تطبیق‌های بعدی بر تطبیق‌های قبلی ارجحیت دارند (مگر اینکه از
+\(oq[SUCCESS=return]\(cq
+استفاده شود، به پایین مراجعه کنید).
+منابع زیر شناسایی می‌شوند:
+.PP
+.RS 4n
+.PD 0
+.TP 7n
+files
+خواندن قوانین sudoers از
+\fI/etc/sudoers\fR
+.TP 7n
+ldap
+خواندن قوانین sudoers از LDAP
+.RE
+.PD
+.PP
+علاوه بر این، زیرمجموعه‌ای از دستورات عملیاتی به سبک
+\fInsswitch.conf\fR
+پشتیبانی می‌شوند، به ویژه
+\(oq[SUCCESS=return]\(cq
+و
+\(oq[NOTFOUND=return]\(cq.
+این عبارات جستجو را بدون قید و شرط پایان می‌دهند اگر کاربر در منبع بلافاصله قبلی یا پیدا شده باشد
+(\(oq[SUCCESS=return]\(cq)
+یا پیدا نشده باشد
+(\(oq[NOTFOUND=return]\(cq).
+سایر عبارات عملیاتی پشتیبانی نمی‌شوند، و نفی آزمون با علامت
+\(oq!\(cq
+نیز پشتیبانی نمی‌شود.
+.PP
+برای بررسی ابتدا LDAP و سپس فایل sudoers محلی (در صورت وجود)، استفاده کنید از:
+.nf
+.sp
+.RS 4n
+sudoers: ldap files
+.RE
+.fi
+.PP
+برای بررسی LDAP تنها در صورتی که هیچ تطبیقی در فایل sudoers محلی یافت نشد (در صورت وجود)، استفاده کنید از:
+.nf
+.sp
+.RS 4n
+sudoers: files [SUCCESS=return] ldap
+.RE
+.fi
+.PP
+فایل محلی
+\fIsudoers\fR
+می‌تواند با استفاده از خط زیر کاملاً نادیده گرفته شود:
+.nf
+.sp
+.RS 4n
+sudoers: ldap
+.RE
+.fi
+.PP
+اگر فایل
+\fI/etc/nsswitch.conf\fR
+وجود نداشته باشد یا خط sudoers در آن نباشد، پیش‌فرض زیر در نظر گرفته می‌شود:
+.nf
+.sp
+.RS 4n
+sudoers: files
+.RE
+.fi
+.PP
+فایل
+\fI/etc/nsswitch.conf\fR
+حتی در زمانی که سیستم‌عامل زیرین از آن پشتیبانی نمی‌کند نیز توسط sudo پشتیبانی می‌شود، به جز در AIX (به پایین مراجعه کنید).
+.SS "پیکربندی netsvc.conf (Configuring netsvc.conf)"
+در سیستم‌های AIX، فایل
+\fI/etc/netsvc.conf\fR
+به جای
+\fI/etc/nsswitch.conf\fR
+بررسی می‌شود.
+دستور
+\fBsudo\fR
+صرفاً با
+\fInetsvc.conf\fR
+به عنوان گونه‌ای از
+\fInsswitch.conf\fR
+رفتار می‌کند؛
+اطلاعات بخش قبلی که نامرتبط با فرمت خود فایل است همچنان اعمال می‌شود.
+.PP
+برای بررسی ابتدا LDAP و سپس فایل sudoers محلی (در صورت وجود)، استفاده کنید از:
+.nf
+.sp
+.RS 4n
+sudoers = ldap, files
+.RE
+.fi
+.PP
+فایل محلی
+\fIsudoers\fR
+می‌تواند با استفاده از خط زیر کاملاً نادیده گرفته شود:
+.nf
+.sp
+.RS 4n
+sudoers = ldap
+.RE
+.fi
+.PP
+برای اینکه LDAP مرجع قطعی در نظر گرفته شود و فایل sudoers محلی تنها در صورت عدم حضور کاربر در LDAP استفاده شود، استفاده کنید از:
+.nf
+.sp
+.RS 4n
+sudoers = ldap = auth, files
+.RE
+.fi
+.PP
+در مثال فوق، قید
+\fIauth\fR
+تنها بر جستجوی کاربران تأثیر می‌گذارد؛ هم LDAP و هم
+\fIsudoers\fR
+برای ورودی‌های
+\fIDefaults\fR
+استعلام خواهند شد.
+.PP
+اگر فایل
+\fI/etc/netsvc.conf\fR
+وجود نداشته باشد یا خط sudoers وجود نداشته باشد، پیش‌فرض زیر در نظر گرفته می‌شود:
+.nf
+.sp
+.RS 4n
+sudoers = files
+.RE
+.fi
+.SS "یکپارچه‌سازی با sssd (Integration with sssd)"
+در سیستم‌هایی که دارای دیمن خدمات امنیتی سیستم
+\fISystem Security Services Daemon\fR
+(SSSD) هستند و
+\fBsudo\fR
+با پشتیبانی از SSSD ساخته شده است، می‌توان از SSSD برای کش کردن قوانین LDAP
+\fIsudoers\fR
+استفاده کرد.
+برای استفاده از SSSD به عنوان منبع
+\fIsudoers\fR،
+باید از
+\fIsss\fR
+به جای
+\fIldap\fR
+برای ورودی sudoers در
+\fI/etc/nsswitch.conf\fR
+استفاده کنید.
+فایل
+\fI/etc/openldap/ldap.conf\fR
+توسط بک‌اند SSSD در
+\fBsudo\fR
+استفاده نمی‌شود.
+برای اطلاعات بیشتر در مورد پیکربندی
+\fBsudo\fR
+جهت کار با SSSD به
+sssd-sudo(5)
+مراجعه نمایید.
+.SH "فایل‌ها (FILES)"
+.TP 26n
+\fI/etc/openldap/ldap.conf\fR
+فایل پیکربندی LDAP
+.TP 26n
+\fI/etc/nsswitch.conf\fR
+تعیین‌ترتیب منابع sudoers
+.TP 26n
+\fI/etc/netsvc.conf\fR
+تعیین‌ترتیب منابع sudoers در AIX
+.SH "مثال‌ها (EXAMPLES)"
+.SS "نمونه ldap.conf (Example ldap.conf)"
+.nf
+.RS 2n
+# Either specify one or more URIs or one or more host:port pairs.
+# If neither is specified sudo will default to localhost, port 389.
+#
+#host          ldapserver
+#host          ldapserver1 ldapserver2:390
+#
+# Default port if host is specified without one, defaults to 389.
+#port          389
+#
+# URI will override the host and port settings.
+uri            ldap://ldapserver
+#uri            ldaps://secureldapserver
+#uri            ldaps://secureldapserver ldap://ldapserver
+#
+# The amount of time, in seconds, to wait while trying to connect to
+# an LDAP server.
+bind_timelimit 30
+#
+# The amount of time, in seconds, to wait while performing an LDAP query.
+timelimit 30
+#
+# Must be set or sudo will ignore LDAP; may be specified multiple times.
+sudoers_base   ou=SUDOers,dc=my-domain,dc=com
+#
+# verbose sudoers matching from ldap
+#sudoers_debug 2
+#
+# Enable support for time-based entries in sudoers.
+#sudoers_timed yes
+#
+# optional proxy credentials
+#binddn        <who to search as>
+#bindpw        <password>
+#rootbinddn    <who to search as, uses /etc/ldap.secret for bindpw>
+#
+# LDAP protocol version, defaults to 3
+#ldap_version 3
+#
+# Define if you want to use an encrypted LDAP connection.
+# Typically, you must also set the port to 636 (ldaps).
+#ssl on
+#
+# Define if you want to use port 389 and switch to
+# encryption before the bind credentials are sent.
+# Only supported by LDAP servers that support the start_tls
+# extension such as OpenLDAP.
+#ssl start_tls
+#
+# Additional TLS options follow that allow tweaking of the
+# SSL/TLS connection.
+#
+#tls_checkpeer yes # verify server SSL certificate
+#tls_checkpeer no  # ignore server SSL certificate
+#
+# If you enable tls_checkpeer, specify either tls_cacertfile
+# or tls_cacertdir.  Only supported when using OpenLDAP.
+#
+#tls_cacertfile /etc/certs/trusted_signers.pem
+#tls_cacertdir  /etc/certs
+#
+# For systems that don't have /dev/random
+# use this along with PRNGD or EGD.pl to seed the
+# random number pool to generate cryptographic session keys.
+# Only supported when using OpenLDAP.
+#
+#tls_randfile /etc/egd-pool
+#
+# You may restrict which ciphers are used.  Consult your SSL
+# documentation for which options go here.
+# Only supported when using OpenLDAP.
+#
+#tls_ciphers <cipher-list>
+#
+# Sudo can provide a client certificate when communicating to
+# the LDAP server.
+# Tips:
+#   * Enable both lines at the same time.
+#   * Do not password protect the key file.
+#   * Ensure the keyfile is only readable by root.
+#
+# For OpenLDAP:
+#tls_cert /etc/certs/client_cert.pem
+#tls_key  /etc/certs/client_key.pem
+#
+# For Netscape-derived LDAP, tls_cert and tls_key may specify either
+# a directory, in which case the files in the directory must have the
+# default names (e.g., cert8.db and key4.db), or the path to the cert
+# and key files themselves.  However, a bug in version 5.0 of the LDAP
+# SDK will prevent specific file names from working.  For this reason
+# it is suggested that tls_cert and tls_key be set to a directory,
+# not a file name.
+#
+# The certificate database specified by tls_cert may contain CA certs
+# and/or the client's cert.  If the client's cert is included, tls_key
+# should be specified as well.
+# For backward compatibility, "sslpath" may be used in place of tls_cert.
+#tls_cert /var/ldap
+#tls_key /var/ldap
+#
+# If using SASL authentication for LDAP (OpenSSL)
+# use_sasl yes
+# sasl_auth_id <SASL user name>
+# rootuse_sasl yes
+# rootsasl_auth_id <SASL user name for root access>
+# sasl_secprops none
+# krb5_ccname /etc/.ldapcache
+.RE
+.fi
+.SS "طرحواره Sudoers برای OpenLDAP (Sudoers schema for OpenLDAP)"
+طرحواره زیر، در قالب OpenLDAP، در توزیع‌های سورس و باینری
+\fBsudo\fR
+تحت عنوان
+\fIschema.OpenLDAP\fR
+گنجانده شده است.
+کافی است آن را در دایرکتوری طرحواره‌ها (مانند
+\fI/etc/openldap/schema\fR)
+کپی کرده، خط
+\fIinclude\fR
+مناسب را در
+\fIslapd.conf\fR
+اضافه نموده و
+\fBslapd\fR
+را مجدداً راه‌اندازی کنید.
+سایت‌هایی که از پیکربندی برخط اختیاری پشتیبانی‌شده توسط OpenLDAP نسخه ۲.۳ و بالاتر استفاده می‌کنند باید به جای آن از فایل
+\fIschema.olcSudo\fR
+استفاده کنند.
+.nf
+.sp
+.RS 2n
+attributetype ( 1.3.6.1.4.1.15953.9.1.1
+   NAME 'sudoUser'
+   DESC 'User(s) who may  run sudo'
+   EQUALITY caseExactMatch
+   SUBSTR caseExactSubstringsMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.2
+   NAME 'sudoHost'
+   DESC 'Host(s) who may run sudo'
+   EQUALITY caseExactIA5Match
+   SUBSTR caseExactIA5SubstringsMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.3
+   NAME 'sudoCommand'
+   DESC 'Command(s) to be executed by sudo'
+   EQUALITY caseExactIA5Match
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.4
+   NAME 'sudoRunAs'
+   DESC 'User(s) impersonated by sudo'
+   EQUALITY caseExactIA5Match
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.5
+   NAME 'sudoOption'
+   DESC 'Options(s) followed by sudo'
+   EQUALITY caseExactIA5Match
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.6
+   NAME 'sudoRunAsUser'
+   DESC 'User(s) impersonated by sudo'
+   EQUALITY caseExactMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.7
+   NAME 'sudoRunAsGroup'
+   DESC 'Group(s) impersonated by sudo'
+   EQUALITY caseExactMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.8
+   NAME 'sudoNotBefore'
+   DESC 'Start of time interval for which the entry is valid'
+   EQUALITY generalizedTimeMatch
+   ORDERING generalizedTimeOrderingMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.9
+   NAME 'sudoNotAfter'
+   DESC 'End of time interval for which the entry is valid'
+   EQUALITY generalizedTimeMatch
+   ORDERING generalizedTimeOrderingMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 )
+
+attributetype ( 1.3.6.1.4.1.15953.9.1.10
+   NAME 'sudoOrder'
+   DESC 'an integer to order the sudoRole entries'
+   EQUALITY integerMatch
+   ORDERING integerOrderingMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 )
+
+objectclass ( 1.3.6.1.4.1.15953.9.2.1 NAME 'sudoRole' SUP top STRUCTURAL
+   DESC 'Sudoer Entries'
+   MUST ( cn )
+   MAY ( sudoUser $ sudoHost $ sudoCommand $ sudoRunAs $ sudoRunAsUser $
+         sudoRunAsGroup $ sudoOption $ sudoNotBefore $ sudoNotAfter $
+         sudoOrder $ description )
+   )
+.RE
+.fi
+.SH "همچنین ببینید (SEE ALSO)"
+cvtsudoers(1),
+ldap.conf(5),
+sssd-sudo(5),
+sudo.conf(5),
+sudoers(5)
+.SH "نویسندگان (AUTHORS)"
+افراد بسیاری در طول سال‌ها روی
+\fBsudo\fR
+کار کرده‌اند؛ این نسخه از کدهایی تشکیل شده که اصولاً توسط شخص زیر نوشته شده است:
+.sp
+.RS 6n
+Todd C. Miller
+.RE
+.PP
+برای مشاهده فهرست کامل افرادی که در پروژه
+\fBsudo\fR
+مشارکت داشته‌اند، فایل CONTRIBUTORS.md را در توزیع
+\fBsudo\fR
+(https://www.sudo.ws/about/contributors)
+ببینید.
+.SH "هشدارها (CAVEATS)"
+تفاوت‌هایی در نحوه تجزیه
+\fIsudoers\fR
+مبتنی بر LDAP در مقایسه با
+\fIsudoers\fR
+مبتنی بر فایل وجود دارد.
+برای اطلاعات بیشتر بخش
+\fIتفاوت‌های میان sudoers مبتنی بر LDAP و فایل معمولی\fR
+را مشاهده نمایید.
+.SH "گزارش اشکالات (BUGS)"
+اگر فکر می‌کنید اشکالی در
+\fBsudoers.ldap\fR
+پیدا کرده‌اید، می‌توانید یک گزارش اشکال در پایگاه داده باگ‌های sudo به نشانی
+https://bugzilla.sudo.ws
+ثبت کنید، یا یک issue در
+https://github.com/sudo-project/sudo/issues
+باز نمایید.
+اگر ترجیح می‌دهید از ایمیل استفاده کنید، پیام‌ها می‌توانند به فهرست پستی sudo-workers به نشانی
+https://www.sudo.ws/mailman/listinfo/sudo-workers
+(عمومی) یا <sudo@sudo.ws> (خصوصی) ارسال شوند.
+.PP
+لطفاً آسیب‌پذیری‌های امنیتی را از طریق issueهای عمومی گیت‌هاب، Bugzilla یا فهرست‌های پستی گزارش نکنید.
+در عوض، آن‌ها را از طریق ایمیل به <Todd.Miller@sudo.ws> ارسال نمایید.
+در صورت تمایل می‌توانید پیام خود را با استفاده از کلید موجود در
+https://www.sudo.ws/dist/PGPKEYS
+با PGP رمزنگاری کنید.
+.SH "پشتیبانی (SUPPORT)"
+پشتیبانی رایگان و محدود از طریق فهرست پستی sudo-users در دسترس است؛ برای عضویت یا جستجو در آرشیوها نشانی
+https://www.sudo.ws/mailman/listinfo/sudo-users
+را مشاهده نمایید.
+.SH "سلب مسئولیت (DISCLAIMER)"
+برنامه
+\fBsudo\fR
+«همان‌گونه که هست» (AS IS) ارائه می‌شود و هرگونه ضمانت صریح یا ضمنی، از جمله، اما نه محدود به، ضمانت‌های ضمنی قابلیت خرید و فروش و تناسب برای یک هدف خاص سلب می‌گردد.
+برای جزئیات کامل، فایل LICENSE.md توزیع‌شده با
+\fBsudo\fR
+یا نشانی
+https://www.sudo.ws/about/license
+را ببینید.

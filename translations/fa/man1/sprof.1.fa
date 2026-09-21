@@ -1,0 +1,269 @@
+.\" Copyright (C) 2014 Michael Kerrisk <mtk.manpages@gmail.com>
+.\"
+.\" SPDX-License-Identifier: Linux-man-pages-copyleft
+.\"
+.TH sprof 1 2024-06-15 "Linux man-pages 6.9.1"
+.SH "نام (NAME)"
+sprof \- پروفایل‌بندی و خواندن داده‌های پروفایل اشیاء اشتراکی
+.SH "خلاصه دستور (SYNOPSIS)"
+.nf
+.BR sprof " [\fIگزینه\fP]... \fIshared-object-path\fP \
+[\fIprofile-data-path\fP]"
+.fi
+.SH "توضیحات (DESCRIPTION)"
+دستور
+.B sprof
+خلاصه‌ای از داده‌های پروفایل شیء اشتراکی (کتابخانه اشتراکی) مشخص‌شده در نخستین آرگومان خط فرمان را نمایش می‌دهد.
+این خلاصه پروفایل با استفاده از داده‌های پروفایل‌سازی که از پیش تولید شده و در آرگومان خط فرمان دوم (اختیاری) مشخص می‌گردد، ایجاد می‌شود.
+اگر مسیر فایل داده‌های پروفایل حذف شود،
+.B sprof
+تلاش می‌کند با استفاده از soname شیء اشتراکی، آن را استنتاج کرده و در دایرکتوری جاری به دنبال فایلی با نام
+.I <soname>.profile
+بگردد.
+.SH "گزینه‌ها (OPTIONS)"
+گزینه‌های خط فرمان زیر نوع خروجی پروفایل تولیدشده را مشخص می‌کنند:
+.TP
+.B \-\-call\-pairs
+.TQ
+.B \-c
+چاپ فهرستی از جفت‌مسیرهای فراخوانی برای رابط‌های صادرشده توسط شیء اشتراکی، همراه با تعداد دفعاتی که هر مسیر استفاده شده است.
+.TP
+.B \-\-flat\-profile
+.TQ
+.B \-p
+تولید یک پروفایل تخت (Flat profile) از تمام توابع موجود در شیء تحت نظارت، همراه با تعداد فراخوانی‌ها و تیک‌ها.
+.TP
+.B \-\-graph
+.TQ
+.B \-q
+تولید گراف فراخوانی (Call graph).
+.P
+اگر هیچ‌یک از گزینه‌های بالا مشخص نشود، رفتار پیش‌فرض نمایش یک پروفایل تخت و یک گراف فراخوانی است.
+.P
+گزینه‌های اضافی خط فرمان زیر نیز در دسترس هستند:
+.TP
+.B \-\-help
+.TQ
+.B \-?
+نمایش خلاصه‌ای از گزینه‌ها و آرگومان‌های خط فرمان و خروج.
+.TP
+.B \-\-usage
+نمایش پیام کوتاه نحوه استفاده از دستور و خروج.
+.TP
+.B \-\-version
+.TQ
+.B \-V
+نمایش نسخه برنامه و خروج.
+.SH "استانداردها (STANDARDS)"
+گنو (GNU).
+.SH "مثال‌ها (EXAMPLES)"
+مثال زیر نحوه استفاده از
+.B sprof
+را نشان می‌دهد. این مثال شامل یک برنامه اصلی است که دو تابع را در یک شیء اشتراکی فراخوانی می‌کند.
+نخست، کد برنامه اصلی:
+.P
+.in +4n
+.EX
+$ \fBcat prog.c\fP
+#include <stdlib.h>
+\&
+void x1(void);
+void x2(void);
+\&
+int
+main(int argc, char *argv[])
+{
+    x1();
+    x2();
+    exit(EXIT_SUCCESS);
+}
+.EE
+.in
+.P
+توابع
+.IR x1 ()
+و
+.IR x2 ()
+در فایل منبع زیر تعریف شده‌اند که برای ساخت شیء اشتراکی به کار می‌رود:
+.P
+.in +4n
+.EX
+$ \fBcat libdemo.c\fP
+#include <unistd.h>
+\&
+void
+consumeCpu1(int lim)
+{
+    for (unsigned int j = 0; j < lim; j++)
+	getppid();
+}
+\&
+void
+x1(void) {
+    for (unsigned int j = 0; j < 100; j++)
+	consumeCpu1(200000);
+}
+\&
+void
+consumeCpu2(int lim)
+{
+    for (unsigned int j = 0; j < lim; j++)
+	getppid();
+}
+\&
+void
+x2(void)
+{
+    for (unsigned int j = 0; j < 1000; j++)
+	consumeCpu2(10000);
+}
+.EE
+.in
+.P
+اکنون شیء اشتراکی را با نام واقعی
+.IR libdemo.so.1.0.1
+و با soname معادل
+.IR libdemo.so.1
+می‌سازیم:
+.P
+.in +4n
+.EX
+$ \fBcc \-g \-fPIC \-shared \-Wl,\-soname,libdemo.so.1 \[rs]\fP
+        \fB\-o libdemo.so.1.0.1 libdemo.c\fP
+.EE
+.in
+.P
+سپس پیوندهای نمادین را برای soname کتابخانه و نام پیونددهنده کتابخانه ایجاد می‌کنیم:
+.P
+.in +4n
+.EX
+$ \fBln \-sf libdemo.so.1.0.1 libdemo.so.1\fP
+$ \fBln \-sf libdemo.so.1 libdemo.so\fP
+.EE
+.in
+.P
+سپس برنامه اصلی را کامپایل کرده و آن را به شیء اشتراکی پیوند می‌دهیم، و در ادامه وابستگی‌های پویای برنامه را فهرست می‌کنیم:
+.P
+.in +4n
+.EX
+$ \fBcc \-g \-o prog prog.c \-L. \-ldemo\fP
+$ \fBldd prog\fP
+	linux\-vdso.so.1 =>  (0x00007fff86d66000)
+	libdemo.so.1 => not found
+	libc.so.6 => /lib64/libc.so.6 (0x00007fd4dc138000)
+	/lib64/ld\-linux\-x86\-64.so.2 (0x00007fd4dc51f000)
+.EE
+.in
+.P
+به‌منظور دریافت اطلاعات پروفایل برای شیء اشتراکی، متغیر محیطی
+.B LD_PROFILE
+را با soname کتابخانه مقداردهی می‌کنیم:
+.P
+.in +4n
+.EX
+$ \fBexport LD_PROFILE=libdemo.so.1\fP
+.EE
+.in
+.P
+سپس متغیر محیطی
+.B LD_PROFILE_OUTPUT
+را با مسیر دایرکتوری که خروجی پروفایل باید در آن نوشته شود مشخص کرده و در صورت عدم وجود، آن دایرکتوری را ایجاد می‌کنیم:
+.P
+.in +4n
+.EX
+$ \fBexport LD_PROFILE_OUTPUT=$(pwd)/prof_data\fP
+$ \fBmkdir \-p $LD_PROFILE_OUTPUT\fP
+.EE
+.in
+.P
+متغیر
+.B LD_PROFILE
+باعث می‌شود در صورتی که فایل خروجی از قبل وجود داشته باشد، داده‌های پروفایل به انتهای آن پیوست
+.RI ( append )
+شوند؛ بنابراین مطمئن می‌شویم که هیچ داده پروفایل از قبل وجود نداشته باشد:
+.P
+.in +4n
+.EX
+$ \fBrm \-f $LD_PROFILE_OUTPUT/$LD_PROFILE.profile\fP
+.EE
+.in
+.P
+سپس برنامه را اجرا می‌کنیم تا خروجی پروفایل تولید شود؛ این خروجی در فایلی درون دایرکتوری مشخص‌شده در
+.B LD_PROFILE_OUTPUT
+نوشته می‌شود:
+.P
+.in +4n
+.EX
+$ \fBLD_LIBRARY_PATH=. ./prog\fP
+$ \fBls prof_data\fP
+libdemo.so.1.profile
+.EE
+.in
+.P
+سپس از گزینه
+.B sprof \-p
+برای تولید پروفایل تخت به همراه تعداد فراخوانی‌ها و تیک‌ها استفاده می‌کنیم:
+.P
+.in +4n
+.EX
+$ \fBsprof \-p libdemo.so.1 $LD_PROFILE_OUTPUT/libdemo.so.1.profile\fP
+Flat profile:
+\&
+Each sample counts as 0.01 seconds.
+  %   cumulative   self              self     total
+ time   seconds   seconds    calls  us/call  us/call  name
+ 60.00      0.06     0.06      100   600.00           consumeCpu1
+ 40.00      0.10     0.04     1000    40.00           consumeCpu2
+  0.00      0.10     0.00        1     0.00           x1
+  0.00      0.10     0.00        1     0.00           x2
+.EE
+.in
+.P
+گزینه
+.B sprof \-q
+یک گراف فراخوانی تولید می‌کند:
+.P
+.in +4n
+.EX
+$ \fBsprof \-q libdemo.so.1 $LD_PROFILE_OUTPUT/libdemo.so.1.profile\fP
+\&
+index % time    self  children    called     name
+\&
+                0.00    0.00      100/100         x1 [1]
+[0]    100.0    0.00    0.00      100         consumeCpu1 [0]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+                0.00    0.00        1/1           <UNKNOWN>
+[1]      0.0    0.00    0.00        1         x1 [1]
+                0.00    0.00      100/100         consumeCpu1 [0]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+                0.00    0.00     1000/1000        x2 [3]
+[2]      0.0    0.00    0.00     1000         consumeCpu2 [2]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+                0.00    0.00        1/1           <UNKNOWN>
+[3]      0.0    0.00    0.00        1         x2 [3]
+                0.00    0.00     1000/1000        consumeCpu2 [2]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+.EE
+.in
+.P
+در بالا و پایین، رشته‌های "<UNKNOWN>" نشان‌دهنده شناسه‌هایی هستند که خارج از شیء پروفایل‌شده قرار دارند (در این مثال، این موارد نمونه‌هایی از
+.IR main()
+هستند).
+.P
+گزینه
+.B sprof \-c
+فهرستی از جفت‌های فراخوانی و تعداد رخدادهای آن‌ها را تولید می‌کند:
+.P
+.in +4n
+.EX
+$ \fBsprof \-c libdemo.so.1 $LD_PROFILE_OUTPUT/libdemo.so.1.profile\fP
+<UNKNOWN>                  x1                                 1
+x1                         consumeCpu1                      100
+<UNKNOWN>                  x2                                 1
+x2                         consumeCpu2                     1000
+.EE
+.in
+.SH "همچنین ببینید (SEE ALSO)"
+.BR gprof (1),
+.BR ldd (1),
+.BR ld.so (8)

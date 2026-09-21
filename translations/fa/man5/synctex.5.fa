@@ -1,0 +1,369 @@
+.Dd Aug 30, 2022
+.Dt SYNCTEX 5
+.Os "Independent"
+.\"
+.\"
+.Sh "نام (NAME)"
+.Nm synctex
+.Nd پرونده کمکی فناوری همگام‌سازی تک (Synchronize TeXnology)
+.\"
+.\"
+.Sh "توضیحات (DESCRIPTION)"
+پرونده‌های کمکی فناوری همگام‌سازی تک (Synchronize TeXnology help files)
+.Pq synctexs
+پرونده‌های متنی هستند که به همگام‌سازی ورودی/خروجی در طول آماده‌سازی سند با سامانه حروف‌چینی TeX کمک می‌کنند.
+.Sh "مفاهیم پایه (BASICS)"
+ساختار این پرونده نباید عمومی تلقی شود، به این معنا که هیچ‌کس نباید نیازی به تجزیه محتویات آن داشته باشد، مگر ابزار خط فرمان synctex و کتابخانه synctex_parser که هر دو به صورت عمومی در دسترس هستند. مگر در مواردی که کاملاً اجتناب‌ناپذیر باشد، دسترسی به محتویات پرونده synctex تنها باید از طریق درخواست‌ها به ابزار خط فرمان synctex انجام گیرد.
+.\"
+.Sh "ساختار (STRUCTURE)"
+ساختار عناصر یک پرونده synctex فهرستی از رکوردهای خط متنی به شرح زیر است.
+علامت‌های
+.Sq \&* ,
+.Sq \&+ ,
+و
+.Sq \&?
+معانی متداول خود در EBNF را دارند:
+.Sq \&*
+به معنای صفر یا بیشتر،
+.Sq \&+
+به معنای یک یا بیشتر، و
+.Sq \&?
+به معنای صفر یا یک
+.Pq یعنی اختیاری
+است.
+.Pp
+.Bl -item -offset indent
+.\"
+.It
+.Li <SyncTeX> ::=
+.Pq کل محتوا در ۴ بخش
+.Bl -item -offset indent
+.It
+.Li <دیباچه (Preamble)>
+.It
+.Li <محتوا (Content)>
+.It
+.Li <مؤخره (Postamble)>
+.It
+.Li <پی‌نوشت (Post Scriptum)>
+.El
+.\"
+.El
+.Pp
+هر بخش با نخستین وقوع یک خط بخش‌بندی آغاز می‌شود و با بخش بعدی، در صورت وجود، به پایان می‌رسد.
+در تعاریف زیر، شرایط پایان بخش ذکر نشده است.
+.Sh "دیباچه (The preamble)"
+.Bl -item -offset indent
+.\"
+.It
+.Li <Preamble> ::=
+.Bl -item -offset indent
+.It
+.Qq SyncTeX Version:
+<Version Number> <EOL>
+.It
+.Li <Input Line>*
+.It
+.Qq Magnification:
+<TeX magnification> <EOL>
+.It
+.Qq Unit:
+<unit in scaled point> <EOL>
+.It
+.Qq X Offset:
+<horizontal offset in scaled point> <EOL>
+.It
+.Qq Y Offset:
+<vertical offset in scaled point> <EOL>
+.El
+.It
+.Li <Input Line> ::=
+.Qq Input:
+<tag>
+.Qq \&:
+<File Name> <EOL>
+.\"
+.El
+.Sh "محتوا (The content)"
+.Bl -item -offset indent
+.It
+.Li <Content> ::=
+.Bl -item -offset indent
+.It
+.Li <byte offset record>
+.It
+.Qq Content:
+<EOL>
+.It
+.Li (<Form(k)>|<Input Line>)*
+.It
+.Li <sheet(1)>
+.It
+.Li (<Form(k)>|<Input Line>)*
+.It
+.Li <sheet(2)>
+.It
+.Li (<Form(k)>|<Input Line>)*
+.It
+.Li ...
+.It
+.Li <sheet(N)>
+.It
+.Li (<Form(k)>|<Input Line>)*
+.El
+.It
+.Li <byte offset record> ::=
+.Qq \&!
+<byte offset> <end of record>
+.Pp
+.El
+.Pp
+.Bl -item -offset indent
+.It
+.Li <sheet(n)> ::=
+.Bl -item -offset indent
+.It
+.Li <byte offset record>
+.It
+.Qq \&{
+<the integer n> <end of record>
+.It
+.Li <vbox section>|<hbox section>
+.It
+.Li <byte offset record>
+.It
+.Qq \&}
+<the integer n> <end of record>
+.El
+.It
+.Li <Form> ::=
+.Bl -item -offset indent
+.It
+.Li <byte offset record>
+.It
+.Qq \&<
+<form tag> <end of record>
+.It
+.Li <vbox section>|<hbox section>
+.It
+.Li <byte offset record>
+.It
+.Qq \&>
+<end of record>
+.El
+.It
+.Li <form tag> ::= <integer>
+.El
+.Pp
+فرم‌ها در pdfTeX در دسترس هستند.
+تمام اعداد اعدادی صحیح هستند که با نمایش ده‌دهی در محلی‌سازی "C" کدگذاری شده‌اند.
+عبارت <box content> آنچه را که درون یک جعبه است توصیف می‌کند.
+این جعبه یا یک جعبه عمودی (vbox) یا افقی (hbox) است،
+همراه با رکوردهایی مرتبط با گره‌های glue، kern یا ریاضی.
+.Bl -item -offset indent
+.It
+.Li <box content> ::=
+.Bl -item -offset indent
+.It
+.Li <vbox section>|<hbox section>
+.It
+.Li |<void vbox record>|<void hbox record>
+.It
+.Li |<current record>|<glue record>|<kern record>
+.It
+.Li |<math record>|<form ref record>|<Form>
+.El
+.It
+.Li <vbox section> ::=
+.Bl -item -offset indent
+.It
+.Qq \&[
+<link>
+.Qq \&:
+<point>
+.Qq \&:
+<size> <end of record>
+.It
+.Li <box content>*
+.It
+.Qq \&]
+<end of record>
+.El
+.It
+.Li <hbox section> ::=
+.Bl -item -offset indent
+.It
+.Li \&(
+<link>
+.Qq \&:
+<point>
+.Qq \&:
+<size> <end of record>
+.It
+.Li <box content>*
+.It
+.Qq \&)
+<end of record>
+.El
+.El
+.Pp
+جعبه‌های خالی (Void boxes):
+.Bl -item -offset indent
+.It
+.Li <void vbox record> ::=
+.Qq v
+<link>
+.Qq \&:
+<point>
+.Qq \&:
+<size> <end of record>
+.It
+.Li <void hbox record> ::=
+.Qq h
+<link>
+.Qq \&:
+<point>
+.Qq \&:
+<size> <end of record>
+.It
+.Li <link> ::= <tag>
+.Qq \&,
+<line>(
+.Qq \&,
+<column>)?
+.It
+.Li <point> ::= <full point>|<compressed point>
+.It
+.Li <full point> ::=
+<integer>
+.Qq \&,
+<integer>
+.It
+.Li <compressed point> ::=
+<integer>
+.Qq \&,=
+.It
+.Li <line> ::= <integer>
+.It
+.Li <column> ::= <integer>
+.It
+.Li <size> ::= <Width>
+.Qq \&,
+<Height>
+.Qq \&,
+<Depth>
+.It
+.Li <Width> ::= <integer>
+.It
+.Li <Height> ::= <integer>
+.It
+.Li <Depth> ::= <integer>
+.El
+.Pp
+رکوردهای بعدی رکوردهای تک‌خطی پایه‌ای هستند.
+.Bl -item -offset indent
+.It
+.Li <current record> ::=
+.Qq x
+<link>
+.Qq \&:
+<point> <end of record>
+.It
+.Li <kern record> ::=
+.Qq k
+<link>
+.Qq \&:
+<point>
+.Qq \&:
+<Width> <end of record>
+.It
+.Li <glue record> ::=
+.Qq g
+<link>
+.Qq \&:
+<point> <end of record>
+.It
+.Li <math record> ::=
+.Qq $
+<link>
+.Qq \&:
+<point> <end of record>
+.It
+.Li <form ref record> ::=
+.Qq f
+<form tag>
+.Qq \&:
+<point> <end of record>
+.El
+.Pp
+.\" .Sx underline, .Dq double quotes, .Pq enclosed in parenthesis
+.Sh "مؤخره (The postamble)"
+مؤخره پرونده را می‌بندد.
+اگر مؤخره‌ای وجود نداشته باشد، به این معنی است که فرآیند حروف‌چینی به درستی پایان نیافته است.
+.Bl -item -offset indent
+.\"
+.It
+.Li <Postamble>::=
+.Bl -item -offset indent
+.It
+.Li <byte offset record>
+.It
+.Qq Count:
+<Number of records> <EOL>
+.El
+.El
+.Sh "پی‌نوشت (The post scriptum)"
+پی‌نوشت حاوی مطالبی است که احتمالاً توسط اشخاص ثالث اضافه شده‌اند.
+این بخش امکان پیوست کردن برخی تبدیل‌ها (انتقال و بزرگ‌نمایی) را فراهم می‌کند.
+به طور معمول، شخصی فیلتر dvi به pdf را با گزینه‌های افست و بزرگ‌نمایی اعمال می‌کند،
+سپس همان گزینه‌ها را به پرونده synctex پیوست می‌کند، برای نمونه:
+.Bd -literal -offset indent
+synctex update -o foo.pdf -m 0.486 -x 9472573sp -y 13.3dd source.dvi
+.Ed
+.Bl -item -offset indent
+.\"
+.It
+.Li <Post Scriptum>::=
+.\"
+.Bl -item -offset indent
+.It
+.Li <byte offset record>
+.It
+.Qq Post Scriptum:
+<EOL>
+.It
+.Qq Magnification:
+<number> <EOL>
+.Pq تنظیم بزرگ‌نمایی اضافی
+.It
+.Qq X Offset:
+<dimension> <EOL>
+.Pq تنظیم افست افقی
+.It
+.Qq Y Offset:
+<dimension> <EOL>
+.Pq تنظیم افست عمودی
+.El
+.El
+این اطلاعات دوم جایگزین افست و بزرگ‌نمایی موجود در بخش دیباچه خواهند شد.
+تمام اعداد با استفاده از نمایش ده‌دهی در محلی‌سازی "C" کدگذاری شده‌اند.
+.Sh "نحوه استفاده (USAGE)"
+.Pp
+رکورد <current record> برای محاسبه اندازه قابل مشاهده hboxها استفاده می‌شود.
+افست بایتی یک تکیه‌گاه ضمنی برای پیمایش پرونده synctex از برگه‌ای به برگه دیگر است. مختصات دوم
+یک نقطه فشرده با یک نویسه
+.Qq =
+جایگزین شده است که نشان می‌دهد این مختصات، مختصات دوم
+آخرین نقطه کامل موجود در سطرهای بالاست.
+.Sh "همچنین ببینید (SEE ALSO)"
+.\" List links in ascending order by section, alphabetically within a section.
+.\" Please do not reference files that do not exist without filing a bug report
+.Xr synctex 1
+.Xr tex 1
+.Sh "نویسندگان (AUTHOR)"
+فناوری همگام‌سازی تک (Synchronize TeXnology) اساساً توسط Jerome Laurens
+با پیشنهادهای مفید برخی از افراد سرشناس دنیای TeX توسعه یافته است.
+.\" .Sh BUGS              \" Document known, unremedied bugs
+SyncTeX به عنوان بخشی از TeX Live نگهداری می‌شود.
+.Sh "تاریخچه (HISTORY)"
+این سند در Sat Apr 22 09:57:20 UTC 2017 برای گنجاندن پشتیبانی از \\pdfxform به‌روزرسانی شده است.

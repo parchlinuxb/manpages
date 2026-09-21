@@ -1,0 +1,128 @@
+.TH XTABLES-MONITOR 8 "" "iptables 1.8.11" "iptables 1.8.11"
+.SH "نام (NAME)"
+xtables-monitor \- مانیتورینگ تغییرات جداول و رویدادهای قوانین iptables/nftables
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBxtables\-monitor\fR [\fB\-t\fR] [\fB\-e\fR] [\fB\-4\fR|\fB\-6\fR]
+.PP
+.SH "توضیحات (DESCRIPTION)"
+.PP
+دستور
+.B xtables\-monitor
+برای پایش تغییرات مجموعه قوانین یا نمایش رویدادهای ارزیابی قوانین برای بسته‌های نشانه‌گذاری‌شده با هدف
+.B TRACE
+به کار می‌رود.
+.B xtables\-monitor
+تا زمانی که کاربر اجرای آن را متوقف نکند (معمولاً با استفاده از
+.BR CTRL\-C )،
+همچنان به اجرا ادامه می‌دهد.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB\-e\fR, \fB\-\-event\fR
+پایش به‌روزرسانی‌های مجموعه قوانین.
+به‌روزرسانی‌ها شامل ایجاد جدول‌ها، زنجیره‌ها و قوانین جدید و نام برنامه‌ای هستند که موجب به‌روزرسانی قانون شده است.
+.TP
+\fB\-t\fR, \fB\-\-trace\fR
+پایش رویدادهای ردیابی (trace) تولیدشده توسط بسته‌هایی که با استفاده از هدف
+.B TRACE
+نشانه‌گذاری شده‌اند.
+.TP
+\fB\-4\fR
+محدود کردن خروجی به IPv4.
+.TP
+\fB\-6\fR
+محدود کردن خروجی به IPv6.
+.SH "مثال‌ها (EXAMPLES)"
+.TP
+.B xtables\-monitor \-\-trace
+.PP
+.nf
+ 1 TRACE: 2 fc475095 raw:PREROUTING:rule:0x3:CONTINUE \-4 \-t raw \-A PREROUTING \-p icmp \-j TRACE
+ 2 PACKET: 0 fc475095 IN=lo LL=0x304 0000000000000000000000000800 SRC=127.0.0.1 DST=127.0.0.1 LEN=84 TOS=0x0 TTL=64 ID=38349DF
+ 3 TRACE: 2 fc475095 raw:PREROUTING:return:
+ 4 TRACE: 2 fc475095 raw:PREROUTING:policy:ACCEPT
+ 5 TRACE: 2 fc475095 filter:INPUT:return:
+ 6 TRACE: 2 fc475095 filter:INPUT:policy:DROP
+ 7 TRACE: 2 0df9d3d8 raw:PREROUTING:rule:0x3:CONTINUE \-4 \-t raw \-A PREROUTING \-p icmp \-j TRACE
+.fi
+.PP
+خط اول بسته‌ای را نشان می‌دهد که وارد مرحله ارزیابی مجموعه قوانین شده است.
+شماره پروتکل نمایش داده می‌شود (در این مورد
+.BR AF_INET )،
+سپس یک شناسه عددی برای بسته نشان داده می‌شود که امکان مطابقت دادن پیام‌های حاصل از ارزیابی مجموعه قوانین این بسته را فراهم می‌کند. پس از آن، قانونی که با بسته تطبیق یافته نشان داده می‌شود.
+این همان قانون
+.B TRACE
+است که رویدادهای ردیابی را برای این بسته فعال می‌کند.
+.PP
+خط دوم اطلاعات مربوط به بسته را تخلیه (dump) می‌کند. رابط ورودی و هدرهای بسته مانند آدرس‌های مبدأ و مقصد نمایش داده می‌شوند.
+.PP
+خط سوم نشان می‌دهد که بسته، پیمایش زنجیره
+.B PREROUTING
+از جدول
+.B raw
+را کامل کرده و در حال بازگشت است، و به دنبال آن سیاست زنجیره (chain policy) برای تصمیم‌گیری در مورد پذیرش یا رد (accept/drop) اعمال می‌شود (این مثال نشان می‌دهد که تصمیم پذیرش اعمال شده است).
+خط پنجم نشان می‌دهد که بسته از زنجیره
+.B INPUT
+جدول
+.B filter
+خارج می‌شود، یعنی هیچ قانونی در زنجیره
+.B INPUT
+جدول
+.B filter
+با بسته تطبیق نیافته است.
+سپس بسته طبق سیاست جدول
+.B INPUT
+دور انداخته می‌شود (DROPPED)، همان‌طور که در خط ششم نشان داده شده است.
+خط پایانی رسیدن بسته‌ای دیگر را نشان می‌دهد \- شناسه بسته متفاوت است.
+.PP
+هنگام استفاده از هدف
+.BR TRACE ،
+معمولاً بهتر است فقط بسته‌های مرتبط را انتخاب کنید، برای نمونه از طریق:
+.nf
+iptables \-t raw \-A PREROUTING \-p tcp \-\-dport 80 \-\-syn \-m limit \-\-limit 1/s \-j TRACE
+.fi
+.TP
+.B xtables\-monitor \-\-event
+.PP
+.nf
+  1 EVENT: nft: NEW table: table filter ip flags 0 use 4 handle 444
+  2 EVENT: # nft: ip filter INPUT use 2 type filter hook input prio 0 policy drop packets 0 bytes 0
+  3 EVENT: # nft: ip filter FORWARD use 0 type filter hook forward prio 0 policy accept packets 0 bytes 0
+  4 EVENT: # nft: ip filter OUTPUT use 0 type filter hook output prio 0 policy accept packets 0 bytes 0
+  5 EVENT: \-4 \-t filter \-N TCP
+  6 EVENT: \-4 \-t filter \-A TCP \-s 192.168.0.0/16 \-p tcp \-m tcp \-\-dport 22 \-j ACCEPT
+  7 EVENT: \-4 \-t filter \-A TCP \-p tcp \-m multiport \-\-dports 80,443 \-j ACCEPT
+  8 EVENT: \-4 \-t filter \-A INPUT \-p tcp \-j TCP
+  9 EVENT: \-4 \-t filter \-A INPUT \-m conntrack \-\-ctstate RELATED,ESTABLISHED \-j ACCEPT
+ 10 NEWGEN: GENID=13904 PID=25167 NAME=iptables-nftables-restore
+.fi
+.PP
+این مثال پایش رویدادها را نشان می‌دهد. خط اول ایجاد یک جدول (در این مورد
+.BR filter )
+و به دنبال آن سه قلاب (hook) پایه
+.BR INPUT ،
+.B FORWARD
+و
+.B OUTPUT
+را نشان می‌دهد. ابزارهای
+.B iptables\-nftables
+در صورت نیاز تمامی جدول‌ها و زنجیره‌های پایه را به‌طور خودکار ایجاد می‌کنند، بنابراین این رفتار در شرایطی که یک جدول هنوز مقداردهی اولیه نشده باشد یا زمانی که از ابتدا توسط
+.B iptables\-nftables\-restore
+دوباره ساخته شود، مورد انتظار است. خط پنجم افزوده شدن یک زنجیره جدید تعریف‌شده توسط کاربر
+.RB ( TCP )
+را نشان می‌دهد که در ادامه چند قانون به آن اضافه می‌شود. خط پایانی نشان می‌دهد که نسل جدیدی از مجموعه قوانین فعال شده است؛ یعنی تغییرات مجموعه قوانین اکنون اعمال شده‌اند. همچنین شناسه فرآیند و نام برنامه نیز فهرست شده است.
+.SH "محدودیت‌ها (LIMITATIONS)"
+دستور
+.B xtables\-monitor
+تنها با قوانینی کار می‌کند که با استفاده از
+.B iptables\-nftables
+اضافه شده باشند؛ قوانینی که با استفاده از
+.B iptables\-legacy
+اضافه شده باشند قابل پایش نیستند.
+.SH "اشکالات (BUGS)"
+اشکالات باید یا با ارسال ایمیل به
+.I netfilter\-devel@vger.kernel.org
+یا با ثبت گزارش در نشانی
+.B https://bugzilla.netfilter.org
+گزارش شوند.
+.SH "همچنین ببینید (SEE ALSO)"
+\fBiptables\fR(8), \fBxtables\fR(8), \fBnft\fR(8)

@@ -1,0 +1,91 @@
+.TH "Generic actions in tc" 8 "11 Jan 2023" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-gact \- کنش عمومی در کنترل ترافیک (generic action)
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR tc " ... " "action gact"
+.IR CONTROL " [ " RAND " ] [ " INDEX " ]"
+.ti -8
+.IR CONTROL " := { "
+.BR reclassify " | " drop " | " continue " | " pass " | " pipe " | "
+.br
+.BI "goto chain " "CHAIN_INDEX"
+|
+.br
+.BI "jump " "JUMP_COUNT"
+}
+
+.ti -8
+.IR RAND " := "
+.BI random " RANDTYPE CONTROL VAL"
+.ti -8
+.IR RANDTYPE " := { "
+.BR netrand " | " determ " }"
+.ti -8
+.IR VAL " := عددی که از ۱۰۰۰۰ بیشتر نباشد"
+.ti -8
+.IR JUMP_COUNT " := پرش مطلق از ابتدای فهرست کنش‌ها"
+.ti -8
+.IR INDEX " := مقدار شاخص مورد استفاده"
+
+.SH "توضیحات (DESCRIPTION)"
+کنش
+.B gact
+امکان دسته‌بندی مجدد (reclassify)، دور انداختن (drop)، رد کردن (pass یا pipe) یا پذیرفتن (accept) بسته‌ها را فراهم می‌کند.
+در حال حاضر تنها دو الگوریتم تصادفی‌سازی وجود دارد: یکی قطعی
+.RB ( determ )
+و دیگری با استفاده از مولد تصادفی داخلی هسته
+.RB ( netrand ).
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.BI random " RANDTYPE CONTROL VAL"
+احتمال اجرای کنش را به صورت ۱ بسته از هر
+.I VAL
+بسته مشخص می‌کند.
+
+.TP
+.I CONTROL
+مشخص می‌کند در صورت تطبیق بسته،
+.B tc
+چگونه باید فرآیند را ادامه دهد.
+برای مشاهده شرح مقادیر ممکن برای
+.IR CONTROL ،
+به
+.BR tc-actions (8)
+مراجعه کنید.
+
+.SH "مثال‌ها (EXAMPLES)"
+اعمال یک قاعده روی ترافیک ورودی
+.RB ( ingress )
+برای دور انداختن بسته‌های ارسالی از یک نشانی مبدأ مشخص:
+.RS
+.EX
+# tc filter add dev eth0 parent ffff: protocol ip prio 6 u32 match ip src \
+10.0.0.9/32 flowid 1:16 action drop
+.EE
+.RE
+
+مجوز عبور تصادفی ۱ بسته از هر ۱۰ بسته از مبدأ با استفاده از مولد تصادفی
+.BR netrand :
+.RS
+.EX
+# tc filter add dev eth0 parent ffff: protocol ip prio 6 u32 match ip src \
+10.0.0.9/32 flowid 1:16 action drop random netrand ok 10
+.EE
+.RE
+
+پذیرش قطعی هر دومین بسته (یک بسته در میان):
+.RS
+.EX
+# tc filter add dev eth0 parent ffff: protocol ip prio 6 u32 match ip src \
+10.0.0.9/32 flowid 1:16 action drop random determ ok 2
+.EE
+.RE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-actions (8),
+.BR tc-u32 (8)

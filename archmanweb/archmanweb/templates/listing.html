@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load query_transform %}
+{% load reverse_man_url %}
+{% load pagination_links %}
+
+{% block head %}
+    <meta name="robots" value="noindex">
+{% endblock %}
+
+{% block content %}
+<article id="content-left" class="single-column-content">
+
+<section class="filter-parameters box">
+    <h2>پارامترهای فهرست / Listing parameters</h2>
+
+    <form action="{% url 'listing' %}" class="listing" role="search">
+        {{ listing_form.non_field_errors }}
+        <fieldset>
+            <legend>ورود پارامترهای فهرست</legend>
+            {# fieldset cannot be a flex container: https://stackoverflow.com/q/28078681 #}
+            <div class="flex-container">
+            {% for field in listing_form %}
+            {% if not field.is_hidden %}
+            <div>
+                <label for="{{ field.id_for_label }}" title="{{ field.help_text }}">
+                    {{ field.label }}
+                </label>
+                {{ field }}
+                {{ field.errors }}
+            </div>
+            {% endif %}
+            {% endfor %}
+            <div style="display: flex; align-items: flex-end;">
+                <input title="List manuals satisfying these criteria" type="submit" value="نمایش / Show" class="btn-primary parch-btn" />
+            </div>
+            </div>
+        </fieldset>
+    </form>
+</section>
+
+<section>
+<h2>فهرست صفحات راهنما / Manual pages</h2>
+
+{% if man_pages %}
+    <ul class="multi-column">
+    {% for man in man_pages %}
+        <li>
+            <span class="language-tag">[{{ man.lang }}]</span>
+            {% if pkg %}
+                <a href="{% reverse_man_url pkg.repo pkg.name man.name man.section man.lang '' %}" class="card-title"><span class="cmd-name">{{ man.name }}</span><span class="badge-section">{{ man.section }}</span></a>
+            {% else %}
+                <a href="{% reverse_man_url '' '' man.name man.section man.lang '' %}" class="card-title"><span class="cmd-name">{{ man.name }}</span><span class="badge-section">{{ man.section }}</span></a>
+            {% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>صفحه راهنمایی مطابق با این مشخصات یافت نشد.</p>
+{% endif %}
+
+{% if man_pages.paginator.num_pages != 1 %}
+    <div class="search-pagination">
+        {% pagination_links request man_pages 'page' %}
+    </div>
+{% endif %}
+</section>
+
+{% if pkg and symlinks %}
+    <section>
+    <h2>فهرست پیوندهای نمادین / Symbolic links</h2>
+    <ul class="multi-column">
+    {% for symlink in symlinks %}
+        <li>
+            <span class="language-tag">[{{ symlink.lang }}]</span>
+            <a href="{% reverse_man_url pkg.repo pkg.name symlink.from_name symlink.from_section symlink.lang '' %}" class="card-title"><span class="cmd-name">{{ symlink.from_name }}</span><span class="badge-section">{{ symlink.from_section }}</span></a>
+            <span style="color: var(--parch-text-muted); margin: 0 0.25rem;">&rarr;</span>
+            <a href="{% reverse_man_url '' '' symlink.to_name symlink.to_section symlink.lang '' %}" class="card-title"><span class="cmd-name">{{ symlink.to_name }}</span><span class="badge-section">{{ symlink.to_section }}</span></a>
+        </li>
+    {% endfor %}
+    </ul>
+
+    {% if symlinks.paginator.num_pages != 1 %}
+        <div class="search-pagination">
+            {% pagination_links request symlinks 'page_symlinks' %}
+        </div>
+    {% endif %}
+    </section>
+{% endif %}
+
+</article>
+{% endblock %}

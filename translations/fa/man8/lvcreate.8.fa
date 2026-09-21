@@ -1,0 +1,719 @@
+.\" -*- nroff -*-
+.TH "LVCREATE" "8" "مه ۲۰۲۵" "lvm2" "دستورهای مدیریتی و نگهداری"
+.SH "نام (NAME)"
+lvcreate \- ایجاد یک حجم منطقی جدید در یک گروه حجم LVM
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBlvcreate\fP [\fIگزینهها\fR] \fIگروه_حجم\fR
+.SH "توضیحات (DESCRIPTION)"
+دستور \fBlvcreate\fR یک حجم منطقی (Logical Volume) جدید با نوع معمولی، خطی، نواری (striped)، آینهای (mirror)، RAID، اسنپشات یا حجم پویا (thin provisioned) در گروه حجم مشخصشده ایجاد میکند.
+.PP
+برای حجم‌های منطقی استاندارد، این کار نیازمند تخصیص اکستنت‌های منطقی (Logical Extents یا LE) از اکستنت‌های فیزیکی آزاد (Free Physical Extents یا PE) متعلق به گروه حجم (VG) است. اگر فضای آزاد کافی وجود نداشته باشد، می‌توان گروه حجم را با افزودن حجم‌های فیزیکی (PV) دیگر گسترش داد (\fBvgextend\fP(8))، یا حجم‌های منطقی موجود را کاهش داد یا حذف کرد (\fBlvremove\fP(8)، \fBlvreduce\fP(8)).
+.PP
+جهت تعیین اینکه حجم منطقی جدید از کدام PVها استفاده کند، یک یا چند PV را به عنوان آرگومان‌های مکانی در انتهای خط فرمان مشخص کنید. دستور \fBlvcreate\fR اکستنت‌های فیزیکی را تنها از PVهای مشخص‌شده تخصیص خواهد داد.
+.PP
+همچنین دستور \fBlvcreate\fR می‌تواند از حجم‌های منطقی موجود اسنپ‌شات (snapshot یا نسخه لحظه‌ای) تهیه کند، به عنوان مثال برای مقاصد پشتیبان‌گیری. داده‌های موجود در یک حجم منطقی اسنپ‌شات جدید بیانگر وضعیت محتوای حجم اصلی در زمان گرفته شدن اسنپ‌شات است.
+.PP
+حجم‌های RAID را می‌توان با مشخص کردن نوع حجم هنگام ایجاد آن ساخت (به \fBlvmraid\fP(7) مراجعه کنید). سطوح مختلف RAID نیازمند تعداد مشخصی از PVهای مجزا و در دسترس در گروه حجم هستند.
+.PP
+مخازن پویا (Thin pools برای تخصیص پویای فضا) و مخازن حافظه نهان (Cache pools برای کش کردن) با حجم‌های منطقی ویژه‌ای با انواع \fBthin\-pool\fP و \fBcache\-pool\fP مشخص می‌شوند (به \fBlvmthin\fP(7) و \fBlvmcache\fP(7) مراجعه کنید). حجم‌های مخزن به عنوان دستگاه‌های بلوکی استاندارد قابل استفاده نیستند، بلکه نام آن‌ها به عنوان ارجاعی به مخازن عمل می‌کند.
+.PP
+حجم‌های پویا (Thin LVs) از یک مخزن پویا به صورت پویا تخصیص می‌ابند و به جای اندازه فیزیکی، با یک اندازه مجازی ایجاد می‌شوند. یک حجم کش (Cache LV) تلفیقی از یک حجم استاندارد با یک مخزن کش است که برای نگهداری بخش‌های فعال و پرکاربرد حجم اصلی جهت بهبود کارایی سیستم به کار می‌رود.
+.PP
+حجم‌های VDO نیز حجم‌های تخصیص‌یافته از یک مخزن VDO هستند و با یک اندازه مجازی به جای اندازه فیزیکی ایجاد می‌شوند (به \fBlvmvdo\fP(7) مراجعه کنید).
+.SS "نکات استفاده (Usage notes)"
+در بخش ساختار کاربرد زیر، گزینه
+.BI \-\-size " اندازه"
+را می‌توان با
+.BI \-\-extents " تعداد"
+جایگزین کرد. به توضیحات بخش گزینه‌ها مراجعه فرمایید.
+.PP
+گزینه
+.B \-\-name
+در ساختارهای دستور زیر، با وجود اینکه معمولاً به کار می‌رود، اختیاری در نظر گرفته شده است. هنگامی که نام مشخص نشود، نام حجم منطقی جدید به صورت خودکار با پیشوند «lvol» و یک پسوند عددی یکتا تولید می‌شود.
+.PP
+هنگام ساخت یک مخزن و در صورت تعیین نشدن نام، نام مخزن برای مخازن VDO با پیشوند «vpool» و یک پسوند عددی یکتا ایجاد می‌شود.
+.PP
+نام مخزن را می‌توان همراه با نام گروه حجم نیز تعیین کرد؛ مانند:
+.IR vg00/mythinpool .
+.SH "کاربرد (USAGE)"
+ایجاد یک حجم منطقی خطی (linear):
+.br
+.P
+\fBlvcreate\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-\-type linear\fP ]
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم منطقی نواری (striped):
+.br
+.P
+\fBlvcreate\fP \fB\-i\fP|\fB\-\-stripes\fP \fINumber\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-\-type striped\fP ]
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم raid1 یا آینه‌ای (mirror):
+.br
+.P
+\fBlvcreate\fP \fB\-m\fP|\fB\-\-mirrors\fP \fINumber\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-\-type raid1\fP|\fBmirror\fP ]
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم RAID (تعیین سطح مشخص مانند raid4, raid5, raid6):
+.br
+.P
+\fBlvcreate\fP \fB\-\-type\fP \fBraid\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fB\-i\fP|\fB\-\-stripes\fP \fINumber\fP ]
+[ \fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم raid10:
+.br
+.P
+\fBlvcreate\fP \fB\-\-type raid10\fP \fB\-m\fP|\fB\-\-mirrors\fP \fINumber\fP \fB\-i\fP|\fB\-\-stripes\fP \fINumber\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم اسنپ‌شات کپی هنگام نوشتن (COW snapshot) از یک حجم مبدا:
+.br
+.P
+\fBlvcreate\fP \fB\-s\fP|\fB\-\-snapshot\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP/\fILV\fP
+.RS 4
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک مخزن پویا (thin pool):
+.br
+.P
+\fBlvcreate\fP \fB\-\-type thin\-pool\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+[ \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک مخزن حافظه نهان (cache pool):
+.br
+.P
+\fBlvcreate\fP \fB\-\-type cache\-pool\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT] ]
+[ \fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT] ]
+[ \fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT] ]
+[ \fIگزینه‌های_عمومی\fP ]
+[ \fIPV\fP ... ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم پویا (thin LV) در یک مخزن پویا:
+.br
+.P
+\fBlvcreate\fP \fB\-V\fP|\fB\-\-virtualsize\fP \fISize\fP[m|UNIT] \fB\-\-thinpool\fP \fILV\fP \fIVG\fP
+.RS 4
+[ \fB\-T\fP|\fB\-\-thin\fP ]
+[ \fIگزینه‌های_عمومی\fP ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم پویا که اسنپ‌شاتی از یک حجم پویای موجود است:
+.br
+.P
+\fBlvcreate\fP \fB\-s\fP|\fB\-\-snapshot\fP \fIVG\fP/\fILV\fP
+.RS 4
+[ \fIگزینه‌های_عمومی\fP ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم پویا به عنوان اسنپ‌شات از یک حجم مبدا خارجی:
+.br
+.P
+\fBlvcreate\fP \fB\-s\fP|\fB\-\-snapshot\fP \fB\-\-thinpool\fP \fILV\fP \fIVG\fP/\fILV\fP
+.RS 4
+[ \fIگزینه‌های_عمومی\fP ]
+.RE
+.P
+\(em
+.P
+ایجاد یک حجم منطقی VDO:
+.br
+.P
+\fBlvcreate\fP \fB\-\-vdo\fP \fB\-V\fP|\fB\-\-virtualsize\fP \fISize\fP[m|UNIT] \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP/\fILV\fP
+.RS 4
+[ \fB\-\-compression\fP \fBy\fP|\fBn\fP ]
+[ \fB\-\-deduplication\fP \fBy\fP|\fBn\fP ]
+[ \fIگزینه‌های_عمومی\fP ]
+.RE
+.P
+\(em
+.P
+ایجاد حجم جدید و پیوست کردن مخزن کش به آن (تبدیل به نوع کش):
+.br
+.P
+\fBlvcreate\fP \fB\-\-type cache\fP \fB\-\-cachepool\fP \fILV\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP ]
+[ \fIگزینه‌های_عمومی\fP ]
+.RE
+.P
+\(em
+.P
+ایجاد حجم جدید و پیوست کردن یک حجم کش (cachevol) به آن:
+.br
+.P
+\fBlvcreate\fP \fB\-\-type cache\fP \fB\-\-cachevol\fP \fILV\fP \fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT] \fIVG\fP
+.RS 4
+[ \fIگزینه‌های_عمومی\fP ]
+.RE
+.SH "گزینه‌ها (OPTIONS)"
+.HP
+\fB\-a\fP|\fB\-\-activate\fP \fBy\fP|\fBn\fP|\fBay\fP
+.br
+کنترل وضعیت فعال بودن حجم منطقی جدید.
+مقدار \fBy\fP حجم را فعال و در دسترس قرار می‌دهد. حجم‌های جدید به طور پیش‌فرض فعال ساخته می‌شوند.
+مقدار \fBn\fP در صورت امکان حجم را غیرفعال یا خارج از دسترس می‌سازد. در برخی موارد، ایجاد حجم مستلزم فعال بودن آن است؛ به عنوان نمونه، اسنپ‌شات‌های COW از یک حجم مبدا فعال، تنها می‌توانند در وضعیت فعال ایجاد شوند (این محدودیت برای اسنپ‌شات‌های پویا وجود ندارد). همچنین گزینه \-\-zero معمولاً مستلزم فعال بودن حجم است.
+اگر از فعال‌سازی خودکار \fBay\fP استفاده شود، حجم تنها در صورتی فعال خواهد شد که با مدخلی در تنظیم \fBactivation/auto_activation_volume_list\fP در فایل \fBlvm.conf\fP(5) مطابقت داشته باشد. مقدار \fBay\fP به معنای غیرفعال بودن صفر کردن (\-\-zero n) و عدم پاکسازی امضاها (\-\-wipesignatures n) است.
+برای اطلاعات بیشتر درباره گزینه‌های فعال‌سازی در گروه‌های حجم اشتراکی، به \fBlvmlockd\fP(8) مراجعه کنید.
+.HP
+\fB\-\-addtag\fP \fITag\fP
+.br
+افزودن یک برچسب (Tag) به یک PV، VG یا LV. این گزینه می‌تواند تکرار شود تا چند برچسب به طور همزمان اضافه گردد. برای اطلاعات بیشتر درباره برچسب‌ها به \fBlvm\fP(8) مراجعه نمایید.
+.HP
+.ad
+\fB\-\-alloc\fP \c
+.nh
+\%\fBcontiguous\fP|\:\fBcling\fP|\:\fBcling_by_tags\fP|\:\fBnormal\fP|\:\fBanywhere\fP|\:\fBinherit\fP
+.hy
+.ad
+.br
+تعیین سیاست تخصیص زمانی که دستور نیازمند تخصیص اکستنت‌های فیزیکی (PE) از گروه حجم است. هر VG و LV دارای یک سیاست تخصیص است که می‌توان آن را با vgchange/lvchange تغییر داد یا در خط فرمان بازنویسی کرد.
+مقدار \fBnormal\fP قواعد معمول منطقی را اعمال می‌کند؛ مانند عدم قرار دادن نوارهای موازی روی یک PV یکسان.
+مقدار \fBinherit\fP سیاست گروه حجم را بر حجم منطقی اعمال می‌کند.
+مقدار \fBcontiguous\fP نیازمند این است که PEهای جدید دقیقاً در مجاورت PEهای موجود قرار گیرند.
+مقدار \fBcling\fP اکستنت‌های جدید را روی همان PVای قرار می‌دهد که اکستنت‌های فعلی در همان نوار LV قرار دارند.
+اگر اکستنت‌های فیزیکی کافی برای تخصیص وجود داشته باشد اما سیاست normal آن‌ها را استفاده نکند، مقدار \fBanywhere\fP آن‌ها را به کار می‌گیرد حتی اگر کارایی کاهش یابد (مثلاً با قرار دادن دو نوار روی یک PV یکسان).
+آرگومان‌های مکانی اختیاری PV در خط فرمان نیز می‌توانند برای محدود کردن PVهای مورد استفاده در تخصیص به کار روند. برای اطلاعات بیشتر به \fBlvm\fP(8) مراجعه فرمایید.
+.HP
+\fB\-A\fP|\fB\-\-autobackup\fP \fBy\fP|\fBn\fP
+.br
+تعیین می‌کند که آیا متادیتا پس از اعمال تغییر به طور خودکار پشتیبان‌گیری شود یا خیر. فعال بودن این گزینه اکیداً توصیه می‌شود! برای اطلاعات بیشتر به \fBvgcfgbackup\fP(8) مراجعه کنید.
+.HP
+\fB\-H\fP|\fB\-\-cache\fP
+.br
+مشخص می‌کند که دستور در حال کار با یک حجم منطقی کش یا مخزن کش است. گزینه‌های \-\-type cache و \-\-type cache\-pool را ببینید. برای اطلاعات جامع درباره کش در LVM به \fBlvmcache\fP(7) مراجعه فرمایید.
+.HP
+\fB\-\-cachedevice\fP \fIPV\fP
+.br
+نام دستگاهی که باید برای حافظه نهان (کش) استفاده شود.
+.HP
+\fB\-\-cachemetadataformat\fP \fBauto\fP|\fB1\fP|\fB2\fP
+.br
+قالب متادیتای کش مورد استفاده توسط مقصد کش را مشخص می‌کند.
+.HP
+\fB\-\-cachemode\fP \fBwritethrough\fP|\fBwriteback\fP|\fBpassthrough\fP
+.br
+تعیین می‌کند که چه زمانی عملیات نوشتن در حجم کش، پایان‌یافته تلقی شود.
+حالت \fBwriteback\fP به محض ذخیره داده در مخزن کش، نوشتن را کامل فرض می‌کند.
+حالت \fBwritethrough\fP تنها زمانی نوشتن را کامل در نظر می‌گیرد که هم در مخزن کش و هم در حجم مبدا ذخیره شده باشد؛ این حالت هرچند برای نوشتن کندتر است، اما در صورت بروز نقص در دستگاه مخزن کش، تاب‌آوری بیشتری در برابر خرابی دارد.
+در حالت \fBpassthrough\fP، تمام خواندن‌ها از حجم اصلی انجام می‌شوند (بدون برخورد به کش) و تمام نوشتن‌ها به حجم اصلی هدایت می‌گردند؛ علاوه بر این، اصابت نوشتن به کش موجب باطل شدن بلوک کش می‌شود. به \fBlvmcache\fP(7) مراجعه کنید.
+.HP
+\fB\-\-cachepolicy\fP \fIString\fP
+.br
+سیاست مدیریت کش را برای حجم کش مشخص می‌کند. برای اطلاعات بیشتر به \fBlvmcache\fP(7) مراجعه کنید.
+.HP
+\fB\-\-cachepool\fP \fILV\fP
+.br
+نام مخزن حافظه نهان (cache pool).
+.HP
+\fB\-\-cachesettings\fP \fIString\fP
+.br
+تنظیمات قابل تنظیم هسته را برای حجم‌های dm-cache یا dm-writecache مشخص می‌کند. از قالب 'option=value' استفاده نمایید یا برای هر تنظیم گزینه را تکرار کنید. برای بازگشت به رفتارهای پیش‌فرض از مقدار 'default' استفاده کنید. به \fBlvmcache\fP(7) مراجعه فرمایید.
+.HP
+\fB\-\-cachesize\fP \fISize\fP[m|UNIT]
+.br
+اندازه حافظه نهان (کش) مورد استفاده.
+.HP
+\fB\-\-cachevol\fP \fILV\fP
+.br
+نام حجم مورد استفاده به عنوان کش.
+.HP
+\fB\-c\fP|\fB\-\-chunksize\fP \fISize\fP[k|UNIT]
+.br
+اندازه چانک‌ها (بخش‌ها) در اسنپ‌شات، مخزن کش یا مخزن پویا.
+برای اسنپ‌شات‌ها، مقدار باید توانی از ۲ بین ۴ کیلوبایت تا ۵۱۲ کیلوبایت باشد و مقدار پیش‌فرض ۴ است.
+برای مخزن کش، مقدار باید بین ۳۲ کیلوبایت تا ۱ گیگابایت باشد و مقدار پیش‌فرض ۶۴ است.
+برای مخزن پویا، مقدار باید مضربی از ۶۴ کیلوبایت بین ۶۴ کیلوبایت تا ۱ گیگابایت باشد. به \fBlvmthin\fP(7) و \fBlvmcache\fP(7) مراجعه فرمایید.
+.HP
+\fB\-\-commandprofile\fP \fIString\fP
+.br
+نمایه دستور برای پیکربندی. برای اطلاعات درباره نمایه‌ها به \fBlvm.conf\fP(5) مراجعه کنید.
+.HP
+\fB\-\-compression\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال بودن فشرده‌سازی را برای حجم VDO کنترل می‌کند. به \fBlvmvdo\fP(7) مراجعه کنید.
+.HP
+\fB\-\-config\fIString\fP
+.br
+تنظیمات پیکربندی که تنظیمات \fBlvm.conf\fP(5) را بازنویسی می‌کنند.
+.HP
+\fB\-C\fP|\fB\-\-contiguous\fP \fBy\fP|\fBn\fP
+.br
+سیاست تخصیص پیوسته برای حجم منطقی را تنظیم یا بازنشانی می‌کند. پیش‌فرض، عدم تخصیص پیوسته بر پایه اولین فضای آزاد بعدی است.
+.HP
+\fB\-d\fP|\fB\-\-debug\fP ...
+.br
+سطح اشکال‌زدایی. با تکرار ۱ تا ۶ بار، جزئیات پیام‌های ارسالی به فایل لاگ یا syslog افزایش می‌یابد.
+.HP
+\fB\-\-deduplication\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال بودن حذف داده‌های تکراری (deduplication) را برای حجم VDO کنترل می‌کند. به \fBlvmvdo\fP(7) مراجعه فرمایید.
+.HP
+\fB\-\-devices\fP \fIPV\fP
+.br
+دستگاه‌های قابل مشاهده و در دسترس دستور را محدود می‌کند. دستگاه‌هایی که در فهرست نباشند ناموجود فرض می‌شوند.
+.HP
+\fB\-\-devicesfile\fP \fIString\fP
+.br
+فایلی که فهرست دستگاه‌های مجاز LVM را مشخص می‌کند. این فایل در \fI/etc/lvm/devices/\fP قرار دارد و با دستور \fBlvmdevices\fP(8) مدیریت می‌شود.
+.HP
+\fB\-\-discards\fP \fBpassdown\fP|\fBnopassdown\fP|\fBignore\fP
+.br
+نحوه مدیریت درخواست‌های discard/TRIM توسط لایه dm-thin-pool در هسته را مشخص می‌کند:
+\fBignore\fP دستورهای discard را نادیده می‌گیرد.
+\fBnopassdown\fP باعث پردازش دستورها در خود مخزن پویا می‌شود تا اکستنت‌های بلااستفاده مجدداً مصرف شوند.
+\fBpassdown\fP علاوه بر پردازش در مخزن پویا، دستورها را به دستگاه لایه زیرین نیز منتقل می‌کند. به \fBlvmthin\fP(7) مراجعه کنید.
+.HP
+\fB\-\-driverloaded\fP \fBy\fP|\fBn\fP
+.br
+در صورت تنظیم روی \fBn\fP، دستور تلاشی برای استفاده از نگاشت‌کننده دستگاه (device-mapper) نخواهد کرد (برای آزمون و اشکال‌زدایی).
+.HP
+\fB\-\-errorwhenfull\fP \fBy\fP|\fBn\fP
+.br
+رفتار مخزن پویا هنگام پر شدن فضای داده را تعیین می‌کند. اگر \fBy\fP باشد، به محض پر شدن بلافاصله خطای ورودی/خروجی بازگردانده می‌شود. اگر \fBn\fP باشد، درخواست‌ها در صف منتظر می‌مانند تا مخزن پویا توسعه داده شود. به \fBlvmthin\fP(7) مراجعه کنید.
+.HP
+\fB\-l\fP|\fB\-\-extents\fP \fINumber\fP[PERCENT]
+.br
+تعیین اندازه حجم منطقی جدید بر حسب تعداد اکستنت‌های منطقی (LE). گزینه‌های \-\-size و \-\-extents روش‌های جایگزین برای تعیین اندازه هستند. در صورت استفاده از سطوح RAID که نیاز به افزونگی دارند، تعداد اکستنت‌های فیزیکی مورد استفاده بیشتر خواهد بود.
+ساختار جایگزین اجازه می‌دهد اندازه به صورت درصدی از یک VG، LV یا مجموعه‌ای از PVها تعیین شود:
+پسوند \fB%VG\fP نشان‌دهنده اندازه کل VG است.
+پسوند \fB%FREE\fP بیانگر فضای خالی باقی‌مانده در VG است.
+پسوند \fB%PVS\fP بیانگر فضای آزاد در PVهای تعیین‌شده است.
+برای اسنپ‌شات، اندازه می‌تواند درصدی از کل اندازه حجم مبدا با پسوند \fB%ORIGIN\fP باشد (\fB100%ORIGIN\fP کل فضای حجم مبدا را پوشش می‌دهد).
+.HP
+\fB\-h\fP|\fB\-\-help\fP
+.br
+نمایش متن راهنما.
+.HP
+\fB\-K\fP|\fB\-\-ignoreactivationskip\fP
+.br
+نادیده گرفتن فلگ پرش از فعال‌سازی (activation skip) در هنگام فعال‌سازی، جهت امکان‌پذیر شدن فعال‌سازی حجم‌هایی که این فلگ برایشان تنظیم شده است.
+.HP
+\fB\-\-ignoremonitoring\fP
+.br
+عدم تعامل با دیمن پایش dmeventd، مگر آنکه گزینه \-\-monitor مشخص شده باشد. اگر dmeventd در حال پایش دستگاه باشد، از این گزینه استفاده نکنید.
+.HP
+\fB\-\-integritysettings\fP \fIString\fP
+.br
+تنظیمات قابل پیکربندی هسته برای dm-integrity. به \fBlvmraid\fP(7) مراجعه کنید.
+.HP
+\fB\-\-journal\fP \fIString\fP
+.br
+ثبت اطلاعات در ژورنال systemd.
+.HP
+\fB\-\-lockopt\fP \fIString\fP
+.br
+ارسال گزینه‌های ویژه به دیمن قفل‌گذاری lvmlockd. به \fBlvmlockd\fP(8) مراجعه فرمایید.
+.HP
+\fB\-\-longhelp\fP
+.br
+نمایش متن راهنمای تفصیلی و کامل.
+.HP
+\fB\-j\fP|\fB\-\-major\fP \fINumber\fP
+.br
+تعیین شماره ماژور (major number) دستگاه بلوکی حجم منطقی.
+.HP
+\fB\-\-\fP[\fBraid\fP]\fBmaxrecoveryrate\fP \fISize\fP[k|UNIT]
+.br
+تعیین حداکثر نرخ بازیابی برای یک حجم RAID (مقدار داده بر حسب ثانیه برای هر دستگاه). مقدار ۰ نشان‌دهنده نامحدود بودن نرخ است. به \fBlvmraid\fP(7) مراجعه کنید.
+.HP
+\fB\-\-metadataprofile\fP \fIString\fP
+.br
+نمایه متادیتا جهت استفاده برای پیکربندی دستور. به \fBlvm.conf\fP(5) مراجعه کنید.
+.HP
+\fB\-\-minor\fP \fINumber\fP
+.br
+تعیین شماره مینور (minor number) دستگاه بلوکی حجم منطقی.
+.HP
+\fB\-\-\fP[\fBraid\fP]\fBminrecoveryrate\fP \fISize\fP[k|UNIT]
+.br
+تعیین حداقل نرخ بازیابی برای یک حجم RAID. به \fBlvmraid\fP(7) مراجعه کنید.
+.HP
+\fB\-\-mirrorlog\fP \fBcore\fP|\fBdisk\fP
+.br
+تعیین نوع لاگ آینه‌ای برای حجم‌های منطقی با نوع mirror (برای نوع raid1 اعمال نمی‌شود):
+\fBdisk\fP یک لاگ پایدار است و به فضای ذخیره‌سازی اندکی، معمولاً روی دستگاهی مجزا از داده‌ها نیاز دارد.
+\fBcore\fP ناپایدار است و لاگ را تنها در حافظه نگهداری می‌کند؛ در این حالت با هر بار فعال‌سازی حجم (مثلاً پس از راه‌اندازی مجدد سیستم) آینه‌ها باید همگام‌سازی شوند.
+.HP
+\fB\-m\fP|\fB\-\-mirrors\fP \fINumber\fP
+.br
+تعیین تعداد تصاویر آینه‌ای اضافی علاوه بر نسخه اصلی داده‌ها. برای مثال، \-\-mirrors 1 به معنای وجود دو نسخه از داده‌ها (اصلی و یک آینه) است. برای اطلاعات بیشتر و تفاوت‌های نوع raid1 با mirror به \fBlvmraid\fP(7) مراجعه کنید.
+.HP
+\fB\-\-monitor\fP \fBy\fP|\fBn\fP
+.br
+شروع (\fBy\fP) یا توقف (\fBn\fP) پایش حجم منطقی توسط dmeventd. دیمن dmeventd رخدادهای هسته را پایش کرده و اقدامات خودکار تعمیر و نگهداری را انجام می‌دهد. به \fBdmeventd\fP(8) مراجعه فرمایید.
+.HP
+\fB\-n\fP|\fB\-\-name\fP \fIString\fP
+.br
+تعیین نام حجم منطقی جدید. در صورت عدم تعیین، نامی پیش‌فرض با ساختار "lvol#" توسط LVM تولید می‌شود.
+.HP
+\fB\-\-nohints\fP
+.br
+عدم استفاده از فایل نکات (hints file) برای مکان‌یابی دستگاه‌های PV.
+.HP
+\fB\-\-nolocking\fP
+.br
+غیرفعال کردن قفل‌گذاری. با احتیاط استفاده شود، چرا که دستورات همزمان ممکن است نتایج نادرست به بار آورند.
+.HP
+\fB\-\-nosync\fP
+.br
+صرف‌نظر کردن از همگام‌سازی اولیه در زمان ساخت حجم‌های mirror، raid1، raid4، raid5 و raid10. این گزینه برای جلوگیری از اجرای همگام‌سازی اولیه طولانی روی حجم‌های خالی بسیار مفید است. این گزینه برای raid6 معتبر نیست؛ زیرا raid6 برای بازسازی داده‌ها هنگام خرابی دیسک‌ها، به سندرم‌های P و Q اولیه وابسته است.
+.HP
+\fB\-\-noudevsync\fP
+.br
+غیرفعال کردن همگام‌سازی با udev. دستور منتظر اعلان از سوی udev نخواهد ماند. تنها در صورتی استفاده شود که udev اجرا نمی‌شود یا دستگاه‌های LVM را نادیده می‌گیرد.
+.HP
+\fB\-p\fP|\fB\-\-permission\fP \fBrw\fP|\fBr\fP
+.br
+تنظیم سطح دسترسی حجم به صورت فقط‌خواندنی (\fBr\fP) یا خواندن و نوشتن (\fBrw\fP).
+.HP
+\fB\-M\fP|\fB\-\-persistent\fP \fBy\fP|\fBn\fP
+.br
+در صورت تنظیم روی \fBy\fP، شماره مینور مشخص‌شده را دائمی می‌سازد.
+.HP
+\fB\-\-pooldatavdo\fP \fBy\fP|\fBn\fP
+.br
+استفاده از حجم با نوع VDO برای حجم داده‌های مخزن.
+.HP
+\fB\-\-poolmetadatasize\fP \fISize\fP[m|UNIT]
+.br
+تعیین اندازه حجم منطقی متادیتای مخزن جدید.
+.HP
+\fB\-\-poolmetadataspare\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال کردن ساخت و مدیریت خودکار حجم یدکی متادیتای مخزن (spare metadata LV) در گروه حجم. حجم یدکی فضایی رزروشده برای تعمیر مخزن در مواقع خرابی است.
+.HP
+\fB\-\-profile\fP \fIString\fP
+.br
+نام مستعار برای \-\-commandprofile یا \-\-metadataprofile بر حسب دستور.
+.HP
+\fB\-q\fP|\fB\-\-quiet\fP ...
+.br
+کاهش و بی‌صدا کردن پیام‌های خروجی و لاگ. تکرار آن پرسش‌های تاییدی را با پاسخ منفی خودکار رد می‌کند.
+.HP
+\fB\-\-raidintegrity\fP \fBy\fP|\fBn\fP
+.br
+فعال یا غیرفعال کردن اعتبارسنجی یکپارچگی داده‌ها (checksums) برای تصاویر آرایه RAID با استفاده از dm-integrity.
+.HP
+\fB\-\-raidintegrityblocksize\fP \fINumber\fP
+.br
+اندازه بلاک مورد استفاده برای dm-integrity روی تصاویر RAID (مقادیر مجاز: ۵۱۲، ۱۰۲۴، ۲۰۴۸، ۴۰۹۶).
+.HP
+\fB\-\-raidintegritymode\fP \fIString\fP
+.br
+استفاده از ژورنال (پیش‌فرض) یا نقشه بیت (bitmap) برای حفظ پایداری کدهای اعتبارسنجی در صورت خاموشی ناگهانی سیستم.
+.HP
+\fB\-r\fP|\fB\-\-readahead\fP \fBauto\fP|\fBnone\fP|\fINumber\fP
+.br
+تنظیم تعداد سکتورهای پیش‌خوانی (read ahead) برای حجم منطقی. مقدار \fBauto\fP به هسته اجازه انتخاب خودکار می‌دهد و \fBnone\fP معادل صفر است.
+.HP
+\fB\-R\fP|\fB\-\-regionsize\fP \fISize\fP[m|UNIT]
+.br
+اندازه هر ناحیه همگام‌سازی برای آرایه‌های RAID یا mirror. مقدار پیش‌فرض را می‌توان در \fBlvm.conf\fP(5) پیکربندی نمود.
+.HP
+\fB\-\-reportformat\fP \fBbasic\fP|\fBjson\fP|\fBjson_std\fP
+.br
+تعیین قالب نمایش گزارش خروجی شامل قالب سنتی جدول (\fBbasic\fP) یا ساختار داده‌ای \fBjson\fP و \fBjson_std\fP. به \fBlvmreport\fP(7) مراجعه فرمایید.
+.HP
+\fB\-k\fP|\fB\-\-setactivationskip\fP \fBy\fP|\fBn\fP
+.br
+تنظیم یا لغو فلگ «پرش از فعال‌سازی» روی حجم منطقی. هنگامی که این فلگ فعال باشد، حجم در زمان فعال‌سازی‌های خودکار استاندارد نادیده گرفته می‌شود.
+.HP
+\fB\-\-setautoactivation\fP \fBy\fP|\fBn\fP
+.br
+کنترل اینکه آیا حجم منطقی توسط دستوراتی که فعال‌سازی خودکار انجام می‌دهند (مانند pvscan \-aay) فعال شود یا خیر.
+.HP
+\fB\-L\fP|\fB\-\-size\fP \fISize\fP[m|UNIT]
+.br
+تعیین اندازه حجم منطقی جدید. گزینه‌های \-\-size و \-\-extents روش‌های جایگزین برای تعیین اندازه هستند. در صورت استفاده از سطوح RAID که نیاز به داده‌های افزونه دارند، کل اکستنت‌های فیزیکی مصرفی بیشتر خواهد بود.
+.HP
+\fB\-s\fP|\fB\-\-snapshot\fP
+.br
+ایجاد یک اسنپ‌شات (نسخه لحظه‌ای). اسنپ‌شات تصویری منجمد از حجم مبدا ارائه می‌دهد که امکان استفاده از آن برای پشتیبان‌گیری در زمان ادامه‌کار حجم اصلی را فراهم می‌سازد.
+این گزینه می‌تواند یک اسنپ‌شات کپی هنگام نوشتن (COW) یا یک اسنپ‌شات پویا در یک مخزن پویا ایجاد کند.
+اسنپ‌شات‌های پویا زمانی ایجاد می‌شوند که حجم مبدا یک حجم پویا باشد و گزینه اندازه مشخص نشده باشد. این اسنپ‌شات‌ها بلوک‌های یکسانی را در مخزن پویا به اشتراک می‌گذارند و فضای جدیدی از VG تخصیص نمی‌دهند.
+اسنپ‌شات‌های COW زمانی ایجاد می‌شوند که اندازه مشخص شده باشد. فضای تعیین‌شده از VG تخصیص می‌یابد تا تغییرات بعدی حجم مبدا یا اسنپ‌شات در آن ذخیره شوند. اندازه انتخابی باید بر اساس میزان نوشتن مورد انتظار باشد؛ معمولاً ۲۰٪ اندازه حجم مبدا کافی است. برای بررسی فضای مصرفی از \fBlvs\fP و برای افزایش خودکار فضا از \-\-monitor استفاده کنید.
+.HP
+\fB\-i\fP|\fB\-\-stripes\fP \fINumber\fP
+.br
+تعیین تعداد نوارها در یک حجم منطقی نواری (striped). این مقدار بیانگر تعداد PVهایی (دستگاه‌هایی) است که حجم روی آن‌ها پخش می‌شود. داده‌ها در قالب واحدهایی به اندازه نوار (نگاه کنید به \-\-stripesize) روی دستگاه‌ها توزیع می‌گردند. در RAID 4/5/6، این تعداد شامل دیسک‌های افزونگی توازن (parity) نمی‌شود.
+.HP
+\fB\-I\fP|\fB\-\-stripesize\fP \fISize\fP[k|UNIT]
+.br
+میزان داده‌ای که روی یک دستگاه نوشته می‌شود پیش از آنکه نوشتن به دستگاه بعدی در یک حجم نواری منتقل گردد.
+.HP
+\fB\-t\fP|\fB\-\-test\fP
+.br
+اجرا در حالت آزمایشی (dry-run). هیچ تغییری در متادیتا ذخیره نخواهد شد.
+.HP
+\fB\-T\fP|\fB\-\-thin\fP
+.br
+مشخص می‌کند که دستور در حال مدیریت یک حجم پویا یا یک مخزن پویا است. به گزینه‌های \-\-type thin، \-\-type thin\-pool و \-\-virtualsize و همچنین \fBlvmthin\fP(7) مراجعه نمایید.
+.HP
+\fB\-\-thinpool\fP \fILV\fP
+.br
+نام حجم منطقی مخزن پویا (thin pool).
+.HP
+.ad
+\fB\-\-type\fP \c
+.nh
+\%\fBlinear\fP|\:\fBstriped\fP|\:\fBsnapshot\fP|\:\fBraid\fP|\:\fBmirror\fP|\:\fBthin\fP|\:\fBthin\-pool\fP|\:\fBvdo\fP|\:\fBvdo\-pool\fP|\:\fBcache\fP|\:\fBcache\-pool\fP|\:\fBwritecache\fP
+.hy
+.ad
+.br
+نوع حجم منطقی که به عنوان نوع بخش (segment type یا segtype) نیز شناخته می‌شود:
+برای کارایی و افزونگی داده‌ها (\fBlinear\fP، \fBstriped\fP، \fBmirror\fP، \fBraid\fP<N>) به \fBlvmraid\fP(7) مراجعه فرمایید.
+برای تخصیص پویای فضا (\fBthin\fP، \fBthin\-pool\fP) به \fBlvmthin\fP(7) مراجعه کنید.
+برای شتاب‌بخشی حافظه نهان (\fBcache\fP، \fBcache\-pool\fP، \fBwritecache\fP) به \fBlvmcache\fP(7) مراجعه نمایید.
+برای اسنپ‌شات‌های سنتی (\fBsnapshot\fP) به بخش کاربرد و برای فناوری فشرده‌سازی و حذف داده تکراری (\fBvdo\fP، \fBvdo\-pool\fP) به \fBlvmvdo\fP(7) مراجعه فرمایید.
+برخی دستورات نیاز به ذکر صریح نوع ندارند؛ زیرا نوع از طریق گزینه‌های دیگر (مانند \-\-stripes، \-\-mirrors، \-\-snapshot، \-\-thin، \-\-vdo، \-\-cache) استنباط می‌شود.
+.HP
+\fB\-\-vdo\fP
+.br
+مشخص می‌کند که دستور در حال کار با یک حجم منطقی VDO است. به \fBlvmvdo\fP(7) مراجعه فرمایید.
+.HP
+\fB\-\-vdopool\fP \fILV\fP
+.br
+نام حجم منطقی مخزن VDO. به \fBlvmvdo\fP(7) مراجعه کنید.
+.HP
+\fB\-\-vdosettings\fP \fIString\fP
+.br
+تعیین تنظیمات اختصاصی هسته برای حجم‌های VDO. برای بازنشانی به پیش‌فرض از مقدار 'default' استفاده نمایید.
+.HP
+\fB\-v\fP|\fB\-\-verbose\fP ...
+.br
+افزایش جزئیات پیام‌های خروجی در ترمینال (قابل تکرار تا ۴ مرتبه).
+.HP
+\fB\-\-version\fP
+.br
+نمایش اطلاعات نگارش برنامه.
+.HP
+\fB\-V\fP|\fB\-\-virtualsize\fP \fISize\fP[m|UNIT]
+.br
+اندازه مجازی حجم منطقی جدید در حجم‌های پویا یا VDO. استفاده همزمان از اندازه مجازی (\-V) و اندازه فیزیکی واقعی (\-L) یک حجم پراکنده (sparse LV) ایجاد می‌کند که در خواندن از بخش‌های نوشته‌نشده مقدار صفر برمی‌گرداند.
+.HP
+\fB\-W\fP|\fB\-\-wipesignatures\fP \fBy\fP|\fBn\fP
+.br
+کنترل تشخیص و پاکسازی امضاهای فایل‌سیستم یا پارتیشن روی حجم جدید. در صورت عدم استفاده از گزینه \-\-yes برای تایید خودکار، برای هر امضای شناسایی‌شده پرسش تایید نمایش داده می‌شود. اگر حجم در وضعیت فقط‌خواندنی باشد، امضاها پاکسازی نمی‌شوند.
+.HP
+\fB\-y\fP|\fB\-\-yes\fP
+.br
+عدم پرسش تعاملی از کاربر و فرض پاسخ مثبت به تمام پرسش‌ها. با احتیاط فراوان استفاده شود!
+.HP
+\fB\-Z\fP|\fB\-\-zero\fP \fBy\fP|\fBn\fP
+.br
+کنترل صفر کردن نخستین ۴ کیلوبایت از داده‌های حجم جدید. مقدار پیش‌فرض \fBy\fP است. اسنپ‌شات‌های COW همیشه صفر می‌شوند. هشدار: تلاش برای سوار کردن (mount) یک حجم صفرنشده ممکن است باعث قفل شدن سیستم شود.
+.SH "متغیرها (VARIABLES)"
+.TP
+.I VG
+نام گروه حجم (Volume Group). برای نام‌های معتبر به \fBlvm\fP(8) مراجعه فرمایید.
+.TP
+.I LV
+نام حجم منطقی (Logical Volume). می‌تواند همراه با نام گروه حجم به صورت VG/LV درج شود.
+.TP
+.I PV
+نام حجم فیزیکی (Physical Volume) که مسیری تحت پوشه /dev است. این متغیر می‌تواند شامل محدوده‌ای از اکستنت‌های فیزیکی باشد؛ مانند:
+\fIPV\fP[\fB:\fP\fIPE\fP\fB\-\fP\fIPE\fP]...
+.TP
+.I String
+رشته متنی مطابق با مشخصات هر گزینه.
+.TP
+.IR Size [UNIT]
+اندازه ورودی عددی به همراه یک واحد اختیاری. واحدهای ورودی بر مبنای توان‌های دو (باینری) محاسبه می‌شوند و بزرگی و کوچکی حروف در آن‌ها بی‌تاثیر است (مثلاً k و K هر دو نشان‌دهنده ۱۰۲۴ هستند):
+.BR b | B
+بایت،
+.BR s | S
+سکتورهای ۵۱۲ بایتی،
+.BR k | K
+کیبی‌بایت (KiB)،
+.BR m | M
+میبی‌بایت (MiB)،
+.BR g | G
+گیبی‌بایت (GiB)،
+.BR t | T
+تبی‌بایت (TiB)،
+.BR p | P
+پبی‌بایت (PiB)،
+.BR e | E
+اگزی‌بایت (EiB).
+.SH "متغیرهای محیطی (ENVIRONMENT VARIABLES)"
+برای مشاهده متغیرهای محیطی موثر در LVM به \fBlvm\fP(8) مراجعه کنید. به عنوان نمونه، مقدار متغیر محیطی \fBLVM_VG_NAME\fP می‌تواند به عنوان جایگزینی برای نام پیش‌فرض گروه حجم به کار رود.
+.SH "مثال‌ها (EXAMPLES)"
+ایجاد یک حجم نواری با ۳ نوار، اندازه نوار ۸ کیلوبایت و اندازه کل ۱۰۰ مگابایت (نام حجم به طور خودکار توسط LVM انتخاب می‌شود):
+.br
+.B lvcreate \-i 3 \-I 8 \-L 100m vg00
+.P
+ایجاد یک حجم raid1 با دو نسخه داده و اندازه ۵۰۰ مگابایت (نیازمند دو دستگاه مجزا برای نسخه‌ها و متادیتای RAID):
+.br
+.B lvcreate \-\-type raid1 \-m1 \-L 500m \-n mylv vg00
+.P
+ایجاد یک حجم mirror با دو نسخه داده و اندازه ۵۰۰ مگابایت به همراه ثبت لاگ روی دیسک (نیازمند ۳ دستگاه):
+.br
+.B lvcreate \-\-type mirror \-m1 \-L 500m \-n mylv vg00
+.P
+ایجاد یک حجم mirror با دو تصویر و ثبت لاگ در حافظه موقت (نیازمند ۲ دستگاه):
+.br
+.B lvcreate \-\-type mirror \-m1 \-\-mirrorlog core \-L 500m \-n mylv vg00
+.P
+ایجاد یک اسنپ‌شات سنتی کپی هنگام نوشتن (COW) با اندازه ۱۰۰ مگابایت از یک حجم موجود:
+.br
+.B lvcreate \-\-snapshot \-\-size 100m \-\-name mysnap vg00/mylv
+.P
+ایجاد یک اسنپ‌شات COW با اندازه‌ای معادل ۲۰ درصد حجم مبدا:
+.br
+.B lvcreate \-s \-l 20%ORIGIN \-n mysnap vg00/mylv
+.P
+ایجاد یک حجم پراکنده (sparse) با اندازه مجازی ۱ ترابایت و فضای واقعی کمتر از ۱۰۰ مگابایت:
+.br
+.B lvcreate \-\-snapshot \-\-virtualsize 1t \-\-size 100m \-\-name mylv vg00
+.P
+ایجاد یک حجم خطی با اندازه ۶۴ مگابایت روی اکستنت‌های فیزیکی مشخص‌شده دیسک‌ها:
+.br
+.B lvcreate \-L 64m \-n mylv vg00 /dev/sda:0\-7 /dev/sdb:0\-7
+.P
+ایجاد یک حجم RAID5 با اندازه ۵ گیگابایت، ۳ نوار و اندازه نوار ۶۴ کیلوبایت با استفاده از ۴ دستگاه (شامل یک دیسک برای بیت‌های توازن):
+.br
+.B lvcreate \-\-type raid5 \-L 5G \-i 3 \-I 64 \-n mylv vg00
+.P
+ایجاد یک حجم RAID5 با استفاده از تمام فضای آزاد باقی‌مانده در تمام PVهای گروه حجم:
+.br
+.B lvcreate \-\-config allocation/raid_stripe_all_devices=1 \-\-type raid5 \-l 100%FREE \-n mylv vg00
+.P
+ایجاد یک حجم RAID10 با اندازه ۵ گیگابایت، با استفاده از ۲ نوار که هر نوار یک آینه دوگانه است:
+.br
+.B lvcreate \-\-type raid10 \-L 5G \-i 2 \-m 1 \-n mylv vg00
+.P
+ایجاد یک حجم پویای ۱ ترابایتی بنام mythin در مخزن پویای ۲۵۶ گیگابایتی tpool0:
+.br
+.B lvcreate \-T \-V 1T \-\-size 256G \-\-name mythin vg00/tpool0
+.P
+ایجاد همزمان مخزن پویا با حجم ۱۰۰ مگابایت و حجم پویای ۱ ترابایتی به همراه تنظیم پارامترهای نوار و چانک:
+.br
+.B lvcreate \-\-type thin \-\-name mylv \-\-thinpool mypool \-V 1t \-L 100m \-i 2 \-I 64 \-c 256 vg00
+.P
+ایجاد یک اسنپ‌شات پویا از یک حجم پویای موجود (بدون ذکر گزینه اندازه):
+.br
+.B lvcreate \-\-snapshot \-\-name mysnap vg00/thinvol
+.P
+ایجاد یک اسنپ‌شات پویا از یک حجم فقط‌خواندنی به عنوان مبدا خارجی (external origin):
+.br
+.B lvcreate \-\-snapshot \-\-name mysnap \-\-thinpool mypool vg00/origin
+.P
+ایجاد یک مخزن کش با اندازه ۱ گیگابایت روی یک دستگاه فیزیکی پرسرعت (SSD/NVMe):
+.br
+.B lvcreate \-\-type cache\-pool \-L 1G \-n my_cpool vg00 /dev/fast1
+.P
+ایجاد یک حجم جدید روی دستگاه کند و اتصال همزمان آن به مخزن کش پرسرعت:
+.br
+.B lvcreate \-\-type cache \-\-cachepool my_cpool \-L 100G \-n mylv vg00 /dev/slow1
+.P
+ایجاد یک حجم VDO با اندازه مخزن ۱۰ گیگابایت:
+.br
+.B lvcreate \-\-vdo \-\-size 10G \-\-name vdo0 vg00/vpool1
+.SH "همچنین ببینید (SEE ALSO)"
+.nh
+.na
+.BR lvm (8),
+.BR lvm.conf (5),
+.BR lvmconfig (8),
+.BR lvmdevices (8),
+.BR pvchange (8),
+.BR pvcreate (8),
+.BR pvdisplay (8),
+.BR pvmove (8),
+.BR pvremove (8),
+.BR pvresize (8),
+.BR pvs (8),
+.BR pvscan (8),
+.BR vgcfgbackup (8),
+.BR vgcfgrestore (8),
+.BR vgchange (8),
+.BR vgck (8),
+.BR vgcreate (8),
+.BR vgconvert (8),
+.BR vgdisplay (8),
+.BR vgexport (8),
+.BR vgextend (8),
+.BR vgimport (8),
+.BR vgmerge (8),
+.BR vgreduce (8),
+.BR vgremove (8),
+.BR vgrename (8),
+.BR vgs (8),
+.BR vgscan (8),
+.BR lvchange (8),
+.BR lvconvert (8),
+.BR lvdisplay (8),
+.BR lvextend (8),
+.BR lvreduce (8),
+.BR lvremove (8),
+.BR lvrename (8),
+.BR lvresize (8),
+.BR lvs (8),
+.BR lvscan (8),
+.BR dmeventd (8),
+.BR lvmpolld (8),
+.BR lvmlockd (8),
+.BR lvmcache (7),
+.BR lvmraid (7),
+.BR lvmthin (7),
+.BR lvmvdo (7)

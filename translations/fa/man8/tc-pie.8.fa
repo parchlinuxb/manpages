@@ -1,0 +1,154 @@
+.TH PIE 8 "16 January 2014" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-pie \- الگوریتم مدیریت فعال صف مبتنی بر کنترل‌کننده تناسبی انتگرالی ارتقایافته (PIE)
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.B tc qdisc ... pie
+[
+.B limit
+PACKETS ] [
+.B target
+TIME ] [
+.B tupdate
+TIME ] [
+.B alpha
+int ] [
+.B beta
+int ] [
+.B ecn
+|
+.B noecn
+] [
+.B bytemode
+|
+.B nobytemode
+] [
+.B dq_rate_estimator
+|
+.B no_dq_rate_estimator
+]
+
+.SH "توضیحات (DESCRIPTION)"
+الگوریتم PIE (مخفف Proportional Integral controller-Enhanced یا کنترل‌کننده تناسبی انتگرالی ارتقایافته) یک طرح مدیریت فعال صف (AQM) مبتنی بر نظریه کنترل است. این الگوریتم بر پایه کنترل‌کننده تناسبی انتگرالی بنا شده اما هدف اصلی آن کنترل تاخیر است. اهداف اصلی طراحی آن عبارتند از:
+.PP
+.nf
+  • کنترل تاخیر کم
+  • بهره‌وری بالای پیوند ارتباطی
+  • پیاده‌سازی ساده
+  • پایداری تضمین‌شده و پاسخ‌دهی سریع
+.fi
+
+.SH "الگوریتم (ALGORITHM)"
+الگوریتم PIE به منظور کنترل موثر تاخیر طراحی شده است. ابتدا، میانگین نرخ خروج از صف (dequeue rate) بر اساس صف پایدار تخمین زده می‌شود. از این نرخ برای محاسبه تاخیر فعلی استفاده می‌گردد. سپس، در بازه‌های زمانی دوره‌ای، تاخیر محاسبه‌شده برای تعیین احتمال دور ریختن (drop probability) بسته به کار می‌رود. در نهایت، به هنگام ورود بسته، بر اساس این احتمال، بسته دور ریخته می‌شود (یا علامت‌گذاری می‌گردد).
+.PP
+الگوریتم PIE تنظیمات احتمال را بر اساس روند تغییرات تاخیر (یعنی صعودی یا نزولی بودن آن) اعمال می‌کند. تاخیر به سرعت به مقدار هدف تعیین‌شده همگرا می‌شود.
+.PP
+پارامترهای
+.B alpha
+و
+.B beta
+مقدارهایی ثابت هستند که برای کنترل رشد احتمال دور ریختن انتخاب شده‌اند و از طریق روش‌های نظریه کنترل تعیین می‌شوند. مقدار
+.B alpha
+مشخص می‌کند که انحراف میان تاخیر فعلی و تاخیر هدف چگونه احتمال را تغییر دهد. مقدار
+.B beta
+نیز بر اساس روند تغییرات تاخیر، تنظیمات بیشتری را اعمال می‌کند.
+.PP
+احتمال دور ریختن در حالت ecn برای علامت‌گذاری بسته‌ها استفاده می‌شود. با این حال، همانند الگوریتم RED، فراتر از ۱۰٪، بسته‌ها بر مبنای این احتمال دور ریخته می‌شوند. حالت
+.B bytemode
+برای دور ریختن بسته‌ها به تناسب اندازه آن‌ها به کار می‌رود.
+.PP
+جزئیات بیشتر را می‌توانید در مقاله‌ای که در زیر به آن ارجاع داده شده است بیابید.
+
+.SH "پارامترها (PARAMETERS)"
+.SS limit
+حداکثر اندازه صف بر حسب بسته. با رسیدن صف به این حد، بسته‌های ورودی دور ریخته می‌شوند. مقدار پیش‌فرض ۱۰۰۰ بسته است.
+
+.SS target
+تاخیر مورد انتظار صف است. مقدار پیش‌فرض تاخیر هدف 15ms است.
+
+.SS tupdate
+بسامد یا تناوب زمانی است که در آن احتمال دور ریختن بسته در سیستم محاسبه می‌شود. مقدار پیش‌فرض 15ms است.
+
+.SS alpha
+.SS beta
+پارامترهای
+.B alpha
+و
+.B beta
+برای کنترل احتمال دور ریختن بسته‌ها انتخاب می‌شوند. این مقادیر باید در محدوده بین ۰ تا ۳۲ باشند.
+
+.SS ecn | noecn
+برای علامت‌گذاری بسته‌ها به جای دور انداختن آن‌ها به کار می‌رود.
+.B ecn
+حالت ecn را فعال می‌کند و
+.B noecn
+حالت ecn را غیرفعال می‌سازد. به صورت پیش‌فرض،
+.B ecn
+غیرفعال است.
+
+.SS bytemode | nobytemode
+برای متناسب‌سازی احتمال دور انداختن بسته‌ها با اندازه بسته به کار می‌رود.
+.B bytemode
+حالت بایتی را فعال می‌کند و
+.B nobytemode
+آن را غیرفعال می‌سازد. به صورت پیش‌فرض،
+.B bytemode
+غیرفعال است.
+
+.SS dq_rate_estimator | no_dq_rate_estimator
+برای محاسبه تاخیر با استفاده از قانون لیتل (Little's law) به کار می‌رود.
+.B dq_rate_estimator
+تخمین‌گر نرخ خروج از صف را فعال می‌کند و
+.B no_dq_rate_estimator
+آن را غیرفعال می‌سازد. به صورت پیش‌فرض،
+.B dq_rate_estimator
+غیرفعال است.
+
+.SH "مثال‌ها (EXAMPLES)"
+.nf
+# tc qdisc add dev eth0 root pie
+# tc -s qdisc show
+  qdisc pie 8036: dev eth0 root refcnt 2 limit 1000p target 15.0ms tupdate 16.0ms alpha 2 beta 20
+   Sent 31216108 bytes 20800 pkt (dropped 80, overlimits 0 requeues 0)
+   backlog 16654b 11p requeues 0
+    prob 0.006161 delay 15666us
+    pkts_in 20811 overlimit 0 dropped 80 maxq 50 ecn_mark 0
+
+# tc qdisc add dev eth0 root pie dq_rate_estimator
+# tc -s qdisc show
+  qdisc pie 8036: dev eth0 root refcnt 2 limit 1000p target 15.0ms tupdate 16.0ms alpha 2 beta 20
+   Sent 63947420 bytes 42414 pkt (dropped 41, overlimits 0 requeues 0)
+   backlog 271006b 179p requeues 0
+    prob 0.000092 delay 22200us avg_dq_rate 12145996
+    pkts_in 41 overlimit 343 dropped 0 maxq 50 ecn_mark 0
+
+# tc qdisc add dev eth0 root pie limit 100 target 20ms tupdate 30ms ecn
+# tc -s qdisc show
+  qdisc pie 8036: dev eth0 root refcnt 2 limit 100p target 20.0ms tupdate 32.0ms alpha 2 beta 20 ecn
+   Sent 6591724 bytes 4442 pkt (dropped 27, overlimits 0 requeues 0)
+   backlog 18168b 12p requeues 0
+    prob 0.008845 delay 11348us
+    pkts_in 4454 overlimit 0 dropped 27 maxq 65 ecn_mark 0
+
+# tc qdisc add dev eth0 root pie limit 100 target 50ms tupdate 30ms bytemode
+# tc -s qdisc show
+  qdisc pie 8036: dev eth0 root refcnt 2 limit 100p target 50.0ms tupdate 32.0ms alpha 2 beta 20 bytemode
+   Sent 1616274 bytes 1137 pkt (dropped 0, overlimits 0 requeues 0)
+   backlog 13626b 9p requeues 0
+    prob 0.000000 delay 0us
+    pkts_in 1146 overlimit 0 dropped 0 maxq 23 ecn_mark 0
+.fi
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-codel (8),
+.BR tc-red (8)
+
+.SH "منابع (SOURCES)"
+.nf
+• RFC 8033: https://tools.ietf.org/html/rfc8033
+.fi
+
+.SH "نویسندگان (AUTHORS)"
+الگوریتم PIE توسط Vijay Subramanian و Mythili Prabhu پیاده‌سازی شده است که نویسندگان این صفحه راهنما نیز هستند. لطفاً گزارش‌های اشکال و اصلاحات را به فهرست پستی توسعه شبکه لینوکس به نشانی <netdev@vger.kernel.org> ارسال کنید.

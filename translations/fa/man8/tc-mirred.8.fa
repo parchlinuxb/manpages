@@ -1,0 +1,141 @@
+.TH "Mirror/redirect action in tc" 8 "11 Jan 2015" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-mirred \- کنش آینه‌کردن یا هدایت مجدد بسته‌ها در کنترل ترافیک
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR tc " ... " "action mirred"
+.I DIRECTION ACTION
+.RB "[ " index
+.IR INDEX " ] "
+.I TARGET
+
+.ti -8
+.IR DIRECTION " := { "
+.BR ingress " | " egress " }"
+
+.ti -8
+.IR TARGET " := { " DEV " | " BLOCK " }"
+
+.ti -8
+.IR DEV " :=  "
+.BI dev " DEVICENAME"
+
+.ti -8
+.IR BLOCK " :=  "
+.BI blockid " BLOCKID"
+
+.ti -8
+.IR ACTION " := { "
+.BR mirror " | " redirect " }"
+.SH "توضیحات (DESCRIPTION)"
+کنش
+.B mirred
+امکان آینه‌کردن (کپی کردن) یا تغییرمسیر دادن (ربودن یا stealing) بسته‌های دریافتی را فراهم می‌کند. آینه‌کردن همان قابلیتی است که گاهی با نام
+Switch Port Analyzer (SPAN)
+شناخته می‌شود و معمولاً برای تحلیل یا اشکال‌زدایی جریان‌های داده به کار می‌رود.
+هنگام آینه‌کردن به یک بلوک
+.BR tc ،
+بسته به تمام درگاه‌های موجود در بلوک آینه خواهد شد، به جز درگاهی که بسته از آن وارد شده است (در صورتی که آن درگاه بخشی از بلوک
+.B tc
+باشد).
+تغییرمسیر دادن مشابه آینه‌کردن است، با این تفاوت که رفتار آن بدین صورت است که بسته به
+N \- 1
+درگاه نخست در بلوک آینه می‌شود و به آخرین درگاه تغییرمسیر می‌یابد (توجه داشته باشید به درگاهی که بسته از آن وارد شده است، آینه یا تغییرمسیر انجام نخواهد شد).
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B ingress
+.TQ
+.B egress
+جهتی که بسته باید در رابط مقصد ظاهر شود را مشخص می‌کند.
+.TP
+.B mirror
+.TQ
+.B redirect
+مشخص می‌کند که بسته باید در رابط مقصد یا بلوک کپی شود
+.RB ( mirror )
+یا منتقل گردد
+.RB ( redirect ).
+.TP
+.BI index " INDEX"
+یک شناسه یکتا به این کنش اختصاص می‌دهد، به‌جای اینکه به هسته اجازه دهد یکی را به طور خودکار انتخاب کند.
+.I INDEX
+یک عدد صحیح بدون علامت ۳۲ بیتی بزرگ‌تر از صفر است.
+.TP
+.BI dev " DEVICENAME"
+رابط شبکه‌ای که باید تغییرمسیر یا آینه‌کردن به آن انجام شود را مشخص می‌کند.
+.TP
+.BI blockid " BLOCKID"
+بلوک
+.B tc
+مقصد برای تغییرمسیر یا آینه‌کردن را مشخص می‌کند.
+.SH "مثال‌ها (EXAMPLES)"
+محدود کردن پهنای باند ورودی در
+.B eth0
+به 1mbit/s و تغییرمسیر ترافیک مازاد به
+.B lo
+به‌منظور اشکال‌زدایی:
+
+.RS
+.EX
+# tc qdisc add dev eth0 handle ffff: clsact
+# tc filter add dev eth0 ingress u32 \\
+	match u32 0 0 \\
+	action police rate 1mbit burst 100k conform-exceed pipe \\
+	action mirred egress redirect dev lo
+.EE
+.RE
+
+آینه‌کردن تمام بسته‌های ورودی
+.B ICMP
+روی
+.B eth0
+به یک رابط مجازی dummy برای بررسی با ابزارهایی مانند
+.BR tcpdump :
+
+.RS
+.EX
+# ip link add dummy0 type dummy
+# ip link set dummy0 up
+# tc qdisc add dev eth0 handle ffff: clsact
+# tc filter add dev eth0 ingress protocol ip \\
+	u32 match ip protocol 1 0xff \\
+	action mirred egress mirror dev dummy0
+.EE
+.RE
+
+با استفاده از یک رابط
+.BR ifb ،
+ارسال ترافیک ورودی از طریق یک نمونه از
+.B sfq
+امکان‌پذیر است:
+
+.RS
+.EX
+# modprobe ifb
+# ip link set ifb0 up
+# tc qdisc add dev ifb0 root sfq
+# tc qdisc add dev eth0 handle ffff: clsact
+# tc filter add dev eth0 ingress u32 \\
+	match u32 0 0 \\
+	action mirred egress redirect dev ifb0
+.EE
+.RE
+
+.SH "محدودیت‌ها (LIMITATIONS)"
+هسته برای جلوگیری از احتمال ایجاد حلقه‌های تودرتو، تودرتویی را به چهار سطح محدود می‌کند.
+.PP
+از تغییرمسیر دادن از یک دستگاه
+.B IFB
+به دستگاه دیگر خودداری کنید.
+دستگاه
+.B IFB
+یک مورد بسیار خاص از دستگاه‌های هدایت مجدد بسته است.
+تغییرمسیر از
+ifbX->ifbY
+باعث دور ریخته شدن تمامی بسته‌ها خواهد شد.
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-u32 (8)

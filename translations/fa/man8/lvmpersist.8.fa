@@ -1,0 +1,506 @@
+.TH "LVMPERSIST" "8" "مه ۲۰۲۵" "lvm2" "دستورهای مدیریتی و نگهداری"
+.
+.SH "نام (NAME)"
+lvmpersist \- مدیریت رزروهای ماندگار (PR) بر روی گروهی از دستگاههای بلوکی
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBlvmpersist\fP [\fIگزینهها\fR] \fIدستگاهها\fR...
+.
+.SH "توضیحات (DESCRIPTION)"
+دستور \fBlvmpersist\fR ابزاری سطح پایین برای مدیریت رزروهای ماندگار SCSI (Persistent Reservations) بر روی دستگاههای ذخیرهسازی مشترک در محیطهای خوشهای یا شبکه ذخیرهسازی (SAN) است.
+.P
+رزروهای ماندگار (PR) مکانیزمی را برای کنترل دسترسی به دستگاه‌های ذخیره‌سازی مشترک فراهم می‌کنند، که معمولاً برای محافظت از دستگاه‌ها در برابر تغییر یافتن توسط میزبان‌هایی است که نباید روی دستگاه‌های مشترک بنویسند. این موضوع معمولاً در محیط‌های SAN یا محیط‌های خوشه‌ای که چندین میزبان به دستگاه‌های ذخیره‌سازی یکسان دسترسی دارند، اهمیت می‌یابد.
+.P
+اگر یک گروه حجمی LVM (یا VG) شامل دستگاه‌هایی با قابلیت PR باشد، در این صورت می‌توان از دستورهای LVM برای مدیریت PR در سطح VG استفاده کرد و PR را روی هر حجم فیزیکی (PV) در آن VG اعمال نمود. (تمام PVهای موجود در VG باید از PR پشتیبانی کنند.)
+.P
+.B lvmpersist
+یک ابزار سطح پایین است که برای انجام عملیات‌های PR روی دستگاه‌های بلوکی منفرد استفاده می‌شود. همچنین LVM یک رابط مدیریت PR سطح بالاتر را از طریق رابط دستورات استاندارد LVM فراهم می‌کند:
+.br
+.B vgchange
+.BR \-\-setpersist ,
+.B vgchange \-\-persist
+.P
+دستور lvmpersist یک اسکریپت است که گزینه‌ها یا قابلیت‌های رایج خط فرمان LVM را پیاده‌سازی نمی‌کند. این اسکریپت از دستورات sg_persist ،mpathpersist و nvme برای انجام عملیات‌های PR روی دستگاه‌های بلوکی استفاده می‌کند. دستورات سطح بالاتر LVM (مانند vgchange) اسکریپت lvmpersist را اجرا می‌کنند.
+.SS "انواع دستگاه‌ها (Device types)"
+دستگاه‌های SCSI یا شبه‌SCSI (مانند iSCSI، SAS و Fibre Channel)، دستگاه‌های dm-multipath و NVME پشتیبانی می‌شوند. قابلیت PR همراه با استاندارد دستورات اولیه SCSI نسخه ۳ (SPC\-3) معرفی شد.
+.P
+هنگامی که از دستگاه‌های چندمسیره (multipath) استفاده می‌شود، فایل multipath.conf باید با "reservation_key file" پیکربندی شود. (دستور mpathconf \-\-option reservation_key:file را اجرا کرده و multipathd را مجدداً راه‌اندازی کنید.)
+.SS "انواع رزرو ماندگار (Persistent reservation types)"
+سیستم LVM از نوع PR با عنوان "Write Exclusive" (یا WE) برای دستگاه‌ها در یک VG محلی، و "Write Exclusive \- all registrants" (یا WEAR) برای دستگاه‌ها در یک VG مشترک استفاده می‌کند. یک استثنا دستگاه‌های dm-multipath هستند که برای آن‌ها در هر دو VG محلی و مشترک از WEAR استفاده می‌شود (این امر برای این است که تمام مسیرها همچنان قابل استفاده بمانند.)
+.P
+دستور lvmpersist دو گزینه برای مشخص کردن نوع PR دارد:
+.TP
+.B \-\-access ex|sh
+.br
+اگر دستگاه‌ها فقط باید توسط یک میزبان مورد دسترسی قرار گیرند (یعنی دستگاه‌ها بخشی از یک VG محلی هستند)، مقدار دسترسی را روی "ex" (اختصاصی) قرار دهید.
+اگر قرار است دستگاه‌ها به صورت هم‌روند توسط چندین میزبان مورد دسترسی قرار گیرند (یعنی دستگاه‌ها بخشی از یک VG مشترک هستند)، مقدار دسترسی را روی "sh" (مشترک) تنظیم کنید.
+دستور lvmpersist نوع مناسب PR را برای هر دستگاه انتخاب خواهد کرد (معمولاً WE برای "ex"، و WEAR برای "sh".)
+.TP
+.BI \-\-prtype \ PRTYPE
+هنگامی که یک مقدار PRTYPE مشخص شود، lvmpersist فقط از آن نوع برای تمام دستگاه‌ها استفاده خواهد کرد.
+.P
+انواع PR و اختصارات به کار رفته در رابط‌ها و پیام‌ها:
+.P
+.B WE
+Write Exclusive (نوشتن اختصاصی)
+.br
+.B EA
+Exclusive Access (دسترسی اختصاصی)
+.br
+.B WERO
+Write Exclusive \- registrants only (نوشتن اختصاصی \- فقط ثبت‌نام‌کنندگان)
+.br
+.B EARO
+Exclusive Access \- registrants only (دسترسی اختصاصی \- فقط ثبت‌نام‌کنندگان)
+.br
+.B WEAR
+Write Exclusive \- all registrants (نوشتن اختصاصی \- تمام ثبت‌نام‌کنندگان)
+.br
+.B EAAR
+Exclusive Access \- all registrants (دسترسی اختصاصی \- تمام ثبت‌نام‌کنندگان)
+.P
+(انواع WERO و EARO هنوز پشتیبانی نمی‌شوند.)
+.SS "کلیدهای رزرو ماندگار (Persistent reservation keys)"
+کلیدهای PR می‌توانند تا ۸ بایت طول داشته باشند و با حداکثر ۱۶ نویسه هگزادسیمال با پیشوند "0x" نمایش داده می‌شوند. صفرهای پیشرو مجاز نیستند، برای مثال از 0x1234abcd استفاده کنید، نه 0x000000001234abcd. یک مقدار کلید در مبنای دهدهی (بدون پیشوند 0x) به عنوان ورودی پذیرفته می‌شود، اما در خروجی به صورت هگزادسیمال ظاهر خواهد شد.
+.P
+هر میزبانی که از دستگاه‌های مشترک استفاده می‌کند باید از یک کلید یکتای PR استفاده کند.
+.P
+کلیدهای PR باید در هر میزبان درون /etc/lvm/lvmlocal.conf پیکربندی شوند (بخش تنظیمات محلی در زیر را ببینید.)
+.SH "نحوه استفاده (USAGE)"
+مجموعه دستورات و گزینه‌های پایه برای مدیریت PR:
+.P
+ابزار PR در سطح دستگاه (تغییر وضعیت PR دستگاه):
+.br
+.B lvmpersist
+.BR start | stop | remove | clear | read
+.RI [ OPTIONS ]
+.I DEST
+.P
+پیکربندی PR در سطح VG (تغییر متادیتای VG):
+.br
+.B vgchange \-\-setpersist
+.BR y | n
+.I VG
+.P
+عملیات‌های PR در سطح VG (تغییر وضعیت PR دستگاه):
+.br
+.B vgchange \-\-persist
+.BR start | stop | remove | clear | read | check
+.I VG
+.SS "دستورات lvmpersist (lvmpersist commands)"
+.B lvmpersist start
+.BI \-\-ourkey \ KEY
+.I DEST
+.P
+دستور "start" کلید محلی را ثبت کرده و دستگاه‌ها را رزرو می‌کند. اگر کلید متفاوتی از همان میزبان همچنان ثبت شده باشد، با کلید مشخص‌شده جایگزین خواهد شد. هنگامی که \-\-access یا \-\-prtype مشخص نشود، از دسترسی "ex" استفاده می‌شود.
+.P
+.B lvmpersist stop
+.BI \-\-ourkey \ KEY
+.I DEST
+.P
+دستور "stop" ثبت کلید محلی را لغو می‌کند که این کار همچنین رزرو محلی را حذف می‌نماید.
+.P
+.B lvmpersist remove
+.BI \-\-ourkey \ KEY \ \-\-removekey \ REMKEY
+.I DEST
+.P
+دستور "remove" کلید یک میزبان ثبت‌شده دیگر را حذف می‌کند.
+میزبانی که کلید آن حذف شده است توانایی نوشتن روی دستگاه‌ها را از دست می‌دهد.
+(این دستور برای VGهای مشترک که چندین میزبان هم‌زمان راه‌اندازی شده‌اند کاربرد دارد.)
+.P
+.B lvmpersist start
+.BI \-\-ourkey \ KEY \ \-\-removekey \ REMKEY
+.I DEST
+.P
+دستور "start" همراه با removekey کلید محلی را ثبت کرده و رزرو را از میزبان دیگری می‌گیرد (با استفاده از preempt-abort).
+میزبان دیگر توانایی نوشتن روی دستگاه‌ها را از دست می‌دهد.
+(این دستور برای VGهای محلی که فقط یک میزبان می‌تواند در آن واحد راه‌اندازی شود کاربرد دارد.)
+.P
+.B lvmpersist clear
+.BI \-\-ourkey \ KEY
+.I DEST
+.P
+دستور "clear" تمام کلیدها و رزروها را از دستگاه‌ها پاک می‌کند.
+.P
+.B lvmpersist
+.BR devtest | read | read-keys | read-reservation
+.I DEST
+.P
+این دستورات برای آزمایش پشتیبانی دستگاه‌ها از PR، و نمایش کلیدها و رزروهای فعلی PR استفاده می‌شوند.
+.P
+.B lvmpersist check-key
+.BI \-\-key \ KEY
+.I DEST
+.P
+بررسی ثبت بودن یک کلید مشخص‌شده.
+.SS "گزینه‌ها (OPTIONS)"
+.TP
+.BI \-\-ourkey \ KEY
+.br
+کلید PR محلی، مانند 0x123abc
+.TP
+.BI \-\-removekey \ REMKEY
+.br
+کلید PR یک میزبان دیگر.
+.TP
+.BI \-\-key \ KEY
+.br
+هر کلیدی برای بررسی شدن.
+.TP
+.B \-\-access ex|sh
+.br
+استفاده از نوع PR برای دسترسی اختصاصی (exclusive) یا مشترک (shared) به دستگاه.
+.TP
+.BI \-\-prtype \ PRTYPE
+.br
+استفاده از نوع رزرو مشخص‌شده (جایگزین \-\-access).
+.TP
+.B \-\-ptpl
+.br
+فعال‌سازی ماندگاری پس از قطع برق (persist through power loss) در هنگام شروع (ثبت).
+.SS "مقصد (DEST)"
+.TP
+.BI \-\-device \ PATH \ ...
+.br
+یک یا چند دستگاه برای انجام عملیات.
+.TP
+.BI \-\-vg \ VGNAME
+.br
+یک VG برای انجام عملیات (تمام PVهای درون VG).
+.TP
+.BI \-\-vg \ VGNAME \ \-\-device \ PATH \ ...
+.br
+یک یا چند دستگاه برای انجام عملیات، و یک نام VG برای استفاده به عنوان شناسه برای مجموعه دستگاه‌ها.
+.P
+دستور lvmpersist یا نیازمند نام دستگاه‌های مشخص است که هر کدام به صورت \-\-device /dev/name مشخص می‌شوند، یا نیازمند نام یک VG است که با \-\-vg VGNAME مشخص می‌شود. هنگامی که یک VG بدون دستگاه‌های بلوکی مشخص شود، lvmpersist دستورات PR را روی هر PV موجود در VG اجرا می‌کند. هنگامی که دستگاه‌ها مشخص شوند و یک VG نیز با \-\-vg ارائه شود، نام VG صرفاً در پیام‌های لاگ برای شناسایی مجموعه دستگاه‌ها به صورت یکپارچه استفاده می‌شود. هنگامی که lvmpersist توسط دستورات سطح بالاتر LVM اجرا می‌شود، هر دستگاه با \-\-device و نام VG با \-\-vg مشخص می‌گردد.
+.SS "دستورات متادیتای VG (VG metadata commands)"
+دستور vgchange \-\-setpersist برای پیکربندی خودکارسازی و اعمال PR در رابطه با استفاده گسترده‌تر از VG به کار می‌رود. این پیکربندی در متادیتای VG ذخیره می‌شود.
+.P
+.B vgchange \-\-setpersist
+.BR y | n
+.I VG
+.P
+فعال یا غیرفعال کردن خودکارسازی و اعمال پیش‌فرض PR برای VG، با تنظیم یا پاک کردن هر دو تنظیم "autostart" و "require" مربوط به PR (و به صورت بالقوه تنظیمات دیگر در آینده).
+.P
+.B vgchange \-\-setpersist
+.BR autostart | noautostart | require | norequire
+.I VG
+.P
+تنظیم یا پاک کردن انفرادی تنظیمات autostart و require.
+.P
+هنگامی که "autostart" تنظیم شده باشد، دستورات فعال‌سازی خودکار و شروع خودکار قفل (vgchange \-aay و vgchange \-\-lockstart \-\-lockopt auto) ابتدا PR را روی VG آغاز می‌کنند. اگر شروع PR ناموفق باشد، این دستورات متوقف می‌شوند و تلاشی برای فعال‌سازی یا شروع قفل نخواهند کرد.
+.P
+هنگامی که "require" تنظیم شده باشد، دستورات lvm که روی یک VG می‌نویسند یا آن را فعال می‌کنند نیازمند این هستند که PR قبل از تلاش برای نوشتن یا فعال‌سازی شروع شده باشد.
+.P
+.B vgs \-o persist
+.I VG
+.P
+نمایش تنظیمات.
+.SS "دستورات PR مربوط به VG (VG PR commands)"
+دستور vgchange \-\-persist برای انجام عملیات‌های PR روی دستگاه‌های VG استفاده می‌شود.
+.P
+.B vgchange \-\-persist start
+.I VG
+.P
+شروع PR روی دستگاه‌های VG. کلید محلی را ثبت می‌کند و یک رزرو به دست می‌آورد.
+.P
+.B vgchange \-\-persist stop
+.I VG
+.P
+توقف PR روی دستگاه‌های VG. ثبت کلید محلی را لغو می‌کند که در صورت در دست داشتن رزرو توسط کلید، رزرو آزاد می‌شود.
+.P
+.B vgchange \-\-persist remove \-\-removekey
+.I remkey
+.I VG
+.P
+حذف کلید PR یک میزبان دیگر از روی دستگاه‌های یک VG مشترک، که بلافاصله توانایی میزبان دیگر برای نوشتن روی دستگاه‌ها را غیرفعال می‌کند.
+(این دستور برای VGهای مشترک، که چندین میزبان در آن هم‌زمان راه‌اندازی شده‌اند کاربرد دارد.)
+.P
+.B vgchange \-\-persist start \-\-removekey
+.I remkey
+.I VG
+.P
+شروع PR روی دستگاه‌های VG، هم‌زمان با حذف کلید و رزرو میزبان دیگر از روی دستگاه‌های VG، که توانایی میزبان دیگر برای نوشتن روی دستگاه‌ها را غیرفعال می‌کند.
+(این دستور برای VGهای محلی، که در آن‌ها فقط یک میزبان می‌تواند فعال باشد، به کار می‌رود.)
+.P
+.B vgchange \-\-persist check
+.I VG
+.P
+بررسی اینکه آیا PR شروع شده است یا خیر (کلید محلی و رزرو روی تمام دستگاه‌ها موجود باشند). در صورتی که PR روی تمام دستگاه‌های VG شروع شده باشد، دستور با موفقیت به پایان می‌رسد.
+.P
+.B vgchange \-\-persist read
+.I VG
+.P
+نمایش کلیدهای ثبت‌شده و رزروهای PR روی هر یک از دستگاه‌های VG.
+.P
+.B vgchange \-\-persist clear
+.I VG
+.P
+پاک کردن تمام کلیدها و رزروهای PR روی دستگاه‌های VG.
+.P
+.B vgchange \-\-persist autostart
+.I VG
+.P
+شروع PR روی دستگاه‌های VG در صورتی که autostart تنظیم شده باشد. این مورد برای استفاده توسط خودکارسازی‌های سیستم، مانند autoactivation و auto-lockstart در نظر گرفته شده است.
+.SS "شروع تکمیلی PR (Supplementary PR start)"
+گزینه \-\-persist start را می‌توان به سایر دستورات اضافه کرد تا این دستورات ابتدا تلاش کنند PR را شروع کنند (بدون در نظر گرفتن تنظیمات autostart).
+.P
+.nf
+vgchange \-ay \-\-persist start
+vgchange \-aay \-\-persist start
+vgchange \-\-lockstart \-\-persist start
+vgchange \-\-setpersist y|require|autostart \-\-persist start
+vgimport \-\-persist start
+vgchange \-\-systemid <local_id> \-\-persist start
+.fi
+.SS "کاربرد VG محلی (Local VG usage)"
+هنگام استفاده از یک VG محلی، فقط یک میزبان در هر زمان راه‌اندازی می‌شود، و یک رزرو WE (نوشتن اختصاصی) معمولاً روی دستگاه‌ها نگه‌داشته می‌شود.
+.P
+استفاده از PR به همراه VGهای محلی، از دستگاه‌های VG در برابر نوشتن اشتباهی توسط میزبان دیگر که به همان دستگاه‌ها دسترسی دارد محافظت می‌کند. این ویژگی مکمل استفاده از شناسه سیستم VG (system ID) برای کنترل مالک مورد نظر یک VG است، اما حفاظت اجباری در سطح دستگاه را اضافه می‌کند، در حالتی که میزبان دیگر از قابلیت شناسه سیستم LVM استفاده نکند.
+.P
+اگر یک میزبان بخواهد به اجبار یک VG محلی را که هم‌اکنون توسط میزبان دیگری در حال استفاده است در اختیار بگیرد، می‌تواند از دستور زیر استفاده کند:
+.br
+vgchange \-\-persist start \-\-removekey remkey VG
+.br
+که در آن "remkey" کلید PR میزبانی است که در حال حاضر راه‌اندازی شده است.
+.SS "کاربرد VG مشترک (Shared VG usage)"
+برای یک VG مشترک، متادیتای VG توسط یک میزبان با استفاده از دستور vgchange \-\-setpersist پیکربندی می‌شود، که پیکربندی دلخواه PR را در متادیتای VG می‌نویسد. دستور vgchange \-\-setpersist نیازمند فعال بودن قفل‌گذاری VG (VG locking) است.
+تمام میزبان‌ها از دستورات vgchange \-\-persist برای شروع/توقف/بررسی وضعیت PR مربوط به خود روی دیسک استفاده می‌کنند. این‌ها عملیات‌های متادیتای VG نیستند، بلکه دستورات PR را برای تغییر وضعیت PR روی دیسک ارسال می‌کنند (معمولاً از طریق lvmpersist).
+.P
+هنگام استفاده از یک VG مشترک، تمام میزبان‌هایی که از VG استفاده می‌کنند یک دستور start را اجرا خواهند کرد، و یک رزرو WEAR (نوشتن اختصاصی \- تمام ثبت‌نام‌کنندگان) روی دستگاه‌ها نگه‌داشته خواهد شد.
+.P
+عملیات PR باید قبل از شروع قفل‌گذاری آغاز شود (vgchange \-\-persist start و سپس vgchange \-\-lockstart، یا دستور ترکیبی vgchange \-\-persist start \-\-lockstart).
+.P
+اگر یک میزبان بخواهد به اجبار مانع نوشتن میزبان دیگری روی دستگاه‌های VG مشترک شود، می‌تواند از vgchange \-\-persist remove \-\-removekey remkey استفاده کند که در آن "remkey" کلید PR میزبان دیگر است.
+.SS "تنظیمات محلی (Local Settings)"
+هر میزبانی که از PR استفاده می‌کند باید دارای یک کلید PR باشد که در بین تمام میزبان‌های استفاده‌کننده از یک VG مشترک یکتا باشد. دو روش برای تعیین مقدار کلید وجود دارد که در /etc/lvm/lvmlocal.conf تنظیم می‌شوند:
+.TP
+.B local/pr_key
+کلید رزرو ماندگار محلی به صورت هگزادسیمال.
+حداکثر طول ۱۶ نویسه هگزادسیمال (۸ بایت)، به علاوه یک پیشوند اختیاری 0x است. تنظیم pr_key برای VGهای محلی استفاده می‌شود.
+گروه‌های حجمی مشترک از کلیدهای PR که بر پایه host_id هستند استفاده می‌کنند و این تنظیم pr_key را نادیده می‌گیرند.
+.TP
+.B local/host_id
+یک شناسه یکتا برای میزبان، که برای VGهای مشترک sanlock و برای کلیدهای رزرو ماندگار استفاده می‌شود. مقادیر پذیرفته‌شده ۱ تا ۲۰۰۰ هستند، مگر زمانی که sanlock_align_size روی ۱، ۲ یا ۴ پیکربندی شده باشد که متناظر با حداکثر مقادیر host_id برابر با ۲۵۰، ۵۰۰ یا ۱۰۰۰ خواهد بود.
+کلیدهای PR برای VGهای sanlock ترکیبی از host_id و شماره نسل (generation number) sanlock هستند. گروه‌های حجمی محلی تنها در صورتی از host_id به عنوان کلید PR استفاده خواهند کرد که local/pr_key تنظیم نشده باشد.
+.P
+برای یک VG محلی یا یک VG مشترک dlm، یک کلید با استفاده از host_id شکلی به این صورت دارد:
+.P
+.nf
+0x100000000000XXXX
+.fi
+.P
+که در آن XXXX ارقام هگزادسیمال برای مقدار host_id هستند.
+.P
+برای یک VG مشترک sanlock، کلید بر اساس host_id و یک شماره نسل (گرفته شده از اجاره sanlock) ساخته می‌شود و شکلی به این صورت دارد:
+.P
+.nf
+0x100000YYYYYYXXXX
+.fi
+.P
+که در آن XXXX ارقام هگزادسیمال برای مقدار host_id، و YYYYYY ارقام هگزادسیمال برای شماره نسل هستند.
+.P
+شماره نسل sanlock هر بار که میزبان VG را شروع می‌کند افزایش می‌یابد، بنابراین یک میزبان در هر بار شروع از یک کلید جدید استفاده خواهد کرد. در برخی موارد، ممکن است PR با کلیدی شروع شود که شامل شماره نسل نادرست است، که در این حالت دستور lockstart کلید را با مقدار صحیح به‌روزرسانی می‌کند (شماره نسل رسماً در طول lockstart تعیین می‌شود).
+.SS "دستور vgcreate"
+ویژگی‌های PR را می‌توان هنگام ایجاد یک VG جدید فعال کرد:
+.P
+.B vgcreate \-\-setpersist y
+.I VG ""
+.I PVs
+.P
+برای VGهای محلی، می‌توان
+.B \-\-persist start
+را نیز گنجاند تا هم‌زمان PR روی VG جدید شروع شود.
+.P
+ایجاد VGهای مشترک جدید با \-\-setpersist متفاوت عمل می‌کند.
+عملیات PR همیشه برای یک VG مشترک جدید آغاز می‌شود، حتی بدون ذکر \-\-persist start.
+ابتدا یک PR اختصاصی (معمولاً حالت WE) برای دستگاه‌های VG جدید گرفته می‌شود. سپس دستگاه‌ها مقداردهی اولیه می‌شوند و متادیتای VG جدید نوشته می‌شود. سپس PR اختصاصی حذف شده و یک PR مشترک (معمولاً حالت WEAR) برای اشتراک‌گذاری عادی VG گرفته می‌شود. در نهایت، فضای قفل (lockspace) گروه حجمی آغاز به کار می‌کند.
+.SS "دستور vgextend"
+برای VGهای محلی، دستور vgextend قبل از افزودن دستگاه‌های جدید به VG، عملیات PR را روی آن‌ها شروع می‌کند (تنظیم require یا autostart باید فعال باشد). برای VGهای مشترک، کاربر باید قبل از اجرای vgextend با استفاده از lvmpersist عملیات PR را از تمام میزبان‌ها روی دستگاه‌های جدید شروع کند. دستور vgextend بررسی می‌کند که رزرو و کلیدها روی دستگاه‌های جدید با دستگاه‌های موجود همخوانی داشته باشند.
+.SS "دستور vgremove"
+دستور vgremove عملیات PR را روی دستگاه‌های VG تنها در صورتی متوقف می‌کند که تنظیمات "require" یا "autostart" با استفاده از vgchange \-\-setpersist تعیین شده باشند. اگر PR مستقل از هرگونه تنظیمات setpersist آغاز شده باشد، vgremove به صورت خودکار PR را روی دستگاه‌ها متوقف نخواهد کرد.
+.SS "دستورات vgexport/vgimport"
+.B vgexport \-\-persist stop
+عملیات PR را پس از برون‌بری (export) گروه حجمی متوقف می‌کند، و
+.B vgimport \-\-persist start
+عملیات PR را قبل از درون‌بری (import) گروه حجمی شروع می‌کند.
+نوشتن متادیتای VG برای برون‌بری پیش از توقف PR رخ می‌دهد، و نوشتن متادیتای VG برای درون‌بری پس از شروع PR انجام می‌شود.
+.SS "دستور vgchange \-\-systemid"
+عملیات PR را می‌توان هم‌زمان با گرفتن مالکیت شناسه سیستم یک VG آغاز کرد، یا PR را می‌توان هم‌زمان با واگذاری مالکیت شناسه سیستم یک VG متوقف نمود (برای اطلاعات بیشتر
+.BR lvmsystemid (7)
+را ببینید.)
+.P
+.B vgchange \-\-systemid
+.I local_system_id
+.B \-\-persist start
+.I VG
+.P
+این دستور برای گرفتن مالکیت یک VG متعلق به سیستم خارجی (foreign) استفاده می‌شود.
+عملیات PR آغاز می‌شود، و در صورت موفقیت، شناسه سیستم VG روی شناسه سیستم محلی تنظیم خواهد شد. (توجه: شناسه سیستم خارجی VG باید در extra_system_ids محلی گنجانده شده باشد تا دسترسی به VG خارجی حاصل شود.)
+برای حذف اجباری (preempt-abort) رزرو PR نگه‌داشته‌شده توسط میزبان دیگر روی VG، می‌توان
+.BI \-\-removekey \ remkey
+را نیز اضافه کرد که در آن remkey کلید PR دارنده فعلی PR است.
+.P
+.B vgchange \-\-systemid
+.I foreign_system_id
+.B \-\-persist stop
+.I VG
+.P
+این دستور برای واگذاری مالکیت یک VG با مالکیت محلی استفاده می‌شود.
+شناسه سیستم VG به مقدار جدید به‌روزرسانی شده و سپس PR متوقف می‌گردد.
+.SS "ماندگاری پس از قطع برق (Persist Through Power Loss)"
+برای فعال‌سازی استفاده از قابلیت «ماندگاری پس از قطع برق» (Persist Through Power Loss) که در آن وضعیت PR روی یک دستگاه در صورت قطع و وصل برق حفظ می‌شود، تنظیم
+.B ptpl
+را فعال کنید:
+.P
+.B vgchange \-\-setpersist ptpl
+.I VG
+.P
+تنظیم PTPL در طول ثبت کلید (بخشی از PR start) اعمال می‌شود، بنابراین برای هر میزبان در شروع بعدی اثر خواهد گذاشت. این تنظیم روی تمام PVهای موجود در VG اعمال می‌شود، بنابراین هر دستگاه باید از PTPL پشتیبانی کند. تنظیم PTPL توسط "\-\-setpersist y" فعال نمی‌شود.
+.P
+هر یک از دستورات زیر تنظیم PTPL را پاک خواهد کرد:
+.P
+.B vgchange \-\-setpersist noptpl
+.I VG
+.br
+.B vgchange \-\-setpersist n
+.I VG
+.SH "مثال‌ها (EXAMPLES)"
+.SS "کاربرد VG محلی (Local VG usage)"
+.nf
+host1:
+$ lvmconfig local/host_id
+host_id=1
+$ vgcreate vg /dev/sda /dev/sdb
+  Physical volume "/dev/sda" successfully created.
+  Physical volume "/dev/sdb" successfully created.
+  Volume group "vg" successfully created
+$ vgchange \-\-setpersist y vg
+  Volume group "vg" successfully changed.
+$ vgchange \-\-persist start vg
+  lvmpersist: started vg with key 0x1000000000000001.
+$ vgchange \-\-persist check vg
+  key for local host is registered: 0x1000000000000001
+  reservation WE for local host
+  PR is started.
+$ lvcreate \-l1 \-n lvol0 vg
+  Logical volume "lvol0" created.
+$ vgchange \-an vg
+  0 logical volume(s) in volume group "vg" now active
+$ vgchange \-\-persist stop vg
+  lvmpersist: stopped vg with key 0x1000000000000001.
+$ vgchange \-ay vg
+  persistent reservation is not started.
+  Cannot access VG vg without persistent reservation.
+$ lvcreate \-l1 \-n lvol1 vg
+  persistent reservation is not started.
+  Cannot access VG vg without persistent reservation.
+$ vgchange \-\-persist start vg
+  lvmpersist: started vg with key 0x1000000000000001.
+$ vgchange \-ay vg
+  1 logical volume(s) in volume group "vg" now active
+$ lvcreate \-l1 \-n lvol1 vg
+  Logical volume "lvol1" created.
+
+host2 foricibly takes VG from host1:
+$ lvmconfig local/host_id
+host_id=2
+$ vgchange \-ay vg
+  persistent reservation is not started.
+  Cannot access VG vg without persistent reservation.
+$ vgchange \-\-persist start vg
+  persistent reservation is started by another host
+$ vgchange \-\-persist check vg
+  key for local host is not registered (host_id 2)
+  key for other host is registered: 0x1000000000000001
+  reservation WE for other host
+  PR is not started.
+$ dd if=/dev/zero of=/dev/sda
+dd: error writing '/dev/sda': Input/output error
+$ vgchange \-\-persist start \-\-removekey 0x1000000000000001 vg
+  lvmpersist: started vg with key 0x1000000000000002.
+$ vgchange \-ay vg
+  2 logical volume(s) in volume group "vg" now active
+$ vgchange \-\-persist check vg
+  key for local host is registered: 0x1000000000000002
+  reservation WE for local host
+  PR is started.
+
+host1 can no longer write:
+$ dd if=/dev/zero of=/dev/vg/lvol0
+dd: error writing '/dev/vg/lvol0': Input/output error
+$ lvcreate \-l1 \-n lvol1 vg
+  persistent reservation is not started.
+  Cannot access VG vg without persistent reservation.
+$ vgchange \-\-persist check vg
+  key for local host is not registered (host_id 1)
+  key for other host is registered: 0x1000000000000002
+  reservation WE for other host
+  PR is not started.
+.fi
+.SS "کاربرد VG مشترک (Shared VG usage)"
+.nf
+host1:
+$ lvmconfig local/host_id
+host_id=1
+$ vgcreate \-\-shared vg /dev/sda /dev/sdb
+  Enabling sanlock global lock
+  Physical volume "/dev/sda" successfully created.
+  Physical volume "/dev/sdb" successfully created.
+  Logical volume "lvmlock" created.
+  Volume group "vg" successfully created
+  VG vg starting sanlock lockspace
+  Starting locking.  Waiting until locks are ready...
+$ vgchange \-\-setpersist y vg
+  Volume group "vg" successfully changed.
+$ vgchange \-\-persist start vg
+  lvmpersist: started vg with key 0x1000000000010001.
+$ vgchange \-\-persist check vg
+  key for local host is registered: 0x1000000000010001
+  keys for all registered hosts: 0x1000000000010001
+  reservation WEAR for registered hosts
+  PR is started.
+$ lvcreate \-l1 \-n lvol0 vg
+  Logical volume "lvol0" created.
+
+host2:
+$ lvmconfig local/host_id
+host_id=2
+$ vgchange \-\-persist start vg
+  lvmpersist: started vg with key 0x1000000000010002.
+$ vgchange \-\-lockstart vg
+  VG vg starting sanlock lockspace
+  Starting locking.  Waiting for sanlock...
+$ vgchange \-\-persist check vg
+  key for local host is registered: 0x1000000000010002
+  keys for all registered hosts: 0x1000000000010001 0x1000000000010002
+  reservation WEAR for registered hosts
+  PR is started.
+$ lvcreate \-l1 \-n lvol1 vg
+  Logical volume "lvol1" created.
+$ lvchange \-ay vg/lvol0
+  LV locked by other host: vg/lvol0 (host_id 1)
+  Failed to lock logical volume vg/lvol0.
+$ vgchange \-an vg
+  0 logical volume(s) in volume group "vg" now active
+$ vgchange \-\-lockstop vg
+$ vgchange \-\-persist stop vg
+  lvmpersist: stopped ee with key 0x1000000000010002.
+$ vgchange \-\-persist check vg
+  key for local host is not registered (host_id 2)
+  keys for all registered hosts: 0x1000000000010001
+  reservation WEAR for registered hosts
+  PR is not started.
+$ dd if=/dev/zero of=/dev/sda
+dd: error writing '/dev/sda': Input/output error
+.fi
+.SH "همچنین ببینید (SEE ALSO)"
+.BR lvm (8),
+.BR lvm.conf (5),
+.BR lvmlocal.conf (5),
+.BR lvmsystemid (7),
+.BR vgchange (8),
+.BR vgcreate (8),
+.BR vgextend (8),
+.BR mpathconf (8),
+.BR multipath.conf (5)

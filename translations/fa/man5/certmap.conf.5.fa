@@ -1,0 +1,145 @@
+.TH CERTMAP.CONF 5 "26 ژوئن 2018" "" "فایل‌های پیکربندی"
+.SH "نام (NAME)"
+certmap.conf \- پرونده پیکربندی برای احراز هویت کلاینت TLS در 389 Directory Server
+
+.SH "خلاصه (SYNOPSIS)"
+/etc/dirsrv/config/certmap.conf
+
+.SH "توضیحات (DESCRIPTION)"
+.B certmap.conf
+.PP
+این پرونده نحوه نگاشت یک گواهی (certificate) به یک مدخل LDAP را پیکربندی می‌کند. برای اطلاعات بیشتر درباره این پرونده به مستندات مراجعه کنید:
+https://access.redhat.com/documentation/en-us/red_hat_directory_server/10/html/configuration_command_and_file_reference/configuration_file_reference#certmap_conf
+
+.SH "نحو (SYNTAX)"
+قالب این پرونده به شرح زیر است:
+.PP
+.nf
+certmap <name> <issuerDN>
+<name>:<prop1> [<val1>]
+<name>:<prop2> [<val2>]
+.fi
+.PP
+نکات:
+.IP " 1." 4
+نگاشت را می‌توان به ازای هر صادرکننده گواهی تعریف کرد. اگر نگاشتی برای یک
+.B issuerDN
+خاص وجود نداشته باشد، سرور از نگاشت پیش‌فرض استفاده می‌کند.
+.IP " 2." 4
+باید یک مدخل برای
+.B <name>=default
+و issuerDN برابر با
+.B """default"""
+وجود داشته باشد. این نگاشت، نگاشت پیش‌فرض است.
+.IP " 3." 4
+می‌توان از
+.B '#'
+برای کامنت کردن یک خط استفاده کرد.
+.IP " 4." 4
+پارامترهای
+.B DNComps
+و
+.B FilterComps
+برای تشکیل DN پایه و فیلتر جستجوی LDAP در هنگام نگاشت گواهی به مدخل کاربر استفاده می‌شوند.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B DNComps
+پارامتر
+.B DNComps
+مشخص می‌کند که Directory Server چگونه DN پایه مورد استفاده برای جستجوی کاربر در دایرکتوری را تولید کند. این تنظیم فهرستی از ویژگی‌های جداشده با کاما را برای تشکیل یک DN می‌پذیرد. با این حال، ترتیب ویژگی‌ها در پارامتر
+.B DNComps
+باید با ترتیب موجود در موضوع (subject) گواهی مطابقت داشته باشد. برای مثال، اگر موضوع گواهی شما
+.I "e=user_name@example.com,cn=user_name,o=Example Inc.,c=US"
+باشد و بخواهید Directory Server از
+.I "cn=user_name,o=Example Inc.,c=US"
+به عنوان DN پایه هنگام جستجوی کاربر استفاده کند، پارامتر
+.B DNComps
+را روی
+.I "cn, o, c"
+تنظیم کنید.
+.PP
+اگر فیلد موضوع گواهی دقیقاً با DN کاربر در Directory Server مطابقت دارد، یا اگر می‌خواهید از تنظیمات پارامتر
+.B CmapLdapAttr
+استفاده کنید، این پارامتر را کامنت کرده یا مقداردهی نکنید.
+.PP
+اگر مقدار آن خالی باشد، کل درخت LDAP را با استفاده از پارامتر
+.B FilterComps
+جستجو خواهد کرد.
+
+.TP
+.B FilterComps
+این پارامتر مشخص می‌کند که Directory Server از کدام ویژگی‌های فیلد موضوع گواهی برای تولید فیلتر جستجو جهت یافتن کاربر استفاده کند.
+.PP
+این پارامتر را روی فهرستی از ویژگی‌های جداشده با کاما که در موضوع گواهی استفاده شده‌اند تنظیم کنید. Directory Server از این ویژگی‌ها در یک عملیات AND در فیلتر استفاده خواهد کرد.
+.PP
+توجه \- موضوعات گواهی از ویژگی
+.B e
+برای آدرس ایمیل استفاده می‌کنند که در طرح‌واره (schema) پیش‌فرض Directory Server وجود ندارد. به همین دلیل، Directory Server به طور خودکار این ویژگی را به ویژگی
+.B mail
+نگاشت می‌کند. این بدان معناست که اگر از ویژگی
+.B mail
+در پارامتر
+.B FilterComps
+استفاده کنید، Directory Server مقدار ویژگی
+.B e
+را از موضوع گواهی می‌خواند.
+.PP
+برای مثال، اگر موضوع یک گواهی
+.I "e=user_name@example.com,cn=user_name,dc=example,dc=com,o=Example Inc.,c=US"
+باشد و بخواهید فیلتر
+.I "(&(mail=username@domain)(cn=user_name))"
+را به صورت پویا تولید کنید، پارامتر
+.B FilterComps
+را روی
+.I "mail, cn"
+تنظیم کنید.
+.PP
+اگر این پارامتر کامنت شود یا روی یک مقدار خالی تنظیم گردد، از فیلتر
+.I "(objectclass=*)"
+استفاده خواهد شد.
+
+.TP
+.B verifycert
+سرور دایرکتوری همیشه بررسی می‌کند که آیا گواهی توسط یک مرجع صدور گواهی (CA) معتبر صادر شده است یا خیر. با این حال، اگر علاوه بر این، پارامتر
+.B verifycert
+را روی
+.B on
+تنظیم کنید، Directory Server همچنین بررسی می‌کند که گواهی با گواهی در قالب Distinguished Encoding Rules (DER) ذخیره‌شده در ویژگی دودویی
+.B userCertificate
+کاربر مطابقت داشته باشد.
+.PP
+اگر این پارامتر را تنظیم نکنید،
+.B verifycert
+غیرفعال است.
+
+.TP
+.B CmapLdapAttr
+اگر مدخل‌های کاربر شما حاوی ویژگی‌ای هستند که DN موضوع گواهی کاربر را ذخیره می‌کند،
+.B CmapLdapAttr
+را روی نام این ویژگی تنظیم کنید. Directory Server از این ویژگی و DN موضوع برای یافتن کاربر استفاده خواهد کرد. در این حالت هیچ فیلتری بر اساس ویژگی‌های موجود در پارامتر
+.B FilterComps
+تولید نمی‌شود.
+
+.SH "مثال‌ها (EXAMPLES)"
+.nf
+certmap default         default
+default:DNComps         cn, o, c
+#default:FilterComps    e, uid
+#default:verifycert     on
+#default:CmapLdapAttr   certSubjectDN
+
+certmap example         o=Example Inc.,c=US
+example:DNComps
+.fi
+
+.SH "نویسندگان (AUTHOR)"
+پرونده
+.B certmap.conf
+توسط پروژه 389 (389 Project) نوشته شده است.
+
+.SH "گزارش اشکالات (REPORTING BUGS)"
+گزارش اشکالات را به https://github.com/389ds/389-ds-base/issues/new ارسال کنید.
+
+.SH "حق نشر (COPYRIGHT)"
+حق نشر \(co 2018 متعلق به Red Hat, Inc است.

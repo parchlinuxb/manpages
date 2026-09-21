@@ -1,0 +1,71 @@
+.\" Copyright (C) 1994, 1995, Daniel Quinlan <quinlan@yggdrasil.com>
+.\" Copyright (C) 2002-2008, 2017, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright (C) 2023, Alejandro Colomar <alx@kernel.org>
+.\"
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\"
+.TH proc_pid_root 5 2024-05-02 "Linux man-pages 6.9.1"
+.SH "نام (NAME)"
+proc_pid_root \- پیوند نمادین به دایرکتوری ریشه فرآیند
+.SH "توضیحات (DESCRIPTION)"
+.TP
+.IR /proc/ pid /root/
+یونیکس و لینوکس از ایده یک ریشه سیستم‌فایل اختصاصی برای هر فرآیند که توسط فراخوان سیستمی
+.BR chroot (2)
+تنظیم می‌شود، پشتیبانی می‌کنند.
+این فایل یک پیوند نمادین است که به دایرکتوری ریشه فرآیند اشاره می‌کند و رفتاری مشابه با
+.IR exe
+و
+.IR fd/*
+دارد.
+.IP
+با این حال، توجه داشته باشید که این فایل صرفاً یک پیوند نمادین نیست.
+این فایل همان نمایی از سیستم‌فایل (شامل فضاهای نام و مجموعه اتصالات اختصاصی فرآیند) را ارائه می‌دهد که خود فرآیند دارد.
+یک مثال این نکته را روشن می‌کند.
+در یک ترمینال، پوسته‌ای را در فضاهای نام کاربری و اتصالات (mount) جدید آغاز می‌کنیم و در آن پوسته چند اتصال جدید ایجاد می‌کنیم:
+.IP
+.in +4n
+.EX
+$ \fBPS1=\[aq]sh1# \[aq] unshare \-Urnm\fP
+sh1# \fBmount \-t tmpfs tmpfs /etc\fP  # Mount empty tmpfs at /etc
+sh1# \fBmount \-\-bind /usr /dev\fP     # Mount /usr at /dev
+sh1# \fBecho $$\fP
+27123
+.EE
+.in
+.IP
+در پنجره ترمینال دوم، در فضای نام اتصال اولیه، به محتویات اتصالات متناظر در فضاهای نام اولیه و جدید نگاه می‌کنیم:
+.IP
+.in +4n
+.EX
+$ \fBPS1=\[aq]sh2# \[aq] sudo sh\fP
+sh2# \fBls /etc | wc \-l\fP                  # In initial NS
+309
+sh2# \fBls /proc/27123/root/etc | wc \-l\fP  # /etc in other NS
+0                                     # The empty tmpfs dir
+sh2# \fBls /dev | wc \-l\fP                  # In initial NS
+205
+sh2# \fBls /proc/27123/root/dev | wc \-l\fP  # /dev in other NS
+11                                    # Actually bind
+                                      # mounted to /usr
+sh2# \fBls /usr | wc \-l\fP                  # /usr in initial NS
+11
+.EE
+.in
+.IP
+.\" The following was still true as at kernel 2.6.13
+در یک فرآیند چندنخی، در صورتی که نخ اصلی پیش‌تر پایان یافته باشد (معمولاً با فراخوانی
+.BR pthread_exit (3))،
+محتویات پیوند نمادین
+.IR /proc/ pid /root
+در دسترس نخواهد بود.
+.IP
+مجوز ارجاع‌زدایی یا خواندن
+.RB ( readlink (2))
+این پیوند نمادین توسط بررسی حالت دسترسی ptrace به نام
+.B PTRACE_MODE_READ_FSCREDS
+اداره می‌شود؛ به
+.BR ptrace (2)
+مراجعه کنید.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR proc (5)

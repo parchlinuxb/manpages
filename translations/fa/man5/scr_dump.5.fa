@@ -1,0 +1,486 @@
+.\"***************************************************************************
+.\" Copyright 2018-2024,2025 Thomas E. Dickey                                *
+.\" Copyright 2017 Free Software Foundation, Inc.                            *
+.\"                                                                          *
+.\" Permission is hereby granted, free of charge, to any person obtaining a  *
+.\" copy of this software and associated documentation files (the            *
+.\" "Software"), to deal in the Software without restriction, including      *
+.\" without limitation the rights to use, copy, modify, merge, publish,      *
+.\" distribute, distribute with modifications, sublicense, and/or sell       *
+.\" copies of the Software, and to permit persons to whom the Software is    *
+.\" furnished to do so, subject to the following conditions:                 *
+.\"                                                                          *
+.\" The above copyright notice and this permission notice shall be included  *
+.\" in all copies or substantial portions of the Software.                   *
+.\"                                                                          *
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+.\" IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+.\" DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+.\" OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+.\" THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+.\"                                                                          *
+.\" Except as contained in this notice, the name(s) of the above copyright   *
+.\" holders shall not be used in advertising or otherwise to promote the     *
+.\" sale, use or other dealings in this Software without prior written       *
+.\" authorization.                                                           *
+.\"***************************************************************************
+.\"
+.\" $Id: scr_dump.5,v 1.50 2025/01/19 00:51:10 tom Exp $
+.TH scr_dump 5 2025-01-18 "ncurses 6.5" "File formats"
+.ie \n(.g \{\
+.ds `` \(lq
+.ds '' \(rq
+.\}
+.el \{\
+.ie t .ds `` ``
+.el   .ds `` ""
+.ie t .ds '' ''
+.el   .ds '' ""
+.\}
+.
+.de bP
+.ie n  .IP \(bu 4
+.el    .IP \(bu 2
+..
+.SH "نام (NAME)"
+scr_dump \- قالب فایل تخلیه صفحه نمایش ncurses
+.SH "توضیحات (DESCRIPTION)"
+کتابخانه curses به برنامه‌ها این امکان را می‌دهد که محتویات یک پنجره را با استفاده از
+\fBscr_dump\fP
+یا
+\fBputwin\fP
+در یک فایل خارجی بنویسند و آن را با استفاده از
+\fBscr_restore\fP
+یا
+\fBgetwin\fP
+مجدداً بازخوانی کنند.
+.PP
+توابع
+\fBputwin\fP
+و
+\fBgetwin\fP
+کار اصلی را انجام می‌دهند؛ در حالی که
+\fBscr_dump\fP
+و
+\fBscr_restore\fP
+به‌طور مناسب کل صفحه نمایش، یعنی
+\fBstdscr\fP
+را ذخیره و بازیابی می‌کنند.
+.SS ncurses6
+پیاده‌سازی دیرینه تخلیه صفحه نمایش در ncurses6 برای رفع مشکلات رویکرد پیشین بازنگری شد:
+.IP \(bu 4
+یک «شماره جادویی» (\*(``magic number\*('') در ابتدای فایل تخلیه نوشته می‌شود که به برنامه‌هایی مانند
+\fBfile\fP(1)
+امکان می‌دهد فایل‌های تخلیه curses را شناسایی کنند.
+.IP
+از آنجا که ncurses6 از قالب جدیدی استفاده می‌کند، این امر نیازمند شماره جادویی جدیدی بود که توسط سایر برنامه‌ها استفاده نشده باشد.
+این عدد ۱۶ بیتی استفاده‌نشده بود:
+.RS 4
+.PP
+.RS 4
+.EX
+0x8888 (octal \*(``\e210\e210\*('')
+.EE
+.RE
+.PP
+اما برای اطمینان بیشتر، این عدد ۳۲ بیتی انتخاب شد:
+.PP
+.RS 4
+.EX
+0x88888888 (octal \*(``\e210\e210\e210\e210\*('')
+.EE
+.RE
+.PP
+این الگویی است که به نگه‌دارندگان برنامه
+\fBfile\fP
+ارائه شده است:
+.PP
+.RS 4
+.EX
+#
+# ncurses5 (and before) did not use a magic number,
+# making screen dumps "data".
+#
+# ncurses6 (2015) uses this format, ignoring byte-order
+0    string    \e210\e210\e210\e210ncurses    ncurses6 screen image
+#
+.EE
+.RE
+.RE
+.bP
+تخلیه‌های صفحه نمایش به شکل متنی نوشته می‌شوند تا اندازه داده‌های داخلی مستقیماً به قالب تخلیه وابسته نباشد و کتابخانه بتواند تخلیه‌ها را از پیکربندی‌های کاراکتر باریک (narrow) یا کاراکتر عریض (wide) بخواند.
+.IP
+پیکربندی کتابخانه
+\fInarrow\fP
+کاراکترها و ویژگی‌های تصویری را در یک
+\fBchtype\fP
+۳۲ بیتی نگه می‌دارد، در حالی که کتابخانه
+\fIwide-character\fP
+این اطلاعات را در ساختار
+\fBcchar_t\fP
+ذخیره می‌کند که بسیار بزرگ‌تر از ۳۲ بیت است.
+.bP
+خواندن یک تخلیه صفحه در ترمینالی با اندازه صفحه متفاوت امکان‌پذیر است، زیرا کتابخانه بر حسب نیاز صفحه را کوتاه (truncate) یا با فضای خالی پر می‌کند.
+.bP
+تابع
+\fBgetwin\fP
+در ncurses6 می‌تواند تخلیه‌های صفحه قدیمی مربوط به ncurses5 را نیز بخواند.
+.SS "ncurses5 (قدیمی)"
+ویژگی تخلیه صفحه در ژوئن ۱۹۹۵ به
+\fI\%ncurses\fP
+افزوده شد. اگرچه در سال‌های پس از آن اصلاحات و بهبودهایی صورت گرفت، طرح کلی پایه بدون تغییر باقی ماند:
+.bP
+ساختار
+\fI\%WINDOW\fP
+به صورت باینری نوشته می‌شد.
+.bP
+ساختار
+\fI\%WINDOW\fP
+به خطوطی از داده‌ها ارجاع می‌دهد که به صورت آرایه‌ای از داده‌های باینری به دنبال
+\fI\%WINDOW\fP
+نوشته می‌شدند.
+.bP
+هنگامی که
+\fBgetwin\fP
+پنجره را بازیابی می‌کرد، آفست‌ها را در آرایه داده‌های خطوط ردیابی می‌کرد و ساختار
+\fI\%WINDOW\fP
+را که مجدداً در حافظه خوانده شده بود تنظیم می‌نمود.
+.PP
+این روش شبیه به Unix System\ V است، اما «شماره جادویی» (\*(``magic number\*('') را برای شناسایی قالب فایل نمی‌نویسد.
+.SH "سازگاری (PORTABILITY)"
+هیچ قالب استانداردی برای تخلیه‌های صفحه
+.I curses
+وجود ندارد. در ادامه بررسی کوتاهی از پیاده‌سازی‌های موجود آمده است.
+.SS "X/Open Curses"
+سند X/Open Curses نسخه ۷ جزئیات اندکی را مشخص کرده است. در این سند آمده است (تاکید پررنگ افزوده شده است):
+.RS 3
+.PP
+\*(``تابع
+\fI\%getwin()\fP
+داده‌های مرتبط با پنجره را که توسط
+\fI\%putwin()\fP
+در فایل ذخیره شده است می‌خواند. سپس این تابع با استفاده از آن داده‌ها، پنجره جدیدی را ایجاد و مقداردهی اولیه می‌کند.
+.PP
+تابع
+\fI\%putwin()\fP
+تمامی داده‌های مرتبط با
+\fIwin\fP
+را با استفاده از یک
+\fBقالب نامشخص (unspecified format)\fP
+در جریان
+\fI\%stdio\fP
+که
+\fIfilep\fP
+به آن اشاره دارد می‌نویسد. این اطلاعات بعداً با استفاده از
+\fI\%getwin()\fP
+قابل بازیابی است.\*(''
+.RE
+.PP
+در اواسط دهه ۱۹۹۰ که سند X/Open Curses نوشته شد، هنوز سیستم‌های System\ V از کتابخانه‌های قدیمی‌تر و با قابلیت کمتر
+.I curses
+استفاده می‌کردند. کتابخانه
+BSD
+.I curses
+برای X/Open مطرح نبود زیرا معیارهای انطباق سطح پایه را برآورده نمی‌کرد؛ به
+\fB\%ncurses\fP(3NCURSES)
+مراجعه کنید.
+.SS "System V"
+کتابخانه
+System\ V
+.I curses
+قالب فایل را با نوشتن یک «شماره جادویی» (\*(``magic number\*('') در ابتدای فایل تخلیه شناسایی می‌کرد. داده‌های
+\fI\%WINDOW\fP
+و خطوط متن همگی در قالب باینری پس از آن قرار می‌گیرند.
+.PP
+کتابخانه
+Solaris
+.I curses
+دارای تعاریف زیر است:
+.PP
+.RS 4
+.EX
+/* terminfo magic number */
+#define MAGNUM  0432
+
+/* curses screen dump magic number */
+#define SVR2_DUMP_MAGIC_NUMBER  0433
+#define SVR3_DUMP_MAGIC_NUMBER  0434
+.EE
+.RE
+.PP
+بدین معنی که این ویژگی احتمالاً در SVr2 (سال ۱۹۸۴) معرفی شد و در SVr3 (سال ۱۹۸۷) بهبود یافت.
+کتابخانه
+Solaris
+.I curses
+شماره جادویی برای SVr4 (سال ۱۹۸۹) ندارد.
+سایر سیستم‌عامل‌های System\ V (مانند AIX و HP-UX) از شماره جادویی استفاده می‌کنند که معادل تعریف زیر است:
+.PP
+.RS 4
+.EX
+/* curses screen dump magic number */
+#define SVR4_DUMP_MAGIC_NUMBER  0435
+.EE
+.RE
+.PP
+این عدد هشت‌هشتی (octal) در قالب بایت‌ها برابر 001، 035 است. از آنجا که بیشتر تولیدکنندگان یونیکس در آن زمان از سخت‌افزارهای با ترتیب بایت بزرگ‌تر (big-endian) استفاده می‌کردند، شماره جادویی با بایت مرتبه بالاتر در ابتدا نوشته می‌شود:
+.PP
+.RS 4
+.EX
+\e001\e035
+.EE
+.RE
+.PP
+پس از شماره جادویی، ساختار
+\fI\%WINDOW\fP
+و داده‌های خطوط در قالب باینری نوشته می‌شوند. اگرچه شماره جادویی مورد استفاده این سیستم‌ها را می‌توان با
+\fIod\fP(1)
+مشاهده کرد، هیچ‌یک از آن‌ها قالب مورد استفاده برای تخلیه‌های صفحه را مستند نکرده‌اند.
+.PP
+آن‌ها حتی درون خانواده System\ V نیز از قالبی یکسان استفاده نمی‌کنند. برنامه آزمایشی
+.I \%savescreen
+در
+.I \%ncurses
+برای جمع‌آوری اطلاعات این صفحه راهنما به کار گرفته شد. این برنامه تخلیه‌هایی با اندازه‌های متفاوت تولید کرد (همگی روی سخت‌افزار ۶۴ بیتی و صفحات ۴۰×۸۰):
+.bP
+سیستم AIX (۵۱۸۱۷ بایت)
+.bP
+سیستم HP-UX (۹۰۰۹۳ بایت)
+.bP
+سیستم Solaris 10 (۱۳۲۷۳ بایت)
+.bP
+\fI\%ncurses\fP5 (۱۲۸۸۸ بایت)
+.SS Solaris
+همان‌طور که در بالا اشاره شد،
+Solaris
+.I curses
+هیچ شماره جادویی متناظر با
+.IR curses
+در SVr4 ندارد. این امر عجیب است، زیرا سولاریس نخستین سیستم‌عاملی بود که دستورالعمل‌های SVr4 را برآورده ساخت. علاوه بر این، سولاریس دو نسخه از
+.IR curses
+را ارائه می‌دهد:
+.bP
+کتابخانه پیش‌فرض
+.I curses
+از شماره جادویی SVr3 استفاده می‌کند.
+.bP
+یک کتابخانه جایگزین
+.I curses
+(که آن را
+.I \%xcurses
+می‌نامیم) موجود در
+.IR /usr/xpg4 ،
+از یک قالب متنی بدون شماره جادویی استفاده می‌کند.
+.IP
+طبق اعلان حق نشر آن، این کتابخانه
+.I \%xcurses
+توسط MKS (Mortice Kern Systems) بین سال‌های ۱۹۹۰ تا ۱۹۹۵ توسعه یافته است.
+.IP
+همانند ncurses6، شامل یک هدر با پارامترها است. برخلاف ncurses6، محتویات پنجره تکه‌تکه نوشته می‌شوند؛ همراه با مختصات و ویژگی‌ها برای هر بخش از متن، به‌جای اینکه کل پنجره از بالا به پایین نوشته شود.
+.SS PDCurses
+کتابخانه
+.I \%PDCurses
+پشتیبانی از تخلیه صفحه را در نسخه ۲.۷ (سال ۲۰۰۵) اضافه کرد. مانند System\ V و ncurses5، این کتابخانه ساختار
+\fI\%WINDOW\fP
+را به صورت باینری می‌نویسد، اما فایل را با شناسه سه‌بایتی خود یعنی \*(``PDC\*('' و به دنبال آن یک شماره نسخه تک‌بایتی آغاز می‌کند:
+.PP
+.RS 4
+.EX
+	\*(``PDC\e001\*(''
+.EE
+.RE
+.SS NetBSD
+تا آوریل ۲۰۱۷،
+NetBSD
+.I curses
+از توابع
+\fB\%scr_dump\fP
+و
+\fB\%scr_restore\fP
+(یا
+\fB\%scr_init\fP
+و
+\fB\%scr_set\fP)
+پشتیبانی نمی‌کند، اگرچه توابع
+\fB\%putwin\fP
+و
+\fB\%getwin\fP
+را دارد.
+.PP
+همانند ncurses5، تابع
+\fB\%putwin\fP
+در NetBSD تخلیه‌های خود را با یک شماره جادویی کاربردی مشخص نمی‌کند. این تابع موارد زیر را می‌نویسد:
+.bP
+نسخه‌های اصلی و فرعی (major and minor) کتابخانه مشترک
+.I curses
+به عنوان دو بایت نخست (برای نمونه، ۷ و ۱)،
+.bP
+به دنبال آن یک تخلیه باینری از
+\fI\%WINDOW\fP،
+.bP
+مقداری داده برای کاراکترهای عریض که ساختار
+\fI\%WINDOW\fP
+به آن‌ها ارجاع می‌دهد،
+.bP
+و در نهایت، خطوط متن همانند سایر پیاده‌سازی‌ها.
+.SH "مثال‌ها (EXAMPLES)"
+با فرض یک برنامه ساده که متنی را روی صفحه نمایش می‌نویسد (و برای سادگی مثال، اندازه صفحه به ۱۰×۲۰ محدود شده است):
+.PP
+.RS 4
+.EX
+#include <curses.h>
+
+int
+main(void)
+{
+    putenv("LINES=10");
+    putenv("COLUMNS=20");
+    initscr();
+    start_color();
+    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+    init_pair(2, COLOR_RED, COLOR_BLACK);
+    bkgd(COLOR_PAIR(1));
+    move(4, 5);
+    attron(A_BOLD);
+    addstr("Hello");
+    move(5, 5);
+    attroff(A_BOLD);
+    attrset(A_REVERSE | COLOR_PAIR(2));
+    addstr("World!");
+    refresh();
+    scr_dump("foo.out");
+    endwin();
+    return 0;
+}
+.EE
+.RE
+.PP
+هنگام اجرا با استفاده از ncurses6، خروجی به شکل زیر خواهد بود:
+.PP
+.RS 4
+.EX
+\e210\e210\e210\e210ncurses 6.0.20170415
+_cury=5
+_curx=11
+_maxy=9
+_maxx=19
+_flags=14
+_attrs=\e{REVERSE|C2}
+flag=_idcok
+_delay=-1
+_regbottom=9
+_bkgrnd=\e{NORMAL|C1}\es
+rows:
+1:\e{NORMAL|C1}\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+2:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+3:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+4:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+5:\es\es\es\es\es\e{BOLD}Hello\e{NORMAL}\es\es\es\es\es\es\es\es\es\es
+6:\es\es\es\es\es\e{REVERSE|C2}World!\e{NORMAL|C1}\es\es\es\es\es\es\es\es\es
+7:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+8:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+9:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+10:\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es\es
+.EE
+.RE
+.PP
+چهار توالی اسکیپ هشت‌هشتی نخست در واقع کاراکترهای غیرقابل‌چاپ هستند، در حالی که بقیه فایل از متن قابل چاپ تشکیل شده است. ممکن است توجه کنید که:
+.bP
+مقادیر واقعی جفت‌رنگ‌ها (color pairs) در فایل نوشته نمی‌شوند.
+.bP
+تمام کاراکترها به شکل قابل چاپ نشان داده می‌شوند؛ فاصله‌ها به صورت \*(``\es\*('' هستند تا نادیده گرفته نشوند.
+.bP
+ویژگی‌ها داخل آکولادهای اسکیپ‌شده نوشته می‌شوند، مانند \*(``\e{BOLD}\*(''، و ممکن است شامل یک جفت‌رنگ (در این مثال C1 یا C2) باشند.
+.bP
+پارامترهای موجود در هدر تنها در صورتی نوشته می‌شوند که مقدار آن‌ها غیر صفر باشد. هنگام خواندن مجدد، ترتیب آن‌ها اهمیتی ندارد.
+.ne 10
+.PP
+اجرای همان برنامه با کتابخانه Solaris \fIxpg4\fP curses چنین تخلیه‌ای را نتیجه می‌دهد:
+.PP
+.RS 4
+.EX
+MAX=10,20
+BEG=0,0
+SCROLL=0,10
+VMIN=1
+VTIME=0
+FLAGS=0x1000
+FG=0,0
+BG=0,0,
+0,0,0,1,
+0,19,0,0,
+1,0,0,1,
+1,19,0,0,
+2,0,0,1,
+2,19,0,0,
+3,0,0,1,
+3,19,0,0,
+4,0,0,1,
+4,5,0x20,0,Hello
+4,10,0,1,
+4,19,0,0,
+5,0,0,1,
+5,5,0x4,2,World!
+5,11,0,1,
+5,19,0,0,
+6,0,0,1,
+6,19,0,0,
+7,0,0,1,
+7,19,0,0,
+8,0,0,1,
+8,19,0,0,
+9,0,0,1,
+9,19,0,0,
+CUR=11,5
+.EE
+.RE
+.PP
+تابع
+\fBgetwin\fP
+در سولاریس نیازمند آن است که تمام پارامترها موجود باشند و به همان ترتیب قرار گیرند. کتابخانه
+\fIxpg4\fP curses
+از قابلیت
+\fBbce\fP
+(back color erase یا پاک کردن با رنگ پس‌زمینه) اطلاعی ندارد و رنگ پس‌زمینه پنجره را رنگ‌آمیزی نمی‌کند.
+.ne 10
+.PP
+از سوی دیگر، کتابخانه SVr4 curses درباره رنگ پس‌زمینه آگاهی دارد. با این حال، تخلیه‌های صفحه آن به صورت باینری است. تخلیه متناظر در زیر آمده است (با استفاده از \*(``od \-t x1\*(''):
+.PP
+.RS 4
+.EX
+0000000 1c 01 c3 d6 f3 58 05 00 0b 00 0a 00 14 00 00 00
+0000020 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00
+0000040 00 00 b8 1a 06 08 cc 1a 06 08 00 00 09 00 10 00
+0000060 00 00 00 80 00 00 20 00 00 00 ff ff ff ff 00 00
+0000100 ff ff ff ff 00 00 00 00 20 80 00 00 20 80 00 00
+0000120 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0000620 20 80 00 00 20 80 00 00 20 80 00 00 48 80 00 04
+0000640 65 80 00 04 6c 80 00 04 6c 80 00 04 6f 80 00 04
+0000660 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0000740 20 80 00 00 20 80 00 00 20 80 00 00 57 00 81 00
+0000760 6f 00 81 00 72 00 81 00 6c 00 81 00 64 00 81 00
+0001000 21 00 81 00 20 80 00 00 20 80 00 00 20 80 00 00
+0001020 20 80 00 00 20 80 00 00 20 80 00 00 20 80 00 00
+*
+0001540 20 80 00 00 20 80 00 00 00 00 f6 d1 01 00 f6 d1
+0001560 08 00 00 00 40 00 00 00 00 00 00 00 00 00 00 07
+0001600 00 04 00 01 00 01 00 00 00 01 00 00 00 00 00 00
+0001620 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+*
+0002371
+.EE
+.RE
+.SH "نویسندگان (AUTHORS)"
+توماس ای. دیکی (Thomas E. Dickey)
+.br
+قالب گسترش‌یافته تخلیه صفحه برای \fI\%ncurses\fP 6.0 (سال ۲۰۱۵)
+.sp
+اریک اس. ریموند (Eric S. Raymond)
+.br
+ویژگی تخلیه صفحه در \fI\%ncurses\fP 1.9.2d (سال ۱۹۹۵)
+.SH "همچنین ببینید (SEE ALSO)"
+\fB\%scr_dump\fP(3NCURSES),
+\fB\%util\fP(3NCURSES)

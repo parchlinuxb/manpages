@@ -1,0 +1,183 @@
+.TH "MPLS manipulation action in tc" 8 "22 May 2019" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-mpls \- ماژول دستکاری mpls در کنترل ترافیک لینوکس
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR tc " ... " "action mpls" " { "
+.IR POP " | " PUSH " | " MODIFY " | "
+.BR dec_ttl " } [ "
+.IR CONTROL " ]"
+
+.ti -8
+.IR POP " := "
+.BR pop " " protocol
+.IR MPLS_PROTO
+
+.ti -8
+.IR PUSH " := "
+.RB "{ " push " | " mac_push " } [ " protocol
+.IR MPLS_PROTO " ]"
+.RB " [ " tc
+.IR MPLS_TC " ] "
+.RB " [ " ttl
+.IR MPLS_TTL " ] "
+.RB " [ " bos
+.IR MPLS_BOS " ] "
+.BI label " MPLS_LABEL"
+
+.ti -8
+.IR MODIFY " := "
+.BR modify " [ " label
+.IR MPLS_LABEL " ]"
+.RB " [ " tc
+.IR MPLS_TC " ] "
+.RB " [ " ttl
+.IR MPLS_TTL " ] "
+
+.ti -8
+.IR CONTROL " := { "
+.BR reclassify " | " pipe " | " drop " | " continue " | " pass " | " goto " " chain " " CHAIN_INDEX " }"
+.SH "توضیحات (DESCRIPTION)"
+اکشن
+.B mpls
+عملیات کپسوله‌سازی (encapsulation) یا کپسوله‌زدایی (decapsulation) را روی بسته اعمال می‌کند که در حالت‌های عملکردی
+.IR POP "، " PUSH "، " MODIFY
+و
+.I DEC_TTL
+نمایان می‌شود.
+حالت
+.I POP
+به مشخصه ethertype سرآیندی که پس از سرآیند MPLS قرار دارد (مانند IPv4 یا یک سرآیند MPLS دیگر) نیاز دارد. این حالت سرآیند بیرونی MPLS را حذف کرده و ethertype را در سرآیند MAC با مقدار مشخص‌شده جایگزین می‌کند. حالت‌های
+.IR PUSH " و " MODIFY
+اطلاعات سرآیند کنونی MPLS را به‌روزرسانی کرده یا یک سرآیند جدید اضافه می‌کنند.
+حالت
+.I PUSH
+حداقل نیازمند یک
+.I MPLS_LABEL
+است. حالت
+.I DEC_TTL
+به هیچ آرگومانی نیاز ندارد و صرفاً مقدار ۱ واحد از فیلد TTL در سرآیند MPLS کسر می‌کند.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B pop
+حالت کپسوله‌زدایی (decapsulation). نیازمند پروتکل سرآیند بعدی است.
+.TP
+.B push
+حالت کپسوله‌سازی (encapsulation). سرآیند MPLS را بین سرآیند MAC و سرآیندهای شبکه اضافه می‌کند. حداقل به گزینه
+.B label
+نیاز دارد.
+.TP
+.B mac_push
+حالت کپسوله‌سازی (encapsulation). سرآیند MPLS را پیش از سرآیند MAC اضافه می‌کند. حداقل به گزینه
+.B label
+نیاز دارد.
+.TP
+.B modify
+حالت جایگزینی (replace). برچسب موجود MPLS جایگزین می‌شود. گزینه‌های
+.BR label "، "
+.BR tc " و "
+.B ttl
+همگی اختیاری هستند.
+.TP
+.B dec_ttl
+کاهش ۱ واحد از فیلد TTL در بیرونی‌ترین سرآیند MPLS.
+.TP
+.BI label " MPLS_LABEL"
+برچسب MPLS را برای بیرونی‌ترین سرآیند MPLS تعیین می‌کند.
+.I MPLS_LABEL
+یک عدد صحیح ۲۰ بیتی بدون علامت است که قالب آن به طور خودکار تشخیص داده می‌شود (برای نمونه پیشوند
+.RB ' 0x '
+برای تفسیر به صورت هگزادسیمال و غیره).
+.TP
+.BI protocol " MPLS_PROTO"
+پروتکل مورد استفاده را انتخاب می‌کند. برای اکشن‌های push این مقدار باید
+.BR mpls_uc " یا " mpls_mc
+باشد (مقدار پیش‌فرض
+.BR mpls_uc
+است). برای اکشن‌های pop باید پروتکل سرآیند بعدی باشد. این گزینه نمی‌تواند همراه با modify استفاده شود.
+.TP
+.BI tc " MPLS_TC"
+مقدار کلاس ترافیک (TC) را برای بیرونی‌ترین سرآیند MPLS تعیین می‌کند؛ عددی ده‌دهی در بازه 0 تا 7. مقدار پیش‌فرض 0 است.
+.TP
+.BI ttl " MPLS_TTL"
+مقدار TTL را برای بیرونی‌ترین سرآیند MPLS تعیین می‌کند؛ عددی در بازه 0 تا 255. در صورتی که این مقدار صریحاً تعیین نشود، یک مقدار پیش‌فرض غیرصفر انتخاب خواهد شد.
+.TP
+.BI bos " MPLS_BOS"
+بیت انتهای پشته (bottom of stack) را به صورت دستی برای افزودن سرآیند MPLS تنظیم می‌کند. حالت پیش‌فرض این است که TC بر اساس سرآیند بعدی بسته، این بیت را به طور خودکار تنظیم (یا پاک) کند.
+.TP
+.I CONTROL
+نحوه ادامه پردازش پس از اجرای این اکشن را مشخص می‌کند.
+.RS
+.TP
+.B reclassify
+دسته‌بندی را با پرش به اولین فیلتر متصل به والد این اکشن مجدداً آغاز می‌کند.
+.TP
+.B pipe
+عملیات را با اکشن بعدی ادامه می‌دهد؛ این حالت پیش‌فرض است.
+.TP
+.B drop
+بسته بدون اجرای اکشن‌های بعدی دور انداخته می‌شود.
+.TP
+.B continue
+دسته‌بندی را با فیلتر بعدی موجود ادامه می‌دهد.
+.TP
+.B pass
+برای پردازش بسته به qdisc فراخواننده بازمی‌گردد. این عمل به فرآیند دسته‌بندی پایان می‌دهد.
+.RE
+.SH "مثال‌ها (EXAMPLES)"
+مثال زیر بسته‌های IP ورودی روی eth0 را با برچسب 123 درون MPLS کپسوله‌سازی کرده و آن‌ها را از طریق eth1 ارسال می‌کند:
+
+.RS
+.EX
+#tc qdisc add dev eth0 handle ffff: ingress
+#tc filter add dev eth0 protocol ip parent ffff: flower \\
+	action mpls push protocol mpls_uc label 123  \\
+	action mirred egress redirect dev eth1
+.EE
+.RE
+
+در این مثال، بسته‌های unicast ورودی MPLS روی eth0 کپسوله‌زدایی شده و به سمت eth1 هدایت می‌شوند:
+
+.RS
+.EX
+#tc qdisc add dev eth0 handle ffff: ingress
+#tc filter add dev eth0 protocol mpls_uc parent ffff: flower \\
+	action mpls pop protocol ipv4  \\
+	action mirred egress redirect dev eth1
+.EE
+.RE
+
+در این مثال دیگر، فریم‌های ورودی اترنت با برچسب 123 و مقدار TTL برابر با 64 درون MPLS کپسوله‌سازی می‌شوند. سپس یک سرآیند بیرونی اترنت افزوده شده و فریم حاصل در نهایت روی eth1 ارسال می‌گردد:
+
+.RS
+.EX
+#tc qdisc add dev eth0 ingress
+#tc filter add dev eth0 ingress matchall \\
+	action mpls mac_push label 123 ttl 64 \\
+	action vlan push_eth \\
+		dst_mac 02:00:00:00:00:02 \\
+		src_mac 02:00:00:00:00:01 \\
+	action mirred egress redirect dev eth1
+.EE
+.RE
+
+مثال زیر فرض می‌کند بسته‌های ورودی MPLS با برچسب 123 حامل فریم‌های اترنت هستند. سرآیند بیرونی اترنت و سرآیندهای MPLS حذف شده و سپس فریم داخلی اترنت روی eth1 ارسال می‌شود:
+
+.RS
+.EX
+#tc qdisc add dev eth0 ingress
+#tc filter add dev eth0 ingress protocol mpls_uc \\
+	flower mpls_label 123 mpls_bos 1 \\
+	action vlan pop_eth \\
+	action mpls pop protocol teb \\
+	action mirred egress redirect dev eth1
+.EE
+.RE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-mirred (8),
+.BR tc-vlan (8)

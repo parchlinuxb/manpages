@@ -1,0 +1,72 @@
+.nh
+.TH buildah-unshare "1" "June 2018" "buildah"
+.SH "نام (NAME)"
+buildah-unshare \- اجرای دستور در یک فضای نام کاربری (User Namespace) جدید
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+\fBbuildah unshare\fP [\fIگزینه‌ها\fP] [\fB--\fP] [\fIدستور\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+.PP
+یک فرآیند (به‌طور پیش‌فرض، \fI$SHELL\fP) را در یک فضای نام کاربری (User Namespace) جدید اجرا می‌کند. این فضای نام کاربری به گونه‌ای پیکربندی شده است که UID و GID اصلی کاربر فراخواننده به ترتیب به عنوان UID 0 و GID 0 نمایش داده می‌شوند. هر محدوده‌ای که در /etc/subuid و /etc/subgid با آن کاربر و گروه مطابقت داشته باشد نیز با کمک ابزارهای کمکی \fInewuidmap(1)\fP و \fInewgidmap(1)\fP به عنوان خودشان نگاشت می‌شوند.
+
+.PP
+دستور \fBbuildah unshare\fR برای عیب‌یابی عملیات‌های بدون امتیاز (unprivileged) و پاکسازی دستی فضای ذخیره‌سازی و سایر داده‌های مربوط به ایمیج‌ها و کانتینرها مفید است.
+
+.PP
+همچنین اگر بخواهید از دستور \fBbuildah mount\fR استفاده کنید، این دستور کاربرد دارد. اگر یک کاربر بدون امتیاز بخواهد یک کانتینر را سوار (mount) کرده و با آن کار کند، باید \fBbuildah unshare\fR را اجرا کند. اجرای \fBbuildah mount\fR برای کاربران بدون امتیاز با شکست مواجه می‌شود، مگر اینکه کاربر درون یک نشست (session) \fBbuildah unshare\fR در حال اجرا باشد.
+
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\fB--mount\fP, \fB-m\fP [\fIVARIABLE=]containerNameOrID\fP
+
+.PP
+کانتینر \fIcontainerNameOrID\fP را هنگام اجرای \fIدستور\fP سوار (mount) می‌کند و متغیر محیطی \fIVARIABLE\fP را روی مسیر نقطه اتصال (mountpoint) تنظیم می‌نماید. اگر \fIVARIABLE\fP مشخص نشود، مقدار پیش‌فرض آن \fIcontainerNameOrID\fP خواهد بود که ممکن است یک نام معتبر برای متغیر محیطی نباشد.
+
+.SH "مثال (EXAMPLE)"
+.PP
+buildah unshare id
+
+.PP
+buildah unshare pwd
+
+.PP
+buildah unshare cat /proc/self/uid_map /proc/self/gid_map
+
+.PP
+buildah unshare rm -fr $HOME/.local/share/containers/storage /run/user/`id -u`/run
+
+.PP
+buildah unshare --mount containerID sh -c 'cat ${containerID}/etc/os-release'
+
+.PP
+buildah unshare --mount root=containerID sh -c 'cat ${root}/etc/os-release'
+
+.PP
+اگر می‌خواهید از buildah به همراه دستور «mount» استفاده کنید، می‌توانید اسکریپتی مشابه زیر ایجاد نمایید:
+
+.EX
+cat > buildah-script.sh << _EOF
+#!/bin/bash
+ctr=$(buildah from scratch)
+mnt=$(buildah mount $ctr)
+dnf -y install --installroot=$mnt --use-host-config --setopt "*.countme=false" PACKAGES
+dnf -y clean all --installroot=$mnt
+buildah config --entrypoint="/bin/PACKAGE" --env "FOO=BAR" $ctr
+buildah commit $ctr imagename
+buildah unmount $ctr
+_EOF
+chmod +x buildah-script.sh
+.EE
+
+.PP
+سپس آن را با دستور زیر اجرا کنید:
+
+.EX
+buildah unshare ./buildah-script.sh
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+buildah(1), buildah-mount(1), namespaces(7), newuidmap(1), newgidmap(1), user_namespaces(7)

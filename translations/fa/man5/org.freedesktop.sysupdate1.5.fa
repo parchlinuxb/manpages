@@ -1,0 +1,651 @@
+'\" t
+.TH "ORG\&.FREEDESKTOP\&.SYSUPDATE1" "5" "" "systemd 261.2" "org.freedesktop.sysupdate1"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+org.freedesktop.sysupdate1 \- رابط کاربری D-Bus سرویس systemd-sysupdate
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBsystemd-sysupdated.service\fR(8)
+یک سرویس سیستمی است که به کلاینت‌های بدون امتیاز اجازه می‌دهد سیستم را به‌روزرسانی کنند\&. این صفحه رابط D\-Bus را شرح می‌دهد\&.
+.PP
+\fIهشدار!\fR
+این API در حال حاضر
+\fIناپایدار\fR
+است و بنابراین بین نگارش‌های systemd دستخوش تغییرات ناسازگار (breaking changes) می‌شود\&.
+.SH "رابط D-BUS (THE D-BUS INTERFACE)"
+.SH "شیء MANAGER (THE MANAGER OBJECT)"
+.PP
+این سرویس رابط‌های زیر را روی شیء Manager در گذرگاه ارائه می‌دهد:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+node /org/freedesktop/sysupdate1 {
+  interface org\&.freedesktop\&.sysupdate1\&.Manager {
+    methods:
+      ListTargets(out a(sso) targets);
+      ListJobs(out a(tsuo) jobs);
+      ListAppStream(out as urls);
+    signals:
+      JobRemoved(t id,
+                 o path,
+                 i status);
+  };
+  interface org\&.freedesktop\&.DBus\&.Peer { \&.\&.\&. };
+  interface org\&.freedesktop\&.DBus\&.Introspectable { \&.\&.\&. };
+  interface org\&.freedesktop\&.DBus\&.Properties { \&.\&.\&. };
+};
+.fi
+.if n \{\
+.RE
+.\}
+.SS "متدها (Methods)"
+.PP
+\fBListTargets()\fR
+فهرستی از تمام هدف‌های به‌روزرسانی شناخته‌شده را بازمی‌گرداند\&. این متد آرایه‌ای از ساختارها شامل یک رشته نشان‌دهنده کلاس هدف (برای توضیح مقادیر ممکن، ویژگی
+\fIClass\fR
+شیء Target در زیر را ببینید)، یک رشته شامل نام هدف، و مسیر شیء هدف را بازمی‌گرداند\&.
+.PP
+\fBListJobs()\fR
+فهرستی از تمام کارهای در حال انجام را بازمی‌گرداند\&. این متد آرایه‌ای از ساختارها شامل یک شناسه عددی کار، یک رشته نشان‌دهنده نوع کار (برای توضیح مقادیر ممکن، ویژگی
+\fIType\fR
+شیء Job در زیر را ببینید)، میزان پیشرفت کار، و مسیر شیء کار را بازمی‌گرداند\&.
+.PP
+\fBListAppStream()\fR
+آرایه‌ای از تمام نشانی‌های وب (URL) کاتالوگ appstream که این سرویس می‌شناسد را بازمی‌گرداند\&. برای جزئیات بیشتر، متد
+\fIGetAppStream()\fR
+شیء Target در زیر را ببینید\&.
+.SS "سیگنال‌ها (Signals)"
+.PP
+سیگنال
+\fBJobRemoved()\fR
+هر بار که یک کار پایان می‌یابد، لغو می‌شود یا با شکست مواجه می‌شود، ارسال می‌گردد\&. این سیگنال همچنین شناسه کار و مسیر شیء، و به دنبال آن یک کد وضعیت عددی را به همراه دارد\&. اگر وضعیت صفر باشد، کار با موفقیت انجام شده است\&. وضعیت مثبت باید به عنوان یک کد خروج (یعنی
+"EXIT_FAILURE")
+در نظر گرفته شود، و وضعیت منفی باید به عنوان یک کد خطای منفی به سبک errno (یعنی
+"\-EINVAL")
+در نظر گرفته شود\&.
+.SH "شیء TARGET (THE TARGET OBJECT)"
+.PP
+یک هدف (target)، مؤلفه‌ای از سیستم است (یعنی خود میزبان، یک sysext، یک confext و غیره) که می‌تواند توسط
+\fBsystemd-sysupdate\fR(8)
+به‌روزرسانی شود\&.
+.PP
+این سرویس رابط‌های زیر را روی اشیاء Target در گذرگاه ارائه می‌دهد:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+node /org/freedesktop/sysupdate1/target/host {
+  interface org\&.freedesktop\&.sysupdate1\&.Target {
+    methods:
+      List(in  t flags,
+           out as versions);
+      Describe(in  s version,
+               in  t flags,
+               out s json);
+      CheckNew(out s new_version);
+      Acquire(in  s new_version,
+              in  t flags,
+              out s new_version,
+              out t job_id,
+              out o job_path);
+      Install(in  s new_version,
+              in  t flags,
+              out s new_version,
+              out t job_id,
+              out o job_path);
+      Vacuum(out u instances,
+             out u disabled_transfers);
+      GetAppStream(out as appstream);
+      GetVersion(out s version);
+      ListFeatures(in  t flags,
+                   out as features);
+      DescribeFeature(in  s feature,
+                      in  t flags,
+                      out s json);
+      SetFeatureEnabled(in  s feature,
+                        in  i enabled,
+                        in  t flags);
+    properties:
+      @org\&.freedesktop\&.DBus\&.Property\&.EmitsChangedSignal("const")
+      readonly s Class = \*(Aq\&.\&.\&.\*(Aq;
+      @org\&.freedesktop\&.DBus\&.Property\&.EmitsChangedSignal("const")
+      readonly s Name = \*(Aq\&.\&.\&.\*(Aq;
+      @org\&.freedesktop\&.DBus\&.Property\&.EmitsChangedSignal("const")
+      readonly s Path = \*(Aq\&.\&.\&.\*(Aq;
+  };
+  interface org\&.freedesktop\&.DBus\&.Peer { \&.\&.\&. };
+  interface org\&.freedesktop\&.DBus\&.Introspectable { \&.\&.\&. };
+  interface org\&.freedesktop\&.DBus\&.Properties { \&.\&.\&. };
+};
+.fi
+.if n \{\
+.RE
+.\}
+.SS "متدها (Methods)"
+.PP
+\fBList()\fR
+فهرستی از نگارش‌های موجود برای این هدف را بازمی‌گرداند\&. گزینه‌های اضافی می‌توانند از طریق آرگومان
+\fIflags\fR
+ارسال شوند\&. فلگ‌های معتبر به شرح زیر تعریف شده‌اند:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#define SD_SYSUPDATE_OFFLINE    (UINT64_C(1) << 0)
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+هنگامی که
+\fBSD_SYSUPDATE_OFFLINE\fR
+تنظیم شده باشد، این متد تنها نگارش‌هایی را بازمی‌گرداند که به صورت محلی نصب شده‌اند\&. در غیر این صورت، این متد متاداده را از شبکه دریافت کرده و تمامی نگارش‌های موجود برای این هدف را بازمی‌گرداند\&. برای پرس‌وجوی اطلاعات بیشتر درباره هر نگارش بازگردانده‌شده توسط این متد، از
+\fBDescribe()\fR
+استفاده کنید\&.
+.PP
+\fBDescribe()\fR
+تمامی اطلاعات شناخته‌شده درباره یک نگارش معین را به صورت یک شیء JSON بازمی‌گرداند\&. آرگومان
+\fIversion\fR
+برای ارسال نگارشی که باید توصیف شود استفاده می‌شود\&. گزینه‌های اضافی می‌توانند از طریق آرگومان
+\fIflags\fR
+ارسال شوند\&. این متد از همان فلگ‌های
+\fBList()\fR
+پشتیبانی می‌کند\&. شیء JSON بازگردانده‌شده حاوی چندین کلید شناخته‌شده است\&. ممکن است در آینده کلیدهای بیشتری اضافه شوند\&. کلیدهای شناخته‌شده فعلی به شرح زیر هستند:
+.PP
+"version"
+.RS 4
+رشته‌ای شامل شماره نگارش\&.
+.RE
+.PP
+"newest"
+.RS 4
+یک مقدار بولی که نشان می‌دهد آیا این نگارش، جدیدترین نگارش موجود برای هدف است یا خیر\&.
+.RE
+.PP
+"available"
+.RS 4
+یک مقدار بولی که نشان می‌دهد آیا این نگارش برای بارگیری موجود است یا خیر\&.
+.RE
+.PP
+"installed"
+.RS 4
+یک مقدار بولی که نشان می‌دهد آیا این نگارش به صورت محلی نصب شده است یا خیر\&.
+.RE
+.PP
+"obsolete"
+.RS 4
+یک مقدار بولی که نشان می‌دهد آیا این نگارش از نظر سرویس منسوخ تلقی شده و بنابراین نصب آن ممنوع است یا خیر\&.
+.RE
+.PP
+"protected"
+.RS 4
+یک مقدار بولی که نشان می‌دهد آیا این نگارش از حذف شدن توسط عملیات
+\fBVacuum()\fR
+معاف است یا خیر\&.
+.RE
+.PP
+"incomplete"
+.RS 4
+یک مقدار بولی که نشان می‌دهد آیا این نگارش ناقص است یا خیر، به این معنی که برخی پرونده‌ها را کم دارد\&. توجه داشته باشید که فقط نگارش‌های ناقصِ نصب‌شده توسط سرویس ارائه می‌شوند؛ نگارش‌هایی که در سمت سرور ناقص هستند کاملاً نادیده گرفته می‌شوند\&. نگارش‌های ناقص را می‌توان با فراخوانی
+\fBAcquire()\fR
+و
+\fBInstall()\fR
+روی آن نگارش، در محل تعمیر کرد\&.
+.RE
+.PP
+"changelogUrls"
+.RS 4
+فهرستی از رشته‌ها که حاوی نشانی‌های وب قابل‌نمایش به کاربر برای گزارش تغییرات (change logs) مرتبط با این نگارش هستند\&.
+.RE
+.PP
+\fBCheckNew()\fR
+بررسی می‌کند که آیا نگارش جدیدتری برای این هدف موجود است یا خیر\&. این متد متاداده را از شبکه دریافت می‌کند\&. اگر نگارش جدیدتری پیدا شود، این متد شماره نگارش را بازمی‌گرداند\&. اگر نگارش جدیدتری پیدا نشود، یک رشته خالی بازمی‌گرداند\&. برای پرس‌وجوی اطلاعات بیشتر درباره نگارش بازگردانده‌شده توسط این متد، از
+\fBDescribe()\fR
+استفاده کنید\&.
+.PP
+\fBAcquire()\fR
+در صورت موجود بودن یک به‌روزرسانی برای این هدف، آن را بارگیری می‌کند\&. اگر یک
+\fInew_version\fR
+مشخص شده باشد، همان نگارش بارگیری می‌شود\&. در غیر این صورت، آخرین نگارش بارگیری می‌گردد\&. برای نصب به‌روزرسانی دریافت‌شده،
+\fBInstall()\fR
+را فراخوانی کنید\&. آرگومان
+\fIflags\fR
+برای قابلیت گسترش در آینده اضافه شده است\&. در حال حاضر هیچ فلگی تعریف نشده است و این آرگومان باید روی
+"0"
+تنظیم شود\&. این متد هم متاداده و هم داده‌های بار کاری (payload) را از شبکه دریافت می‌کند\&.
+.PP
+\fBInstall()\fR
+یک به‌روزرسانی از پیش دریافت‌شده را برای این هدف نصب می‌کند\&. اگر یک
+\fInew_version\fR
+مشخص شده باشد، با فرض اینکه قبلاً دریافت شده باشد، همان نگارش نصب می‌شود\&. در غیر این صورت، آخرین نگارش دریافت‌شده نصب خواهد شد\&. آرگومان
+\fIflags\fR
+برای قابلیت گسترش در آینده اضافه شده است\&. در حال حاضر هیچ فلگی تعریف نشده است و این آرگومان باید روی
+"0"
+تنظیم شود\&.
+.PP
+برخلاف تمامی متدهای دیگر در این رابط،
+\fBAcquire()\fR
+و
+\fBInstall()\fR
+منتظر تکمیل کارهای خود نمی‌مانند\&. در عوض، به محض شروع کار، شناسه عددی و مسیر شیء کار را بازمی‌گردانند تا فراخواننده بتواند به تغییرات پیشرفت گوش فرا دهد یا عملیات را لغو کند\&. این متدها همچنین برای مواردی که فراخواننده هیچ نگارشی را مشخص نکرده است، نگارشی را که هدف به آن به‌روزرسانی خواهد شد بازمی‌گردانند\&. برای تشخیص زمان اتمام کار، به سیگنال
+\fBJobRemoved()\fR
+شیء Manager گوش فرا دهید\&.
+.PP
+\fBVacuum()\fR
+نگارش‌های قدیمی نصب‌شده این هدف را پاک می‌کند تا فضا آزاد شود\&. این متد تعداد نمونه‌هایی را که حذف شده‌اند بازمی‌گرداند\&.
+.PP
+\fBGetAppStream()\fR
+فهرستی از نشانی‌های HTTP/HTTPS به پرونده‌های XML
+\m[blue]\fBکاتالوگ appstream\fR\m[]\&\s-2\u[1]\d\s+2
+این هدف را بازمی‌گرداند\&. اگر این هدف هیچ کاتالوگ appstream نداشته باشد، این متد یک فهرست خالی بازمی‌گرداند\&. این پرونده‌های کاتالوگ می‌توانند توسط مراکز نرم‌افزاری (مانند نرم‌افزار گنوم یا Discover در کی‌دی‌ای) برای ارائه متاداده‌های غنی درباره هدف شامل نام نمایشی، تغییرات، آیکون و موارد دیگر استفاده شوند\&. کاتالوگ‌های بازگردانده‌شده شامل
+\m[blue]\fBمتاداده خاص\fR\m[]\&\s-2\u[2]\d\s+2
+خواهند بود تا به مرکز نرم‌افزار اجازه دهند کاتالوگ‌ها را به درستی با این هدف پیوند دهد\&.
+.PP
+\fBGetVersion()\fR
+نگارش فعلی این هدف را، در صورت وجود، بازمی‌گرداند\&. نگارش فعلی، جدیدترین نگارشی است که نصب شده است\&. توجه داشته باشید که این لزوماً همان نگارش بوت‌شده یا در حال استفاده هدف نیست\&. به عنوان مثال، در سیستم میزبان، نگارش بوت‌شده در بیشتر مواقع همان نگارش فعلی است، اما اگر به‌روزرسانی نصب شده و در انتظار راه‌اندازی مجدد باشد، به جای آن به نگارش فعلی تبدیل خواهد شد\&. می‌توانید نگارش بوت‌شده سیستم میزبان را از طریق
+\fIIMAGE_VERSION\fR
+در
+/etc/os\-release
+استعلام کنید\&. اگر هدف هیچ نگارش فعلی نداشته باشد، این تابع یک رشته خالی بازمی‌گرداند\&.
+.PP
+\fBListFeatures()\fR
+فهرستی از ویژگی‌های اختیاری این هدف را بر اساس شناسه بازمی‌گرداند\&. آرگومان
+\fIflags\fR
+برای قابلیت گسترش در آینده اضافه شده است و باید روی 0 تنظیم شود\&. اگر هدف هیچ ویژگی اختیاری نداشته باشد، این متد یک آرایه خالی بازمی‌گرداند\&.
+.PP
+\fBDescribeFeature()\fR
+تمامی اطلاعات شناخته‌شده درباره یک ویژگی اختیاری معین را بازمی‌گرداند\&. آرگومان
+\fIfeature\fR
+برای ارسال شناسه ویژگی‌ای که باید توصیف شود استفاده می‌شود\&. آرگومان
+\fIflags\fR
+برای قابلیت گسترش در آینده اضافه شده است و باید روی 0 تنظیم شود\&. شیء JSON بازگردانده‌شده حاوی چندین کلید شناخته‌شده است\&. ممکن است در آینده کلیدهای بیشتری اضافه شوند\&. کلیدهای شناخته‌شده فعلی به شرح زیر هستند:
+.PP
+"name"
+.RS 4
+رشته‌ای شامل نام ویژگی\&.
+.RE
+.PP
+"description"
+.RS 4
+یک رشته اختیاری که حاوی شرحی قابل‌نمایش به کاربر است که این ویژگی را مشخص می‌کند\&.
+.RE
+.PP
+"enabled"
+.RS 4
+یک مقدار بولی که نشان می‌دهد آیا این ویژگی فعال است یا خیر\&.
+.RE
+.PP
+"documentationUrl"
+.RS 4
+یک رشته اختیاری شامل یک نشانی وب HTTP/HTTPS قابل‌نمایش به کاربر برای مستندات مربوط به این ویژگی\&.
+.RE
+.PP
+"appstreamUrl"
+.RS 4
+یک رشته اختیاری شامل یک نشانی وب HTTP/HTTPS به یک پرونده XML
+\m[blue]\fBکاتالوگ appstream\fR\m[]\&\s-2\u[1]\d\s+2
+حاوی متاداده درباره این ویژگی\&.
+.RE
+.PP
+"transfers"
+.RS 4
+یک آرایه اختیاری از رشته‌ها که فهرست می‌کند چه تعاریف انتقالی به این ویژگی تعلق دارند\&.
+.RE
+.PP
+\fBSetFeatureEnabled()\fR
+یک پرونده drop\-in مناسب برای فعال یا غیرفعال کردن ویژگی اختیاری مشخص‌شده می‌نویسد\&. اگر
+\fIenable\fR
+صفر باشد، ویژگی غیرفعال می‌شود\&. اگر بزرگتر از صفر باشد، ویژگی فعال می‌شود\&. اگر کوچکتر از صفر باشد، ویژگی به پیشفرض توزیع بازنشانی می‌شود\&. آرگومان
+\fIflags\fR
+برای قابلیت گسترش در آینده اضافه شده است و باید روی 0 تنظیم شود\&. ویژگی نیازی به موجود بودن ندارد؛ این امر امکان مدیریت مناسب ویژگی‌های ماسک‌شده و تصمیم‌گیری‌های پیشگیرانه درباره ویژگی‌هایی را که قرار است در نسخه‌های آینده سیستم‌عامل ظاهر شوند فراهم می‌کند\&. پرونده drop\-in نامی برابر با
+"50\-systemd\-sysupdate\-enabled\&.conf"
+خواهد داشت\&. این متد تنها پرونده‌های پیکربندی را تغییر می‌دهد؛ برای اعمال واقعی تغییرات، کلاینت‌ها باید
+\fBAcquire()\fR
+و
+\fBInstall()\fR
+را فراخوانی کنند\&. بسته به نیازهای دقیق کلاینت، می‌تواند سیستم را به آخرین نگارش موجود به‌روزرسانی کند، یا می‌تواند جدیدترین نصب موجود را در محل گسترش دهد (با ارسال نگارش بازگردانده‌شده توسط
+\fIGetVersion()\fR)\&.
+در حال حاضر، این متد تنها با هدف
+"host"
+کار می‌کند\&.
+.SS "ویژگی‌ها (Properties)"
+.PP
+ویژگی
+\fIClass\fR
+کلاس این هدف را نشان می‌دهد که توصیف می‌کند کجا شمارش شده است\&. مقادیر ممکن عبارتند از:
+"machine"
+برای کانتینرها و ماشین‌های مجازی مدیریت‌شده توسط
+\fBsystemd-machined.service\fR(8)،
+"portable"
+برای
+\m[blue]\fBسرویس‌های پرتابل\fR\m[]\&\s-2\u[3]\d\s+2،
+"sysext"
+برای اکستنشن‌های سیستم مدیریت‌شده توسط
+\fBsystemd-sysext\fR(8)،
+"confext"
+برای اکستنشن‌های پیکربندی مدیریت‌شده توسط
+\fBsystemd-confext\fR(8)،
+"component"
+برای مؤلفه‌های پذیرفته‌شده توسط گزینه
+\fB\-\-component=\fR
+دستور
+\fBsystemd-sysupdate\fR(8)،
+و
+"host"
+برای خود سیستم میزبان\&. حداکثر یک هدف دارای کلاس
+"host"
+خواهد بود\&.
+.PP
+ویژگی
+\fIPath\fR
+جزئیات بیشتری را درباره محل یافتن این هدف نشان می‌دهد\&. برای هدف‌های
+"machine"،
+"portable"،
+"extension"،
+و
+"confext"،
+این مقدار مسیر پرونده به ایمیج است\&. برای هدف‌های
+"component"
+و
+"host"،
+این مقدار نام یک دایرکتوری
+\fBsysupdate.d\fR(5)
+است\&.
+.PP
+ویژگی
+\fIName\fR
+نام این هدف را نشان می‌دهد\&. توجه داشته باشید که نام در داخل یک کلاس یکتا است اما لزوماً بین کلاس‌های مختلف یکتا نیست\&. به عنوان مثال، داشتن هر دو هدف
+"portable"
+به نام
+"foobar"
+و هدف
+"extension"
+به نام
+"foobar"
+ممکن است، اما داشتن دو هدف
+"portable"
+با نام
+"foobar"
+امکان‌پذیر نیست\&.
+.SS "امنیت (Security)"
+.PP
+فراخوانی‌های متد در این سرویس از طریق
+\m[blue]\fBpolkit\fR\m[]\&\s-2\u[4]\d\s+2
+احراز هویت می‌شوند\&.
+.PP
+متدهای
+\fBList()\fR،
+\fBDescribe()\fR،
+و
+\fBCheckNew()\fR
+از کنش polkit به نام
+org\&.freedesktop\&.sysupdate1\&.check
+استفاده می‌کنند\&. به صورت پیشفرض، این کنش بدون احراز هویت مدیر سیستم مجاز است\&. لغو این متدها از کنش polkit به نام
+org\&.freedesktop\&.sysupdate1\&.cancel\-check
+استفاده می‌کند\&. به صورت پیشفرض، این کنش لغو بدون احراز هویت مدیر سیستم مجاز است\&.
+.PP
+متدهای
+\fBAcquire()\fR
+و
+\fBInstall()\fR
+هنگامی که نگارشی مشخص نشده باشد، از کنش polkit به نام
+org\&.freedesktop\&.sysupdate1\&.update
+استفاده می‌کنند\&. به صورت پیشفرض، این کنش بدون احراز هویت مدیر سیستم مجاز است\&. هنگامی که یک نگارش مشخص شده باشد، به جای آن از
+org\&.freedesktop\&.sysupdate1\&.update\-to\-version
+استفاده می‌شود\&. به صورت پیشفرض، این کنش جایگزین نیازمند احراز هویت مدیر سیستم است\&. لغو این متدها از کنش‌های polkit به نام
+org\&.freedesktop\&.sysupdate1\&.cancel\-update
+و
+org\&.freedesktop\&.sysupdate1\&.cancel\-update\-to\-version
+استفاده می‌کند\&. به صورت پیشفرض، این کنش‌های لغو بدون احراز هویت مدیر سیستم مجاز هستند\&.
+.PP
+\fBVacuum()\fR
+از کنش polkit به نام
+org\&.freedesktop\&.sysupdate1\&.vacuum
+استفاده می‌کند\&. به صورت پیشفرض، این کنش نیازمند احراز هویت مدیر سیستم است\&. لغو این متد از کنش polkit به نام
+org\&.freedesktop\&.sysupdate1\&.cancel\-vacuum
+استفاده می‌کند\&. به صورت پیشفرض، این کنش لغو بدون احراز هویت مدیر سیستم مجاز است\&.
+.PP
+\fBSetFeatureEnabled()\fR
+از کنش polkit به نام
+org\&.freedesktop\&.sysupdate1\&.manage\-features
+استفاده می‌کند\&. به صورت پیشفرض، این کنش نیازمند احراز هویت مدیر سیستم است\&. لغو کردن برای این متد پشتیبانی نمی‌شود\&.
+.PP
+متدهای
+\fBGetAppStream()\fR،
+\fBGetVersion()\fR،
+\fBListFeatures()\fR،
+و
+\fBDescribeFeature()\fR
+فاقد احراز هویت هستند و توسط هر کسی قابل فراخوانی می‌باشند\&. لغو کردن برای این متدها پشتیبانی نمی‌شود، یا همیشه بدون احراز هویت مدیر سیستم مجاز است\&.
+.PP
+تمام متدهایی که در این رابط فراخوانی می‌شوند، متغیرهای اضافی را به قوانین polkit ارائه می‌دهند\&. متغیر
+"class"
+حاوی کلاس هدفی است که عملیات روی آن انجام می‌شود، و
+"name"
+حاوی نام همان هدف است\&. علاوه بر این، هر متد آرگومان‌های خود را به قانون polkit ارائه می‌دهد\&. فلگ‌ها به شرح زیر نگاشت می‌شوند:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBSD_SYSUPDATE_OFFLINE\fR
+→
+"update"
+.RE
+.SH "شیء JOB (THE JOB OBJECT)"
+.PP
+یک کار (job)، عملیاتی در حال انجام است که توسط یکی از متدهای روی یک شیء Target آغاز شده است\&.
+.PP
+این سرویس رابط‌های زیر را روی اشیاء Job در گذرگاه ارائه می‌دهد:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+node /org/freedesktop/sysupdate1/job/_1 {
+  interface org\&.freedesktop\&.sysupdate1\&.Job {
+    methods:
+      Cancel();
+    properties:
+      @org\&.freedesktop\&.DBus\&.Property\&.EmitsChangedSignal("const")
+      readonly t Id = \&.\&.\&.;
+      @org\&.freedesktop\&.DBus\&.Property\&.EmitsChangedSignal("const")
+      readonly s Type = \*(Aq\&.\&.\&.\*(Aq;
+      @org\&.freedesktop\&.DBus\&.Property\&.EmitsChangedSignal("const")
+      readonly b Offline = \&.\&.\&.;
+      readonly u Progress = \&.\&.\&.;
+  };
+  interface org\&.freedesktop\&.DBus\&.Peer { \&.\&.\&. };
+  interface org\&.freedesktop\&.DBus\&.Introspectable { \&.\&.\&. };
+  interface org\&.freedesktop\&.DBus\&.Properties { \&.\&.\&. };
+};
+.fi
+.if n \{\
+.RE
+.\}
+.SS "متدها (Methods)"
+.PP
+متد
+\fBCancel()\fR
+می‌تواند برای لغو کار استفاده شود\&. این متد هیچ پارامتری دریافت نمی‌کند\&.
+.SS "ویژگی‌ها (Properties)"
+.PP
+ویژگی
+\fIId\fR
+شناسه عددی شیء کار را نشان می‌دهد\&.
+.PP
+ویژگی
+\fIType\fR
+نوع عملیات را نشان می‌دهد (یکی از:
+"list"،
+"describe"،
+"check\-new"،
+"acquire"،
+"install"،
+"vacuum"،
+یا
+"describe\-feature")\&.
+.PP
+ویژگی
+\fIOffline\fR
+نشان می‌دهد که آیا کار مجاز به دسترسی به شبکه است یا خیر\&.
+.PP
+ویژگی
+\fIProgress\fR
+پیشرفت فعلی کار را به صورت مقداری بین 0 تا 100 نشان می‌دهد\&. این ویژگی تنها برای کارهای
+"acquire"
+و
+"install"
+موجود است؛ برای سایر کارها همیشه 0 است\&.
+.SS "امنیت (Security)"
+.PP
+\fBCancel()\fR
+از کنش polkit متناظر با متدی که این کار را آغاز کرده است استفاده می‌کند\&. به عنوان مثال، تلاش برای لغو یک کار
+"list"
+نیازمند این است که polkit کنش
+org\&.freedesktop\&.sysupdate1\&.check
+را مجاز بداند\&.
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+\fBمثال\ \&۱.\ \&درون‌نگری org\&.freedesktop\&.sysupdate1\&.Manager در گذرگاه\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ gdbus introspect \-\-system \e
+  \-\-dest org\&.freedesktop\&.sysupdate1 \e
+  \-\-object\-path /org/freedesktop/sysupdate1
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBمثال\ \&۲.\ \&درون‌نگری org\&.freedesktop\&.sysupdate1\&.Target در گذرگاه\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ gdbus introspect \-\-system \e
+  \-\-dest org\&.freedesktop\&.sysupdate1 \e
+  \-\-object\-path /org/freedesktop/sysupdate1/target/host
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBمثال\ \&۳.\ \&درون‌نگری org\&.freedesktop\&.sysupdate1\&.Job در گذرگاه\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ gdbus introspect \-\-system \e
+  \-\-dest org\&.freedesktop\&.sysupdate1 \e
+  \-\-object\-path /org/freedesktop/sysupdate1/job/_1
+.fi
+.if n \{\
+.RE
+.\}
+.SH "سازگاری نسخه (VERSION COMPATIBILITY)"
+.PP
+این رابط‌های D\-Bus از
+\m[blue]\fBدستورالعمل‌های معمول نسخه‌بندی رابط\fR\m[]\&\s-2\u[5]\d\s+2
+پیروی می‌کنند\&.
+.SH "تاریخچه (HISTORY)"
+.SS "شیء Manager"
+.PP
+متدهای
+\fBListTargets()\fR،
+\fBListJobs()\fR،
+\fBListAppStream()\fR
+و سیگنال
+\fBJobRemoved()\fR
+در نسخه ۲۵۷ اضافه شدند\&.
+.SS "شیء Target"
+.PP
+متدهای
+\fBList()\fR،
+\fBDescribe()\fR،
+\fBCheckNew()\fR،
+\fBAcquire()\fR،
+\fBInstall()\fR،
+\fBVacuum()\fR،
+\fBGetAppStream()\fR،
+\fBGetVersion()\fR،
+\fBListFeatures()\fR،
+\fBDescribeFeature()\fR،
+\fBSetFeatureEnabled()\fR
+و ویژگی‌های
+\fIClass\fR،
+\fIName\fR
+و
+\fIPath\fR
+در نسخه ۲۵۷ اضافه شدند\&.
+.SS "شیء Job"
+.PP
+متد
+\fBCancel()\fR
+و ویژگی‌های
+\fIId\fR،
+\fIType\fR،
+\fIOffline\fR
+و
+\fIProgress\fR
+در نسخه ۲۵۷ اضافه شدند\&.
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsystemd\fR(1)، \fBsystemd-sysupdated.service\fR(8)، \fBupdatectl\fR(1)
+.SH "نکات (NOTES)"
+.IP " 1." 4
+کاتالوگ appstream
+.RS 4
+\%https://wwww.freedesktop.org/software/appstream/docs/chap-CatalogData.html
+.RE
+.IP " 2." 4
+متاداده خاص
+.RS 4
+\%https://systemd.io/APPSTREAM_BUNDLE
+.RE
+.IP " 3." 4
+سرویس‌های پرتابل
+.RS 4
+\%https://systemd.io/PORTABLE_SERVICES
+.RE
+.IP " 4." 4
+polkit
+.RS 4
+\%https://www.freedesktop.org/software/polkit/docs/latest
+.RE
+.IP " 5." 4
+دستورالعمل‌های معمول نسخه‌بندی رابط
+.RS 4
+\%https://0pointer.de/blog/projects/versioning-dbus.html
+.RE

@@ -1,0 +1,89 @@
+.TH SLAPO-AUTOGROUP 5 "RELEASEDATE" "OpenLDAP LDVERSION"
+.\" Copyright 1998-2026 The OpenLDAP Foundation All Rights Reserved.
+.\" Portions Copyright \[u00A9] 2007 Michał Szulczyński.
+.\" Copying restrictions apply.  See the COPYRIGHT file.
+.\" $OpenLDAP$
+.SH "نام (NAME)"
+slapo-autogroup \- روکش گروه‌بندی خودکار برای slapd
+.SH "خلاصه دستور (SYNOPSIS)"
+در \FCslapd.conf\FT:
+ ...
+ \FCinclude ETCDIR/schema/dyngroup.schema\FT
+ ...
+ \FCmoduleload autogroup.so\FT
+ ...
+ \FCdatabase\FT ...
+ ...
+ \FCoverlay autogroup\FT
+ \FCautogroup-attrset groupOfURLs memberURL member\FT
+.SH "توضیحات (DESCRIPTION)"
+روکش
+.B autogroup
+برای
+.BR slapd (8)
+امکان به‌روزرسانی خودکار عضویت گروه‌هایی را فراهم می‌کند که شرایط هر فیلتر موجود در تعریف گروه را برآورده می‌سازند. فیلترها از صفت‌های دارای مقدار LDAP URI ساخته می‌شوند. هر زمان که یک شیء اضافه، حذف یا به‌روزرسانی شود، مطابقت آن با فیلترها بررسی شده و عضویت آن بر همین اساس به‌روزرسانی می‌گردد. این روکش برای جستجوها و مقایسه‌ها، مانند یک گروه ایستا رفتار می‌کند.
+اگر بخش صفت در URI پر شده باشد، مدخل گروه با مقادیر این صفت در مدخل‌های حاصل از جستجو پر می‌شود.
+.PP
+توجه داشته باشید فیلترهایی که از صفت‌هایی استفاده می‌کنند که خودشان به‌صورت پویا محاسبه می‌شوند ممکن است به‌طور پیوسته و یکنواخت عمل نکنند و باید از آن‌ها اجتناب شود.
+.SH "پیکربندی (CONFIGURATION)"
+برای پیکربندی autogroup می‌توان از
+.BR \FCslapd.conf\FT (5)
+یا روش‌شناسی \FCcn=config\FT در
+.BR \FCslapd-config\FT (5)
+استفاده کرد. هر دو نحو برای راحتی در اینجا آورده شده‌اند:
+.TP
+.B \FCautogroup-attrset\FT <group-oc> <URL-ad> <member-ad>
+.TP
+.B \FColcAutoGroupAttrSet:\FT <group-oc> <URL-ad> <member-ad>
+این دستور نگاشت‌های objectclass-attribute-URI را که گروه‌های به‌طور خودکار مدیریت‌شده را مشخص می‌کنند تعریف می‌نماید، و می‌تواند چندین بار ظاهر شود.
+.PP
+مقدار <group-oc> نام objectClassای است که گروه را نشان می‌دهد.
+.PP
+مقدار <URL-ad> نام attributeDescriptionای است که حاوی URI تبدیل‌شونده به فیلترها است. اگر هیچ URIای وجود نداشته باشد، هیچ عضوی در آن گروه وجود نخواهد داشت. این مقدار باید زیرنوعی از labeledURI باشد.
+.PP
+مقدار <member-ad> نام attributeDescriptionای است که صفت عضو را مشخص می‌کند. تغییر این صفت توسط کاربر به منظور حفظ یکپارچگی غیرفعال شده است.
+.TP
+.B \FCautogroup-memberof-ad\FT <memberof-ad>
+.TP
+.B \FColcAutoGroupMemberOfAd\FT <memberof-ad>
+این دستور صفتی را تعریف می‌کند که توسط روکش memberOf برای ذخیره نام گروه‌هایی که یک مدخل عضو آن‌ها است استفاده می‌شود؛ این مقدار باید از نوع DN باشد. این گزینه باید روی همان مقدار memberof-memberof-ad تنظیم شود. مقدار پیش‌فرض آن 'memberOf' است.
+.SH "مثال‌ها (EXAMPLES)"
+همانند بالا در خلاصه دستور، یا همراه با memberof:
+.PP
+ ...
+ \FCinclude ETCDIR/schema/dyngroup.schema\FT
+ \FCinclude ETCDIR/schema/memberof.schema\FT
+ ...
+ \FCmoduleload autogroup.so\FT
+ \FCmoduleload memberof.so\FT
+ ...
+ \FCdatabase\FT ...
+ ...
+ \FCoverlay memberof\FT
+ \FCmemberof-memberof-ad\FT foo
+ ...
+ \FCoverlay autogroup\FT
+ \FCautogroup-attrset groupOfURLs memberURL member\FT
+ \FCautogroup-memberof-ad\FT foo
+.SH "هشدارها (CAVEATS)"
+مانند گروه‌های ایستا، عملیات به‌روزرسانی روی گروه‌هایی با تعداد اعضای زیاد ممکن است کند باشد. اگر بخش صفتِ URI مشخص شده باشد، مدیریت عملیات ویرایش (modify) و حذف (delete) دشوارتر خواهد بود. در این موارد، روکش تلاش می‌کند تغییر گروه‌ها را تشخیص دهد و سپس آن‌ها را بازخوانی (refresh) کند. این کار در صورتی که جستجوی مشخص‌شده با URI با تعداد قابل توجهی از مدخل‌ها سر و کار داشته باشد، می‌تواند به افت عملکرد منجر شود.
+.SH "سازگاری با نسخه‌های پیشین (BACKWARD COMPATIBILITY)"
+روکش autogroup در نسخه 2.5 بازنویسی شد تا مانند سایر روکش‌ها از یک فضای نام منسجم استفاده کند. به عنوان یک اثر جانبی، پارامترهای cn=config زیر منسوخ شده‌اند و در انتشار آینده حذف خواهند شد:
+.IP \[bu] 2
+.B olcAGattrSet
+با olcAutoGroupAttrSet جایگزین شده است
+.IP \[bu]
+.B olcAGmemberOfAd
+با olcAutoGroupMemberOfAd جایگزین شده است
+.IP \[bu]
+.B olcAutomaticGroups
+با olcAutoGroupConfig جایگزین شده است
+.SH "قدردانی‌ها (ACKNOWLEDGEMENTS)"
+این ماژول در اصل در سال 2007 توسط Michał Szulczyński نوشته شده است. بهبودهای بیشتر توسط Howard Chu، Raphael Ouazana، Norbert Pueschel و Christian Manal ارائه شد. به‌روزرسانی‌های صفحه راهنما توسط Emily Backes انجام شد.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR slapd.conf (5)،
+.BR slapd (8).
+.SH "حق نشر (COPYRIGHT)"
+حق نشر 1998-2026 بنیاد OpenLDAP.
+بخش‌هایی حق نشر \[u00A9] 2007 Michał Szulczyński.
+تمامی حقوق محفوظ است.

@@ -1,0 +1,390 @@
+.\" Copyright 1994-1995, Daniel Quinlan <Daniel.Quinlan@linux.org>
+.\" Copyright 2002-2017, Michael Kerrisk <mtk.manpages@gmail.com>
+.\" Copyright, the authors of the Linux man-pages project
+.\"
+.\" SPDX-License-Identifier: GPL-3.0-or-later
+.\"
+.TH proc 5 2026-02-08 "Linux man-pages 6.19"
+.SH "نام (NAME)"
+proc \- اطلاعات فرآیند، اطلاعات سیستم و سیستم‌فایل کاذب sysctl
+.SH "توضیحات (DESCRIPTION)"
+سیستم‌فایل
+.B proc
+یک سیستم‌فایل کاذب (pseudo-filesystem) است که یک رابط برای ساختارهای
+داده هسته فراهم می‌کند.
+این سیستم‌فایل معمولاً در مسیر
+.IR /proc
+سوار (mount) می‌شود.
+به‌طور معمول، سیستم آن را به‌صورت خودکار سوار می‌کند،
+اما همچنین می‌تواند به‌صورت دستی با استفاده از دستوری مانند زیر سوار شود:
+.P
+.in +4n
+.EX
+mount \-t proc proc /proc
+.EE
+.in
+.P
+بیشتر فایل‌های موجود در سیستم‌فایل
+.B proc
+فقط‌خواندنی هستند،
+اما برخی از فایل‌ها قابل نوشتن می‌باشند و امکان تغییر متغیرهای هسته را فراهم می‌کنند.
+.\"
+.SS "گزینه‌های سوار کردن (Mount options)"
+سیستم‌فایل
+.B proc
+از گزینه‌های سوار کردن زیر پشتیبانی می‌کند:
+.TP
+.BR hidepid= "\f[I]n\f[] (از لینوکس 3.3)"
+.\" commit 0499680a42141d86417a8fbaa8c8db806bea1201
+این گزینه مشخص می‌کند چه کسانی می‌توانند به اطلاعات موجود در دایرکتوری‌های
+.IR /proc/ pid
+دسترسی داشته باشند.
+آرگومان
+.IR n
+یکی از مقادیر زیر است:
+.RS
+.TP 4
+0
+همه افراد می‌توانند به تمام دایرکتوری‌های
+.IR /proc/ pid
+دسترسی داشته باشند.
+این رفتار سنتی است،
+و اگر این گزینه سوار کردن مشخص نشود، مقدار پیش‌فرض خواهد بود.
+.TP
+1
+کاربران نمی‌توانند به فایل‌ها و زیردایرکتوری‌های درون دایرکتوری‌های
+.IR /proc/ pid
+به‌جز دایرکتوری‌های متعلق به خودشان دسترسی داشته باشند (خود دایرکتوری‌های
+.IR /proc/ pid
+همچنان قابل مشاهده باقی می‌مانند).
+فایل‌های حساس مانند
+.IR /proc/ pid /cmdline
+و
+.IR /proc/ pid /status
+اکنون در برابر سایر کاربران محافظت می‌شوند.
+این امر بررسی اینکه آیا کاربری در حال اجرای برنامه‌ای خاص است را غیرممکن می‌سازد
+(مشروط بر اینکه برنامه از راه‌های دیگر هویتش را با رفتارش آشکار نکند).
+.\" As an additional bonus, since
+.\" .IR /proc/[pid]/cmdline
+.\" is inaccessible for other users,
+.\" poorly written programs passing sensitive information via
+.\" program arguments are now protected against local eavesdroppers.
+.TP
+2
+مانند حالت ۱، اما علاوه بر آن دایرکتوری‌های
+.IR /proc/ pid
+متعلق به سایر کاربران نامرئی می‌شوند.
+این بدان معناست که ورودی‌های
+.IR /proc/ pid
+دیگر نمی‌توانند برای کشف PIDهای موجود روی سیستم استفاده شوند.
+این کار مانع از آگاهی از وجود فرآیندی با یک مقدار PID خاص نمی‌شود
+(این موضوع می‌تواند از راه‌های دیگر، برای مثال با "kill \-0 $PID" فهمیده شود)،
+اما UID و GID فرآیند را پنهان می‌کند،
+که در غیر این صورت می‌توانست با به‌کارگیری
+.BR stat (2)
+روی یک دایرکتوری
+.IR /proc/ pid
+به دست آید.
+این کار جمع‌آوری اطلاعات درباره فرآیندهای در حال اجرا را برای مهاجم به‌شدت پیچیده می‌کند (مانند کشف اینکه آیا دیمونی با دسترسی‌های ارتقایافته در حال اجرا است، آیا کاربر دیگری برنامه‌ای حساس را اجرا می‌کند، آیا کاربران دیگر اصلاً برنامه‌ای را اجرا می‌کنند یا خیر، و مواردی از این قبیل).
+.TP
+.BR gid= "\f[I]gid\f[] (از لینوکس 3.3)"
+.\" commit 0499680a42141d86417a8fbaa8c8db806bea1201
+شناسه عددی گروهی را مشخص می‌کند که اعضای آن مجاز به مشاهده اطلاعات فرآیندی هستند
+که در حالت عادی توسط
+.B hidepid
+ممنوع شده است
+(یعنی کاربران عضو این گروه به‌گونه‌ای رفتار می‌کنند که گویی
+.I /proc
+با
+.IR hidepid=0
+سوار شده است).
+این گروه باید به‌جای رویکردهایی مانند افزودن کاربران غیرریشه به فایل
+.BR sudoers (5)
+استفاده شود.
+.RE
+.TP
+.BR subset=pid " (از لینوکس 5.8)"
+.\" commit 6814ef2d992af09451bbeda4770daa204461329e
+فقط زیرمجموعه مشخص‌شده از procfs را نمایش می‌دهد،
+و تمام فایل‌ها و دایرکتوری‌های سطح بالا در procfs را که
+به وظایف (tasks) مربوط نمی‌شوند پنهان می‌کند.
+.SS "نمای کلی (Overview)"
+در زیر مسیر
+.IR /proc "،"
+گروه‌های کلی زیر از فایل‌ها و زیردایرکتوری‌ها قرار دارند:
+.TP
+.IR /proc/ "pid (زیردایرکتوری‌ها)"
+به
+.BR proc_pid (5)
+مراجعه کنید.
+.IP
+هر یک از این زیردایرکتوری‌ها حاوی فایل‌ها و زیردایرکتوری‌هایی است که
+اطلاعات مربوط به فرآیند با شناسه فرآیند (PID) متناظر را ارائه می‌دهند.
+.IP
+در زیر هر یک از دایرکتوری‌های
+.IR /proc/ pid "" "،"
+یک زیردایرکتوری
+.I task
+قرار دارد که شامل زیردایرکتوری‌هایی به شکل
+.IR task/ tid
+است که اطلاعات متناظر درباره هر یک از نخ‌های فرآیند را در بر دارد، که در آن
+.I tid
+شناسه نخ در هسته است.
+.IP
+زیردایرکتوری‌های
+.IR /proc/ pid
+هنگام پیمایش در
+.I /proc
+با
+.BR getdents (2)
+قابل مشاهده هستند
+(و بنابراین وقتی کسی از
+.BR ls (1)
+برای دیدن محتویات
+.IR /proc
+استفاده می‌کند، قابل مشاهده خواهند بود).
+.TP
+.IR /proc/ "tid (زیردایرکتوری‌ها)"
+به
+.BR proc_tid (5)
+مراجعه کنید.
+.IP
+هر یک از این زیردایرکتوری‌ها شامل فایل‌ها و زیردایرکتوری‌هایی است که
+اطلاعات مربوط به نخ با شناسه نخ متناظر را ارائه می‌دهند.
+محتویات این دایرکتوری‌ها همانند دایرکتوری‌های متناظر
+.IR /proc/ pid /task/ tid
+است.
+.IP
+زیردایرکتوری‌های
+.IR /proc/ tid
+هنگام پیمایش در
+.I /proc
+با
+.BR getdents (2)
+قابل مشاهده
+.I نیستند
+(و بنابراین وقتی کسی از
+.BR ls (1)
+برای دیدن محتویات
+.IR /proc
+استفاده می‌کند نیز
+.I دیده نمی‌شوند
+).
+.TP
+.I /proc/self
+به
+.BR proc_self (5)
+مراجعه کنید.
+.IP
+هنگامی که یک فرآیند به این پیوند نمادین جادویی دسترسی پیدا می‌کند،
+به دایرکتوری
+.IR /proc/ pid
+خود آن فرآیند ارجاع داده می‌شود.
+.TP
+.I /proc/thread\-self
+به
+.BR proc_thread-self (5)
+مراجعه کنید.
+.IP
+هنگامی که یک نخ به این پیوند نمادین جادویی دسترسی پیدا می‌کند،
+به دایرکتوری
+.IR /proc/self/task/ tid
+خود آن نخ ارجاع داده می‌شود.
+.TP
+.I /proc/[a\-z]*
+.IP
+فایل‌ها و زیردایرکتوری‌های گوناگون دیگر در زیر
+.I /proc
+اطلاعات سراسری سیستم را نمایش می‌دهند.
+.IP
+همچنین ببینید:
+.RS
+.TP
+.BR proc_apm (5)
+.TQ
+.BR proc_buddyinfo (5)
+.TQ
+.BR proc_bus (5)
+.TQ
+.BR proc_cgroups (5)
+.TQ
+.BR proc_cmdline (5)
+.TQ
+.BR proc_config.gz (5)
+.TQ
+.BR proc_cpuinfo (5)
+.TQ
+.BR proc_crypto (5)
+.TQ
+.BR proc_devices (5)
+.TQ
+.BR proc_diskstats (5)
+.TQ
+.BR proc_dma (5)
+.TQ
+.BR proc_driver (5)
+.TQ
+.BR proc_execdomains (5)
+.TQ
+.BR proc_fb (5)
+.TQ
+.BR proc_filesystems (5)
+.TQ
+.BR proc_fs (5)
+.TQ
+.BR proc_ide (5)
+.TQ
+.BR proc_interrupts (5)
+.TQ
+.BR proc_iomem (5)
+.TQ
+.BR proc_ioports (5)
+.TQ
+.BR proc_kallsyms (5)
+.TQ
+.BR proc_kcore (5)
+.TQ
+.BR proc_key-users (5)
+.TQ
+.BR proc_keys (5)
+.TQ
+.BR proc_kmsg (5)
+.TQ
+.BR proc_kpagecgroup (5)
+.TQ
+.BR proc_kpagecount (5)
+.TQ
+.BR proc_kpageflags (5)
+.TQ
+.BR proc_ksyms (5)
+.TQ
+.BR proc_loadavg (5)
+.TQ
+.BR proc_locks (5)
+.TQ
+.BR proc_malloc (5)
+.TQ
+.BR proc_meminfo (5)
+.TQ
+.BR proc_modules (5)
+.TQ
+.BR proc_mounts (5)
+.TQ
+.BR proc_mtrr (5)
+.TQ
+.BR proc_net (5)
+.TQ
+.BR proc_partitions (5)
+.TQ
+.BR proc_pci (5)
+.TQ
+.BR proc_profile (5)
+.TQ
+.BR proc_scsi (5)
+.TQ
+.BR proc_slabinfo (5)
+.TQ
+.BR proc_stat (5)
+.TQ
+.BR proc_swaps (5)
+.TQ
+.BR proc_sys (5)
+.TQ
+.BR proc_sysrq-trigger (5)
+.TQ
+.BR proc_sysvipc (5)
+.TQ
+.BR proc_timer_list (5)
+.TQ
+.BR proc_timer_stats (5)
+.TQ
+.BR proc_tty (5)
+.TQ
+.BR proc_uptime (5)
+.TQ
+.BR proc_version (5)
+.TQ
+.BR proc_vmstat (5)
+.TQ
+.BR proc_zoneinfo (5)
+.RE
+.\"
+.\" .SH FILES
+.\" FIXME Describe /proc/[pid]/sessionid
+.\"	  commit 1e0bd7550ea9cf474b1ad4c6ff5729a507f75fdc
+.\"       CONFIG_AUDITSYSCALL
+.\"       Added in Linux 2.6.25; read-only; only readable by real UID
+.\"
+.\" FIXME Describe /proc/[pid]/sched
+.\"       Added in Linux 2.6.23
+.\"       CONFIG_SCHED_DEBUG, and additional fields if CONFIG_SCHEDSTATS
+.\"       Displays various scheduling parameters
+.\"       This file can be written, to reset stats
+.\"       The set of fields exposed by this file have changed
+.\"	  significantly over time.
+.\"       commit 43ae34cb4cd650d1eb4460a8253a8e747ba052ac
+.\"
+.\" FIXME Describe /proc/[pid]/schedstats and
+.\"       /proc/[pid]/task/[tid]/schedstats
+.\"       Added in Linux 2.6.9
+.\"       CONFIG_SCHEDSTATS
+.\" FIXME Document /proc/sched_debug (since Linux 2.6.23)
+.\" See also /proc/[pid]/sched
+.\" FIXME 2.6.13 seems to have /proc/vmcore implemented; document this
+.\"	See Documentation/kdump/kdump.rst
+.\"	commit 666bfddbe8b8fd4fd44617d6c55193d5ac7edb29
+.\"	Needs CONFIG_VMCORE
+.\"
+.SH "نکات (NOTES)"
+بسیاری از فایل‌ها حاوی رشته‌هایی هستند (مانند متغیرهای محیطی و خط فرمان)
+که در قالب داخلی ذخیره شده‌اند،
+و زیرفیلدهای آن‌ها با بایت‌های تهی (\[aq]\[rs]0\[aq]) خاتمه می‌یابند.
+هنگام بررسی چنین فایل‌هایی، ممکن است متوجه شوید که اگر از دستوری با ساختار زیر
+برای نمایش آن‌ها استفاده کنید، خروجی خواناتر خواهد بود:
+.P
+.in +4n
+.EX
+.RB $ " cat \f[I]file\f[] | tr \[aq]\[rs]000\[aq] \[aq]\[rs]n\[aq]"
+.EE
+.in
+.\" .SH ACKNOWLEDGEMENTS
+.\" The material on /proc/sys/fs and /proc/sys/kernel is closely based on
+.\" kernel source documentation files written by Rik van Riel.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR cat (1),
+.BR dmesg (1),
+.BR find (1),
+.BR free (1),
+.BR htop (1),
+.BR init (1),
+.BR ps (1),
+.BR pstree (1),
+.BR tr (1),
+.BR uptime (1),
+.BR chroot (2),
+.BR mmap (2),
+.BR readlink (2),
+.BR syslog (2),
+.BR slabinfo (5),
+.BR sysfs (5),
+.BR hier (7),
+.BR namespaces (7),
+.BR time (7),
+.BR arp (8),
+.BR hdparm (8),
+.BR ifconfig (8),
+.BR lsmod (8),
+.BR lspci (8),
+.BR mount (8),
+.BR netstat (8),
+.BR procinfo (8),
+.BR route (8),
+.BR sysctl (8)
+.P
+فایل‌های منبع هسته لینوکس:
+.IR Documentation/filesystems/proc.rst ،
+.IR Documentation/admin\-guide/sysctl/fs.rst ،
+.IR Documentation/admin\-guide/sysctl/kernel.rst ،
+.IR Documentation/admin\-guide/sysctl/net.rst
+و
+.IR Documentation/admin\-guide/sysctl/vm.rst .

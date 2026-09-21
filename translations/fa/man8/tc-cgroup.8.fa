@@ -1,0 +1,74 @@
+.TH "Cgroup classifier in tc" 8 " 21 Oct 2015" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-cgroup \- فیلتر کنترل ترافیک مبتنی بر گروه کنترل (cgroup)
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR tc " " filter " ... " cgroup " [ " match
+.IR EMATCH_TREE " ] [ "
+.B action
+.IR ACTION_SPEC " ]"
+.SH "توضیحات (DESCRIPTION)"
+این فیلتر به عنوان یک راهنما برای
+.B tc
+عمل می‌کند تا مشخص کند شناسه کلاس (class ID) اختصاص‌یافته به گروه کنترل net_cls که فرایند مبدا بسته به آن تعلق دارد، باید برای طبقه‌بندی استفاده شود. بدیهی است که این فیلتر تنها برای بسته‌هایی که به صورت محلی تولید شده‌اند کاربرد دارد.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.BI action " ACTION_SPEC"
+اعمال یک کنش (action) از چارچوب کنش‌های عمومی بر روی بسته‌های منطبق.
+.TP
+.BI match " EMATCH_TREE"
+تطبیق بسته‌ها با استفاده از زیرساخت تطبیق گسترش‌یافته (extended match). برای توضیحات دقیق درباره نحو مجاز در
+.IR EMATCH_TREE
+به صفحه راهنمای
+.BR tc-ematch (8)
+مراجعه کنید.
+.SH "مثال‌ها (EXAMPLES)"
+به منظور استفاده از این فیلتر، ابتدا باید یک گروه کنترل net_cls ایجاد شده و شناسه کلاس و همچنین شناسه(های) فرایند به آن اختصاص یابد. دستورات زیر یک cgroup از نوع net_cls به نام "foobar" ایجاد می‌کنند:
+
+.RS
+.EX
+modprobe cls_cgroup
+mkdir /sys/fs/cgroup/net_cls
+mount -t cgroup -onet_cls net_cls /sys/fs/cgroup/net_cls
+mkdir /sys/fs/cgroup/net_cls/foobar
+.EE
+.RE
+
+برای تخصیص یک شناسه کلاس به cgroup ایجادشده، فایلی به نام
+.I net_cls.classid
+باید ایجاد شود که حاوی شناسه کلاس مورد نظر به صورت یک عدد هگزادسیمال با عرض ۶۴ بیت است. ۳۲ بیت بالایی برای دسته اصلی (major handle) رزرو شده‌اند و بیت‌های باقیمانده دسته فرعی (minor) را نگه می‌دارند. بنابراین، یک شناسه کلاس مانند
+.B ff:be
+باید به این صورت نوشته شود:
+.B 0xff00be
+(صفرهای پیشتاز را می‌توان حذف کرد). برای ادامه مثال فوق، دستور زیر شناسه کلاس 1:2 را به cgroup با نام foobar اختصاص می‌دهد:
+
+.RS
+.EX
+echo 0x10002 > /sys/fs/cgroup/net_cls/foobar/net_cls.classid
+.EE
+.RE
+
+در نهایت، می‌توان شناسه‌های فرایند (PIDها) را به cgroup مشخص‌شده اختصاص داد:
+
+.RS
+.EX
+echo 1234 > /sys/fs/cgroup/net_cls/foobar/tasks
+echo 5678 > /sys/fs/cgroup/net_cls/foobar/tasks
+.EE
+.RE
+
+اکنون تنها با متصل کردن یک فیلتر
+.B cgroup
+به یک
+.BR qdisc ،
+بسته‌های متعلق به شناسه‌های فرایند 1234 و 5678 به داخل کلاس 1:2 فرستاده می‌شوند.
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-ematch (8),
+.br
+پرونده
+.I Documentation/cgroups/net_cls.txt
+از درخت هسته لینوکس

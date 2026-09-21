@@ -1,0 +1,216 @@
+.\"
+.\" Copyright (c) 2013 Eric Faurot <eric@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd April 21 2024
+.Dt TABLE_POSTGRESQL 5
+.Os
+.SH "نام (NAME)"
+table-postgres \- شرح قالب جدول‌های PostgreSQL برای smtpd
+.Sh "توضیحات (DESCRIPTION)"
+این صفحه راهنما، قالب فایل جدول‌های PostgreSQL را مستند می‌کند که توسط دیمن ایمیل
+.Xr smtpd 8
+استفاده می‌شوند.
+.Pp
+قالب شرح‌داده‌شده در اینجا برای جدول‌هایی اعمال می‌شود که در
+.Xr smtpd.conf 5
+تعریف شده‌اند.
+.Sh "جدول POSTGRESQL (POSTGRESQL TABLE)"
+یک جدول postgresql امکان ذخیره‌سازی نام‌های کاربری، گذرواژه‌ها، نام‌های مستعار و دامنه‌ها را در قالبی فراهم می‌کند که در میان ماشین‌های مختلف پشتیبانی‌کننده از
+.Xr postgres 1
+قابل اشتراک‌گذاری است.
+.Pp
+این جدول توسط
+.Xr smtpd 8
+هنگام احراز هویت کاربر، هنگامی که اطلاعات کاربر مانند user-id و/یا دایرکتوری خانگی برای تحویل مورد نیاز است، زمانی که جستجوی دامنه ممکن است لازم باشد، و/یا هنگام جستجوی یک نام مستعار استفاده می‌شود.
+.Pp
+یک جدول PostgreSQL از یک یا چند پایگاه‌داده
+.Xr postgresql 1
+با یک یا چند جدول تشکیل شده است.
+.Pp
+اگر جدول برای احراز هویت استفاده شود، گذرواژه باید با استفاده از تابع
+.Xr crypt 3
+رمزگذاری شود.
+چنین گذرواژه‌هایی را می‌توان با ابزار
+.Xr encrypt 1
+یا دستور encrypt در
+.Xr smtpctl 8
+تولید کرد.
+.Sh "فایل پیکربندی جدول POSTGRESQL (POSTGRESQL TABLE CONFIG FILE)"
+گزینه‌های پیکربندی زیر در دسترس هستند:
+.Bl -tag -width Ds
+.It Xo
+.Ic conninfo
+.Cm host Ns = Ns Ar 'host'
+.Cm user Ns = Ns Ar 'user'
+.Cm password Ns = Ns Ar 'password'
+.Cm dbname Ns = Ns Ar 'dbname'
+.Xc
+اطلاعات اتصال مورد نیاز برای اتصال به پایگاه‌داده PostgreSQL.
+برای نمونه:
+.Pp
+.Bd -literal -compact
+conninfo host='db.example.com' user='maildba' password='...' dbname='opensmtpdb'
+.Ed
+.It Xo
+.Ic query_alias
+.Ar SQL statement
+.Xc
+این گزینه برای ارائه یک پرسمان جهت جستجوی نام‌های مستعار استفاده می‌شود.
+علامت سؤال با داده‌های مناسب جایگزین می‌شود.
+برای نام مستعار، این مقدار سمت چپ نشانی SMTP است.
+این پرسمان انتظار دارد یک VARCHAR حاوی نام کاربری که نام مستعار به آن ارجاع داده می‌شود، برگردانده شود.
+.It Xo
+.Ic query_credentials
+.Ar SQL statement
+.Xc
+این گزینه برای ارائه یک پرسمان جهت جستجوی اطلاعات احراز هویت کاربر استفاده می‌شود.
+علامت سؤال با داده‌های مناسب جایگزین می‌شود.
+برای اطلاعات احراز هویت، این مقدار سمت چپ نشانی SMTP است.
+این پرسمان انتظار دارد دو VARCHAR برگردانده شود، یکی حاوی نام کاربری و دیگری حاوی گذرواژه در قالب
+.Xr crypt 3 .
+.It Xo
+.Ic query_domain
+.Ar SQL statement
+.Xc
+این گزینه برای ارائه یک پرسمان جهت جستجوی یک دامنه استفاده می‌شود.
+علامت سؤال با داده‌های مناسب جایگزین می‌شود.
+برای دامنه، این مقدار سمت راست نشانی SMTP خواهد بود.
+این پرسمان انتظار دارد یک VARCHAR حاوی نام دامنه منطبق برگردانده شود.
+.It Xo
+.Ic query_mailaddrmap
+.Ar SQL statement
+.Xc
+این گزینه برای ارائه یک پرسمان جهت جستجوی فرستندگان استفاده می‌شود.
+علامت سؤال با داده‌های مناسب جایگزین می‌شود.
+این پرسمان انتظار دارد یک VARCHAR حاوی نشانی که فرستنده مجاز به ارسال ایمیل از آن است برگردانده شود.
+.El
+.Pp
+یک دستور عمومی SQL چیزی شبیه به این خواهد بود:
+.Bd -literal -offset indent
+query_ SELECT value FROM table WHERE key=$1;
+.Ed
+.Sh "فایل‌ها (FILES)"
+.Bl -tag -width "/etc/mail/postgres.conf" -compact
+.It Pa /etc/mail/postgres.conf
+فایل پیکربندی پیش‌فرض
+.Xr table-postgresql 5 .
+.El
+.Sh "مثال‌ها (EXAMPLES)"
+.Ss "مثال عمومی (GENERIC EXAMPLE)"
+مثال بر اساس پرسش‌های متداول OpenSMTPD: ساخت یک سرور ایمیل (Building a Mail Server).
+بخش فیلتر کردن در این مثال لحاظ نشده است.
+.Pp
+پیکربندی زیر برای یک سرور ایمیل با اندازه متوسط است که چندین دامنه را با چندین کاربر مجازی مدیریت می‌کند و بر اساس چند فرض بنا شده است.
+یکی از آن‌ها این است که یک کاربر سیستمی منفرد به نام vmail برای تمامی کاربران مجازی استفاده می‌شود.
+این کاربر باید ایجاد شود:
+.Bd -literal -offset indent
+# useradd -g =uid -c "Virtual Mail" -d /var/vmail -s /sbin/nologin vmail
+# mkdir /var/vmail
+# chown vmail:vmail /var/vmail
+.Ed
+.Pp
+طرحواره PostgreSQL:
+.Bd -literal -offset indent
+CREATE TABLE domains (
+  id SERIAL,
+  domain VARCHAR(255) NOT NULL DEFAULT ''
+);
+CREATE TABLE virtuals (
+    id SERIAL,
+    email VARCHAR(255) NOT NULL DEFAULT '',
+    destination VARCHAR(255) NOT NULL DEFAULT ''
+);
+CREATE TABLE credentials (
+    id SERIAL,
+    email VARCHAR(255) NOT NULL DEFAULT '',
+    password VARCHAR(255) NOT NULL DEFAULT ''
+);
+.Ed
+.Pp
+این مقادیر را می‌توان به شرح زیر مقداردهی کرد:
+.Bd -literal -offset indent
+INSERT INTO domains VALUES (1, "example.com");
+INSERT INTO domains VALUES (2, "example.net");
+INSERT INTO domains VALUES (3, "example.org");
+
+INSERT INTO virtuals VALUES (1, "abuse@example.com", "bob@example.com");
+INSERT INTO virtuals VALUES (2, "postmaster@example.com", "bob@example.com");
+INSERT INTO virtuals VALUES (3, "webmaster@example.com", "bob@example.com");
+INSERT INTO virtuals VALUES (4, "bob@example.com", "vmail");
+INSERT INTO virtuals VALUES (5, "abuse@example.net", "alice@example.net");
+INSERT INTO virtuals VALUES (6, "postmaster@example.net", "alice@example.net");
+INSERT INTO virtuals VALUES (7, "webmaster@example.net", "alice@example.net");
+INSERT INTO virtuals VALUES (8, "alice@example.net", "vmail");
+
+INSERT INTO credentials VALUES (1, "bob@example.com", "$2b$08$ANGFKBL.BnDLL0bUl7I6aumTCLRJSQluSQLuueWRG.xceworWrUIu");
+INSERT INTO credentials VALUES (2, "alice@example.net", "$2b$08$AkHdB37kaj2NEoTcISHSYOCEBA5vyW1RcD8H1HG.XX0P/G1KIYwii");
+.Ed
+.Pp
+.Pa /etc/mail/postgresql.conf
+.Bd -literal -offset indent
+conninfo host='db.example.com' user='maildba' password='OpenSMTPDRules!' dbname='opensmtpdb'
+query_alias SELECT destination FROM virtuals WHERE email=$1;
+query_credentials SELECT email, password FROM credentials WHERE email=$1;
+query_domain SELECT domain FROM domains WHERE domain=$1;
+.Ed
+.Pp
+.Pa /etc/mail/smtpd.conf
+.Bd -literal -offset indent
+table domains postgres:/etc/mail/postgres.conf
+table virtuals postgres:/etc/mail/postgres.conf
+table credentials postgres:/etc/mail/postgres.conf
+listen on egress port 25 tls pki mail.example.com
+listen on egress port 587 tls-require pki mail.example.com auth <credentials>
+accept from any for domain <domains> virtual <virtuals> deliver to mbox
+.Ed
+.Ss "مهاجرت از POSTFIX (و POSTFIXADMIN)"
+.Pa /etc/mail/postgres.conf
+.Bd -literal -offset indent
+conninfo host='db.example.com' user='postfix' password='...' dbname='postfix'
+query_alias SELECT destination FROM alias WHERE email=$1;
+query_credentials SELECT username, password FROM mailbox WHERE username=$1;
+query_domain SELECT domain FROM domain WHERE domain=$1;
+.Ed
+.Pp
+بقیه پیکربندی دست‌نخورده باقی می‌ماند.
+.Sh "کارهای باقی‌مانده (TODO)"
+مستندسازی گزینه‌های پرسمان زیر:
+.Bd -literal -offset indent -compact
+.Ic query_netaddr
+.Ic query_userinfo
+.Ic query_source
+.Ic query_mailaddr
+.Ic query_addrname
+.Ed
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr encrypt 1 ,
+.Xr crypt 3 ,
+.Xr smtpd.conf 5 ,
+.Xr smtpctl 8 ,
+.Xr smtpd 8
+.Sh "تاریخچه (HISTORY)"
+نخستین نسخه از
+.Nm table_postgresql
+در سال ۲۰۱۶ نوشته شد.
+در سال ۲۰۲۴ به پروتکل جدول stdio تبدیل شد.
+.Sh "نویسندگان (AUTHORS)"
+.An -nosplit
+.Nm table_postgresql
+در ابتدا توسط
+.An Gilles Chehade Aq Mt gilles@poolp.org
+نوشته شد.
+تبدیل به پروتکل جدول stdio توسط
+.An Omar Polo Aq Mt op@openbsd.org
+انجام گرفت.

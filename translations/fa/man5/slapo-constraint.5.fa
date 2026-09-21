@@ -1,0 +1,145 @@
+.lf 1 "-
+.TH SLAPO-CONSTRAINT 5 "2026/03/09" "OpenLDAP 2.6.13"
+.\" Copyright 2005-2006 Hewlett-Packard Company
+.\" Copyright 2006-2026 The OpenLDAP Foundation All Rights Reserved.
+.\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
+.\" $OpenLDAP$
+.SH "نام (NAME)"
+slapo\-constraint \- اورلی اعمال قید و محدودیت روی ویژگیها در slapd
+.SH "خلاصه دستور (SYNOPSIS)"
+/etc/openldap/slapd.conf
+.SH "توضیحات (DESCRIPTION)"
+اورلی constraint برای اطمینان از تطابق مقادیر ویژگی با قیدهایی فراتر از نحو پایهٔ LDAP استفاده می‌شود. می‌توان چندین قید را روی ویژگی‌ها تعیین کرد و در هنگام تغییر دادن مقدار یک ویژگیِ مقید، همهٔ آن‌ها باید برآورده شوند.
+.LP
+این اورلی برای اعمال انضباط و قاعده‌مندی نحوی بر داده‌های رشته‌ای مشخصی که دارای شکل استاندارد (کانونیکال) شناخته‌شده‌ای هستند، مانند شماره تلفن‌ها، کدهای پستی، FQDNها و غیره، در نظر گرفته شده است.
+.LP
+این اورلی فقط دستورهای \fIadd\fP، \fImodify\fP و \fIrename\fP در LDAP را مقید می‌سازد و تنها به دنبال کنترل مقادیر \fIadd\fP و \fIreplace\fP در درخواست‌های \fImodify\fP و \fIrename\fP است.
+.LP
+هیچ قیدی برای عملیات‌هایی که با تنظیم کنترل
+.I relax
+انجام شوند اعمال نمی‌گردد.
+.SH "پیکربندی (CONFIGURATION)"
+این گزینهٔ
+.B slapd.conf
+روی اورلی constraint اعمال می‌شود.
+این گزینه باید بعد از دستورالعمل
+.B overlay
+قرار گیرد.
+.TP
+.B constraint_attribute <attribute_name>[,...] <type> <value> [<extra> [...]]
+قیدی را مشخص می‌کند که باید بر فهرست ویژگی‌های جداشده با کاما که به عنوان پارامتر اول مشخص شده‌اند اعمال شود.
+در حال حاضر شش نوع قید پشتیبانی می‌شود:
+.BR regex ،
+.BR negregex ،
+.BR size ،
+.BR count ،
+.BR uri
+و
+.BR set .
+
+پارامتر پس از نوع
+.B regex
+یا
+.B negregex
+یک عبارت باقاعده به سبک یونیکس است (نگاه کنید به
+.BR regex (7)
+). پارامتر پس از نوع
+.B uri
+یک LDAP URI است. این URI با استفاده از یک جستجوی داخلی ارزیابی خواهد شد.
+این پارامتر نباید شامل نام میزبان باشد و حتماً باید شامل فهرستی از ویژگی‌ها جهت ارزیابی باشد.
+
+پارامتر پس از نوع
+.B set
+رشته‌ای است که مطابق با نحو مورد استفاده برای مجموعه‌های ACL تفسیر می‌شود. این قابلیت امکان تعریف قیدها را بر اساس محتوای مدخل فراهم می‌کند.
+
+نوع
+.B size
+می‌تواند برای اعمال محدودیت بر طول یک ویژگی استفاده شود، و نوع
+.B count
+تعداد مقادیر یک ویژگی را محدود می‌کند.
+
+پارامترهای اضافی می‌توانند بعد از موارد شرح‌داده‌شده در بالا به هر ترتیبی قرار گیرند.
+.RS
+.TP
+.B <extra> : restrict=<uri>
+.RE
+
+.RS
+این پارامتر اضافی اجازه می‌دهد تا اعمال قید مربوطه فقط به مدخل‌هایی محدود شود که با بخش‌های
+.IR base ،
+.I scope
+و
+.I filter
+از LDAP URI مطابقت دارند.
+بخش
+.IR base ،
+در صورت وجود، باید درون زمینه نام‌گذاری (naming context) پایگاه‌داده باشد.
+بخش
+.I scope
+تنها زمانی استفاده می‌شود که
+.I base
+حضور داشته باشد؛ مقدار پیش‌فرض آن
+.B base
+است. سایر پارامترهای URI مجاز نیستند.
+.RE
+
+.LP
+هر تلاشی برای افزودن یا تغییر ویژگی‌ای که به عنوان بخشی از مشخصات اورلی constraint تعریف شده اما با قید فهرست‌شده مطابقت ندارد، با خطای
+LDAP_CONSTRAINT_VIOLATION
+شکست خواهد خورد.
+.SH "مثال‌ها (EXAMPLES)"
+.LP
+.RS
+.nf
+overlay constraint
+constraint_attribute jpegPhoto size 131072
+constraint_attribute userPassword count 3
+constraint_attribute mail regex ^[[:alnum:]]+@mydomain.com$
+constraint_attribute mail negregex ^[[:alnum:]]+@notallowed.com$
+constraint_attribute title uri
+  ldap:///dc=catalog,dc=example,dc=com?title?sub?(objectClass=titleCatalog)
+constraint_attribute cn,sn,givenName set
+  "(this/givenName + [ ] + this/sn) & this/cn"
+  restrict="ldap:///ou=People,dc=example,dc=com??sub?(objectClass=inetOrgPerson)"
+.fi
+.RE
+
+تعریفی مانند نمونهٔ بالا، هر ویژگی
+.B mail
+را که شبیه به
+.B "<alphanumeric string>@mydomain.com"
+نباشد یا به صورت
+.B "<alphanumeric string>@notallowed.com"
+باشد، رد خواهد کرد.
+همچنین هر ویژگی
+.B title
+را که مقادیر آن در ویژگی
+.B title
+هیچ‌یک از مدخل‌های
+.B titleCatalog
+در دامنهٔ داده‌شده فهرست نشده باشد، رد می‌کند. (توجه داشته باشید که زیردرخت "dc=catalog,dc=example,dc=com" باید در یک پایگاه‌دادهٔ جداگانه قرار داشته باشد، در غیر این صورت مقداردهی اولیهٔ مدخل‌های titleCatalog در زمان فعال بودن این قید امکان‌پذیر نخواهد بود.)
+در نهایت، این پیکربندی الزام می‌کند که مقادیر ویژگی
+.B cn
+از کنار هم قرار دادن مقادیر ویژگی‌های
+.B sn
+و
+.BR givenName ،
+جداشده با یک فاصله، ساخته شوند؛ اما تنها برای مدخل‌هایی که از کلاس شیء
+.B inetOrgPerson
+مشتق شده باشند.
+.SH "فایل‌ها (FILES)"
+.TP
+/etc/openldap/slapd.conf
+فایل پیکربندی پیش‌فرض slapd
+.SH "همچنین ببینید (SEE ALSO)"
+.BR slapd.conf (5),
+.BR slapd\-config (5).
+.SH "قدردانی (ACKNOWLEDGEMENTS)"
+این ماژول در سال ۲۰۰۵ توسط Neil Dunbar از Hewlett-Packard نوشته شد و متعاقباً توسط Howard Chu و Emmanuel Dreyfus توسعه یافت.
+.lf 1 "./../Project
+.\" Shared Project Acknowledgement Text
+.B "OpenLDAP Software"
+توسط پروژهٔ OpenLDAP در <http://www.openldap.org> توسعه یافته و نگهداری می‌شود.
+.B "OpenLDAP Software"
+از انتشار LDAP 3.3 دانشگاه میشیگان برگرفته شده است.
+.lf 156 "-

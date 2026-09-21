@@ -1,0 +1,265 @@
+'\" t
+.nh
+.TH "DOCKER" "1" "Aug 2026" "Docker Community" "Docker User Manuals"
+
+.SH "نام (NAME)"
+docker-network-create \- ایجاد یک شبکه جدید
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBdocker network create [OPTIONS] NETWORK\fP
+
+
+.SH "شرح (DESCRIPTION)"
+یک شبکه جدید ایجاد می‌کند. مقدار \fBDRIVER\fR درایورهای شبکه داخلی یعنی \fBbridge\fR یا \fBoverlay\fR را می‌پذیرد. اگر یک درایور شبکه شخص ثالث یا سفارشی خود را نصب کرده‌اید، می‌توانید آن \fBDRIVER\fR را نیز در اینجا مشخص کنید. اگر گزینه \fB--driver\fR را تعیین نکنید، دستور به‌طور خودکار یک شبکه \fBbridge\fR برای شما ایجاد می‌کند. هنگام نصب Docker Engine، یک شبکه \fBbridge\fR به‌طور خودکار ایجاد می‌شود. این شبکه متناظر با پل \fBdocker0\fR است که Engine به‌طور سنتی به آن متکی بوده است. هنگامی که یک کانتینر جدید را با \fBdocker run\fR اجرا می‌کنید، به‌طور خودکار به این شبکه پل متصل می‌شود. شما نمی‌توانید این شبکه پل پیش‌فرض را حذف کنید، اما می‌توانید با استفاده از دستور \fBnetwork create\fR شبکه‌های جدیدی بسازید.
+
+.EX
+$ docker network create -d bridge my-bridge-network
+.EE
+
+.PP
+شبکه‌های پل (Bridge networks) شبکه‌هایی ایزوله روی یک Engine نصب‌شده هستند. اگر می‌خواهید شبکه‌ای ایجاد کنید که چندین میزبان Docker را که هر کدام یک Engine اجرا می‌کنند در بر گیرد، باید حالت Swarm را فعال کرده و یک شبکه \fBoverlay\fR بسازید. برای مطالعه بیشتر در مورد شبکه‌های overlay همراه با حالت Swarm، نشانی زیر را ببینید:
+\[la]https://docs.docker.com/network/overlay\[ra]\&.
+
+.PP
+پس از فعال کردن حالت swarm، می‌توانید یک شبکه overlay در حوزه swarm ایجاد کنید:
+
+.EX
+$ docker network create --scope=swarm --attachable -d overlay my-multihost-network
+.EE
+
+.PP
+به‌طور پیش‌فرض، شبکه‌های در حوزه swarm اجازه اتصال کانتینرهایی را که به صورت دستی شروع شده‌اند نمی‌دهند. این محدودیت برای جلوگیری از این اضافه شده است که فردی با دسترسی به یک گره غیرمدیر در کلاستر swarm نتواند کانتینری اجرا کند که قادر به دسترسی به پشته شبکه یک سرویس swarm باشد.
+
+.PP
+گزینه \fB--attachable\fR که در مثال بالا استفاده شد این محدودیت را غیرفعال می‌کند و به هر دو سرویس‌های swarm و کانتینرهای شروع‌شده به‌صورت دستی اجازه می‌دهد به شبکه overlay متصل شوند.
+
+.PP
+نام‌های شبکه باید یکتا باشند. دیمن Docker تلاش می‌کند تداخل نام‌ها را شناسایی کند اما این امر تضمین‌شده نیست. اجتناب از تداخل نام‌ها بر عهده کاربر است.
+
+.SS "محدودیت‌های شبکه overlay"
+هنگام ایجاد شبکه‌ها با استفاده از حالت پیش‌فرض VIP-based endpoint-mode، باید شبکه‌های overlay را با بلوک‌های \fB/24\fR (پیش‌فرض) بسازید که شما را به ۲۵۶ آدرس IP محدود می‌کند. این توصیه محدودیت‌های حالت swarm را در نظر می‌گیرد:
+\[la]https://github.com/moby/moby/issues/30820\[ra]\&.
+اگر به بیش از ۲۵۶ آدرس IP نیاز دارید، اندازه بلوک IP را افزایش ندهید. می‌توانید از حالت پایانه \fBdnsrr\fR همراه با یک متعادل‌کننده بار خارجی استفاده کنید، یا از چندین شبکه overlay کوچک‌تر بهره ببرید. برای اطلاعات بیشتر درباره حالت‌های مختلف پایانه، مستند پیکربندی کشف سرویس را ببینید:
+\[la]https://docs.docker.com/engine/swarm/networking/#configure\-service\-discovery\[ra]
+
+.SH "اتصال کانتینرها (Connect containers)"
+هنگام راه‌اندازی کانتینر، از فلگ \fB--network\fR برای اتصال آن به شبکه استفاده کنید. این مثال کانتینر \fBbusybox\fR را به شبکه \fBmynet\fR اضافه می‌کند:
+
+.EX
+$ docker run -itd --network=mynet busybox
+.EE
+
+.PP
+اگر می‌خواهید کانتینری را پس از اجرا شدن به یک شبکه اضافه کنید، از زیردستور \fBdocker network connect\fR استفاده نمایید.
+
+.PP
+می‌توانید چندین کانتینر را به یک شبکه متصل کنید. پس از اتصال، کانتینرها می‌توانند صرفاً با استفاده از آدرس IP یا نام کانتینر دیگر ارتباط برقرار کنند. برای شبکه‌های \fBoverlay\fR یا پلاگین‌های سفارشی که از اتصال چندمیزبانه پشتیبانی می‌کنند، کانتینرهای متصل به همان شبکه چندمیزبانه اما راه‌اندازی‌شده از Engineهای مختلف نیز می‌توانند به همین روش ارتباط برقرار کنند.
+
+.PP
+می‌توانید با استفاده از دستور \fBdocker network disconnect\fR یک کانتینر را از شبکه جدا کنید.
+
+.SS "تعیین گزینه‌های پیشرفته"
+هنگام ایجاد یک شبکه، Engine به‌طور پیش‌فرض یک زیرشبکه بدون همپوشانی برای شبکه ایجاد می‌کند. این زیرشبکه یک بخش تفکیک‌شده از شبکه موجود نیست، بلکه صرفاً برای مقاصد آدرس‌دهی IP است. شما می‌توانید این پیش‌فرض را لغو کرده و مقادیر زیرشبکه را مستقیماً با استفاده از گزینه \fB--subnet\fR مشخص کنید. روی یک شبکه \fBbridge\fR فقط می‌توانید یک زیرشبکه تکی ایجاد کنید:
+
+.EX
+$ docker network create --driver=bridge --subnet=192.168.0.0/16 br0
+.EE
+
+.PP
+علاوه بر این، می‌توانید گزینه‌های \fB--gateway\fR، \fB--ip-range\fR و \fB--aux-address\fR را نیز تعیین کنید.
+
+.EX
+$ docker network create \\
+  --driver=bridge \\
+  --subnet=172.28.0.0/16 \\
+  --ip-range=172.28.5.0/24 \\
+  --gateway=172.28.5.254 \\
+  br0
+.EE
+
+.PP
+اگر فلگ \fB--gateway\fR را حذف کنید، Engine یک دروازه را از داخل یک استخر ترجیحی برای شما انتخاب می‌کند. برای شبکه‌های \fBoverlay\fR و برای درایورهای پلاگین شبکه که از آن پشتیبانی می‌کنند، می‌توانید چندین زیرشبکه ایجاد کنید. این مثال از دو ماسک زیرشبکه \fB/25\fR استفاده می‌کند تا از راهنمای فعلی مبنی بر عدم داشتن بیش از ۲۵۶ آدرس IP در یک شبکه overlay تکی پیروی کند. هر یک از زیرشبکه‌ها دارای ۱۲۶ آدرس قابل استفاده هستند.
+
+.EX
+$ docker network create -d overlay \\
+  --subnet=192.168.10.0/25 \\
+  --subnet=192.168.20.0/25 \\
+  --gateway=192.168.10.100 \\
+  --gateway=192.168.20.100 \\
+  --aux-address="my-router=192.168.10.5" --aux-address="my-switch=192.168.10.6" \\
+  --aux-address="my-printer=192.168.20.5" --aux-address="my-nas=192.168.20.6" \\
+  my-multihost-network
+.EE
+
+.PP
+اطمینان حاصل کنید که زیرشبکه‌های شما همپوشانی ندارند. در صورت همپوشانی، ایجاد شبکه با شکست مواجه شده و Engine خطایی برمی‌گرداند.
+
+.SS "گزینه‌های درایور bridge"
+هنگام ایجاد یک شبکه سفارشی، درایور پیش‌فرض شبکه (یعنی \fBbridge\fR) دارای گزینه‌های اضافی است که می‌توان آن‌ها را ارسال کرد. موارد زیر همان گزینه‌ها و معادل فلگ‌های دیمن docker مورد استفاده برای پل docker0 هستند:
+
+.TS
+allbox;
+l l l
+l l l .
+\fBOption\fP	\fBEquivalent\fP	\fBDescription\fP
+\fBcom.docker.network.bridge.name\fR	-	T{
+نام پل برای استفاده هنگام ایجاد پل لینوکس (Linux bridge)
+T}
+\fBcom.docker.network.bridge.enable_ip_masquerade\fR	\fB--ip-masq\fR	فعال‌سازی IP masquerading
+\fBcom.docker.network.bridge.enable_icc\fR	\fB--icc\fR	T{
+فعال یا غیرفعال کردن ارتباط بین کانتینرها (Inter Container Connectivity)
+T}
+\fBcom.docker.network.bridge.host_binding_ipv4\fR	\fB--ip\fR	T{
+آدرس IP پیش‌فرض هنگام bind کردن درگاه‌های کانتینر
+T}
+\fBcom.docker.network.driver.mtu\fR	\fB--mtu\fR	تنظیم MTU شبکه کانتینرها
+\fBcom.docker.network.container_iface_prefix\fR	-	T{
+تنظیم یک پیشوند سفارشی برای رابط‌های کانتینر
+T}
+.TE
+
+.PP
+آرگومان‌های زیر را می‌توان برای هر درایور شبکه به \fBdocker network create\fR ارسال کرد، که مجدداً معادل‌های تقریبی آن‌ها در \fBdocker daemon\fR آورده شده است:
+
+.TS
+allbox;
+l l l
+l l l .
+\fBArgument\fP	\fBEquivalent\fP	\fBDescription\fP
+\fB--gateway\fR	-	T{
+دروازه IPv4 یا IPv6 برای زیرشبکه اصلی
+T}
+\fB--ip-range\fR	\fB--fixed-cidr\fR	تخصیص IPها از یک محدوده
+\fB--internal\fR	-	T{
+محدود کردن دسترسی خارجی به شبکه
+T}
+\fB--ipv6\fR	\fB--ipv6\fR	فعال‌سازی شبکه IPv6
+\fB--subnet\fR	\fB--bip\fR	زیرشبکه برای شبکه
+.TE
+
+.PP
+به‌عنوان مثال، بیایید از گزینه‌های \fB-o\fR یا \fB--opt\fR برای تعیین مقیدسازی آدرس IP هنگام انتشار درگاه‌ها استفاده کنیم:
+
+.EX
+$ docker network create \\
+    -o "com.docker.network.bridge.host_binding_ipv4"="172.19.0.1" \\
+    simple-network
+.EE
+
+.SS "حالت داخلی شبکه (Network internal mode)"
+به‌طور پیش‌فرض، هنگامی که کانتینری را به یک شبکه \fBoverlay\fR متصل می‌کنید، Docker یک شبکه bridge را نیز به آن متصل می‌کند تا اتصال خارجی فراهم شود. اگر می‌خواهید یک شبکه \fBoverlay\fR از نظر خارجی ایزوله ایجاد کنید، می‌توانید گزینه \fB--internal\fR را مشخص نمایید.
+
+.SS "حالت ورودی شبکه (Network ingress mode)"
+می‌توانید شبکه‌ای ایجاد کنید که برای ارائه مش مسیریابی (routing-mesh) در کلاستر swarm استفاده شود. این کار را با تعیین \fB--ingress\fR هنگام ایجاد شبکه انجام می‌دهید. در هر زمان فقط یک شبکه ingress می‌تواند ایجاد شود. این شبکه تنها در صورتی قابل حذف است که هیچ سرویسی به آن وابسته نباشد. هر گزینه‌ای که هنگام ایجاد یک شبکه overlay در دسترس است، به جز گزینه \fB--attachable\fR، هنگام ایجاد شبکه ingress نیز در دسترس خواهد بود.
+
+.EX
+$ docker network create -d overlay \\
+  --subnet=10.11.0.0/16 \\
+  --ingress \\
+  --opt com.docker.network.driver.mtu=9216 \\
+  --opt encrypted=true \\
+  my-ingress-network
+.EE
+
+.SS "اجرای سرویس‌ها روی شبکه‌های از پیش تعریف‌شده"
+می‌توانید سرویس‌هایی روی شبکه‌های از پیش تعریف‌شده docker یعنی \fBbridge\fR و \fBhost\fR ایجاد کنید.
+
+.EX
+$ docker service create --name my-service \\
+  --network host \\
+  --replicas 2 \\
+  busybox top
+.EE
+
+.SS "شبکه‌های Swarm با درایورهای حوزه محلی"
+می‌توانید یک شبکه swarm با درایورهای شبکه در حوزه محلی (local scope) ایجاد کنید. این کار را با ارتقای حوزه شبکه به \fBswarm\fR در حین ایجاد شبکه انجام می‌دهید. سپس می‌توانید هنگام ایجاد سرویس‌ها از این شبکه استفاده کنید.
+
+.EX
+$ docker network create -d bridge \\
+  --scope swarm \\
+  --attachable \\
+  swarm-network
+.EE
+
+.PP
+برای درایورهای شبکه‌ای که اتصال بین میزبان‌ها را فراهم می‌کنند (مانند macvlan)، اگر پیکربندی‌های خاص هر گره برای اتصال شبکه در هر میزبان مورد نیاز باشد، آن پیکربندی را از طریق یک شبکه فقط-پیکربندی (configuration only) تامین خواهید کرد. هنگامی که شبکه در حوزه swarm را ایجاد می‌کنید، نام شبکه‌ای را که حاوی پیکربندی است مشخص خواهید نمود.
+
+.EX
+node1$ docker network create --config-only --subnet 192.168.100.0/24 --gateway 192.168.100.115 mv-config
+node2$ docker network create --config-only --subnet 192.168.200.0/24 --gateway 192.168.200.202 mv-config
+node1$ docker network create -d macvlan --scope swarm --config-from mv-config --attachable swarm-network
+.EE
+
+
+.SH "گزینه‌ها (OPTIONS)"
+\fB--attachable\fP[=false]
+	فعال‌سازی پیوست دستی کانتینر
+
+.PP
+\fB--aux-address\fP=map[]
+	آدرس‌های کمکی IPv4 یا IPv6 مورد استفاده توسط درایور شبکه
+
+.PP
+\fB--config-from\fP=""
+	شبکه‌ای که پیکربندی از آن کپی می‌شود
+
+.PP
+\fB--config-only\fP[=false]
+	ایجاد یک شبکه فقط-پیکربندی (configuration only)
+
+.PP
+\fB-d\fP, \fB--driver\fP="bridge"
+	درایور مدیریت شبکه
+
+.PP
+\fB--gateway\fP=[]
+	دروازه IPv4 یا IPv6 برای زیرشبکه اصلی
+
+.PP
+\fB--ingress\fP[=false]
+	ایجاد شبکه routing-mesh در swarm
+
+.PP
+\fB--internal\fP[=false]
+	محدود کردن دسترسی خارجی به شبکه
+
+.PP
+\fB--ip-range\fP=[]
+	تخصیص IP کانتینر از یک زیرمحدوده
+
+.PP
+\fB--ipam-driver\fP="default"
+	درایور مدیریت آدرس IP (IPAM)
+
+.PP
+\fB--ipam-opt\fP=map[]
+	تنظیم گزینه‌های خاص درایور IPAM
+
+.PP
+\fB--ipv4\fP[=true]
+	فعال یا غیرفعال کردن تخصیص آدرس IPv4
+
+.PP
+\fB--ipv6\fP[=false]
+	فعال یا غیرفعال کردن تخصیص آدرس IPv6
+
+.PP
+\fB--label\fP=
+	تنظیم متاداده روی یک شبکه
+
+.PP
+\fB-o\fP, \fB--opt\fP=map[]
+	تنظیم گزینه‌های خاص درایور
+
+.PP
+\fB--scope\fP=""
+	کنترل حوزه (scope) شبکه
+
+.PP
+\fB--subnet\fP=[]
+	زیرشبکه در قالب CIDR که نشان‌دهنده یک بخش از شبکه است
+
+
+.SH "ببینید (SEE ALSO)"
+\fBdocker-network(1)\fP

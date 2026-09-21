@@ -1,0 +1,107 @@
+.TH badvpn-tun2socks 8 "فوریه 2012"
+.SH "نام (NAME)"
+badvpn-tun2socks \- دیمن فوروارد اتصال شبکه TUN به پراکسی Socks
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+.B
+badvpn-tun2socks
+.br
+  [\fB\-\-help\fR]
+.br
+  [\fB\-\-version\fR]
+.br
+  [\fB\-\-logger\fR <stdout/syslog>]
+.br
+  [\fB\-\-syslog-facility\fR <string>] [\fB\-\-syslog-ident\fR <string>]
+.br
+  [\fB\-\-loglevel\fR <0-5/none/error/warning/notice/info/debug>]
+.br
+  [\fB\-\-channel-loglevel\fR <channel-name> <0-5/none/error/warning/notice/info/debug>] ...
+.br
+  [\fB\-\-tundev\fR <name>]
+.br
+  \fB\-\-netif\-ipaddr\fR <ipaddr>
+.br
+  \fB\-\-netif\-netmask\fR <ipnetmask>
+.br
+  \fB\-\-socks\-server\-addr\fR <addr>
+.br
+  [\fB\-\-udpgw-remote-server-addr\fR <addr>]
+.br
+  [\fB\-\-udpgw-max-connections\fR <number>]
+.br
+  [\fB\-\-udpgw-connection-buffer-size\fR <number>]
+.PP
+قالب نشانی به‌صورت a.b.c.d:port (IPv4) یا [addr]:port (IPv6) است.
+.SH "توضیحات (DESCRIPTION)"
+.PP
+برنامه
+.B badvpn-tun2socks
+یک ابزار شبکه برای تبدیل اتصال‌های TCP به پراکسی SOCKS در لایه شبکه (socksify) است. این برنامه یک دستگاه TUN را پیاده‌سازی می‌کند که تمام اتصال‌های ورودی TCP را (بدون در نظر گرفتن IP مقصد) پذیرفته و آن‌ها را از طریق یک کارساز SOCKS فوروارد می‌کند. این قابلیت امکان فوروارد همه اتصال‌ها از طریق SOCKS را بدون نیاز به پشتیبانی برنامه‌ها فراهم می‌سازد. برای نمونه می‌توان از آن برای فوروارد اتصال‌ها از طریق یک کارساز دوردست SSH استفاده کرد.
+.SH "مثال (EXAMPLE)"
+.PP
+این مثال استفاده از tun2socks را در ترکیب با ویژگی فوروارد پویای SSH نشان می‌دهد.
+.PP
+با ارسال \-D localhost:1080 به دستور ssh به کارساز SSH متصل شوید تا فوروارد پویا فعال شود. این کار باعث می‌شود ssh یک کارساز محلی SOCKS باز کند که tun2socks اتصال‌ها را از طریق آن فوروارد می‌کند.
+.PP
+نخست یک دستگاه TUN ایجاد کنید (برای نمونه با استفاده از openvpn):
+
+.nf
+  openvpn --mktun --dev tun0 --user <someuser>
+.fi
+
+نشانی IP دستگاه tun جدید را پیکربندی کنید:
+
+.nf
+  ifconfig tun0 10.0.0.1 netmask 255.255.255.0
+.fi
+
+اکنون برنامه badvpn-tun2socks را اجرا کنید:
+
+.nf
+  badvpn-tun2socks --tundev tun0 --netif-ipaddr 10.0.0.2 --netif-netmask 255.255.255.0 \\
+                   --socks-server-addr 127.0.0.1:1080
+.fi
+
+توجه داشته باشید که نشانی 10.0.0.2 اشتباه تایپی نیست. این گزینه نشانی IP مسیریاب مجازی درون دستگاه TUN را مشخص می‌کند و باید با IP خود رابط TUN متفاوت باشد (اما در همان زیرشبکه قرار گیرد).
+
+اکنون باید بتوانید IP مسیریاب مجازی (10.0.0.2) را پینگ کنید:
+
+.nf
+  ping -n 10.0.0.2
+.fi
+
+تنها کاری که باقی می‌ماند، مسیریابی اتصال‌ها از طریق دستگاه TUN به‌جای درگاه پیش‌فرض (default gateway) موجود است. این کار به‌صورت زیر انجام می‌شود:
+
+1. یک مسیر به کارساز SSH از طریق درگاه موجود خود با متریک کمتر از مسیر پیش‌فرض اصلی اضافه کنید.
+
+2. اگر کارسازهای DNS شما در شبکه‌ای هستند که مستقیماً متصل نیست (برای نمونه در اینترنت)، برای آن‌ها نیز مسیرهایی اضافه کنید (مانند کارساز SSH). این کار لازم است زیرا tun2socks به‌طور پیش‌فرض ترافیک UDP را فوروارد نمی‌کند (بخش زیر را ببینید).
+
+3. یک مسیر پیش‌فرض از طریق مسیریاب مجازی در دستگاه TUN با متریک کمتر از مسیر پیش‌فرض اصلی، اما بیشتر از مسیرهای SSH و DNS اضافه کنید.
+
+این کار باعث می‌شود تمام اتصال‌های خارجی از طریق دستگاه TUN عبور کنند، به‌جز اتصال SSH (در غیر این صورت SSH از طریق دستگاه TUN که آن هم از طریق... SSH می‌گذشت، عبور می‌کرد).
+
+برای نمونه (با فرض اینکه هیچ مسیر پیش‌فرضی با متریک کمتر یا مساوی ۶ وجود ندارد؛ در غیر این صورت آن‌ها را حذف کنید یا متریک آن‌ها را تغییر دهید):
+
+.nf
+  route add <IP_of_SSH_server> gw <IP_of_original_gateway> metric 5
+  <same for DNS>
+  route add default gw 10.0.0.2 metric 6
+.fi
+.SH "فوروارد UDP (UDP FORWARDING)"
+برنامه tun2socks می‌تواند ترافیک UDP را فوروارد کند، اما این کار نیازمند اجرای دیمن فورواردر badvpn-udpgw روی کارساز دوردست SSH است:
+
+.nf
+  badvpn-udpgw --listen-addr 127.0.0.1:7300
+.fi
+
+سپس به tun2socks بگویید که UDP را از طریق فورواردر ارسال کند:
+
+.nf
+  --udpgw-remote-server-addr 127.0.0.1:7300
+.fi
+.SH "حق نشر (COPYRIGHT)"
+.PP
+حق نشر \(co 2010 Ambroz Bizjak <ambrop7@gmail.com>
+.br
+این یک نرم‌افزار آزاد است؛ برای شرایط نسخه‌برداری به سورس‌کد مراجعه کنید. هیچ ضمانتی وجود ندارد؛ حتی برای قابلیت تجاری یا تناسب با یک هدف خاص.

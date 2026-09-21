@@ -1,0 +1,98 @@
+'\" t
+.nh
+.TH buildah-manifest "1" "September 2019" "buildah"
+.SH "نام (NAME)"
+.PP
+buildah-manifest \- ساخت و مدیریت فهرست‌های مانیفست و نمایه‌های تصویر.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+buildah manifest COMMAND [OPTIONS] [ARG...]
+
+.SH "توضیحات (DESCRIPTION)"
+.PP
+دستور \fBbuildah manifest\fR زیردستورهایی ارائه می‌دهد که برای موارد زیر کاربرد دارند:
+
+.EX
+* ساخت یک فهرست مانیفست داکر کاربردی یا نمایه تصویر OCI.
+* افزودن یک مدخل به فهرست مانیفست یا نمایه تصویر برای یک تصویر مشخص.
+* افزودن یک مدخل به نمایه تصویر برای یک مانیفست دست‌ساخته با ارجاع به یک پرونده.
+* افزودن یا به‌روزرسانی اطلاعات مربوط به یک مدخل در فهرست مانیفست یا نمایه تصویر.
+* حذف یک کانتینر در حال کار یا یک تصویر.
+* ارسال (push) فهرست مانیفست یا نمایه تصویر به یک رجیستری یا محل دیگر.
+.EE
+
+.SH "زیردستورها (SUBCOMMANDS)"
+.TS
+allbox;
+l l l
+l l l .
+\fBدستور\fP	\fBصفحه راهنما\fP	\fBتوضیحات\fP
+add	buildah-manifest-add(1)	T{
+افزودن یک تصویر یا دست‌ساخته به فهرست مانیفست یا نمایه تصویر.
+T}
+annotate	buildah-manifest-annotate(1)	T{
+افزودن یا به‌روزرسانی اطلاعات درباره یک تصویر یا دست‌ساخته در فهرست مانیفست یا نمایه تصویر.
+T}
+create	buildah-manifest-create(1)	T{
+ساخت یک فهرست مانیفست یا نمایه تصویر.
+T}
+exists	buildah-manifest-exists(1)	T{
+بررسی وجود فهرست مانیفست در حافظه محلی.
+T}
+inspect	buildah-manifest-inspect(1)	T{
+نمایش محتویات یک فهرست مانیفست یا نمایه تصویر.
+T}
+push	buildah-manifest-push(1)	T{
+ارسال یک فهرست مانیفست یا نمایه تصویر به یک رجیستری یا محل دیگر.
+T}
+remove	buildah-manifest-remove(1)	T{
+حذف یک تصویر از فهرست مانیفست یا نمایه تصویر.
+T}
+rm	buildah-manifest-rm(1)	T{
+حذف فهرست مانیفست از حافظه محلی.
+T}
+.TE
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS "ساخت فهرست مانیفست چندمعماری از یک Containerfile"
+.PP
+با این فرض که \fBContainerfile\fR از دستورالعمل‌های \fBRUN\fR استفاده می‌کند، میزبان نیاز به راهی برای اجرای دودویی‌های غیربومی دارد. پیکربندی این مورد فراتر از محدوده این مثال است. ساخت یک فهرست مانیفست چندمعماری \fBshazam\fR به صورت موازی در ۴ رشته کاری به این صورت انجام می‌شود:
+
+.EX
+    $ platarch=linux/amd64,linux/ppc64le,linux/arm64,linux/s390x
+    $ buildah build --jobs=4 --platform=$platarch --manifest shazam .
+.EE
+
+.PP
+\fBنکته:\fP آرگومان \fB--jobs\fR اختیاری است، و گزینه \fB--manifest\fR باید به جای گزینه‌های \fB-t\fR یا \fB--tag\fR استفاده شود.
+
+.SS "سرهم‌بندی مانیفست چندمعماری از تصاویر جداگانه ساخته‌شده"
+.PP
+با این فرض که تصاویر \fBexample.com/example/shazam:$arch\fR به صورت جداگانه روی میزبان‌های دیگر ساخته شده و به رجیستری \fBexample.com\fR ارسال شده‌اند، می‌توان آن‌ها را در یک فهرست مانیفست ترکیب کرد و با یک حلقه ساده ارسال نمود:
+
+.EX
+    $ REPO=example.com/example/shazam
+    $ buildah manifest create $REPO:latest
+    $ for IMGTAG in amd64 s390x ppc64le arm64; do
+              buildah manifest add $REPO:latest docker://$REPO:IMGTAG;
+          done
+    $ buildah manifest push --all $REPO:latest
+.EE
+
+.PP
+\fBنکته:\fP ترتیب آرگومان دستورالعمل \fBadd\fR ابتدا \fB<manifest>\fR و سپس \fB<image>\fR است. همچنین، گزینه \fB--all\fR هنگام ارسال الزامی است تا اطمینان حاصل شود که تمام محتویات ارسال می‌شوند، نه فقط پلتفرم/معماری بومی.
+
+.SS "حذف و برچسب‌گذاری یک فهرست مانیفست قبل از ارسال"
+.PP
+هنگام حذف و ارسال فهرست‌های مانیفست، برخلاف محتویات، مراقبت ویژه‌ای لازم است. شما تقریباً همیشه می‌خواهید از زیردستورهای \fBmanifest rm\fR و \fBmanifest push --all\fR استفاده کنید. برای مثال، تغییر نام و ارسال می‌تواند به این صورت انجام شود:
+
+.EX
+    $ buildah tag localhost/shazam example.com/example/shazam
+    $ buildah manifest rm localhost/shazam
+    $ buildah manifest push --all example.com/example/shazam
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+buildah(1), buildah-manifest-create(1), buildah-manifest-add(1), buildah-manifest-remove(1), buildah-manifest-annotate(1), buildah-manifest-inspect(1), buildah-manifest-push(1), buildah-manifest-rm(1)

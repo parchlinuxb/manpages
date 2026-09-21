@@ -1,0 +1,184 @@
+'\" t
+.TH "NSS\-RESOLVE" "8" "" "systemd 261.2" "nss-resolve"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+nss-resolve \- تفکیک نام میزبان از طریق سرویس systemd-resolved
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+libnss_resolve\&.so\&.2
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBnss\-resolve\fR
+یک ماژول افزونه (plug\-in) برای قابلیت سوئیچ سرویس نام گنو (NSS یا Name Service Switch) در کتابخانه سی گنو (\fBglibc\fR) است که امکان تفکیک نام‌های میزبان را از طریق سرویس تفکیک نام شبکه محلی
+\fBsystemd-resolved\fR(8)
+فراهم می‌سازد\&. این ماژول جایگزین افزونهٔ
+\fBnss\-dns\fR
+می‌شود که به‌طور سنتی نام‌های میزبان را از طریق DNS تفکیک می‌کند\&.
+.PP
+برای فعال‌سازی این ماژول NSS، عبارت
+"resolve\ \&[!UNAVAIL=return]"
+را به خطی که با
+"hosts:"
+در
+/etc/nsswitch\&.conf
+آغاز می‌شود اضافه کنید\&. به‌ویژه، توصیه می‌شود که
+"resolve"
+در ابتدای خط
+"hosts:"
+در
+/etc/nsswitch\&.conf
+قرار داده شود\&. این مقدار باید قبل از مدخل
+"files"
+باشد، زیرا
+systemd\-resolved
+به‌صورت داخلی اما با ذخیره‌سازی موقت (caching) از
+/etc/hosts
+پشتیبانی می‌کند\&. در مقابل، باید بعد از
+"mymachines"
+قرار گیرد تا نام‌های میزبان اختصاص‌یافته به ماشین‌های مجازی و کانتینرهای محلی بر نام‌های دریافت‌شده از طریق DNS تقدم داشته باشند\&. در نهایت، توصیه می‌کنیم
+"dns"
+در جایی پس از
+"resolve"
+قرار گیرد تا در صورت عدم دسترسی به
+systemd\-resolved\&.service،
+به عنوان جایگزین از
+\fBnss\-dns\fR
+استفاده شود\&.
+.PP
+توجه داشته باشید که
+\fBsystemd\-resolved\fR
+در موارد معدودی رکوردهای منبع DNS را به‌صورت ترکیبی/مصنوعی (synthesize) تولید می‌کند؛ برای مثال برای
+"localhost"
+و نام میزبان محلی فعلی؛ برای فهرست کامل به
+\fBsystemd-resolved\fR(8)
+مراجعه کنید\&. این رفتار عملکرد
+\fBnss-myhostname\fR(8)
+را تکرار می‌کند، اما با این وجود همچنان توصیه می‌شود (مثال‌های زیر را ببینید) که
+\fBnss\-myhostname\fR
+در
+/etc/nsswitch\&.conf
+پیکربندی شده باقی بماند تا در صورت عدم اجرای
+\fBsystemd\-resolved\fR،
+این نام‌ها همچنان قابل تفکیک باشند\&.
+.PP
+لطفاً در نظر داشته باشید که
+\fBnss\-myhostname\fR
+(و
+\fBnss\-resolve\fR)
+در جهت عکس نیز تفکیک را انجام می‌دهند \(em از نشانی‌های IP متصل محلی به نام‌های میزبان\&. اگر به دریافت این جستجو از طریق DNS متکی هستید، ممکن است بخواهید ترتیب موارد را به شکل دیگری تنظیم کنید\&.
+.PP
+ارتباط بین
+\fBnss\-resolve\fR
+و
+systemd\-resolved\&.service
+از طریق سوکت
+\fBAF_UNIX\fR
+به آدرس
+/run/systemd/resolve/io\&.systemd\&.Resolve
+انجام می‌پذیرد\&.
+.SH "متغیرهای محیطی (ENVIRONMENT VARIABLES)"
+.PP
+\fI$SYSTEMD_NSS_RESOLVE_VALIDATE\fR
+.RS 4
+یک آرگومان بولی (boolean) می‌پذیرد\&. در صورت تعیین مقدار نادرست (false)، اعتبارسنجی رمزنگاری‌شده رکوردهای منبع از طریق DNSSEC غیرفعال می‌شود\&. این گزینه ممکن است برای آزمایش یا زمانی که مشخص است زمان سیستم غیرقابل‌اعتماد است، مفید باشد\&.
+.sp
+افزوده‌شده در نسخهٔ 250\&.
+.RE
+.PP
+\fI$SYSTEMD_NSS_RESOLVE_SYNTHESIZE\fR
+.RS 4
+یک آرگومان بولی می‌پذیرد\&. در صورت تعیین مقدار نادرست (false)، رکوردهای ترکیبی/ساختگی، برای نمونه برای نام میزبان محلی، بازگردانده نخواهند شد\&. برای اطلاعات بیشتر بخش SYNTHETIC RECORDS را در
+\fBsystemd-resolved.service\fR(8)
+ببینید\&. این گزینه ممکن است برای پرس‌وجوی رکوردهای منبع «عمومی»، مستقل از پیکربندی ماشین محلی مفید باشد\&.
+.sp
+افزوده‌شده در نسخهٔ 250\&.
+.RE
+.PP
+\fI$SYSTEMD_NSS_RESOLVE_CACHE\fR
+.RS 4
+یک آرگومان بولی می‌پذیرد\&. در صورت تعیین مقدار نادرست (false)، حافظهٔ نهان (cache) رکوردهای قبلاً پرس‌وجوشده توسط
+\fBsystemd-resolved\fR(8)
+استفاده نخواهد شد\&.
+.sp
+افزوده‌شده در نسخهٔ 250\&.
+.RE
+.PP
+\fI$SYSTEMD_NSS_RESOLVE_ZONE\fR
+.RS 4
+یک آرگومان بولی می‌پذیرد\&. در صورت تعیین مقدار نادرست (false)، پاسخ‌هایی که از رکوردهای منبع عمومی LLMNR/mDNS ثبت‌شده محلی استفاده می‌کنند بازگردانده نخواهند شد\&.
+.sp
+افزوده‌شده در نسخهٔ 250\&.
+.RE
+.PP
+\fI$SYSTEMD_NSS_RESOLVE_TRUST_ANCHOR\fR
+.RS 4
+یک آرگومان بولی می‌پذیرد\&. در صورت تعیین مقدار نادرست (false)، پاسخ‌هایی که از لنگرهای اعتماد (trust anchors) پیکربندی‌شده محلی استفاده می‌کنند، به کار گرفته نخواهند شد\&.
+.sp
+افزوده‌شده در نسخهٔ 250\&.
+.RE
+.PP
+\fI$SYSTEMD_NSS_RESOLVE_NETWORK\fR
+.RS 4
+یک آرگومان بولی می‌پذیرد\&. در صورت تعیین مقدار نادرست (false)، پاسخ‌ها بدون استفاده از شبکه بازگردانده می‌شوند، یعنی یا از منابع محلی و یا از حافظهٔ نهان در
+\fBsystemd-resolved\fR(8)\&.
+.sp
+افزوده‌شده در نسخهٔ 250\&.
+.RE
+.PP
+\fI$SYSTEMD_NSS_RESOLVE_INTERFACE\fR
+.RS 4
+نام یک رابط کاربری یا شاخص (index) آن را به عنوان آرگومان می‌پذیرد\&. در صورت مشخص شدن، پاسخ‌ها تنها از سرورهای نام متعلق به رابط مشخص‌شده دریافت خواهند شد\&.
+.sp
+افزوده‌شده در نسخهٔ 260\&.
+.RE
+.SH "مثال (EXAMPLE)"
+.PP
+در اینجا نمونه‌ای از یک پروندهٔ
+/etc/nsswitch\&.conf
+آورده شده است که
+\fBnss\-resolve\fR
+را به‌درستی فعال می‌کند:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+passwd:         files systemd
+group:          files [SUCCESS=merge] systemd
+shadow:         files systemd
+gshadow:        files systemd
+
+hosts:          mymachines \fBresolve [!UNAVAIL=return]\fR files myhostname dns
+networks:       files
+
+protocols:      db files
+services:       db files
+ethers:         db files
+rpc:            db files
+
+netgroup:       nis
+.fi
+.if n \{\
+.RE
+.\}
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsystemd\fR(1), \fBsystemd-resolved\fR(8), \fBnss-systemd\fR(8), \fBnss-myhostname\fR(8), \fBnss-mymachines\fR(8), \fBnsswitch.conf\fR(5), \fBsystemd.syntax\fR(7)

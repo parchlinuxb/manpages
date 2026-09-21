@@ -1,0 +1,149 @@
+.TH "IFE action in tc" 8 "22 Apr 2016" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-ife \- کپسوله‌سازی یا استخراج فراداده
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR tc " ... " " action ife"
+.IR DIRECTION " [ " ACTION " ] "
+.RB "[ " dst
+.IR DMAC " ] "
+.RB "[ " src
+.IR SMAC " ] "
+.RB "[ " type
+.IR TYPE " ] "
+.RI "[ "
+.IR CONTROL " ] "
+.RB "[ " index
+.IR INDEX " ] "
+
+.ti -8
+.IR DIRECTION " := { "
+.BR decode " | " encode " }"
+
+.ti -8
+.IR ACTION " := { "
+.BI allow " ATTR"
+.RB "| " use
+.IR "ATTR value" " }"
+
+.ti -8
+.IR ATTR " := { "
+.BR mark " | " prio " | " tcindex " }"
+
+.ti -8
+.IR CONTROL " := { "
+.BR reclassify " | " use " | " pipe " | " drop " | " continue " | " ok " | " goto " " chain " " CHAIN_INDEX " }"
+.SH "توضیحات (DESCRIPTION)"
+کنش
+.B ife
+به طرف فرستنده اجازه می‌دهد فراداده‌های اختیاری را کپسوله‌سازی کند که سپس توسط طرف گیرنده استخراج (decapsulate) می‌شوند. فرستنده در حالت کدگذاری
+.RB ( encode )
+و گیرنده در حالت رمزگشایی
+.RB ( decode )
+اجرا می‌شود. هر دو سمت فرستنده و گیرنده باید یک نوع اترنت
+.RB ( ethertype )
+یکسان را مشخص کنند. در آینده، ممکن است یک نوع اترنت ثبت‌شده به عنوان پیش‌فرض در دسترس قرار گیرد.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B decode
+برای سمت گیرنده؛ در صورت تطابق بسته، فراداده را رمزگشایی می‌کند.
+.TP
+.B encode
+برای سمت فرستنده؛ در صورت تطابق بسته، فراداده مشخص‌شده را کدگذاری می‌کند.
+.TP
+.B allow
+فقط برای جهت کدگذاری؛ امکان کدگذاری فراداده مشخص‌شده را فراهم می‌کند.
+.TP
+.B use
+فقط برای جهت کدگذاری؛ کدگذاری ایستا برای فراداده مشخص‌شده را اعمال می‌کند.
+.TP
+.BR mark " [ "
+.IR u32_value " ]"
+مقداری که باید برای علامت بسته
+.RB ( "skb mark" )
+تنظیم شود. مقدار u32 تنها زمانی لازم است که
+.B use
+مشخص شده باشد. اگر مقدار
+.B mark
+صفر باشد، کدگذاری نخواهد شد و در عوض، آمار
+.RB « "overlimits" »
+افزایش یافته و کنش
+.B CONTROL
+انجام می‌شود.
+.TP
+.BR prio " [ "
+.IR u32_value " ]"
+مقداری که باید برای اولویت در ساختار skb تنظیم شود. مقدار u32 تنها زمانی لازم است که
+.B use
+مشخص شده باشد.
+.TP
+.BR tcindex " ["
+.IR u16_value " ]"
+مقداری که باید برای شاخص کنترل ترافیک در ساختار skb تنظیم شود. مقدار u16 تنها زمانی لازم است که
+.B use
+مشخص شده باشد.
+.TP
+.BI dmac " DMAC"
+.TQ
+.BI smac " SMAC"
+آدرس اختیاری شش بایتی MAC مقصد یا مبدأ برای کدگذاری.
+.TP
+.BI type " TYPE"
+نوع اترنت
+.RB ( ethertype )
+اختیاری ۱۶ بیتی برای کدگذاری. در صورت عدم تعیین، مقدار 0xED3E استفاده خواهد شد.
+.TP
+.BI CONTROL
+کنشی که باید پس از یک کدگذاری/رمزگشایی انجام شود.
+.TP
+.BI index " INDEX"
+اختصاص یک شناسه یکتا به این کنش به جای واگذاری انتخاب خودکار آن به هسته سیستم‌عامل.
+.I INDEX
+یک عدد صحیح بدون علامت ۳۲ بیتی بزرگ‌تر از صفر است.
+.SH "مثال‌ها (EXAMPLES)"
+
+در سمت گیرنده، بسته‌های دارای نوع اترنت 0xdead را تطبیق داده و دسته‌بندی را مجدداً آغاز کنید تا در قاعده بعدی با اولویت ۳، با پروتکل ICMP تطبیق داده شود:
+.RS
+.EX
+# tc qdisc add dev eth0 handle ffff: ingress
+# tc filter add dev eth0 parent ffff: prio 2 protocol 0xdead \
+	u32 match u32 0 0 flowid 1:1 \
+	action ife decode reclassify
+# tc filter add dev eth0 parent ffff: prio 3 protocol ip \
+	u32 match ip protocol 0xff flowid 1:1 \
+	action continue
+.EE
+.RE
+
+تطبیق با علامت skb برابر با ۱۷:
+
+.RS
+.EX
+# tc filter add dev eth0 parent ffff: prio 4 protocol ip \
+	handle 0x11 fw flowid 1:1 \
+	action ok
+.EE
+.RE
+
+پیکربندی سمت فرستنده برای کدگذاری فیلترهای فوق. استفاده از آدرس IP مقصد 192.168.122.237/24، سپس برچسب‌گذاری با علامت skb برابر با ۱۷ در مبنای ۱۰. کدگذاری بسته با نوع اترنت 0xdead، افزودن skb->mark به فهرست مجاز فراداده‌های ارسالی، و بازنویسی آدرس MAC مقصد به 02:15:15:15:15:15.
+
+.RS
+.EX
+# tc qdisc add dev eth0 root handle 1: prio
+# tc filter add dev eth0 parent 1: protocol ip prio 10 u32 \
+	match ip dst 192.168.122.237/24 \
+	match ip protocol 1 0xff \
+	flowid 1:2 \
+	action skbedit mark 17 \
+	action ife encode \
+	type 0xDEAD \
+	allow mark \
+	dst 02:15:15:15:15:15
+.EE
+.RE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-u32 (8)

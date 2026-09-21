@@ -1,0 +1,806 @@
+.\"
+.\" mdoc(5) manual page.
+.\" (C) 2008 Jonathan Pryor
+.\" Author:
+.\"   Jonathan Pryor (jpryor@novell.com)
+.\"
+.de Sp \" Vertical space (when we can't use .PP)
+.if t .sp .5v
+.if n .sp
+..
+.TH "mdoc" 5
+.SH "نام (NAME)"
+mdoc \- قالب XML مستندسازی مونو (Mono)
+.SH "توضیحات (DESCRIPTION)"
+برنامه‌های مختلف مستندسازی مونو (Mono) فایل‌های XML منطبق بر طرحواره (schema) مستندسازی مونو را تولید کرده یا تغییر می‌دهند:
+.TP
+.I mdoc update
+ایجاد یا به‌روزرسانی XML مستندسازی مونو برای مجموعه‌ای از اسمبلی‌ها (assemblies).
+.TP
+.I mdoc validate
+اعتبارسنجی XML مستندسازی مونو در برابر طرحواره XML مستندسازی مونو.
+.TP
+.I mdoc assemble
+تبدیل XML مستندسازی مونو درون یک ساختار دایرکتوری به مجموعه‌ای از فایل‌ها جهت استفاده با
+\fBmonodoc\fR(1).
+.TP
+.I mdoc export-html
+تبدیل XML مستندسازی مونو درون یک ساختار دایرکتوری به مجموعه‌ای از فایل‌های HTML قابل مشاهده با یک مرورگر وب.
+.PP
+همه این ابزارها (و ابزارهای دیگر) از طرحواره مشترک XML شرح داده‌شده در این صفحه راهنما استفاده می‌کنند.
+.SH "ساختار فایل/دایرکتوری (FILE/DIRECTORY STRUCTURE)"
+سه مجموعه از فایل‌های XML مستندسازی مونو وجود دارد:
+.TP
+.B *
+.B index.xml:
+شامل فهرستی از تمام اسمبلی‌های موجود در دایرکتوری دربرگیرنده، و تمامی نوع‌ها (types) و فضاهای نام (namespaces) درون آن اسمبلی‌ها است.
+.TP
+.B *
+.B ns\-*.xml:
+به ازای هر فضای نام درون اسمبلی یک فایل ns-*.xml وجود دارد؛ این فایل‌ها هم‌سطح (sibling) با
+.I index.xml
+هستند.
+.Sp
+مثال‌هایی از فایل‌های
+.I ns\-*.xml
+شامل: \fIns-System.xml\fR، \fIns-System.Collections.xml\fR و
+\fIns-.xml\fR (برای فضای نام ریشه، هرچند توصیه می‌شود نوع‌ها را در فضای نام ریشه قرار ندهید، زیرا \fBmonodoc\fR(1) آن‌ها را نمایش نمی‌دهد).
+.Sp
+فایل‌های
+.I ns\-*.xml
+شامل مستندات به ازای هر فضای نام هستند.
+.TP
+.B *
+.B NamespaceName/TypeName.xml:
+این فایل‌ها درون یک دایرکتوری نقطه‌دار
+.I NamespaceName
+قرار دارند و
+.I TypeName
+نام نوع (type) است.
+.Sp
+مثال‌ها شامل:
+.I RootType.xml
+(اگر نوع فاقد فضای نام باشد)،
+\fISystem/String.xml\fR،
+\fISystem.Collections/IEnumerable.xml\fR و
+\fISystem.Collections.Generic/List`1+Enumerator.xml\fR
+(بخش
+.I `1
+تعداد پارامترهای نوع جنریک پذیرفته‌شده توسط نوع است، و هرآنچه پس از
+.I +
+می‌آید یک نوع تودرتو یا nested type است).
+.PP
+بنابراین، محتویات معمول یک دایرکتوری مشابه زیر خواهد بود:
+
+.nf
+    index.xml
+    ns-System.xml
+    ns-System.Collections.Generic.xml
+    System/String.xml
+    System.Collections.Generic/List`1.xml
+.fi
+.SH "قالب مستندسازی (DOCUMENTATION FORMAT)"
+.SS "قالب فایل \fBindex.xml\fR"
+.PP
+فایل
+.I index.xml
+شامل فهرستی از اسمبلی‌های قرارگرفته زیر دایرکتوری حاوی
+.I index.xml
+و تمامی فضاهای نام و نوع‌های درون آن اسمبلی‌ها است. ساختار آن شبیه به این است:
+
+.nf
+    <Overview>
+      <Assemblies>
+        <Assembly Name="mscorlib" Version="2.0.0.0" />
+        <!-- other <Assembly/> elements... -->
+      </Assemblies>
+      <Remarks>To be added.</Remarks>
+      <Copyright>To be added.</Copyright>
+      <Types>
+        <Namespace Name="System">
+          <Type Name="String" />
+          <!-- Other <Type/> elements -->
+        </Namespace>
+        <Namespace Name="System.Collections.Generic">
+          <Type Name="List`1" DisplayName="List&lt;T&gt;" />
+          <!-- Other <Type/> elements -->
+        </Namespace>
+        <!-- other <Namespace/> elements -->
+      </Types>
+      <Title>DocTest</Title>
+    </Overview>
+.fi
+
+بیشتر این بخش به‌طور خودکار نگهداری می‌شود، به‌ویژه عناصر
+.I /Overview/Assemblies
+و
+.I /Overview/Types
+\&.
+.PP
+ویژگی (attribute)
+.I //Namespace/@Name
+مربوط به دایرکتوری‌ای است که حاوی فایل‌هایی با نام
+\fI//Type/@Name\fR.xml
+است، در حالی که ویژگی
+\fI//Type/@DisplayName\fR
+شامل نام نوع #C است (اگر \fI//Type/@DisplayName\fR یافت نشود،
+\fI//Type/@Name\fR
+به عنوان نام نمایشی استفاده می‌شود). همچنین باید یک فایل
+\fIns-[//Namespace/@Name].xml\fR
+وجود داشته باشد.
+.PP
+سه عنصر مورد توجه نویسندگان وجود دارد:
+\fI/Overview/Remarks\fR، \fI/Overview/Copyright\fR
+و
+\fI/Overview/Title\fR،
+که شامل مستندات در سطح اسمبلی هستند. این عناصر می‌توانند شامل هر یک از عناصر XML زیر باشند (که در بخش
+\fBعناصر مستندسازی XML\fR
+شرح داده شده‌اند):
+\fIblock\fR،
+\fIcode\fR،
+\fIexample\fR،
+\fIlist\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fItypeparamref\fR،
+\fIsee\fR
+و
+\fIul\fR.
+.SS "قالب فایل \fBns-*.xml\fR"
+فایل‌های \fIns-*.xml\fR شامل مستندات فضای نام هستند:
+
+.nf
+    <Namespace Name="System">
+      <Docs>
+        <summary>To be added.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+    </Namespace>
+.fi
+
+عناصر \fI/Namespace/Docs/summary\fR و \fI/Namespace/Docs/remarks\fR باید شامل مستندات فضای نام باشند.
+.PP
+عناصر \fIremarks\fR و \fIsummary\fR در بخش
+\fBعناصر مستندسازی XML\fR
+مستند شده‌اند.
+.SS "قالب فایل \fBNamespaceName/TypeName.xml\fR"
+قالب
+.I مستندسازی مونو
+مشابه قالب مستندسازی Ecma است، همان‌طور که در ویرایش سوم ECMA-335، بخش IV، فصل ۷ توصیف شده است. تفاوت اصلی با قالب ECMA این است که هر نوع فایل اختصاصی خود را درون دایرکتوری همنام با فضای نام نوع دریافت می‌کند. اطلاعات زیادی وجود دارد که به‌طور خودکار توسط \fBmdoc\fR(1) نگهداری می‌شود؛ بیشتر اطلاعات درون مستندات
+.I نباید
+ویرایش شوند. این شامل نام نوع (\fI/Type/@FullName\fR)، رابط‌های پیاده‌سازی‌شده (\fI/Type/Interfaces\fR)، اطلاعات عضو
+(\fI/Type/Members/Member/@MemberName\fR،
+\fI/Type/Members/Member/MemberSignature\fR،
+\fI/Type/Members/Member/MemberType\fR،
+\fI/Type/Members/Member/Parameters\fR
+و غیره) می‌شود.
+
+.nf
+    <Type Name="DocAttribute" FullName="Mono.DocTest.DocAttribute">
+      <TypeSignature Language="C#" Value="public class DocAttribute : Attribute" />
+      <AssemblyInfo>
+        <AssemblyName>DocTest</AssemblyName>
+        <AssemblyVersion>0.0.0.0</AssemblyVersion>
+      </AssemblyInfo>
+      <Base>
+        <BaseTypeName>System.Attribute</BaseTypeName>
+      </Base>
+      <Interfaces />
+      <Attributes>
+        <Attribute>
+          <AttributeName>System.AttributeUsage(System.AttributeTargets.All)</AttributeName>
+        </Attribute>
+      </Attributes>
+      <Docs>
+        <summary>To be added.</summary>
+        <remarks>To be added.</remarks>
+      </Docs>
+      <Members>
+        <Member MemberName=".ctor">
+          <MemberSignature Language="C#" Value="public DocAttribute (string docs);" />
+          <MemberType>Constructor</MemberType>
+          <AssemblyInfo>
+            <AssemblyVersion>0.0.0.0</AssemblyVersion>
+          </AssemblyInfo>
+          <Parameters>
+            <Parameter Name="docs" Type="System.String" />
+          </Parameters>
+          <Docs>
+            <param name="docs">To be added.</param>
+            <summary>To be added.</summary>
+            <remarks>To be added.</remarks>
+          </Docs>
+        </Member>
+      </Members>
+    </Type>
+.fi
+
+تنها عناصری که معمولاً نیاز به ویرایش دارند، فرزندان عناصر
+\fI//Docs\fR
+هستند که معمولاً حاوی متن
+.I To be added.
+می‌باشند. عنصر \fI/Type/Docs\fR شامل مستندات در سطح نوع است، در حالی که عنصر
+\fI/Type/Members/Member/Docs\fR
+شامل مستندات به ازای هر عضو است.
+.PP
+عناصر \fI//Docs\fR می‌توانند شامل عناصر زیر باشند:
+\fIaltcompliant\fR،
+\fIaltmember\fR،
+\fIexample\fR،
+\fIexception\fR،
+\fIparam\fR،
+\fIpermission\fR،
+\fIremarks\fR،
+\fIreturns\fR،
+\fIsince\fR،
+\fIsummary\fR،
+\fIthreadsafe\fR،
+\fItypeparam\fR
+و
+\fIvalue\fR.
+.PP
+نوع‌های تودرتو عضو نیستند؛ آن‌ها نوع هستند و در فایل اختصاصی خود مستند می‌شوند. در نتیجه، فایل‌های \fINamespaceName/TypeName.xml\fR بازگشتی نیستند؛ شما یک عنصر \fI<Type/>\fR را درون یک عنصر \fI<Type/>\fR دیگر ذخیره نمی‌کنید.
+.SS "عناصر مستندسازی XML (Documentation XML Elements)"
+محتوای عنصر \fIDocs\fR از نظر معنایی و ساختاری
+.I دقیقاً یکسان
+با قالب مستندسازی درون‌خطی #C است، که متشکل از این عناصر است (فهرست‌شده در ویرایش سوم ECMA-334، پیوست E، بخش ۲). موارد زیر در توضیحات عناصر به کار رفته‌اند:
+.TP
+.I CREF
+به یک ارجاع کلاس (یا عضو) اشاره دارد، و رشته‌ای در قالبی است که در ادامه در بخش
+\fBقالب CREF\fR
+شرح داده شده است.
+.TP
+.I TEXT
+متن غیر XML، و XML نباید به صورت تودرتو درون آن قرار گیرد.
+.TP
+.I XML
+تنها عناصر XML باید تودرتو شوند (که ممکن است به‌طور غیرمستقیم حاوی متن باشند)، اما متن غیر فاصله‌خالی نباید یک گره فرزند مستقیم باشد.
+.TP
+.I XML_TEXT
+متن آزاد و XML، به طوری که سایر عناصر XML ممکن است درون آن تودرتو شوند.
+.PP
+عناصر زیر در مستندسازی استفاده می‌شوند:
+.TP
+.I <altmember cref="CREF" />
+.I <altmember/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+امکان تولید یک مدخل برای بخش \fISee Also\fR (همچنین ببینید) را فراهم می‌کند. از
+\fI<see/>\fR
+برای تعیین پیوند از درون متن استفاده کنید.
+
+.nf
+    <altmember cref="P:System.Exception.Message" />
+.fi
+.TP
+.I <block subset="SUBSET" type="TYPE">XML_TEXT</block>
+ایجاد یک بلوک متنی، از نظر مفهومی مشابه با یک پاراگراف، اما برای ایجاد بخش‌بندی در متن استفاده می‌شود. تا حدی، یک <block/> معادل تگ <h2/> در HTML است.
+.Sp
+.I SUBSET
+همیشه باید مقدار \fI"none"\fR باشد.
+.Sp
+.I TYPE
+عنوان و قالب‌بندی مورد استفاده را مشخص می‌کند. انواع شناخته‌شده عبارتند از:
+.Sp
+.I behaviors
+بخشی با عنوان \fIOperation\fR (عملیات) ایجاد می‌کند.
+.Sp
+.I note
+بخشی با عنوان \fINote:\fR (نکته:) ایجاد می‌کند.
+.Sp
+.I overrides
+بخشی با عنوان \fINote to Inheritors\fR (نکته برای ارث‌برندگان) ایجاد می‌کند.
+.Sp
+.I usage
+بخشی با عنوان \fIUsage\fR (کاربرد) ایجاد می‌کند.
+.Sp
+عنصر \fIblock\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIc\fR،
+\fIcode\fR،
+\fIlist\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR،
+\fIsubscript\fR،
+\fIsup\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <c>XML_TEXT</c>
+تنظیم متن در قلمی شبیه به کد (مشابه عنصر <tt/> در HTML).
+.Sp
+عنصر \fIc\fR می‌تواند شامل عناصر زیر باشد:
+\fIcode\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <code lang="LANGUAGE" src="SOURCE">TEXT</code>
+نمایش چندین خط متن در قلمی شبیه به کد (مشابه عنصر <pre/> در HTML).
+.Sp
+.I LANGUAGE
+زبانی است که این بلوک کد برای آن در نظر گرفته شده است. برای مثال، اگر \fILANGUAGE\fR برابر با
+\fBC#\fR
+باشد، آنگاه \fITEXT\fR در مرورگر مستندات مونو (Mono Documentation Browser) برجسته‌سازی نحوی مربوط به زبان #C را دریافت خواهد کرد.
+.Sp
+.I SOURCE
+تنها توسط \fBmdoc-update\fR(1) تفسیر می‌شود. اگر هنگام اجرای \fBmdoc-update\fR(1) ویژگی \fIsrc\fR وجود داشته باشد، آنگاه \fISOURCE\fR فایلی است (نسبت به دایرکتوری \fB--out\fR در \fBmdoc-update\fR(1)) که باید به عنوان مقدار \fITEXT\fR درج شود.
+محتویات \fITEXT\fR توسط \fBmdoc-update\fR(1) نادیده گرفته شده و در هر بار اجرا جایگزین می‌شود. همچنین \fISOURCE\fR می‌تواند حاوی یک «لنگر» (anchor) باشد، مثلاً \fIsrc="path/to/file.cs#RegionMarker"\fR. اگر یک لنگر وجود داشته باشد،
+\fIو\fR
+\fILANGUAGE\fR برابر با \fIC#\fR باشد، آنگاه \fI#region RegionMarker\fR جستجو خواهد شد، و محتویات بین \fI#region\fR و \fI#endregion\fR بعدی به عنوان مقدار برای عنصر \fITEXT\fR درج خواهد شد.
+.TP
+.I <example>XML_TEXT</example>
+نشان‌دهنده مثالی است که باید به شکل ویژه‌ای نمایش داده شود. برای مثال:
+
+.nf
+    <example>
+      <para>An introductory paragraph.</para>
+      <code lang="C#">
+        class Example {
+          public static void Main ()
+          {
+            System.Console.WriteLine ("Hello, World!");
+          }
+        }
+      </code>
+    </example>
+.fi
+
+عنصر \fIexample\fR می‌تواند شامل عناصر زیر باشد:
+\fIc\fR،
+\fIcode\fR،
+\fIlist\fR،
+\fIpara\fR
+و
+\fIsee\fR.
+.TP
+.I <exception cref="CREF">XML_TEXT</exception>
+استثنایی (exception) را مشخص می‌کند که می‌تواند توسط عضو مستندشده پرتاب شود.
+.Sp
+.I <exception/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+.I CREF
+نوع استثنایی است که پرتاب می‌شود، در حالی که
+.I XML_TEXT
+شامل شرایطی است که باعث پرتاب
+.I CREF
+می‌شود.
+
+.nf
+    <exception cref="T:System.ArgumentNullException">
+      <paramref name="foo" /> was <see langword="null" />.
+    </exception>
+.fi
+
+عنصر \fIexception\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <format type="TYPE">XML_TEXT</format>
+عنصر \fI<format/>\fR یک «راه فرار» برای گنجاندن محتوایی (احتمالاً XML) است که محتوای معتبر \fBmdoc\fR(5) به شمار نمی‌رود. این از نظر کارکردی معادل بلوک‌های \fI=begin format\fR در \fBperlpod\fR(1) است.
+.PP
+\fITYPE\fR نوع MIME مربوط به \fIXML_TEXT\fR است. پردازنده‌های \fBmdoc\fR(5) در صورتی که از نوع استفاده‌شده پشتیبانی نکنند، ممکن است بلوک‌های \fI<format/>\fR را نادیده بگیرند.
+.PP
+برای مثال:
+
+.nf
+    <format type="text/html">
+      <table width="100%">
+        <tr><td style="color:red">Hello, world!</td></tr>
+      </table>
+    </format>
+.fi
+
+باعث می‌شود که عنصر تعبیه‌شده \fI<table/>\fR در HTML هنگام پردازش فایل توسط \fBmdoc-export-html\fR(1) به صورت درون‌خطی درون سند HTML حاصل درج شود. (به همین ترتیب، در صورت پردازش توسط برنامه‌ای دیگر ممکن است نادیده گرفته شود).
+.PP
+عنصر \fI<format/>\fR برای تسهیل وارد کردن مستندات از منابع موجود طراحی شده است. در صورت امکان، تا جای ممکن نباید به آن اتکا کرد.
+.TP
+.I <list>XML</list>
+ایجاد یک فهرست یا جدول از موارد.
+.I <list/>
+از عناصر تودرتوی
+\fI<item>XML</item>\fR،
+\fI<listheader>XML</listheader>\fR،
+\fI<term>XML_TEXT</term>\fR
+و
+\fI<description>XML_TEXT</description>\fR
+استفاده می‌کند.
+.Sp
+.I فهرست‌ها
+دارای ساختار نحوی زیر هستند:
+
+.nf
+    <list type="bullet"> <!-- or type="number" -->
+      <item><term>Bullet 1</term></item>
+      <item><term>Bullet 2</term></item>
+      <item><term>Bullet 3</term></item>
+    </list>
+.fi
+.Sp
+.I جدول‌ها
+دارای ساختار نحوی زیر هستند:
+
+.nf
+    <list type="table">
+      <listheader> <!-- listheader bolds this row -->
+        <term>Column 1</term>
+        <description>Column 2</description>
+        <description>Column 3</description>
+      </listheader>
+      <item>
+        <term>Item 1-A</term>
+        <description>Item 1-B</description>
+        <description>Item 1-C</description>
+      </item>
+      <item>
+        <term>Item 2-A</term>
+        <description>Item 2-B</description>
+        <description>Item 2-C</description>
+      </item>
+    </list>
+.fi
+
+عناصر \fIitem\fR و \fIdescription\fR هر کدام می‌توانند شامل متن و عناصر زیر باشند:
+\fIblock\fR،
+\fIc\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR،
+\fIsup\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <para>XML_TEXT</para>
+درج یک پاراگراف از \fIXML_TEXT\fR.
+برای مثال:
+
+.nf
+    <para>
+      This is a paragraph of text.
+    </para>
+.fi
+
+عنصر \fIpara\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIc\fR،
+\fIexample\fR،
+\fIlink\fR،
+\fIlist\fR،
+\fIonequarter\fR،
+\fIparamref\fR،
+\fIsee\fR،
+\fIsub\fR،
+\fIsup\fR،
+\fItypeparamref\fR
+و
+\fIul\fR.
+.TP
+.I <param name="NAME">XML_TEXT</param>
+.I <param/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+پارامتر \fINAME\fR مربوط به سازنده، متد یا ویژگی فعلی را توصیف می‌کند:
+
+.nf
+    <param name="count">
+      A <see cref="T:System.Int32" /> containing the number
+      of widgets to process.
+    </param>
+.fi
+
+عنصر \fIparam\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIc\fR،
+\fIexample\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <paramref name="NAME" />
+نشان می‌دهد که \fINAME\fR یک پارامتر است.
+.Sp
+این معمولاً \fINAME\fR را به صورت متن مورب رندر می‌کند، بنابراین مکرراً (به شکل نامناسب) به عنوان معادل عنصر <i/> در HTML به کار می‌رود. برای مشاهده مثال به مستندات \fI<exception/>\fR (در بالا) مراجعه کنید.
+.Sp
+.TP
+.I <permission cref="CREF">XML_TEXT</permission>
+الزامات دسترسی امنیتی عضو فعلی را مستند می‌کند.
+.Sp
+.I <permission/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+\fICREF\fR یک ارجاع نوع به مجوز امنیتی مورد نیاز است، در حالی که \fIXML_TEXT\fR شرحی از چرایی نیاز به این مجوز است.
+
+.nf
+    <permission cref="T:System.Security.Permissions.FileIOPermission">
+      Requires permission for reading and writing files. See
+      <see cref="F:System.Security.Permissions.FileIOPermissionAccess.Read" />,
+      <see cref="F:System.Security.Permissions.FileIOPermissionAccess.Write" />.
+    </permission>
+.fi
+
+عنصر \fIpermission\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <remarks>XML_TEXT</remarks>
+شامل اطلاعات دقیق درباره یک عضو است.
+.Sp
+.I <remarks/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+
+.nf
+    <remarks>
+      Insert detailed information here.
+    </remarks>
+.fi
+
+عنصر \fIremarks\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIc\fR،
+\fIcode\fR،
+\fIexample\fR،
+\fIlist\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <returns>XML_TEXT</returns>
+.Sp
+.I <returns/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+مقدار بازگشتی یک متد را توصیف می‌کند:
+
+.nf
+    <returns>
+      A <see cref="T:System.Boolean" /> specifying whether
+      or not the process can access
+      <see cref="P:Mono.Unix.UnixFileSystemInfo.FullName" />.
+    </returns>
+.fi
+
+عنصر \fIreturns\fR می‌تواند شامل عناصر زیر باشد:
+\fIc\fR،
+\fIformat\fR،
+\fIlist\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+\fI<see cref="CREF" />\fR, \fI<see langword="LANGWORD" />\fR
+یک پیوند به عضو مشخص‌شده درون متن فعلی ایجاد می‌کند:
+
+.nf
+    <see cref="M:Some.Namespace.With.Type.Method" />
+.fi
+
+یا مشخص می‌کند که \fILANGWORD\fR یک کلیدواژه زبان است:
+
+.nf
+    <see langword="null" />
+.fi
+
+.TP
+.I <seealso cref="CREF" />
+از \fIseealso\fR استفاده نکنید، از \fIaltmember\fR استفاده کنید.
+.TP
+.I <since version="VERSION" />
+.Sp
+.I <since/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+\fI<Docs/>\fR
+قرار گیرد.
+.Sp
+امکان تعیین اینکه کدام نسخه نوع یا عضو مشخص‌شده را معرفی کرده است فراهم می‌کند.
+
+.nf
+    <since version="Gtk# 2.4" />
+.fi
+
+این مورد عموماً لازم نیست، زیرا عناصر \fI//AssemblyInfo/AssemblyVersion\fR رهگیری می‌کنند که کدام نسخه‌های اسمبلی شامل نوع یا عضو هستند.
+.TP
+.I <summary>XML_TEXT</summary>
+.Sp
+.I <summary/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+یک مرور کلی (و کوتاه!) درباره یک نوع یا عضو نوع ارائه می‌دهد.
+.Sp
+این معمولاً به عنوان بخشی از اعلان کلاس نمایش داده می‌شود و باید توصیفی به اندازه معقول کوتاه از نوع/عضو باشد. برای اطلاعات با جزئیات بیشتر از
+.I <remarks/>
+استفاده کنید.
+.Sp
+عنصر \fIsummary\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIlist\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <typeparam name="NAME">XML_TEXT</typeparam>
+.I <typeparam/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+این مورد برای مستندسازی یک پارامتر نوع برای یک نوع جنریک یا متد جنریک استفاده می‌شود.
+.Sp
+.I NAME
+نام پارامتر نوع است، در حالی که
+.I XML_TEXT
+شامل شرحی از پارامتر است (برای چه استفاده می‌شود، چه محدودیت‌هایی را باید برآورده کند و غیره).
+
+.nf
+    <typeparam name="T">
+      The type of the underlying collection
+    </typeparam>
+.fi
+
+عنصر \fItypeparam\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIc\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.TP
+.I <typeparamref name="NAME">
+برای نشان دادن اینکه \fINAME\fR یک پارامتر نوع است استفاده می‌شود.
+.TP
+.I <value>XML_TEXT</value>
+.I <value/>
+یک عنصر سطح بالا است و باید مستقیماً زیر عنصر
+.I <Docs/>
+قرار گیرد.
+.Sp
+امکان توصیف یک ویژگی (property) را فراهم می‌کند.
+
+.nf
+    <value>
+      A <see cref="T:System.String" /> containing a widget name.
+    </value>
+.fi
+
+عنصر \fIvalue\fR می‌تواند شامل عناصر زیر باشد:
+\fIblock\fR،
+\fIc\fR،
+\fIexample\fR،
+\fIlist\fR،
+\fIpara\fR،
+\fIparamref\fR،
+\fIsee\fR
+و
+\fItypeparamref\fR.
+.PP
+.SH "قالب CREF (CREF FORMAT)"
+شناسه‌های رشته‌ای (\fICREF\fRها) برای ارجاع به یک نوع یا عضو یک نوع استفاده می‌شوند. شناسه‌های رشته‌ای در ویرایش سوم ECMA-334، پیوست E.3.1 مستند شده‌اند. آن‌ها از یک \fIپیشوند نوع عضو\fR، نام کامل نوع (فضای نام + نام، جدا شده با \fI.\fR)، و احتمالاً به دنبال آن نام عضو و سایر اطلاعات تشکیل شده‌اند.
+.PP
+پیشوندهای نوع عضو:
+.TP
+.I "C:"
+این CREF به یک سازنده (constructor) اشاره دارد. فهرست پارامترها (اختیاری) درون پرانتز قرار می‌گیرد و پس از نام نوع می‌آید:
+\fIC:System.String(System.Char,System.Int32)\fR.
+.TP
+.I "E:"
+این CREF به یک رویداد (event) اشاره دارد. نام رویداد پس از نام نوع می‌آید:
+\fIE:System.AppDomain.AssemblyLoad\fR.
+.TP
+.I "F:"
+این CREF به یک فیلد (field) اشاره دارد. نام فیلد پس از نام نوع می‌آید:
+\fIF:System.Runtime.InteropServices.DllImportAttribute.SetLastError\fR.
+.TP
+.I "M:"
+به یک سازنده یا متد اشاره دارد. سازنده‌ها ممکن است
+.I .ctor
+را به نام نوع ضمیمه کنند (به جای استفاده از قالب سازنده
+.I C:
+در بالا)، در حالی که متدها نام متد و تعداد (اختیاری) پارامترهای جنریک را ضمیمه می‌کنند. هم سازنده‌ها و هم متدها ممکن است فهرست پارامترهای متد را درون پرانتز ضمیمه کنند.
+.Sp
+مثال‌ها:
+\fIM:System.Object..ctor\fR،
+\fIM:System.String..ctor(System.Char[])\fR،
+\fIM:System.String.Concat(System.Object)\fR،
+\fIM:System.Array.Sort``1(``0[])\fR،
+\fIM:System.Collections.Generic.List`1..ctor\fR،
+\fIM:System.Collections.Generic.List`1.Add(`0)\fR.
+.TP
+.I "N:"
+به یک فضای نام اشاره دارد، مثلاً \fIN:System\fR.
+.TP
+.I "P:"
+به یک ویژگی (property) اشاره دارد. اگر ویژگی یک ایندکسر باشد یا پارامتر بپذیرد، انواع پارامتر به نام ویژگی ضمیمه شده و درون پرانتز قرار می‌گیرند:
+\fIP:System.String.Length\fR،
+\fIP:System.String.Chars(System.Int32)\fR.
+.TP
+.I "T:"
+این CREF به یک نوع اشاره دارد، به همراه تعداد نوع‌های جنریک که ضمیمه شده است:
+\fIT:System.String\fR،
+\fIT:System.Collections.Generic.List`1\fR،
+\fIT:System.Collections.Generic.List`1.Enumerator\fR.
+.PP
+برای جالب‌تر شدن موضوع، نوع‌ها و اعضای جنریک دو نمایش دارند: نمایش «نامقید» (unbound) (نشان داده شده در مثال‌های بالا)، که در آن تعداد پارامترهای جنریک به نام کلاس‌ها ضمیمه می‌شود. همچنین یک نمایش «مقید» (bound) نیز وجود دارد که در آن قیدگذاری پارامترهای جنریک درون '{' و '}' یا '<' و '>' فهرست می‌شود.
+(استفاده از '<' و '>' کمتر رایج است، زیرا در یک سند XML باید از موجودیت‌های نویسه‌ای اسکیپ‌شده آن‌ها استفاده شود که منجر به '&lt;' و '&gt;' می‌گردد).
+.PP
+.B نامقید (Unbound):
+.TP
+.B *
+.I T:System.Collections.Generic.List`1
+.TP
+.B *
+.I T:System.Collections.Generic.Dictionary`2
+.PP
+.B مقید (Bound):
+.TP
+.B *
+.I T:System.Collections.Generic.List{System.Int32}
+.TP
+.B *
+.I T:System.Collections.Generic.List<System.Int32>
+.TP
+.B *
+.I T:System.Collections.Generic.List&lt;System.Int32&gt;
+.TP
+.B *
+.I T:System.Predicate{System.Action{System.String}}
+.PP
+همان‌طور که می‌بینید، گونه‌های مقید می‌توانند به صورت دلخواه پیچیده باشند (دقیقاً مانند جنریک‌ها).
+.PP
+علاوه بر این، اگر یک پارامتر جنریک به پارامتر جنریک یک نوع یا متد مقید شده باشد، «شاخص» (index) پارامتر جنریک آن نوع/متد به عنوان قید استفاده می‌شود، بنابراین با فرض
+
+.nf
+    class FooType {
+      public static void Foo<T> (System.Predicate<T> predicate)
+      {
+      }
+    }
+.fi
+
+شناسه CREF برای این متد
+\fIM:FooType.Foo``1(System.Predicate{``0})\fR
+است که در آن
+.I ``0
+شاخص صفرمین پارامتر جنریک است که به
+\fISystem.Predicate<T>\fR
+مقید شده است.
+.SH "همچنین ببینید (SEE ALSO)"
+\fBmdoc\fR(1)، \fBmonodocer\fR(1)
+.SH "فهرست‌های ایمیل (MAILING LISTS)"
+.TP
+برای جزئیات به نشانی <http://lists.ximian.com/mailman/listinfo/mono-docs-list> مراجعه کنید.
+.SH "وب‌گاه (WEB SITE)"
+برای جزئیات به نشانی <http://www.mono-project.com> مراجعه کنید.

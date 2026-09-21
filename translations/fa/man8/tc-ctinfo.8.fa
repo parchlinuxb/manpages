@@ -1,0 +1,168 @@
+.TH "ctinfo action in tc" 8 "4 Jun 2019" "iproute2" "Linux"
+.SH "نام (NAME)"
+tc-ctinfo \- اکشن پردازش connmark در tc
+.SH "خلاصه دستور (SYNOPSIS)"
+.B tc ... action ctinfo
+[
+.B dscp
+MASK [STATEMASK] ] [
+.B cpmark
+[MASK] ] [
+.B zone
+ZONE ] [
+.B CONTROL
+] [
+.B index
+<INDEX>
+]
+
+.SH "توضیحات (DESCRIPTION)"
+اکشن
+.B CTINFO
+(کوتاه‌شده‌ی Conntrack Information یا اطلاعات ردیابی اتصال) یک اکشن
+.B tc
+برای بازیابی داده‌ها از نشان‌های ردیابی اتصال (conntrack marks) به درون فیلدهای گوناگون است. در حال حاضر این اکشن دارای دو حالت پردازشی مستقل است که می‌توان آن‌ها را به عنوان زیر‌تابع در نظر گرفت.
+.PP
+حالت
+.B DSCP
+مقدار DSCP ذخیره‌شده در connmark ردیابی اتصال را در فیلد diffserv بسته IPv4/v6 کپی می‌کند. این کپی کردن می‌تواند بر اساس پرچمی که آن هم در connmark ذخیره شده است، به صورت شرطی رخ دهد. حالت DSCP برای کمک به بازیابی رده‌بندی بسته‌ها در ورودی (ingress) طراحی شده است؛ رده‌بندی‌هایی که پس از آن می‌توانند توسط qdiscهایی نظیر CAKE استفاده شوند. این حالت در هر شرایطی که رده‌بندی ترافیک ورودی باید در سراسر پیوندهایی که ممکن است طبق سیاست‌های خود برچسب‌ها را پاک (bleach) یا بازنگاشت (remap) کنند حفظ شود، قابل استفاده است.
+.PP
+حالت
+.B CPMARK
+(مخفف copymark) مقدار connmark ردیابی اتصال را در فیلد نشان (mark) بسته کپی می‌کند. بدون پارامترهای اضافی، این حالت از نظر عملکردی کاملاً معادل اکشن موجود
+.B connmark
+است. می‌توان یک ماسک اختیاری را برای تعیین اینکه کدام بیت‌های connmark بازیابی شوند مشخص کرد. این قابلیت هنگامی که حالت‌های DSCP و CPMARK با یکدیگر ترکیب می‌شوند می‌تواند مفید باشد.
+.PP
+آمارهای ساده
+.RB ( "tc \-s" )
+برای بازیابی‌های DSCP و کپی‌های CPMARK نگهداری می‌شوند که در آن‌ها مقادیر
+.B set
+نشان‌دهنده تعداد بسته‌های تغییریافته برای آن حالت هستند. حالت DSCP شامل شمارش خطاهایی نیز هست که در آن‌ها فیلد diffserv بسته مقصد غیرقابل نوشتن بوده است.
+.SH "پارامترها (PARAMETERS)"
+.SS "پارامترهای حالت DSCP:"
+.IP mask
+ماسک ۶ بیت متوالی که محل قرارگیری مقدار DSCP را در فیلد ۳۲ بیتی نشان ردیابی اتصال (conntrack mark) مشخص می‌کند. برای این حالت حتماً باید یک ماسک مشخص شود.
+.B mask
+یک مقدار ۳۲ بیتی بدون علامت است.
+.IP statemask
+ماسکی با حداقل ۱ بیت که محل قرارگیری پرچم بازیابی شرطی را در فیلد ۳۲ بیتی conntrack mark مشخص می‌کند. بیت یا بیت‌های statemask نباید با بیت‌های mask هم‌پوشانی داشته باشند. مقدار DSCP در صورتی بازیابی خواهد شد که عملیات AND منطقی بین conntrack mark و statemask یک نتیجه غیرصفر داشته باشد.
+.B statemask
+یک مقدار اختیاری ۳۲ بیتی بدون علامت است.
+.SS "پارامترهای حالت CPMARK:"
+.IP mask
+نتیجه حاصل از AND منطقی conntrack mark و mask را در فیلد نشان (mark) بسته ذخیره می‌کند. مقدار پیش‌فرض 0xffffffff است، یعنی کل فیلد نشان.
+.B mask
+یک مقدار اختیاری ۳۲ بیتی بدون علامت است.
+.SS "پارامترهای کلی اکشن:"
+.IP zone
+ناحیه (zone) مربوط به conntrack را هنگام انجام جستجوهای ردیابی اتصال برای بسته‌ها مشخص می‌کند.
+.B zone
+یک مقدار ده‌دهی ۱۶ بیتی بدون علامت است. مقدار پیش‌فرض 0 است.
+.IP CONTROL
+کلمات کلیدی زیر امکان کنترل نحوه پیمایش بیشتر در درخت qdisc، کلاس‌ها، فیلترها و اکشن‌ها را پس از اجرای این اکشن فراهم می‌کنند.
+.RS
+.TP
+.B reclassify
+شروع مجدد از اولین فیلتر در فهرست فعلی.
+.TP
+.B pipe
+ادامه کار با اکشن بعدی متصل به همان فیلتر.
+.TP
+.B drop
+انداختن (drop) بسته.
+.TP
+.B shot
+مترادف با
+.B drop
+.TP
+.B continue
+ادامه رده‌بندی با فیلتر بعدی موجود در صف.
+.TP
+.B pass
+پایان دادن به فرآیند رده‌بندی و بازگشت به qdisc فراخوان برای پردازش بیشتر بسته. این حالت پیش‌فرض است.
+.RE
+.IP index
+مشخص کردن یک نمایه (index) برای این اکشن تا بتوان بعداً در دستورات دیگر آن را شناسایی کرد.
+.B index
+یک مقدار ده‌دهی ۳۲ بیتی بدون علامت است.
+.SH "مثال‌ها (EXAMPLES)"
+مثالی که بازیابی شرطی DSCP در ورودی (ingress) را از طریق یک IFB نشان می‌دهد:
+.RS
+.EX
+
+# راه‌اندازی رابط IFB
+.br
+tc qdisc add dev ifb4eth0 handle ffff: ingress
+
+# تنظیم qdisc از نوع CAKE روی آن
+.br
+tc qdisc add dev ifb4eth0 root cake bandwidth 40mbit
+
+# فعال‌سازی رابط (UP)
+.br
+ip link set dev ifb4eth0 up
+
+# افزودن ۲ اکشن: ctinfo برای بازیابی dscp و mirred برای هدایت بسته‌ها به IFB
+.br
+tc filter add dev eth0 parent ffff: protocol all prio 10 u32 \
+    match u32 0 0 flowid 1:1 action    \
+    ctinfo dscp 0xfc000000 0x01000000  \
+    mirred egress redirect dev ifb4eth0
+
+tc -s qdisc show dev eth0 ingress
+
+ filter parent ffff: protocol all pref 10 u32 chain 0
+ filter parent ffff: protocol all pref 10 u32 chain 0 fh 800: ht divisor 1
+ filter parent ffff: protocol all pref 10 u32 chain 0 fh 800::800 order 2048 key ht 800 bkt 0 flowid 1:1 not_in_hw
+  match 00000000/00000000 at 0
+    action order 1: ctinfo zone 0 pipe
+    index 2 ref 1 bind 1 dscp 0xfc000000 0x01000000 installed 72 sec used 0 sec DSCP set 1333 error 0 CPMARK set 0
+    Action statistics:
+    Sent 658484 bytes 1833 pkt (dropped 0, overlimits 0 requeues 0)
+    backlog 0b 0p requeues 0
+
+    action order 2: mirred (Egress Redirect to device ifb4eth0) stolen
+    index 1 ref 1 bind 1 installed 72 sec used 0 sec
+    Action statistics:
+    Sent 658484 bytes 1833 pkt (dropped 0, overlimits 0 requeues 0)
+    backlog 0b 0p requeues 0
+.EE
+.RE
+
+مثالی که بازیابی شرطی DSCP در خروجی (egress) را نشان می‌دهد:
+.PP
+این مورد ممکن است بی‌معنی به نظر برسد چرا که نشانه‌گذاری بسته‌های خروجی با iptables به سادگی قابل انجام است؛ با این حال، ممکن است قوانین رده‌بندی جریان در iptables بسیار مفصل باشند و بنابراین نوعی سازوکار «یک‌بار تنظیم کن و فراموش کن» به خصوص در دستگاه‌هایی با محدودیت پردازنده (CPU) می‌تواند بسیار کارآمد باشد.
+.RS
+.EX
+
+# هدایت اتصال‌های بدون نشان به زنجیره نشانه‌گذاری که باید DSCP را ذخیره کرده
+# و بیت statemask را در connmark تنظیم کند
+.br
+iptables -t mangle -A POSTROUTING -o eth0 -m connmark \
+    --mark 0x00000000/0x01000000 -g CLASS_MARKING_CHAIN
+
+# اعمال DSCP نشانه‌گذاری‌شده بر روی بسته‌ها
+.br
+tc filter add dev eth0 protocol all prio 10 u32 \
+    match u32 0 0 flowid 1:1 action \
+    ctinfo dscp 0xfc000000 0x01000000
+
+tc -s filter show dev eth0
+ filter parent 800e: protocol all pref 10 u32 chain 0
+ filter parent 800e: protocol all pref 10 u32 chain 0 fh 800: ht divisor 1
+ filter parent 800e: protocol all pref 10 u32 chain 0 fh 800::800 order 2048 key ht 800 bkt 0 flowid 1:1 not_in_hw
+  match 00000000/00000000 at 0
+    action order 1: ctinfo zone 0 pipe
+    index 1 ref 1 bind 1 dscp 0xfc000000 0x01000000 installed 7414 sec used 0 sec DSCP set 53404 error 0 CPMARK set 0
+    Action statistics:
+    Sent 32890260 bytes 120441 pkt (dropped 0, overlimits 0 requeues 0)
+    backlog 0b 0p requeues 0
+.EE
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-cake (8),
+.BR tc-connmark (8),
+.BR tc-mirred (8)
+.SH "نویسندگان (AUTHORS)"
+اکشن ctinfo توسط Kevin Darbyshire-Bryant نوشته شده است.

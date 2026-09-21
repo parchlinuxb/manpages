@@ -1,0 +1,120 @@
+.TH SLAPO-HOMEDIR 5 "2026/03/09" "OpenLDAP 2.6.13"
+.\" Copyright 1998-2026 The OpenLDAP Foundation, All Rights Reserved.
+.\" Copying restrictions apply.  See the COPYRIGHT file.
+.\" $OpenLDAP$
+.SH "نام (NAME)"
+slapo\-homedir \- افزونه روکش تدارک دایرکتوری خانگی
+.SH "خلاصه دستور (SYNOPSIS)"
+/etc/openldap/slapd.conf
+.SH "توضیحات (DESCRIPTION)"
+روکش
+.B homedir
+باعث می‌شود
+.BR slapd (8)
+تغییرات مربوط به اشیاء کاربری (user-objects) به سبک RFC-2307bis را تشخیص داده و تغییرات متناظر را روی سیستم‌فایل محلی اعمال کند. این کار می‌تواند بر روی هر دو سیستم اصلی (master) و رونوشت (replica) انجام شود، بنابراین امکان تدارک دایرکتوری خانگی از راه دور فراهم می‌گردد.
+.SH "پیکربندی (CONFIGURATION)"
+از هر دو شیوهٔ پیکربندی slapd.conf و back-config پشتیبانی می‌شود.
+.TP
+.B overlay homedir
+این دستورالعمل روکش homedir را به پایگاه‌داده فعلی، یا در صورت استفاده پیش از نمونه‌سازی هر پایگاه‌داده، به بخش پیشانه (frontend) اضافه می‌کند؛ برای جزئیات به
+.BR slapd.conf (5)
+مراجعه کنید.
+.TP
+.B homedir\-skeleton\-path <pathname>
+.TP
+.B olcSkeletonPath: pathname
+این گزینه‌ها مسیر دایرکتوری اسکلت (قالب) حساب کاربری (معمولاً /etc/skel) را تنظیم می‌کنند. فایل‌های موجود در این دایرکتوری درون دایرکتوری‌های خانگی جدید کپی خواهند شد. عملیات کپی به‌صورت بازگشتی است و پیوندهای نمادین (symlinks) و fifos را مدیریت می‌کند، اما از اکثر فایل‌های ویژه (specials) صرف‌نظر خواهد کرد.
+.TP
+.B homedir\-min\-uidnumber <user id number>
+.TP
+.B olcMinimumUidNumber: number
+این گزینه‌ها حداقل شناسه کاربری (userid) را برای استفاده در هر اقدام دایرکتوری خانگی پیکربندی می‌کنند. این یک اقدام امنیتی اولیه برای جلوگیری از استفاده تصادفی از حساب‌های سیستمی است. برای گزینه‌های انعطاف‌پذیرتر در انتخاب حساب‌ها، بخش REPLICATION را ببینید.
+.TP
+.B homedir\-regexp <regexp> <path>
+.TP
+.B olcHomedirRegexp: regexp path
+این گزینه‌ها مجموعه‌ای از عبارات باقاعده را برای تطبیق و در صورت نیاز، نگاشت مجدد مقادیر صفت ورودی
+.B homeDirectory
+به نام مسیرها روی سیستم‌فایل محلی پیکربندی می‌کنند. بسط $number برای دسترسی به مقادیر دریافت‌شده در پرانتزها پشتیبانی می‌شود.
+.PP
+برای نمونه، جهت پذیرش هر دایرکتوری که با \/home شروع می‌شود و استفاده مستقیم از آن روی سیستم‌فایل محلی:
+.PP
+.B homedir-regexp ^(/home/[\-_/a\-z0\-9]+)$ $1
+.PP
+برای تطبیق با همان مجموعه دایرکتوری‌ها، اما ایجاد آن‌ها در زیرشاخه \/export\/home، همان‌طور که در سرورهای NFS سولاریس متداول است:
+.PP
+.B homedir-regexp ^(/home/[\-_/a\-z0\-9]+)$ /export$1
+.TP
+.B homedir\-delete\-style style
+.TP
+.B olcHomedirDeleteStyle: style
+این گزینه‌ها نحوه مدیریت حذف مدخل‌های posixAccount یا صفت‌های آن‌ها را پیکربندی می‌کنند؛ حالت‌های معتبر عبارتند از
+.B IGNORE،
+که هیچ کاری انجام نمی‌دهد،
+.B DELETE،
+که بلافاصله یک حذف بازگشتی روی دایرکتوری خانگی انجام می‌دهد، و
+.B ARCHIVE،
+که محتویات دایرکتوری خانگی را برای بررسی در آینده درون یک فایل TAR بایگانی می‌کند. مقدار پیش‌فرض IGNORE است. با احتیاط استفاده کنید. حالت ARCHIVE نیازمند تنظیم homedir-archive-path است، در غیر این صورت مانند IGNORE عمل می‌کند.
+.TP
+.B homedir\-archive\-path <pathname>
+.TP
+.B olcHomedirArchivePath: pathname
+این گزینه‌ها مسیر مقصد را برای فایل‌های TAR ایجادشده توسط حالت حذف ARCHIVE مشخص می‌کنند.
+.SH "همگام‌سازی و تکثیر (REPLICATION)"
+روکش homedir می‌تواند بدون هیچ تغییری روی سیستم‌های اصلی یا رونوشت کار کند. برای اطلاعات بیشتر در مورد پیکربندی syncrepl به
+.BR slapd.conf (5)
+یا
+.BR slapd\-config (5)
+مراجعه کنید.
+.PP
+تکثیر جزئی (برای مثال به همراه فیلترها) به‌ویژه برای ارائه گزینه‌های تدارک متفاوت به گروه‌های کاربری گوناگون مفید است.
+.SH "مثال‌ها (EXAMPLES)"
+از LDIF زیر می‌توان برای افزودن این روکش به
+.B cn=config
+استفاده کرد (متناسب با نیاز خود تنظیم کنید):
+.LP
+.RS
+.nf
+dn: cn=module{0},cn=config
+changetype: modify
+add: olcModuleLoad
+olcModuleLoad: homedir
+
+dn: olcOverlay=homedir,olcDatabase={1}mdb,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcHomedirConfig
+olcOverlay: homedir
+olcSkeletonPath: /etc/skel
+olcMinimumUidNumber: 1000
+olcHomedirRegexp: ^(/home/[-_/a-z0-9]+)$ /export/$1
+olcHomedirDeleteStyle: ARCHIVE
+olcHomedirArchivePath: /archive
+.fi
+.RE
+.LP
+.SH "اشکالات (BUGS)"
+عملیات DELETE، MOD و MODRDN که صفت‌های یونیکس را حذف می‌کنند، در صورتی که حالت حذف روی DELETE تنظیم شده باشد، دایرکتوری خانگی (تغییریافته بر اساس عبارت باقاعده) را به‌صورت بازگشتی از روی دیسک پاک خواهند کرد. لطفاً هنگام حذف یا تغییر مقادیر احتیاط کنید.
+.PP
+دستورهای MOD و MODRDN به‌درستی به تغییرات homeDirectory واکنش نشان داده و یک عملیات تغییر نام غیرمخرب ()rename را روی سیستم‌فایل اجرا می‌کنند، اما این قابلیت در صورت جابه‌جایی میان سیستم‌فایل‌های مختلف، با یک کپی بازگشتی به‌درستی تلاش مجدد نمی‌کند.
+.PP
+توابع بازگشتی copy/delete/chown/tar از ACLها، صفت‌های توسعه‌یافته (extended attributes)، انشعاب‌ها (forks)، فایل‌های کم‌پشت (sparse files) یا پیوندهای سخت آگاه نیستند. بایگانی دستگاه‌های بلوکی و نویسه‌ای غیرقابل‌حمل (non-portable) است، اما امیدواریم در دایرکتوری‌های خانگی مشکلی ایجاد نکند.
+.PP
+کپی و بایگانی ممکن است در برخی از معماری‌ها از فایل‌های بزرگ‌تر از ۲ گیبی‌بایت (2GiB) پشتیبانی نکند. بایگانی‌های خام POSIX UStar نمی‌توانند از فایل‌های داخلی بزرگ‌تر از ۸ گیبی‌بایت (8GiB) پشتیبانی کنند. مولد tar فعلی تلاشی برای نگاشت uid/gid به نام‌های نمادین نمی‌کند.
+.PP
+هیچ تلاشی برای اجرای ()mkdir روی دایرکتوری‌های والد مورد نیاز برای یک دایرکتوری خانگی یا مسیر بایگانی مشخص صورت نمی‌گیرد.
+.SH "فایل‌ها (FILES)"
+.TP
+/etc/openldap/slapd.conf
+فایل پیکربندی پیش‌فرض slapd
+.TP
+/etc/skel (یا موارد مشابه)
+منبع فایل‌های دایرکتوری خانگی جدید.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR slapd.conf (5),
+.BR slapd\-config (5),
+.BR slapd (8),
+RFC-2307, RFC-2307bis.
+.SH "قدردانی‌ها (ACKNOWLEDGEMENTS)"
+.P
+این ماژول در سال ۲۰۰۹ توسط Emily Backes برای شرکت Symas Corporation نوشته شد.

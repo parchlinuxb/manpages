@@ -1,0 +1,185 @@
+.lf 1 "-
+.TH SLAPD-PERL 5 "2026/03/09" "OpenLDAP 2.6.13"
+.\" $OpenLDAP$
+.SH "نام (NAME)"
+slapd\-perl \- ماژول بکاند پرل برای slapd
+.SH "خلاصه دستور (SYNOPSIS)"
+/etc/openldap/slapd.conf
+.SH "توضیحات (DESCRIPTION)"
+بک‌اند Perl برای
+.BR slapd (8)
+با جاسازی یک مفسر
+.BR perl (1)
+درون
+.BR slapd (8)
+کار می‌کند.
+هر بخش پایگاه‌داده perl در فایل پیکربندی
+.BR slapd.conf (5)
+باید مشخص کند از چه ماژول پرلی استفاده شود.
+سپس
+.B slapd
+یک شیء پرل جدید می‌سازد که تمام درخواست‌های مربوط به آن نمونه خاص از بک‌اند را مدیریت می‌کند.
+.LP
+شما باید برای هر یک از اقدامات زیر یک متد ایجاد کنید:
+.LP
+.nf
+  * new        # creates a new object,
+  * search     # performs the ldap search,
+  * compare    # does a compare,
+  * modify     # modifies an entry,
+  * add        # adds an entry to backend,
+  * modrdn     # modifies an entry's rdn,
+  * delete     # deletes an ldap entry,
+  * config     # module-specific config directives,
+  * init       # called after backend is initialized.
+.fi
+.LP
+مگر در مواردی که خلاف آن مشخص شده باشد، متدها کد نتیجه‌ای را برمی‌گردانند که به کلاینت بازگردانده خواهد شد. اقدامات پیاده‌سازی‌نشده می‌توانند صرفاً کد unwillingToPerform (53) را بازگردانند.
+.TP
+.B new
+این متد زمانی فراخوانی می‌شود که فایل پیکربندی با یک خط
+.B perlmod
+مواجه شود.
+سپس ماژول موجود در آن خط عملاً در مفسر پرل `use` می‌شود و پس از آن متد \fBnew\fR برای ساخت یک شیء جدید فراخوانی می‌گردد.
+توجه داشته باشید که همانند هر شیء پرل، ممکن است چندین نمونه از آن شیء ساخته شود.
+.\" .LP
+متد
+.B new
+نام کلاس را به عنوان آرگومان دریافت می‌کند.
+.TP
+.B search
+این متد زمانی که یک درخواست جستجو از سوی کلاینت بیاید فراخوانی می‌شود.
+آرگومان‌های آن به شرح زیر هستند:
+.nf
+  * object reference
+  * base DN
+  * scope
+  * alias dereferencing policy
+  * size limit
+  * time limit
+  * filter string
+  * attributes only flag (1 for yes)
+  * list of attributes to return (may be empty)
+.fi
+.LP
+مقدار بازگشتی: (resultcode, ldif-entry, ldif-entry, ...)
+.TP
+.B compare
+این متد زمانی که یک درخواست مقایسه از سوی کلاینت بیاید فراخوانی می‌شود.
+آرگومان‌های آن به شرح زیر هستند:
+.nf
+  * object reference
+  * dn
+  * attribute assertion string
+.fi
+.LP
+.TP
+.B modify
+این متد زمانی که یک درخواست تغییر (modify) از سوی کلاینت بیاید فراخوانی می‌شود.
+آرگومان‌های آن به شرح زیر هستند:
+.nf
+  * object reference
+  * dn
+  * a list formatted as follows
+    ({ "ADD" | "DELETE" | "REPLACE" },
+     attributetype, value...)...
+.fi
+.LP
+.TP
+.B add
+این متد زمانی که یک درخواست افزودن (add) از سوی کلاینت بیاید فراخوانی می‌شود.
+آرگومان‌های آن به شرح زیر هستند:
+.nf
+  * object reference
+  * entry in string format
+.fi
+.LP
+.TP
+.B modrdn
+این متد زمانی که یک درخواست modrdn از سوی کلاینت بیاید فراخوانی می‌شود.
+آرگومان‌های آن به شرح زیر هستند:
+.nf
+  * object reference
+  * dn
+  * new rdn
+  * delete old dn flag (1 means yes)
+.fi
+.LP
+.TP
+.B delete
+این متد زمانی که یک درخواست حذف (delete) از سوی کلاینت بیاید فراخوانی می‌شود.
+آرگومان‌های آن به شرح زیر هستند:
+.nf
+  * object reference
+  * dn
+.fi
+.LP
+.TP
+.B config
+این متد به ازای هر خط perlModuleConfig در فایل پیکربندی
+.BR slapd.conf (5)
+یک بار فراخوانی می‌شود.
+آرگومان‌های آن به شرح زیر هستند:
+.nf
+  * object reference
+  * array of arguments on line
+.fi
+.LP
+مقدار بازگشتی: غیر صفر اگر این یک گزینه معتبر نباشد.
+.TP
+.B init
+این متد پس از مقداردهی اولیه بک‌اند فراخوانی می‌شود.
+آرگومان آن به شرح زیر است:
+.nf
+  * object reference
+.fi
+.LP
+مقدار بازگشتی: غیر صفر در صورتی که مقداردهی اولیه با شکست مواجه شود.
+.SH "پیکربندی (CONFIGURATION)"
+این گزینه‌های
+.B slapd.conf
+برای پایگاه‌داده بک‌اند PERL اعمال می‌شوند.
+بدین معنا که باید پس از یک خط "database perl" و قبل از هر خط "backend" یا "database" بعدی قرار گیرند.
+سایر گزینه‌های پایگاه‌داده در صفحه راهنمای
+.BR slapd.conf (5)
+شرح داده شده‌اند.
+.TP
+.B perlModulePath /path/to/libs
+مسیر را به متغیر @INC اضافه می‌کند.
+.TP
+.B perlModule ModName
+نام ماژول ModName را از ModName.pm اصطلاحاً `use` می‌کند.
+.TP
+.B filterSearchResults
+نتایج جستجو نامزدهایی هستند که باید (با فیلتر موجود در درخواست جستجو) فیلتر شوند، نه نتایج جستجویی که مستقیماً به کلاینت بازگردانده شوند.
+.TP
+.B perlModuleConfig <arguments>
+متد config ماژول را با آرگومان‌های داده‌شده فراخوانی می‌کند.
+.SH "مثال (EXAMPLE)"
+یک ماژول پرل نمونه به نام `SampleLDAP' در دایرکتوری slapd/back\-perl/ در درخت کد منبع OpenLDAP وجود دارد.
+.SH "کنترل دسترسی (ACCESS CONTROL)"
+بک‌اند
+.B perl
+از هیچ‌یک از قواعد معنایی کنترل دسترسی شرح داده‌شده در
+.BR slapd.access (5)
+پیروی نمی‌کند؛ تمام کنترل دسترسی به اسکریپت‌نویسی PERL زیرین واگذار می‌شود.
+تنها دسترسی
+.B read (=r)
+به شبه‌ویژگی
+.B entry
+و سایر مقادیر ویژگی‌های مدخل‌های بازگردانده‌شده توسط عملیات
+.B search
+رعایت می‌شود، که توسط فرانت‌اند انجام می‌گیرد.
+.SH "هشدار (WARNING)"
+رابط این بک‌اند با ماژول پرل ممکن است تغییر کند (MAY change).
+از هرگونه پیشنهادی بسیار استقبال خواهد شد.
+.PP
+توجه: در نسخه‌های قبلی، هر خط ناشناخته‌ای در فایل slapd.conf به متد config ماژول پرل ارسال می‌شد. این رفتار منسوخ شده است (اما همچنان برای سازگاری با نسخه‌های پیشین مجاز است)، و در عوض باید از دستورالعمل perlModuleConfig برای فراخوانی متد config ماژول استفاده شود. این قابلیت سازگاری در آینده حذف خواهد شد.
+.SH "فایل‌ها (FILES)"
+.TP
+/etc/openldap/slapd.conf
+فایل پیکربندی پیش‌فرض slapd
+.SH "همچنین ببینید (SEE ALSO)"
+.BR slapd.conf (5),
+.BR slapd (8),
+.BR perl (1).

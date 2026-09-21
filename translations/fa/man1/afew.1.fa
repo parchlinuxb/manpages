@@ -1,0 +1,1299 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "AFEW" "1" "Jul 22, 2026" "4.0.2" "afew"
+.SH "نام (NAME)"
+afew \- اسکریپت برچسب‌گذاری اولیه برای سامانه مدیریت ایمیل notmuch
+.sp
+برنامه
+\fIafew\fP
+یک اسکریپت برچسب‌گذاری اولیه برای ایمیل‌های notmuch است:
+.INDENT 0.0
+.IP \(bu 2
+\%<http://notmuchmail.org>
+.IP \(bu 2
+\%<http://notmuchmail.org/initial_tagging>
+.UNINDENT
+.sp
+وظیفه اصلی این برنامه ارائه قابلیت برچسب‌گذاری خودکار در هر بار ثبت ایمیل جدید در notmuch است. در یک ساختار سنتی، می‌توانید آن را پس از دستور
+\fInotmuch new\fP
+در هوک پس‌از‌همگام‌سازی (post sync hook) ابزار offlineimap یا در هوک
+\fIpost\-new\fP
+برنامه notmuch فراخوانی کنید.
+.sp
+این ابزار می‌تواند کارهای پایه‌ای مانند افزودن برچسب‌ها بر اساس هدرهای ایمیل یا پوشه‌های maildir، مدیریت رشته‌گفتگوهای بسته‌شده (killed threads) و ایمیل‌های هرزنامه (spam) را انجام دهد.
+.sp
+جهت اطلاع: afew با
+\fIalot\fP
+(یک رابط کاربری برای ایمیل notmuch) به خوبی هماهنگ و سازگار است ;)
+.INDENT 0.0
+.IP \(bu 2
+\%<https://github.com/pazz/alot>
+.UNINDENT
+.sp
+فهرست مطالب:
+.SH "شروع سریع (QUICK START)"
+.sp
+مراحل راه‌اندازی و اجرا عبارتند از:
+.INDENT 0.0
+.IP \(bu 2
+نصب بسته afew
+.IP \(bu 2
+ایجاد فایل‌های پیکربندی
+.IP \(bu 2
+افزودن یک هوک post\-new در notmuch که afew را فراخوانی کند
+.UNINDENT
+.SS "نصب (Install)"
+.sp
+دستورات زیر شما را در سیستم‌های مبتنی بر دبیان/اوبونتو راه‌اندازی می‌کنند:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sudo aptitude install notmuch python\-notmuch dbacl
+$ git clone git://github.com/teythoon/afew.git
+$ cd afew
+$ python setup.py install \-\-prefix=~/.local
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+اطمینان حاصل کنید که مسیر
+\fI~/.local/bin\fP
+در متغیر محیطی PATH شما قرار دارد. یک روش برای این کار افزودن قطعه‌کد زیر به فایل
+\fI~/.bashrc\fP
+است:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+if [ \-d ~/.local/bin ]; then
+    PATH=$PATH:~/.local/bin
+fi
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+برای راهنمای دقیق‌تر به بخش «نصب و راه‌اندازی» مراجعه کنید.
+.SS "پیکربندی اولیه (Initial Config)"
+.sp
+اطمینان حاصل کنید که فایل
+\fI~/.notmuch\-config\fP
+شامل موارد زیر باشد:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[new]
+tags=new
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+فهرستی از فیلترها را در فایل
+\fI~/.config/afew/config\fP
+قرار دهید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# This is the default filter chain
+[SpamFilter]
+[KillThreadsFilter]
+[ListMailsFilter]
+[ArchiveSentMailsFilter]
+[InboxFilter]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+و یک هوک
+\fIpost\-new\fP
+برای notmuch ایجاد کنید تا afew را فراخوانی کند:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ notmuchdir=path/to/maildir/.notmuch
+$ mkdir \-p \(dq$notmuchdir/hooks\(dq
+$ printf > \(dq$notmuchdir/hooks/post\-new\(dq \(aq#!/usr/bin/env sh\en$HOME/.local/bin/afew \-\-tag \-\-new\en\(aq
+$ chmod u+x \(dq$notmuchdir/hooks/post\-new\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.SS "مراحل بعدی (Next Steps)"
+.sp
+شما می‌توانید:
+.INDENT 0.0
+.IP \(bu 2
+برای فیلترسازی سفارشی‌تر فیلترهای اضافی تعریف کنید
+.IP \(bu 2
+از حالت جابه‌جایی برای انتقال ایمیل‌های خود بین پوشه‌ها استفاده کنید
+.IP \(bu 2
+با اجرای دستور \fIafew \-\-tag \-\-all\fP برنامه afew را روی تمام ایمیل‌های قدیمی خود اجرا کنید
+.IP \(bu 2
+توسعه afew و افزودن قابلیت‌های جدید به آن را آغاز کنید
+.UNINDENT
+.SH "نصب و راه‌اندازی (INSTALLATION)"
+.SS "پیش‌نیازها (Requirements)"
+.sp
+برنامه afew با پایتون +3.6 کار می‌کند و به notmuch و اتصالات پایتون آن نیاز دارد.
+در سیستم‌های دبیان/اوبونتو می‌توانید آن‌ها را با اجرای دستور زیر نصب کنید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sudo aptitude install notmuch python\-notmuch python\-dev python\-setuptools
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+نکته: اگر در حال نصب
+\fInotmuch\fP
+با استفاده از Homebrew در سیستم‌عامل macOS هستید، حتماً دستور
+\fB$ brew install \-\-with\-python3 notmuch\fP
+را اجرا کنید، زیرا فرمول brew به طور پیش‌فرض اتصالات python3 notmuch را نصب نمی‌کند.
+.SS "نصب بدون دسترسی ریشه (Unprivileged Install)"
+.sp
+توصیه می‌شود خود
+\fIafew\fP
+را به عنوان یک کاربر بدون دسترسی ریشه درون یک محیط مجازی (virtualenv) نصب کنید؛ چه از طریق دریافت کد منبع و نصب با setup.py و چه از طریق pip.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# create and activate virtualenv
+$ python \-m venv \-\-system\-site\-packages .venv
+$ source .venv/bin/activate
+
+# install via pip from PyPI:
+$ pip install afew
+
+# or install from source:
+$ python setup.py install \-\-prefix=~/.local
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+شاید بخواهید یک پیوند نمادین برای
+\fI\&.venv/bin/afew\fP
+در جایی درون مسیر PATH خود (در این حالت ~/bin/) ایجاد کنید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ ln \-snr .venv/bin/afew ~/.bin/afew
+.EE
+.UNINDENT
+.UNINDENT
+.SS "ساخت مستندات (Building documentation)"
+.sp
+مستندات را می‌توان در قالب‌های مختلف با استفاده از Sphinx ساخت:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# build docs into build/sphinx/{html,man}
+$ python setup.py build_sphinx \-b html,man
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نحوه استفاده در خط فرمان (COMMAND LINE USAGE)"
+.sp
+در نهایت afew یک ابزار خط فرمان است. شما باید یک عملیات (action) و این‌که آیا عملیات روی همه پیام‌ها اعمال شود یا فقط روی پیام‌های جدید را مشخص کنید. عملیات‌هایی که می‌توانید انتخاب کنید عبارتند از:
+.INDENT 0.0
+.TP
+.B tag
+اجرای فیلترهای برچسب‌گذاری. به بخش «برچسب‌گذاری اولیه» مراجعه کنید.
+.TP
+.B watch
+پایش مداوم صندوق پستی برای فایل‌های جدید
+.TP
+.B move\-mails
+انتقال فایل‌های ایمیل بین پوشه‌های maildir
+.UNINDENT
+.SS "برچسب‌گذاری اولیه (Initial tagging)"
+.sp
+کارهای پایه برچسب‌گذاری نیازی به پیکربندی ندارند، کافی است اجرا کنید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ afew \-\-tag \-\-new
+# or to tag *all* messages
+$ afew \-\-tag \-\-all
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+برای انجام خودکار این کار می‌توانید هوک زیر را به فایل
+\fI~/.offlineimaprc\fP
+خود اضافه کنید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+postsynchook = ionice \-c 3 chrt \-\-idle 0 /bin/sh \-c \(dqnotmuch new && afew \-\-tag \-\-new\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+نکات بسیار بیشتری درباره پیکربندی فیلترها و فیلترهای مختلف ارائه‌شده توسط afew وجود دارد.
+.SS "شبیه‌سازی (Simulation)"
+.sp
+افزودن گزینه
+\fI\-\-dry\-run\fP
+به هر عملیات
+\fI\-\-tag\fP
+یا
+\fI\-\-sync\-tags\fP
+از اعمال تغییرات در پایگاه داده notmuch جلوگیری می‌کند. افزودن گزینه
+\fI\-vv\fP
+نیز برای مشاهده جزئیات عملکرد بسیار مفید است.
+.SS "حالت جابه‌جایی (Move Mode)"
+.sp
+برای فراخوانی afew در حالت جابه‌جایی، گزینه
+\fI\-\-move\-mails\fP
+را در خط فرمان مشخص کنید. حالت جابه‌جایی به گزینه
+\fI\-\-dry\-run\fP
+احترام می‌گذارد، بنابراین می‌توانید گزینه
+\fI\-\-verbose\fP
+را اضافه کنید تا تأثیرات یک اجرای واقعی را مشاهده نمایید.
+.sp
+در حالت جابه‌جایی، afew تمام ایمیل‌ها (یا فقط ایمیل‌های اخیر) را در پوشه‌های maildir پیکربندی‌شده بررسی کرده و تصمیم می‌گیرد که آیا باید به پوشه دیگری منتقل شوند یا خیر.
+.sp
+این تصمیم‌گیری بر اساس قوانینی است که در فایل پیکربندی شما تعریف شده‌اند. یک قانون به یک پوشه مبدأ متصل است و یک پوشه مقصد را مشخص می‌کند که در صورت تطابق ایمیل با پرس‌وجوی مربوطه، به آن منتقل خواهد شد.
+.sp
+به این ترتیب می‌توانید اصول مرتب‌سازی خود را تقریباً به ساختار سنتی maildir مبتنی بر پوشه که سرورهای ایمیل کلاسیک متوجه می‌شوند منتقل کنید. ایمیل‌های خود را با notmuch برچسب‌گذاری کنید، دستور
+\fIafew \-\-move\-mails\fP
+را در یک هوک presynchook ابزار offlineimap فراخوانی کنید و از یک صندوق ورودی مرتب در رابط کاربری وب یا کلاینت گرافیکی خود در محل کار لذت ببرید.
+.sp
+توجه داشته باشید که در حالت جابه‌جایی، afew پس از انتقال ایمیل‌ها دستور
+\fInotmuch new\fP
+را فراخوانی می‌کند. می‌توانید از
+\fIafew \-m \-\-notmuch\-args=\-\-no\-hooks\fP
+در یک هوک pre\-new در notmuch استفاده کنید تا از ایجاد حلقه‌های تکرار بی‌نهایت جلوگیری شود.
+.sp
+برای اطلاعات بیشتر در مورد نحوه پیکربندی قوانین حالت جابه‌جایی و این‌که چه کارهایی می‌توانید با آن انجام دهید و چه کارهایی نمی‌توانید، لطفاً به بخش «حالت جابه‌جایی» مراجعه کنید.
+.SS "راهنمای خط فرمان (Commandline help)"
+.sp
+مجموعه کامل گزینه‌ها عبارتند از:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ afew \-\-help
+Usage: afew [options] [\-\-] [query]
+
+Options:
+  \-h, \-\-help            show this help message and exit
+
+  Actions:
+    Please specify exactly one action.
+
+    \-t, \-\-tag           run the tag filters
+    \-w, \-\-watch         continuously monitor the mailbox for new files
+    \-m, \-\-move\-mails    move mail files between maildir folders
+
+  Query modifiers:
+    Please specify either \-\-all or \-\-new or a query string.
+
+    \-a, \-\-all           operate on all messages
+    \-n, \-\-new           operate on all new messages
+
+  General options:
+    \-C NOTMUCH_CONFIG, \-\-notmuch\-config=NOTMUCH_CONFIG
+                        path to the notmuch configuration file [default:
+                        $NOTMUCH_CONFIG or ~/.notmuch\-config]
+    \-e ENABLE_FILTERS, \-\-enable\-filters=ENABLE_FILTERS
+                        filter classes to use, separated by \(aq,\(aq [default:
+                        filters specified in afew\(aqs config]
+    \-d, \-\-dry\-run       don\(aqt change the db [default: False]
+    \-R REFERENCE_SET_SIZE, \-\-reference\-set\-size=REFERENCE_SET_SIZE
+                        size of the reference set [default: 1000]
+    \-T DAYS, \-\-reference\-set\-timeframe=DAYS
+                        do not use mails older than DAYS days [default: 30]
+    \-v, \-\-verbose       be more verbose, can be given multiple times
+.EE
+.UNINDENT
+.UNINDENT
+.SH "پیکربندی (CONFIGURATION)"
+.SS "فایل پیکربندی (Configuration File)"
+.sp
+شخصی‌سازی فیلترهای برچسب‌گذاری در فایل پیکربندی afew در مسیر
+\fI~/.config/afew/config\fP
+انجام می‌شود.
+.sp
+قالب این فایل شبیه به فایل‌های INI در ویندوز مایکروسافت است.
+توجه داشته باشید که مقادیر نباید داخل کوتیشن قرار گیرند.
+.SS "پیکربندی NotMuch (NotMuch Config)"
+.sp
+برنامه afew تلاش می‌کند تا خود را با برچسب جدیدی که notmuch روی ایمیل‌های تازه قرار می‌دهد تطبیق دهد، اما بیشتر با برچسب
+\fBnew\fP
+توسعه یافته و آزمایش شده است. برای استفاده از آن، اطمینان حاصل کنید که فایل
+\fI~/.notmuch\-config\fP
+شامل موارد زیر باشد:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[new]
+tags=new
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+برنامه afew مکان پایگاه داده notmuch را از پیکربندی notmuch می‌خواند. هنگامی که هیچ مسیری برای پایگاه داده در پیکربندی notmuch تنظیم نشده باشد، afew مانند ابزار خط فرمان notmuch، در صورت تنظیم بودن متغیر محیطی
+\fIMAILDIR\fP
+از آن استفاده می‌کند، یا از
+\fI$HOME/mail\fP
+به عنوان پشتیبان بهره می‌گیرد. اگر یک مسیر نسبی ارائه شود، afew همانند notmuch پیشوند
+\fI$HOME/\fP
+را به مسیر اضافه می‌کند (این ویژگی در نسخه 0.28 برنامه notmuch معرفی شد).
+.SS "پیکربندی فیلترها (Filter Configuration)"
+.sp
+شما می‌توانید با استفاده از فایل پیکربندی، فیلترها را اصلاح کنید و نسخه‌های سفارشی خود را از فیلتر پایه تعریف کنید که به شما اجازه می‌دهند پیام‌ها را به روشی مشابه دستور
+\fInotmuch tag\fP
+برچسب‌گذاری کنید. فایل پیکربندی پیش‌فرض عبارت است از:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[SpamFilter]
+[KillThreadsFilter]
+[ListMailsFilter]
+[ArchiveSentMailsFilter]
+sent_tag = \(aq\(aq
+[InboxFilter]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+برای مشاهده جزئیات این فیلترها و آرگومان‌های سفارشی که می‌پذیرند، به بخش «فیلترها» مراجعه کنید.
+.sp
+همچنین می‌توانید فیلترهایی بر اساس فیلتر پایه اضافه کنید. این فیلترها را می‌توان با تعیین تنظیمات در زیر آن‌ها شخصی‌سازی کرد. تنظیمات استاندارد که برای تمام فیلترها اعمال می‌شوند عبارتند از:
+.INDENT 0.0
+.TP
+.B message
+متنی که در هنگام اجرای این فیلتر در صورت بالا بودن سطح پرگویی (verbosity) نمایش داده می‌شود.
+.TP
+.B query
+پرس‌وجویی که روی پیام‌ها اعمال می‌شود و در قالب استاندارد notmuch مشخص می‌گردد.
+توجه داشته باشید که نیازی به مشخص کردن برچسب
+\fBnew\fP
+ندارید؛ afew هنگام اجرا با فلگ
+\fI\-\-new\fP
+آن را به طور خودکار اضافه می‌کند.
+.TP
+.B tags
+برچسب‌هایی که باید برای پیام‌های منطبق با پرس‌وجو اضافه یا حذف شوند. برچسب‌های افزایشی با علامت
+\fB+\fP
+و برچسب‌های حذفی با علامت
+\fB\-\fP
+مشخص می‌شوند. برچسب‌های متعدد با نقطه ویرگول (;) از یکدیگر جدا می‌شوند.
+.TP
+.B tags_blacklist
+اگر پیامی یکی از این برچسب‌ها را داشته باشد، گزینه
+\fItags\fP
+به آن اضافه نمی‌شود. برچسب‌ها با نقطه ویرگول جدا می‌شوند.
+.UNINDENT
+.sp
+بنابراین برای افزودن برچسب
+\fBdeer\fP
+به هر پیامی از طرف یا به مقصد
+\fIantelope@deer.com\fP
+می‌توانید به صورت زیر عمل کنید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[Filter.1]
+query = \(aqantelope@deer.com\(aq
+tags = +deer
+message = Wild animals ahoy
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+همچنین می‌توانید (در ترکیب با InboxFilter) با حذف برچسب new پیش از رسیدن به InboxFilter، کاری کنید که ایمیل صندوق ورودی (Inbox) را دور بزند:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[Filter.2]
+query = from\(aqpointyheaded@boss.com\(aq
+tags = \-new;+boss
+message = Message from above
+.EE
+.UNINDENT
+.UNINDENT
+.SS "نمونه پیکربندی کامل (Full Sample Config)"
+.sp
+نمایش چند نمونه پیکربندی ساده‌ترین روش برای درک موضوع است. صفحه برچسب‌گذاری اولیه notmuch در نشانی
+\%<http://notmuchmail.org/initial_tagging>
+یک نمونه پیکربندی را نشان می‌دهد:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# immediately archive all messages from \(dqme\(dq
+notmuch tag \-new \-\- tag:new and from:me@example.com
+
+# delete all messages from a spammer:
+notmuch tag +deleted \-\- tag:new and from:spam@spam.com
+
+# tag all message from notmuch mailing list
+notmuch tag +notmuch \-\- tag:new and to:notmuch@notmuchmail.org
+
+# finally, retag all \(dqnew\(dq messages \(dqinbox\(dq and \(dqunread\(dq
+notmuch tag +inbox +unread \-new \-\- tag:new
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+پیکربندی معادل (تقریبی) در afew به شرح زیر خواهد بود:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[ArchiveSentMailsFilter]
+
+[Filter.1]
+message = Delete all messages from spammer
+query = from:spam@spam.com
+tags = +deleted;\-new
+
+[Filter.2]
+message = Tag all messages from the notmuch mailing list
+query = to:notmuch@notmuchmail.org
+tags = +notmuch
+
+[InboxFilter]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+توجه داشته باشید که پرس‌وجوها عموماً شامل
+\fItag:new\fP
+نمی‌شوند زیرا این مورد هنگام اجرای afew با فلگ
+\fI\-\-new\fP
+به صورت ضمنی لحاظ می‌شود.
+.sp
+تفاوت‌های میان آن‌ها به شرح زیر است:
+.INDENT 0.0
+.IP \(bu 2
+فیلتر ArchiveSentMailsFilter علاوه بر بایگانی کردن ایمیل، برچسب‌های مشخص‌شده در گزینه
+\fIsent_tag\fP
+را نیز اضافه می‌کند (مقدار پیش‌فرض
+\fI\(aq\(aq\fP
+به معنی عدم افزودن برچسب است؛ شاید بخواهید آن را روی
+\fIsent\fP
+تنظیم کنید). همچنین ایمیل‌هایی را که به یکی از آدرس‌های خودتان ارسال شده باشد بایگانی نمی‌کند.
+.IP \(bu 2
+فیلتر InboxFilter برچسب
+\fBunread\fP
+را اضافه نمی‌کند. با این حال بیشتر کلاینت‌های ایمیل وضعیت خوانده‌نشده را مستقیماً در maildir مدیریت می‌کنند.
+.UNINDENT
+.SS "مثال‌های بیشتر از فیلترها (More Filter Examples)"
+.sp
+در این‌جا چند نمونه فیلتر دیگر از دات‌فایل‌های گیت‌هاب آورده شده است:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[Filter.1]
+query = sicsa\-students@sicsa.ac.uk
+tags = +sicsa
+message = sicsa
+
+[Filter.2]
+query = from:foosoc.ed@gmail.com OR from:GT Silber OR from:lizzie.brough@eusa.ed.ac.uk
+tags = +soc;+foo
+message = foosoc
+
+[Filter.3]
+query = folder:gmail/G+
+tags = +G+
+message = gmail spam
+
+# skip inbox
+[Filter.6]
+query = to:notmuch@notmuchmail.org AND (subject:emacs OR subject:elisp OR \(dq(defun\(dq OR \(dq(setq\(dq OR PATCH)
+tags = \-new
+message = notmuch emacs stuff
+
+# Assuming the following workflow: all messages for projects or releases should be tagged
+# as \(dqproject/A\(dq, \(dqproject/B\(dq respectively \(dqrelease/1.0.1\(dq or \(dqrelease/1.2.0\(dq.
+#
+# In most cases replies to messages retain their context: the project, the release(s), ..
+#
+# The following config will propagate all project/... or release/... tags from a thread
+# to all new messages.
+
+[PropagateTagsByRegexInThreadFilter.1]
+propagate_tags = project/.*
+# do not tag spam
+filter = not is:spam
+
+[PropagateTagsByRegexInThreadFilter.2]
+propagate_tags = release/.*
+.EE
+.UNINDENT
+.UNINDENT
+.SH "فیلترها (FILTERS)"
+.sp
+مجموعه فیلترهای پیش‌فرض (در صورتی که چیزی در فایل پیکربندی مشخص نکنید) عبارت است از:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[SpamFilter]
+[KillThreadsFilter]
+[ListMailsFilter]
+[ArchiveSentMailsFilter]
+[InboxFilter]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+پیکربندی استاندارد فیلترها را می‌توان برای این فیلترها نیز اعمال کرد. با این حال توجه داشته باشید که اکثر فیلترهای زیر مقدار اختصاصی خود را برای message، query و/یا tags تنظیم می‌کنند و برخی از آن‌ها بعضی تنظیمات استاندارد را نادیده می‌گیرند.
+.SS ArchiveSentMailsFilter
+.sp
+این فیلتر
+\fISentMailsFilter\fP
+را با ویژگی‌های زیر گسترش می‌دهد:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+برچسب \fBnew\fP از ایمیل‌های فیلترشده توسط این فیلتر حذف می‌شود، بنابراین برچسب \fBinbox\fP توسط InboxFilter به آن‌ها اضافه نخواهد شد.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS DKIMValidityFilter
+.sp
+این فیلتر امضاهای DKIM مربوط به ایمیل‌های دارای هدر DKIM را اعتبارسنجی کرده و برچسب‌های
+\fIdkim\-ok\fP
+یا
+\fIdkim\-fail\fP
+را اضافه می‌کند.
+.SS DMARCReportInspectionFilter
+.sp
+گزارش‌های DMARC معمولاً در قالب فایل‌های ZIP ارسال می‌شوند. برای بررسی گزارش باید فایل را استخراج کرده و درون سند XML جستجو کنید که کاری بسیار خسته‌کننده و وقت‌گیر است. این فیلتر پیام را به صورت زیر برچسب‌گذاری می‌کند:
+.sp
+اگر در هر یک از پیوست‌ها خطای SPF وجود داشته باشد، پیام با برچسب
+\(dqdmarc\-spf\-fail\(dq
+برچسب‌گذاری می‌شود، در غیر این صورت با برچسب
+\(dqdmarc\-spf\-ok\(dq
+برچسب‌گذاری خواهد شد.
+.sp
+اگر در هر یک از پیوست‌ها خطای DKIM وجود داشته باشد، پیام با برچسب
+\(dqdmarc\-dkim\-fail\(dq
+برچسب‌گذاری می‌شود، در غیر این صورت با برچسب
+\(dqdmarc\-dkim\-ok\(dq
+برچسب‌گذاری خواهد شد.
+.SS FolderNameFilter
+.sp
+برای هر ایمیل، تمام پوشه‌هایی را که ایمیل در آن‌ها قرار دارد بررسی می‌کند و از مسیر و نام فایل به عنوان برچسبی برای آن ایمیل استفاده می‌کند. بنابراین اگر ساختاری با procmail یا sieve دارید که ایمیل‌ها را در پوشه‌ها قرار می‌دهد، این فیلتر می‌تواند بسیار مفید باشد.
+.INDENT 0.0
+.IP \(bu 2
+folder_explicit_list = <folder list>
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+ایمیل‌ها را فقط با برچسب‌های موجود در <folder list> برچسب‌گذاری می‌کند. <folder list> فهرستی است که با فاصله جدا شده و داخل کوتیشن یا نماد دیگری قرار نمی‌گیرد.
+.IP \(bu 2
+فهرست خالی به معنای همه پوشه‌ها است (البته لیست سیاه همچنان اعمال می‌شود).
+.IP \(bu 2
+مقدار پیش‌فرض یک فهرست خالی است.
+.IP \(bu 2
+می‌توانید از آن برای مثال جهت تنظیم برچسب‌ها فقط برای پوشه‌های خاص مانند \(aqSent\(aq استفاده کنید.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+folder_blacklist = <folder list>
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+هرگز ایمیل‌ها را با برچسب‌های موجود در <folder list> برچسب‌گذاری نمی‌کند. <folder list> فهرستی است که با فاصله جدا شده و داخل کوتیشن یا نماد دیگری قرار نمی‌گیرد.
+.IP \(bu 2
+مقدار پیش‌فرض این است که هیچ پوشه‌ای در لیست سیاه نباشد.
+.IP \(bu 2
+می‌توانید از آن برای مثال جهت جلوگیری از برچسب‌گذاری ایمیل‌ها به عنوان \(aqINBOX\(aq هنگامی که برچسب استانداردتر \(aqinbox\(aq وجود دارد استفاده کنید.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+folder_transforms = <transformation rules>
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+نام پوشه‌ها را بر اساس قوانین مشخص‌شده قبل از برچسب‌گذاری ایمیل‌ها تبدیل می‌کند. <transformation rules> یک فهرست جداشده با فاصله شامل جفت‌های به سبک \(aqfolder:tag\(aq است. دونقطه (:) نام پوشه‌ای را که باید تبدیل شود از برچسبی که باید به آن تبدیل شود جدا می‌کند.
+.IP \(bu 2
+رفتار پیش‌فرض تبدیل به نام پوشه‌ها است.
+.IP \(bu 2
+می‌توانید از قوانین مثلاً برای تبدیل نام پوشه \(aqJunk\(aq به برچسب \(aqspam\(aq یا اصلاح بزرگی/کوچکی حروف پوشه‌های پیش‌نویس (draft) و ارسالی (sent) استفاده کنید:
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+folder_transforms = Junk:spam Drafts:draft Sent:sent
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+folder_lowercases = true
+.INDENT 2.0
+.IP \(bu 2
+استفاده از برچسب‌های حروف کوچک برای تمام نام‌های پوشه‌ها
+.UNINDENT
+.IP \(bu 2
+maildir_separator = <sep>
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+استفاده از <sep> برای تقسیم سلسله‌مراتب maildir به برچسب‌های مجزا.
+.IP \(bu 2
+پیش‌فرض جداسازی با \(aq.\(aq است.
+.IP \(bu 2
+اگر سلسله‌مراتب maildir شما در سیستم فایل به صورت دایرکتوری‌های جمع‌شده (collapsed dirs) نمایش داده می‌شود، از <sep> برای تقسیم مجدد آن پیش از اعمال برچسب‌ها استفاده می‌شود. اگر ساختار maildir شما به این شکل باشد:
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]
+/path/to/maildir/devel.afew/[cur|new|tmp]/...
+/path/to/maildir/devel.alot/[cur|new|tmp]/...
+/path/to/maildir/devel.notmuch/[cur|new|tmp]/...
+[...]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+ایمیل‌های موجود در پوشه afew شما با برچسب‌های \(aqdevel\(aq و \(aqafew\(aq برچسب‌گذاری خواهند شد.
+.sp
+اگر در مقابل، سلسله‌مراتب شما با یک جداکننده متعارف‌تر مانند \(aq/\(aq یا هر جداکننده دیگری تقسیم شده باشد:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]
+/path/to/maildir/devel/afew/[cur|new|tmp]/...
+/path/to/maildir/devel/alot/[cur|new|tmp]/...
+/path/to/maildir/devel/notmuch/[cur|new|tmp]/...
+[...]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+لازم است آن جداکننده را پیکربندی کنید تا ایمیل‌های شما به درستی برچسب‌گذاری شوند:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+maildir_separator = /
+.EE
+.UNINDENT
+.UNINDENT
+.SS HeaderMatchingFilter
+.sp
+این فیلتر در صورتی که هدر مشخص‌شده با عبارت باقاعده داده‌شده مطابقت داشته باشد، برچسب‌هایی را به پیام اضافه می‌کند. برچسب‌ها می‌توانند مقادیر ثابتی باشند یا بر اساس تطابق تعیین شوند. تنظیماتی که می‌توانید استفاده کنید عبارتند از:
+.INDENT 0.0
+.IP \(bu 2
+header = <header_name>
+.IP \(bu 2
+pattern = <regex_pattern>
+.IP \(bu 2
+tags = <tag_list>
+.UNINDENT
+.sp
+اگر برچسبی را در داخل \fI{}\fP قرار دهید، با بخش تطابق‌یافته نام‌گذاری‌شده جایگزین خواهد شد.
+.sp
+چند مثال عبارتند از:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[HeaderMatchingFilter.1]
+header = X\-Spam\-Flag
+pattern = YES
+tags = +spam
+
+[HeaderMatchingFilter.2]
+header = List\-Id
+pattern = <(?P<list_id>.*)>
+tags = +lists;+{list_id}
+
+[HeaderMatchingFilter.3]
+header = X\-Redmine\-Project
+pattern = (?P<project>.+)
+tags = +redmine;+{project}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+فیلترهای SpamFilter و ListMailsFilter با استفاده از HeaderMatchingFilter پیاده‌سازی شده‌اند و تنها کمی پیچیده‌تر از مثال‌های فوق هستند.
+.SS InboxFilter
+.sp
+این فیلتر برچسب
+\fBnew\fP
+را حذف کرده و برچسب
+\fBinbox\fP
+را به هر پیامی که بسته نشده باشد (killed) یا هرزنامه (spam) نباشد اضافه می‌کند. (برچسب‌های جدید در پیکربندی notmuch شما تنظیم می‌شوند و پیش‌فرض آن‌ها فقط
+\fBnew\fP
+است).
+.SS KillThreadsFilter
+.sp
+اگر پیام جدید به رشته‌گفتگویی اضافه شده باشد که قبلاً با
+\fBkilled\fP
+برچسب‌گذاری شده است، برچسب
+\fBkilled\fP
+را به این پیام اضافه می‌کند. این ویژگی امکان نادیده گرفتن تمام پاسخ‌های یک رشته‌گفتگوی خاص را فراهم می‌سازد.
+.SS ListMailsFilter
+.sp
+این فیلتر به دنبال هدر
+\fIList\-Id\fP
+می‌گردد و در صورت یافتن آن، برچسب
+\fBlists\fP
+و برچسبی با نام
+\fBlists/<list\-id>\fP
+را اضافه می‌کند.
+.SS MeFilter
+.sp
+فیلتری اضافه می‌کند که ایمیل‌های ارسال‌شده مستقیم به هر یک از آدرس‌های تعریف‌شده در فایل پیکربندی Notmuch (\fIprimary_email\fP یا \fIother_email\fP) را برچسب‌گذاری می‌کند.
+برچسب پیش‌فرض
+\fIto\-me\fP
+است و می‌تواند با گزینه
+\fIme_tag\fP
+سفارشی‌سازی شود.
+.SS SentMailsFilter
+.sp
+تنظیماتی که می‌توانید استفاده کنید عبارتند از:
+.INDENT 0.0
+.IP \(bu 2
+sent_tag = <tag>
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+افزودن <tag> به تمام ایمیل‌هایی که از یکی از آدرس‌های ایمیل پیکربندی‌شده شما ارسال شده‌اند، \fIو نه\fP به هیچ‌یک از آدرس‌های شما.
+.IP \(bu 2
+پیش‌فرض این است که هیچ برچسبی اضافه نشود، بنابراین باید مقداری را مشخص کنید.
+.IP \(bu 2
+می‌توانید مثلاً از آن برای برچسب‌گذاری تمام ایمیل‌های ارسالی توسط خودتان با عنوان \(aqsent\(aq استفاده کنید. این کار به ویژه در ارتباط با یک کلاینت ایمیل که قادر است علاوه بر رشته‌گفتگوها، ایمیل‌های مجزا را نیز جستجو کند، منطقی و سودمند خواهد بود.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+to_transforms = <transformation rules>
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+تبدیل آدرس‌های ایمیل \fITo\fP/\fICc\fP/\fIBcc\fP به برچسب‌ها طبق قوانین مشخص‌شده. <transformation rules> یک فهرست جداشده با فاصله است که از جفت‌های به سبک \%<'user_part@domain_part>:tags\(aq تشکیل شده است. دونقطه (:) آدرس ایمیلی را که باید تبدیل شود از برچسب‌هایی که باید به آن تبدیل شود جدا می‌کند. بخش \(aq:tags\(aq اختیاری است و در صورت خالی بودن، از \(aquser_part\(aq به عنوان برچسب استفاده می‌شود. مقدار \(aqtags\(aq می‌تواند یک برچسب واحد یا فهرستی از برچسب‌های جداشده با نقطه ویرگول باشد.
+.IP \(bu 2
+می‌توان از آن برای مثال برای برچسب‌گذاری آسان پیام‌های ارسال‌شده به لیست‌های پستی که در این مرحله فاقد فیلد \fIList\-Id\fP هستند استفاده کرد.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS SpamFilter
+.sp
+تنظیماتی که می‌توانید استفاده کنید عبارتند از:
+.INDENT 0.0
+.IP \(bu 2
+spam_tag = <tag>
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+افزودن <tag> به تمام ایمیل‌هایی که به عنوان هرزنامه شناسایی شده‌اند.
+.IP \(bu 2
+پیش‌فرض \(aqspam\(aq است.
+.IP \(bu 2
+می‌توانید از آن برای برچسب‌گذاری هرزنامه‌های خود با عناوینی مانند \(aqjunk\(aq، \(aqscum\(aq یا هر چیز دیگری که ترجیح می‌دهید استفاده کنید.
+توجه داشته باشید که در این‌جا تنها یک برچسب واحد پشتیبانی می‌شود.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+در صورتی که هدر
+\fIX\-Spam\-Flag\fP
+وجود داشته باشد، ایمیل به عنوان هرزنامه در نظر گرفته می‌شود.
+.SS "شخصی‌سازی فیلترها (Customizing filters)"
+.sp
+برای شخصی‌سازی این فیلترها، اساساً دو روش مختلف وجود دارد:
+.sp
+فرض کنید فیلتر SpamFilter را دوست دارید، اما رفتار آن بیش از حد مؤدبانه است:
+.INDENT 0.0
+.IP 1. 3
+ایجاد یک شیء فیلتر و شخصی‌سازی آن
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[SpamFilter.0] # note the index
+message = meh
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+اگر بخواهید یک SpamFilter جدید \fIعلاوه بر\fP فیلتر پیش‌فرض بسازید، درج ایندکس الزامی است. اگر فقط به یک SpamFilter سفارشی‌شده نیاز دارید، می‌توانید ایندکس را حذف کرده و نمونه پیش‌فرض را شخصی‌سازی کنید.
+.INDENT 0.0
+.IP 2. 3
+ایجاد یک نوع جدید...
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[ShitFilter(SpamFilter)]
+message = I hatez teh spam!
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+و ایجاد یک یا دو شیء
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[ShitFilter.0]
+[ShitFilter.1]
+message = Me hatez it too.
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+همچنین می‌توانید پیاده‌سازی‌های فیلتر اختصاصی خود را ارائه دهید. شما باید فیلترهای خود را از طریق نقاط ورود (entry points) ثبت کنید. برای مشاهده مثال‌هایی درباره نحوه ثبت فیلترها به فایل setup.py برنامه afew مراجعه کنید. برای افزودن فیلترهای خود، کافی است بسته خود را در بستر برنامه afew نصب کنید.
+.SH "حالت جابه‌جایی (MOVE MODE)"
+.SS "بخش پیکربندی (Configuration Section)"
+.sp
+در این‌جا یک نمونه پیکربندی کامل برای حالت جابه‌جایی آورده شده است:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[MailMover]
+folders = INBOX Junk
+rename = False
+max_age = 15
+
+# rules
+INBOX = \(aqtag:spam\(aq:Junk \(aqNOT tag:inbox\(aq:Archive
+Junk = \(aqNOT tag:spam AND tag:inbox\(aq:INBOX \(aqNOT tag:spam\(aq:Archive
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در ادامه معنای هر بخش از این پیکربندی را توضیح می‌دهیم.
+.SS "قوانین (Rules)"
+.sp
+ابتدا باید مشخص کنید کدام پوشه‌ها باید برای ایمیل‌هایی که قرار است منتقل شوند بررسی گردند (به صورت فهرستی جداشده با فضای خالی). نام پوشه‌هایی که شامل فضای خالی هستند باید در داخل کوتیشن قرار گیرند:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+folders = INBOX Junk \(dqSent Mail\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+سپس باید قوانینی را مشخص کنید که عملیات جابه‌جایی را به فرم زیر تعریف می‌کنند:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+<src> = [\(aq<qry>\(aq:<dst>]+
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+هر ایمیلی در پوشه
+\fI<src>\fP
+که با یک
+\fI<qry>\fP
+مطابقت داشته باشد، به پوشه
+\fI<dst>\fP
+مرتبط با آن پرس‌وجو منتقل خواهد شد. پیامی که با چندین پرس‌وجو مطابقت داشته باشد، در چندین مقصد کپی خواهد شد.
+.sp
+می‌توانید هر تعداد قانونی را که لازم می‌دانید به یک پوشه maildir متصل کنید. کافی است آن‌ها را به عنوان عناصر یک فهرست (جداشده با فضای خالی) اضافه کنید.
+.sp
+با این حال لطفاً توجه داشته باشید که برای استفاده از حالت جابه‌جایی، باید حداقل یک قانون برای هر پوشه تعیین‌شده در گزینه
+\fIfolders\fP
+و حداقل یک پوشه برای بررسی مشخص کنید.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+INBOX = \(aqtag:spam\(aq:Junk
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+دستور فوق یک قانون را به پوشه maildir با نام
+\fIINBOX\fP
+متصل می‌کند که بیان می‌دارد تمام ایمیل‌های موجود در پوشه مذکور که (احتمالاً در میان سایر برچسب‌ها) دارای برچسب
+\fBspam\fP
+هستند باید به پوشه
+\fIJunk\fP
+منتقل شوند.
+.sp
+با توجه به این‌که
+\fI<qry>\fP
+یک پرس‌وجوی اختیاری notmuch است، شما این امکان را دارید که قوانینی با انعطاف‌پذیری دلخواه بسازید. می‌توانید عدم وجود برچسب‌ها را بررسی کنید و به دنبال ترکیب ویژگی‌ها باشید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Junk = \(aqNOT tag:spam AND tag:inbox\(aq:INBOX \(aqNOT tag:spam\(aq:Archive
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+قوانین فوق تمام ایمیل‌های موجود در
+\fIJunk\fP
+را که فاقد برچسب
+\fBspam\fP
+اما دارای برچسب
+\fBinbox\fP
+هستند به پوشه
+\fIINBOX\fP
+منتقل می‌کنند. سایر ایمیل‌هایی که با
+\fBspam\fP
+برچسب‌گذاری نشده‌اند به
+\fIArchive\fP
+منتقل خواهند شد.
+.SS "حداکثر قدمت (Max Age)"
+.sp
+می‌توانید قدمت ایمیل‌هایی را که می‌خواهید منتقل شوند با تنظیم گزینه
+\fImax_age\fP
+در بخش پیکربندی محدود کنید. با قرار دادن مقدار
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+max_age = 15
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+برنامه afew فقط ایمیل‌هایی را با حداکثر ۱۵ روز قدمت بررسی خواهد کرد.
+.SS "تغییر نام (Rename)"
+.sp
+اگر از ابزار همگام‌سازی IMAP با نام
+\fImbsync\fP
+استفاده می‌کنید، این گزینه را فعال کنید.
+ابزار \fImbsync\fP هنگام همگام‌سازی فایل‌ها، یک شناسه یکتا به نام آن‌ها اضافه می‌کند.
+اگر گزینه
+\fIrename\fP
+تنظیم نشده باشد، جابه‌جایی فایل‌ها می‌تواند باعث تداخل شناسه UID شده و از همگام‌سازی \fImbsync\fP با پیام‌های خطایی مانند
+\(dqMaildir error: duplicate UID 1234\(dq
+یا
+\(dqUID 567 is beyond highest assigned UID 89\(dq
+جلوگیری کند.
+.sp
+هنگامی که این گزینه فعال باشد، afew فایل‌ها را هنگام جابه‌جایی تغییر نام داده و UID را حذف می‌کند اما سایر اطلاعات \fImbsync\fP را حفظ می‌نماید.
+این کار به \fImbsync\fP اجازه می‌دهد تا یک UID جدید به فایل اختصاص دهد و از تداخل‌های UID جلوگیری شود.
+.sp
+اگر از
+\fIofflineimap\fP
+استفاده می‌کنید، می‌توانید با خیال راحت این گزینه را نادیده بگیرید.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+rename = True
+.EE
+.UNINDENT
+.UNINDENT
+.SS "محدودیت‌ها (Limitations)"
+.sp
+\fB(1)\fP قوانین برچسب‌ها را تغییر نمی‌دهند.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+INBOX = \(aqNOT tag:inbox\(aq:Archive
+Junk = \(aqNOT tag:spam\(aq:INBOX
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+ترکیب قوانین بالا ممکن است پیچیده و گمراه‌کننده باشد، زیرا ممکن است انتظار داشته باشید ایمیل‌های پاک‌سازی‌شده از اسپم سر از
+\fIINBOX\fP
+درآورند. اما از آن‌جا که قانون
+\fIJunk\fP
+برچسب
+\fBinbox\fP
+را اضافه \fIنمی‌کند\fP، اجرای بعدی در حالت جابه‌جایی ممکن است ایمیل‌های منطبق را به
+\fIArchive\fP
+منتقل کند.
+.sp
+از طرفی، اگر برچسب
+\fBspam\fP
+را حذف کنید و برچسب
+\fBinbox\fP
+را تنظیم نکنید، چگونه انتظار دارید ایمیل پس از جابه‌جایی در پوشه INBOX شما قرار گیرد؟ ;)
+.sp
+\fB(2)\fP هیچ نگاشت یک‌به‌یک (1:1) بین پوشه‌ها و برچسب‌ها وجود ندارد؛ و این یک قابلیت است. اگر پیامی را با دو برچسب نشانه‌گذاری کنید و برای هر یک از آن‌ها قانونی وجود داشته باشد، هر دو قانون اعمال خواهند شد. ایمیل شما در دو پوشه مقصد کپی شده و سپس از مکان اصلی خود حذف خواهد شد.
+.SH "توسعه AFEW (EXTENDING AFEW)"
+.sp
+می‌توانید فایل‌های پایتون را در مسیر
+\fI~/.config/afew/\fP
+قرار دهید تا توسط afew فراخوانی و وارد (import) شوند. اگر از آن فایل پایتون برای تعریف یک کلاس
+\fIFilter\fP
+استفاده کرده و از دکوراتور
+\fIregister_filter\fP
+بهره بگیرید، می‌توانید در پیکربندی فیلترهای خود به آن ارجاع دهید.
+.sp
+یک نمونه از یک فیلتر کوچک که می‌توانید اضافه کنید عبارت است از:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from afew.filters.BaseFilter  import Filter
+from afew.FilterRegistry import register_filter
+
+PROJECT_MAPPING = {
+    \(aqfabric\(aq: \(aqdeployment\(aq,
+    \(aqoldname\(aq: \(aqnew\-name\(aq,
+}
+
+@register_filter
+class RedmineFilter(Filter):
+    message = \(aqCreate tag based on redmine project\(aq
+    query = \(aqNOT tag:redmine\(aq
+
+    def handle_message(self, message):
+        project = message.get_header(\(aqX\-Redmine\-Project\(aq)
+        if project in PROJECT_MAPPING:
+            project = PROJECT_MAPPING[project]
+        self.add_tags(message, \(aqredmine\(aq, project)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+ما متغیرهای کلاسی
+\fImessage\fP
+و
+\fIquery\fP
+را تعریف کرده‌ایم که توسط کلاس والد
+\fIFilter\fP
+استفاده می‌شوند. مقدار
+\fImessage\fP
+هنگام اجرا با فلگ‌های پرگویی چاپ می‌شود. مقدار
+\fIquery\fP
+برای انتخاب پیام‌ها جهت اجرا استفاده می‌شود؛ در این‌جا ما اطمینان حاصل می‌کنیم که پیام‌هایی را که قبلاً بررسی کرده‌ایم مجدداً پردازش نکنیم.
+.sp
+متد
+\fIhandle_message()\fP
+متد اصلی برای پیاده‌سازی است. این متد برای هر پیامی که با پرس‌وجو مطابقت داشته باشد فراخوانی می‌شود. آرگومان ورودی یک شیء پیام notmuch است:
+\%<http://pythonhosted.org/notmuch/#message-a-single-message>
+و متدهای کلیدی استفاده‌شده توسط فیلترهای afew عبارتند از:
+\fIheader()\fP،
+\fIfilename()\fP
+و
+\fIget_thread()\fP.
+.sp
+از میان متدهای به ارث برده‌شده از کلاس
+\fIFilter\fP،
+متدهای اصلی عبارتند از
+\fIadd_tags()\fP
+و
+\fIremove_tags()\fP،
+اما برای ایده‌های بیشتر بخش «پیاده‌سازی» را مطالعه کنید یا مستقیماً به کد منبع مراجعه فرمایید.
+.sp
+هنگامی که فیلتر خود را تعریف کردید، می‌توانید آن را مانند هر فیلتر دیگری به پیکربندی خود اضافه کنید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[RedmineFilter]
+.EE
+.UNINDENT
+.UNINDENT
+.SH "پیاده‌سازی (IMPLEMENTATION)"
+.SS "مدیریت پایگاه داده (Database Manager)"
+.sp
+طراحی بخش مدیریت پایگاه داده از مدیر پایگاه داده alot با نام
+\fBalot.db.DBManager\fP
+الهام گرفته شده است.
+.INDENT 0.0
+.TP
+.B class afew.Database.Database
+پوشش راحت و تسهیل‌کننده برای
+\fInotmuch\fP.
+.INDENT 7.0
+.TP
+.B add_message(path, sync_maildir_flags=False, new_mail_handler=None)
+پیام داده‌شده را به نمایه (index) برنامه notmuch اضافه می‌کند.
+.INDENT 7.0
+.TP
+.B پارامترها (Parameters)
+.INDENT 7.0
+.IP \(bu 2
+\fBpath\fP (\fIstr\fP \%<https://docs.python.org/3/library/stdtypes.html#str>) \-\- مسیر پیام
+.IP \(bu 2
+\fBsync_maildir_flags\fP (\fIbool\fP \%<https://docs.python.org/3/library/functions.html#bool>) \-\- در صورت تنظیم روی \fITrue\fP، برنامه notmuch فلگ‌های استاندارد maildir را به برچسب تبدیل می‌کند
+.IP \(bu 2
+\fBnew_mail_handler\fP (تابعی که با یک شیء \fBnotmuch.Message\fP به عنوان تنها آرگومان خود فراخوانی می‌شود) \-\- کالبک برای پیام‌های جدید
+.UNINDENT
+.TP
+.B خطاهای پرتابی (Raises)
+خطای \fBnotmuch.NotmuchError\fP در صورتی که افزودن پیام با شکست مواجه شود
+.TP
+.B مقادیر بازگشتی (Returns)
+یک شیء \fBnotmuch.Message\fP
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B close()
+در صورت باز بودن پایگاه داده notmuch، آن را می‌بندد.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B do_query(query)
+یک پرس‌وجوی notmuch را اجرا می‌کند.
+.INDENT 7.0
+.TP
+.B پارامترها (Parameters)
+\fBquery\fP (\fIstr\fP \%<https://docs.python.org/3/library/stdtypes.html#str>) \-\- پرس‌وجو برای اجرا
+.TP
+.B مقادیر بازگشتی (Returns)
+نتیجه پرس‌وجو
+.TP
+.B نوع بازگشتی (Return type)
+\fBnotmuch.Query\fP
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_messages(query, full_thread=False)
+دریافت تمام پیام‌های منطبق با پرس‌وجوی داده‌شده.
+.INDENT 7.0
+.TP
+.B پارامترها (Parameters)
+.INDENT 7.0
+.IP \(bu 2
+\fBquery\fP (\fIstr\fP \%<https://docs.python.org/3/library/stdtypes.html#str>) \-\- پرس‌وجو برای اجرا با استفاده از \fBDatabase.do_query()\fP
+.IP \(bu 2
+\fBfull_thread\fP (\fIbool\fP \%<https://docs.python.org/3/library/functions.html#bool>) \-\- بازگرداندن تمام پیام‌ها از رشته‌گفتگوهای منطبق
+.UNINDENT
+.TP
+.B مقادیر بازگشتی (Returns)
+یک تکرارکننده (iterator) بر روی اشیاء \fBnotmuch.Message\fP
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B remove_message(path)
+پیام داده‌شده را از نمایه notmuch حذف می‌کند.
+.INDENT 7.0
+.TP
+.B پارامترها (Parameters)
+\fBpath\fP (\fIstr\fP \%<https://docs.python.org/3/library/stdtypes.html#str>) \-\- مسیر پیام
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B walk_replies(message)
+تمام پاسخ‌های داده‌شده به پیام مشخص را برمی‌گرداند.
+.INDENT 7.0
+.TP
+.B پارامترها (Parameters)
+\fBmessage\fP (\fBnotmuch.Message\fP) \-\- پیامی که باید از آن شروع شود
+.TP
+.B مقادیر بازگشتی (Returns)
+یک تکرارکننده (iterator) بر روی اشیاء \fBnotmuch.Message\fP
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B walk_thread(thread)
+تمام پیام‌های موجود در رشته‌گفتگوی داده‌شده را برمی‌گرداند.
+.INDENT 7.0
+.TP
+.B پارامترها (Parameters)
+\fBthread\fP (\fBnotmuch.Thread\fP) \-\- رشته‌گفتگوی مورد نظر
+.TP
+.B مقادیر بازگشتی (Returns)
+یک تکرارکننده (iterator) بر روی اشیاء \fBnotmuch.Message\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS "فیلتر (Filter)"
+.INDENT 0.0
+.TP
+.B class afew.filters.BaseFilter.Filter(database, **kwargs)
+.INDENT 7.0
+.TP
+.B flush_changes()
+ساختارهای داده‌ای را که تغییرات در صف پایگاه داده notmuch را نگه می‌دارند، (مجدداً) مقداردهی اولیه می‌کند.
+.UNINDENT
+.UNINDENT
+.SS "مدیریت پیکربندی (Configuration management)"
+.SS "توابع کمکی متفرقه (Miscellaneous utility functions)"
+.INDENT 0.0
+.IP \(bu 2
+نمایه (Index)
+.IP \(bu 2
+نمایه ماژول‌ها (Module Index)
+.IP \(bu 2
+صفحه جستجو (Search Page)
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Justus Winter
+.SH "حق نشر (COPYRIGHT)"
+afewmail project
+.\" End of generated man page.

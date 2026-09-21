@@ -1,0 +1,123 @@
+.\"	$OpenBSD: moduli.5,v 1.19 2022/04/16 04:30:10 dtucker Exp $
+.\"
+.\" Copyright (c) 2008 Damien Miller <djm@mindrot.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.Dd April 16, 2022
+.Dt MODULI 5
+.Os
+.SH "نام (NAME)"
+moduli \- پایگاه‌داده اعداد اول برای تبادل کلید دیفی-هلمن در OpenSSH
+.Sh "توضیحات (DESCRIPTION)"
+پرونده‌ی
+.Pa /etc/ssh/moduli
+حاوی اعداد اول و مولدهایی برای استفاده توسط
+.Xr sshd 8
+در روش تبادل کلید مبادله گروهی دیفی-هلمن (Diffie-Hellman Group Exchange) است.
+.Pp
+مدول‌های جدید را می‌توان با یک فرآیند دومرحله‌ای توسط
+.Xr ssh-keygen 1
+تولید کرد.
+مرحله‌ی نخست،
+.Em تولید کاندیدا
+(candidate generation) با استفاده از
+.Ic ssh-keygen -M generate ،
+اعدادی را محاسبه می‌کند که به احتمال زیاد مفید هستند.
+مرحله‌ی دوم،
+.Em آزمون اول بودن
+(primality testing) با استفاده از
+.Ic ssh-keygen -M screen ،
+درجه اطمینان بالایی را فراهم می‌کند مبنی بر اینکه اعداد اول بوده و برای استفاده در عملیات دیفی-هلمن توسط
+.Xr sshd 8
+امن هستند.
+این قالب
+.Nm moduli
+به عنوان خروجی هر مرحله استفاده می‌شود.
+.Pp
+این پرونده شامل رکوردهایی است که با خط جدید از یکدیگر جدا شده‌اند (یک رکورد برای هر مدول)، و شامل هفت فیلد هستند که با فاصله از هم جدا می‌شوند.
+این فیلدها به شرح زیر هستند:
+.Bl -tag -width Description -offset indent
+.It timestamp
+زمان آخرین پردازش مدول در قالب YYYYMMDDHHMMSS.
+.It type
+عدد ده‌دهی که ساختار درونی مدول اول را مشخص می‌کند.
+انواع پشتیبانی‌شده عبارتند از:
+.Pp
+.Bl -tag -width 0x00 -compact
+.It 0
+ناشناخته، آزمایش‌نشده.
+.It 2
+عدد اول «امن» (Safe prime)؛ که در آن (p-1)/2 نیز اول است.
+.It 4
+سوفی ژرمن (Sophie Germain)؛ که در آن 2p+1 نیز اول است.
+.El
+.Pp
+کاندیداهای مدول که در ابتدا توسط
+.Xr ssh-keygen 1
+تولید می‌شوند، اعداد اول سوفی ژرمن (نوع 4) هستند.
+آزمون‌های اول بودن بعدی با
+.Xr ssh-keygen 1
+مدول‌های عدد اول امن (نوع 2) را تولید می‌کنند که برای استفاده در
+.Xr sshd 8
+آماده هستند.
+سایر انواع توسط OpenSSH استفاده نمی‌شوند.
+.It tests
+عدد ده‌دهی که نشان‌دهنده نوع آزمون‌های اول بودنی است که عدد تحت آن قرار گرفته است، و به صورت یک ماسک بیتی از مقادیر زیر نمایش داده می‌شود:
+.Pp
+.Bl -tag -width 0x00 -compact
+.It 0x00
+آزمایش‌نشده.
+.It 0x01
+عدد مرکب \(en اول نیست.
+.It 0x02
+غربال اراتستن (Sieve of Eratosthenes).
+.It 0x04
+آزمون‌های احتمالاتی اول بودن میلر-رابین (Miller-Rabin).
+.El
+.Pp
+تولید کاندیدای مدول در
+.Xr ssh-keygen 1
+از غربال اراتستن (پرچم 0x02) استفاده می‌کند.
+آزمون‌های اول بودن بعدی در
+.Xr ssh-keygen 1
+از نوع آزمون‌های میلر-رابین (پرچم 0x04) هستند.
+.It trials
+عدد ده‌دهی که نشان‌دهنده تعداد دفعات آزمایش اول بودن انجام‌شده روی مدول است.
+.It size
+عدد ده‌دهی که اندازه عدد اول را به بیت مشخص می‌کند.
+.It generator
+مولد توصیه‌شده برای استفاده با این مدول (در مبنای شانزده‌شانزدهی).
+.It modulus
+خود مدول در مبنای شانزده‌شانزدهی (هگزادسیمال).
+.El
+.Pp
+هنگام انجام تبادل گروهی دیفی-هلمن (Diffie-Hellman Group Exchange)،
+.Xr sshd 8
+ابتدا اندازه مدول مورد نیاز را برای تولید خروجی دیفی-هلمن کافی جهت کلیدگذاری رمز متقارن انتخاب‌شده تخمین می‌زند.
+سپس
+.Xr sshd 8
+به‌طور تصادفی مدولی را از
+.Fa /etc/ssh/moduli
+انتخاب می‌کند که بهترین تطابق را با الزامات اندازه داشته باشد.
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr ssh-keygen 1 ,
+.Xr sshd 8
+.Sh "استانداردها (STANDARDS)"
+.Rs
+.%A M. Friedl
+.%A N. Provos
+.%A W. Simpson
+.%D March 2006
+.%R RFC 4419
+.%T Diffie-Hellman Group Exchange for the Secure Shell (SSH) Transport Layer Protocol
+.Re

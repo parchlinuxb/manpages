@@ -1,0 +1,138 @@
+'\" t
+.TH "NSS\-MYMACHINES" "8" "" "systemd 261.2" "nss-mymachines"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+nss-mymachines \- تفکیک نام میزبان‌های ماشین‌های مجازی و کانتینرهای محلی
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+libnss_mymachines\&.so\&.2
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBnss\-mymachines\fR
+یک ماژول افزونه برای قابلیت سوئیچ سرویس نام گنو (NSS یا Name Service Switch) در کتابخانه سی گنو (\fBglibc\fR) است که تفکیک نام میزبان را برای نام‌های کانتینرهای در حال اجرای محلی که در
+\fBsystemd-machined.service\fR(8)
+ثبت شده‌اند، فراهم می‌کند\&. نام‌های کانتینرها به نشانی‌های IP آن کانتینر خاص تفکیک می‌شوند که بر اساس دامنه (scope) آن‌ها مرتب شده‌اند\&. این قابلیت تنها برای کانتینرهایی اعمال می‌شود که از فضاهای نام شبکه (network namespacing) استفاده می‌کنند (به توضیحات
+\fB\-\-private\-network\fR
+در
+\fBsystemd-nspawn\fR(1)
+مراجعه کنید)\&. توجه داشته باشید نامی که تفکیک می‌شود همان نامی است که در
+\fBsystemd\-machined\fR
+ثبت شده است، که ممکن است با نام میزبان پیکربندی‌شده درون کانتینر متفاوت باشد\&.
+.PP
+توجه داشته باشید که این ماژول NSS تنها نام کانتینرهایی را در دسترس قرار می‌دهد که مستقیماً زیر بافتار (context) سیستم فعلی در حال اجرا هستند\&. این ماژول تفکیک نام میزبان را برای کانتینرهایی که در کنار بافتار سیستم فراخواننده اجرا می‌شوند، یا کانتینرهایی که در سلسله‌مراتب کانتینرها بالاتر یا پایین‌تر قرار دارند، ارائه نمی‌دهد\&. به عبارت دیگر، روی سیستم میزبان، این ماژول تفکیک نام میزبان را برای کانتینرهایی فراهم می‌کند که مستقیماً در زیر محیط میزبان اجرا می‌شوند\&. با این حال، هنگامی که در یک محیط کانتینری استفاده می‌شود، قادر به تفکیک نام برای کانتینرهای در حال اجرا روی میزبان نخواهد بود (زیرا آن‌ها هم‌سطح هستند و نه فرزند محیط کانتینری فعلی)، بلکه فقط برای کانتینرهای تودرتویی که مستقیماً زیر محیط کانتینری خود اجرا می‌شوند نام را تفکیک می‌کند\&.
+.PP
+برای فعال‌سازی ماژول NSS، عبارت
+"mymachines"
+را به خطی که با
+"hosts:"
+در
+/etc/nsswitch\&.conf
+شروع می‌شود اضافه کنید\&.
+.PP
+توصیه می‌شود که
+"mymachines"
+پیش از مدخل
+"resolve"
+یا
+"dns"
+در خط
+"hosts:"
+پروندهٔ
+/etc/nsswitch\&.conf
+قرار گیرد تا اطمینان حاصل شود که نگاشت‌های آن بر سایر تفکیک‌کننده‌ها مانند DNS ترجیح داده می‌شوند\&.
+.SH "پیکربندی در /ETC/NSSWITCH\&.CONF (CONFIGURATION IN /ETC/NSSWITCH.CONF)"
+.PP
+در اینجا نمونه‌ای از پروندهٔ
+/etc/nsswitch\&.conf
+آورده شده است که
+\fBnss\-mymachines\fR
+را به درستی فعال می‌کند:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+passwd:         files systemd
+group:          files [SUCCESS=merge] systemd
+shadow:         files systemd
+gshadow:        files systemd
+
+hosts:          \fBmymachines\fR resolve [!UNAVAIL=return] files myhostname dns
+networks:       files
+
+protocols:      db files
+services:       db files
+ethers:         db files
+rpc:            db files
+
+netgroup:       nis
+.fi
+.if n \{\
+.RE
+.\}
+.SH "مثال: نگاشت‌های ارائه‌شده توسط NSS\-MYMACHINES (EXAMPLE: MAPPINGS PROVIDED BY NSS-MYMACHINES)"
+.PP
+کانتینر
+"rawhide"
+با استفاده از
+\fBsystemd-nspawn\fR(1)
+ایجاد می‌شود:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# systemd\-nspawn \-M rawhide \-\-boot \-\-network\-veth \-\-private\-users=pick
+Spawning container rawhide on /var/lib/machines/rawhide\&.
+Selected user namespace base 20119552 and range 65536\&.
+\&.\&.\&.
+
+$ machinectl \-\-max\-addresses=3
+MACHINE CLASS     SERVICE        OS     VERSION ADDRESSES
+rawhide container systemd\-nspawn fedora 30      169\&.254\&.40\&.164 fe80::94aa:3aff:fe7b:d4b9
+
+$ ping \-c1 rawhide
+PING rawhide(fe80::94aa:3aff:fe7b:d4b9%ve\-rawhide (fe80::94aa:3aff:fe7b:d4b9%ve\-rawhide)) 56 data bytes
+64 bytes from fe80::94aa:3aff:fe7b:d4b9%ve\-rawhide (fe80::94aa:3aff:fe7b:d4b9%ve\-rawhide): icmp_seq=1 ttl=64 time=0\&.045 ms
+\&.\&.\&.
+$ ping \-c1 \-4 rawhide
+PING rawhide (169\&.254\&.40\&.164) 56(84) bytes of data\&.
+64 bytes from 169\&.254\&.40\&.164 (169\&.254\&.40\&.164): icmp_seq=1 ttl=64 time=0\&.064 ms
+\&.\&.\&.
+
+# machinectl shell rawhide /sbin/ip a
+Connected to machine rawhide\&. Press ^] three times within 1s to exit session\&.
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    \&.\&.\&.
+2: host0@if21: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 96:aa:3a:7b:d4:b9 brd ff:ff:ff:ff:ff:ff link\-netnsid 0
+    inet 169\&.254\&.40\&.164/16 brd 169\&.254\&.255\&.255 scope link host0
+       valid_lft forever preferred_lft forever
+    inet6 fe80::94aa:3aff:fe7b:d4b9/64 scope link
+       valid_lft forever preferred_lft forever
+Connection to machine rawhide terminated\&.
+.fi
+.if n \{\
+.RE
+.\}
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsystemd\fR(1), \fBsystemd-machined.service\fR(8), \fBmachinectl\fR(1), \fBnss-systemd\fR(8), \fBnss-resolve\fR(8), \fBnss-myhostname\fR(8), \fBnsswitch.conf\fR(5), \fBgetent\fR(1)

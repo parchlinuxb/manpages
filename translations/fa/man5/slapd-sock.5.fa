@@ -1,0 +1,319 @@
+.lf 1 "-
+.TH SLAPD-SOCK 5 "2026/03/09" "OpenLDAP 2.6.13"
+.\" Copyright 2007-2026 The OpenLDAP Foundation All Rights Reserved.
+.\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
+.\" $OpenLDAP$
+.SH "نام (NAME)"
+slapd-sock \- بکاند یا روکش سوکت IPC/شبکه برای slapd
+.SH "خلاصه دستور (SYNOPSIS)"
+/etc/openldap/slapd.conf
+.SH "توضیحات (DESCRIPTION)"
+بکاند سوکت (Socket) برای
+.BR slapd (8)
+جهت مدیریت پرس‌وجوها از یک برنامه خارجی استفاده می‌کند که به یک سوکت دامنه یونیکس (Unix domain socket) گوش می‌دهد. این امر امکان داشتن یک استخر (pool) از فرآیندها را فراهم می‌سازد که بین درخواست‌ها پایدار می‌مانند. این موضوع امکان عملیات چندنخی (multithreaded) و سطح بالایی از کارایی را فراهم می‌کند. برنامه خارجی باید به‌طور مستقل راه‌اندازی شده باشد؛
+.BR slapd (8)
+خودش آن را راه‌اندازی نخواهد کرد.
+.PP
+این ماژول همچنین می‌تواند به عنوان یک روکش (overlay) بر روی پایگاه‌های داده دیگر استفاده شود. استفاده به عنوان روکش اجازه می‌دهد اقدامات خارجی در پاسخ به عملیات‌های پایگاه داده اصلی آغاز (trigger) شوند.
+.SH "پیکربندی (CONFIGURATION)"
+این گزینه‌های
+.B slapd.conf
+برای پایگاه داده بکاند SOCK اعمال می‌شوند.
+به این معنا که آن‌ها باید پس از یک خط "database sock" و قبل از هر خط "backend" یا "database" بعدی قرار گیرند.
+سایر گزینه‌های پایگاه داده در صفحه راهنمای
+.BR slapd.conf (5)
+توضیح داده شده‌اند.
+.PP
+همچنین، برای استفاده از این ماژول به عنوان یک روکش (overlay)، این دستورالعمل‌ها باید پس از یک خط "overlay sock" در تعریف یک پایگاه داده موجود قرار گیرند.
+.TP
+.B extensions      [ binddn | peername | ssf | connid ]*
+ارسال ویژگی‌های فراداده (meta-attributes) اضافی را با هر درخواست فعال می‌کند.
+.nf
+binddn: <bound DN>
+peername: IP=<address>:<port>
+ssf: <SSF value>
+connid: <connection ID>
+.fi
+.TP
+.B socketpath      <pathname>
+مسیر یک سوکت دامنه یونیکس را مشخص می‌کند که دستورات به آن ارسال می‌شوند و پاسخ‌ها از آن دریافت می‌گردند.
+.PP
+هنگامی که به عنوان روکش استفاده می‌شود، این دستورالعمل‌های اضافی تعریف می‌شوند:
+.TP
+.B sockops	[ bind | unbind | search | compare | modify | modrdn | add | delete | extended ]*
+مشخص می‌کند کدام انواع درخواست به برنامه خارجی ارسال شوند. حالت پیش‌فرض خالی است (هیچ درخواستی ارسال نمی‌شود).
+.TP
+.B sockresps       [ result | search ]*
+مشخص می‌کند کدام انواع پاسخ به برنامه خارجی ارسال شوند. گزینه "result" تنها نتایج یک عملیات را ارسال می‌کند. گزینه "search" تمام مدخل‌هایی را که پایگاه داده برای یک درخواست جستجو بازگردانده ارسال می‌کند. حالت پیش‌فرض خالی است (هیچ پاسخی ارسال نمی‌شود).
+.TP
+.B sockdnpat	<regexp>
+الگوهای DN را مشخص می‌کند که روکش برای آن‌ها عمل خواهد کرد. تنها عملیات روی DNهایی که با عبارت باقاعده (regular expression) مشخص‌شده مطابقت داشته باشند پردازش خواهند شد. حالت پیش‌فرض خالی است (تمام DNها پردازش می‌شوند).
+
+.SH "پروتکل (PROTOCOL)"
+این پروتکل از یک خط جدید (newline) برای خاتمه دادن به پارامترهای دستور استفاده می‌کند. دستورات زیر ارسال می‌شوند:
+.RS
+.nf
+ADD
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+<entry in LDIF format>
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+BIND
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+dn: <DN>
+method: <method number>
+credlen: <length of <credentials>>
+cred: <credentials>
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+COMPARE
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+dn: <DN>
+<attribute>: <value>
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+DELETE
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+dn: <DN>
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+EXTENDED
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+oid: <OID>
+value: <base64-value>
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+MODIFY
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+dn: <DN>
+<repeat {
+    <"add"/"delete"/"replace">: <attribute>
+    <repeat { <attribute>: <value> }>
+    \-
+}>
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+MODRDN
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+dn: <DN>
+newrdn: <new RDN>
+deleteoldrdn: <0 or 1>
+<if new superior is specified: "newSuperior: <DN>">
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+SEARCH
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+base: <base DN>
+scope: <0-2, see ldap.h>
+deref: <0-3, see ldap.h>
+sizelimit: <size limit>
+timelimit: <time limit>
+filter: <filter>
+attrsonly: <0 or 1>
+attrs: <"all" or space-separated attribute list>
+<blank line>
+.fi
+.RE
+.PP
+.RS
+.nf
+UNBIND
+msgid: <message id>
+<repeat { "suffix:" <database suffix DN> }>
+<blank line>
+.fi
+.RE
+.LP
+دستورات \- به جز
+.B unbind
+\- باید خروجی زیر را داشته باشند:
+.RS
+.nf
+RESULT
+code: <integer>
+matched: <matched DN>
+info: <text>
+.fi
+.RE
+که در آن تنها RESULT اجباری است، و سپس سوکت را ببندند.
+نتیجه
+.B search
+(RESULT) باید پیش از خود مدخل‌ها را در قالب LDIF داشته باشد، که هر مدخل با یک خط خالی دنبال می‌شود.
+خطوطی که با `#' یا `DEBUG:' شروع می‌شوند نادیده گرفته می‌شوند.
+.PP
+هنگامی که به عنوان روکش استفاده می‌شود، برنامه خارجی در صورتی که پردازش درخواست باید به‌طور عادی ادامه یابد، باید پاسخ CONTINUE بازگرداند، یا اگر برنامه خارجی بخواهد پایگاه داده زیرین را دور بزند (بای‌پس کند)، یک پاسخ عادی RESULT برگرداند.
+.PP
+اگر
+.B sockresps
+شامل
+.B result
+یا
+.B search
+باشد، روکش همچنین پیام‌های پاسخ را به برنامه خارجی ارسال خواهد کرد (همچنین بخش
+.B "محدودیت‌های شناخته‌شده"
+را ببینید). این پیام‌ها به ترتیب به شکل یک پیام گسترش‌یافته RESULT یا یک پیام ENTRY ظاهر خواهند شد؛ هر دو در زیر تعریف شده‌اند و انتظار نمی‌رود برنامه به این پیام‌ها پاسخ دهد.
+.PP
+پیام گسترش‌یافته RESULT مشابه پیام بالا است، اما همچنین شامل msgid و هرگونه اکستنشن (extension) پیکربندی‌شده می‌باشد:
+.RS
+.nf
+RESULT
+msgid: <message id>
+code: <integer>
+matched: <matched DN>
+info: <text>
+<blank line>
+.fi
+.RE
+.PP
+معمولاً هم به msgid و هم به connid برای تطبیق پیام نتیجه با یک درخواست نیاز خواهد بود. پیام ENTRY به این شکل است:
+.RS
+.nf
+ENTRY
+msgid: <message id>
+<entry in LDIF format>
+<blank line>
+.fi
+.RE
+
+.SH "محدودیت‌های شناخته‌شده (KNOWN LIMITATIONS)"
+بکاند
+.B sock
+نتایج عملیات‌های گسترش‌یافته (extended operations) از یک برنامه خارجی را پردازش نمی‌کند.
+.PP
+اگر
+.B sockresps
+پیکربندی شده باشد، روکش
+.B sock
+برای تصمیم‌گیری درباره اینکه کدام پاسخ‌ها به برنامه خارجی فرستاده شوند،
+.B sockops
+یا
+.B sockdnpat
+را در نظر نمی‌گیرد؛ در عوض در حال حاضر همه پاسخ‌ها ارسال می‌شوند.
+
+.SH "کنترل دسترسی (ACCESS CONTROL)"
+بکاند
+.B sock
+تمام قواعد معنایی ACL را همان‌طور که در
+.BR slapd.access (5)
+توصیف شده رعایت نمی‌کند. به‌طور کلی، دسترسی به اشیاء با استفاده از یک شیء ساختگی (dummy) که فقط شامل DN است بررسی می‌شود؛ بنابراین قواعد دسترسی که به محتوای شیء متکی هستند رعایت نمی‌شوند.
+به‌طور دقیق:
+.LP
+عملیات
+.B add
+نیازی به دسترسی
+.B write (=w)
+به شبه‌ویژگی (pseudo-attribute)
+.B children
+مدخل والد ندارد.
+.LP
+عملیات
+.B bind
+نیازمند دسترسی
+.B auth (=x)
+به شبه‌ویژگی
+.B entry
+مدخلی است که هویت آن در حال ارزیابی است؛ دسترسی
+.B auth (=x)
+به اعتبارنامه‌ها (credentials) بررسی نمی‌شود، بلکه به برنامه زیرین واگذار می‌گردد.
+.LP
+عملیات
+.B compare
+نیازمند دسترسی
+.B compare (=c)
+به شبه‌ویژگی
+.B entry
+شیئی است که مقدار آن در حال بررسی است؛ دسترسی
+.B compare (=c)
+به ویژگی‌ای که مقدار آن بررسی می‌شود چک نمی‌گردد.
+.LP
+عملیات
+.B delete
+نیازی به دسترسی
+.B write (=w)
+به شبه‌ویژگی
+.B children
+مدخل والد ندارد.
+.LP
+عملیات
+.B modify
+نیازمند دسترسی
+.B write (=w)
+به شبه‌ویژگی
+.B entry
+است؛ دسترسی
+.B write (=w)
+به ویژگی‌های خاصی که تغییر می‌یابند بررسی نمی‌شود.
+.LP
+عملیات
+.B modrdn
+نیازی به دسترسی
+.B write (=w)
+به شبه‌ویژگی
+.B children
+مدخل والد، یا والد جدید در صورت تفاوت ندارد؛ دسترسی
+.B write (=w)
+به مقادیر متمایز ویژگی‌های نام‌گذاری بررسی نمی‌شود.
+.LP
+عملیات
+.B search
+نیازی به دسترسی
+.B search (=s)
+به شبه‌ویژگی
+.B entry
+از searchBase ندارد؛ دسترسی
+.B search (=s)
+به ویژگی‌ها و مقادیر استفاده‌شده در فیلتر بررسی نمی‌شود.
+.LP
+عملیات
+.B extended
+به هیچ حق دسترسی ویژه‌ای نیاز ندارد.
+برنامه خارجی باید هرگونه کنترل دسترسی را خود پیاده‌سازی کند.
+
+.SH "مثال (EXAMPLE)"
+یک اسکریپت نمونه در دایرکتوری slapd/back\-sock/ در درخت سورس‌کد OpenLDAP وجود دارد.
+.SH "فایل‌ها (FILES)"
+.TP
+/etc/openldap/slapd.conf
+فایل پیکربندی پیش‌فرض slapd
+.SH "همچنین ببینید (SEE ALSO)"
+.BR slapd.conf (5),
+.BR slapd\-config (5),
+.BR slapd (8).
+.SH "نویسنده (AUTHOR)"
+Brian Candler، همراه با بهبودهایی توسط Howard Chu

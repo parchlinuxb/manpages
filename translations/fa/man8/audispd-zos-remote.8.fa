@@ -1,0 +1,363 @@
+.\" Copyright (c) International Business Machines  Corp., 2007
+.\"
+.\" This program is free software;  you can redistribute it and/or
+.\" modify it under the terms of the GNU General Public License as
+.\" published by the Free Software Foundation; either version 2 of
+.\" the License, or (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY;  without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
+.\" the GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program;  if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+.\" MA 02111-1307 USA
+.\"
+.\" Changelog:
+.\" 2007-10-06, created by Klaus Heinrich Kiwi <klausk@br.ibm.com>
+.\"
+.TH AUDISPD-ZOS-REMOTE 8 "Oct 2007" "IBM" "ابزارهای مدیریت سیستم"
+.SH "نام (NAME)"
+audispd\-zos\-remote \- افزونه دیسپچر بازرسی سرویس‌های راه دور z/OS
+.SH "خلاصه دستور (SYNOPSIS)"
+.B audispd\-zos\-remote [
+.I config-file
+.B ]
+.SH "توضیحات (DESCRIPTION)"
+.B audispd\-zos\-remote
+یک افزونه بازرسی راه دور برای زیرسیستم بازرسی (Audit) است. این برنامه باید توسط دیمن
+.BR auditd (8)
+راه‌اندازی شود و تمامی رویدادهای بازرسی ورودی را به محض وقوع، از طریق یک سرور
+.B IBM Tivoli Directory Server
+.RB ( ITDS )
+که برای سرویس بازرسی راه دور (Remote Audit) تنظیم شده است، به یک پایگاه داده پیکربندی‌شده
+.B z/OS SMF
+.RB ( "Service Management Facility" )
+ارسال می‌کند. برای اطلاعات بیشتر در مورد قالب رکوردهای حاصل در
+.B SMF
+بخش
+.B "نگاشت SMF (SMF Mapping)"
+در ادامه را مشاهده کنید.
+.PP
+دیمن
+.BR auditd (8)
+باید برای اجرای این افزونه پیکربندی شده باشد. این پیکربندی معمولاً از طریق فایلی در مسیر
+.IR /etc/audit/plugins.d/audispd\-zos\-remote.conf
+انجام می‌شود، اما با ایجاد چندین فایل پیکربندی در
+.I /etc/audit/plugins.d
+برای یک فایل اجرایی افزونه، می‌توان چندین نمونه از آن را به اجرا درآورد (به
+.BR auditd (8)
+مراجعه کنید).
+.PP
+هر نمونه نیازمند یک فایل پیکربندی است که به طور پیش‌فرض در مسیر
+.IR /etc/audit/zos\-remote.conf
+قرار دارد. برای مشاهده جزئیات پیکربندی افزونه، به
+.BR zos\-remote.conf (5)
+مراجعه کنید.
+
+.SH "گزینه‌ها (OPTIONS)"
+.IP config-file
+از یک فایل پیکربندی جایگزین به جای
+.IR /etc/audit/zos\-remote.conf
+استفاده کنید.
+
+.SH "سیگنال‌ها (SIGNALS)"
+.B audispd\-zos\-remote
+به سیگنال‌های
+.B SIGTERM
+و
+.B SIGHUP
+(بر اساس مشخصات
+.BR auditd (8))
+واکنش نشان می‌دهد:
+.TP
+.B SIGHUP
+به افزونه
+.B audispd\-zos\-remote
+دستور می‌دهد تا پیکربندی خود را دوباره بازخوانی کرده و اتصالات شبکه موجود را تخلیه (flush) کند.
+.TP
+.B SIGTERM
+یک خروج پاک و تمیز را انجام می‌دهد. اگر رویدادهایی در صف تحویل وجود داشته باشند،
+.B audispd\-zos\-remote
+حداکثر تا ۱۰ ثانیه برای ارسال آن‌ها منتظر می‌ماند و پس از سپری شدن این زمان، رویدادهای باقی‌مانده در صف را دور می‌ریزد.
+
+.SH "پیکربندی سرور IBM z/OS ITDS و RACF (IBM z/OS ITDS Server and RACF configuration)"
+برای استفاده از این افزونه، باید یک سرور
+.B IBM z/OS v1R8
+(یا بالاتر) داشته باشید که در آن
+.B IBM Tivoli Directory Server
+.RB ( ITDS )
+برای سرویس بازرسی راه دور پیکربندی شده باشد. برای دریافت اطلاعات دقیق‌تر در مورد نحوه پیکربندی سرور
+.B z/OS
+جهت بازرسی راه دور، به راهنمای
+.B z/OS V1R8.0-9.0 Integrated Security Services Enterprise Identity Mapping (EIM) Guide and Reference
+.nf
+.RI ( http://publibz.boulder.ibm.com/cgi\-bin/bookmgr_OS390/FRAMESET/EIMA1140/CCONTENTS?DT=20070827115119 )،
+فصل "2.0 - Working with remote services" مراجعه کنید.
+.fi
+
+.SS "فعال‌سازی ITDS برای پردازش درخواست‌های بازرسی راه دور (Enable ITDS to process Remote Audit requests)"
+برای فعال‌سازی
+.B ITDS
+جهت پردازش درخواست‌های بازرسی راه دور، شناسه کاربری مرتبط با
+.B ITDS
+باید دسترسی
+.B READ
+به پروفایل کلاس
+.B FACILITY
+با نام
+.B IRR.AUDITX
+(پروفایلی که برای محافظت از سرویس
+.B R_Auditx
+استفاده می‌شود) داشته باشد. این شناسه کاربری معمولاً در پروفایل کلاس
+.B STARTED
+برای رویه آغازشده (started procedure) مربوط به
+.B ITDS
+یافت می‌شود. اگر هویت مرتبط با
+.B ITDS
+شناسه
+.I ITDSUSER
+باشد، مدیر سیستم می‌تواند با استفاده از دستورات
+.B TSO
+زیر،
+.B RACF
+را برای اعطای دسترسی پردازش بازرسی راه دور به
+.B ITDS
+پیکربندی کند:
+.TP
+.I TSO Commands: اعطای دسترسی READ به ITDSUSER برای پروفایل کلاس FACILITY با نام IRR.AUDITX
+.nf
+rdefine FACILITY IRR.RAUDITX uacc(none)
+permit IRR.RAUDITX class(FACILITY) id(ITDSUSER) access(READ)
+.fi
+
+.SS "ایجاد/فعال‌سازی شناسه کاربری RACF برای انجام درخواست‌های بازرسی راه دور (Create/enable RACF user ID to perform Remote Audit requests)"
+یک شناسه کاربری
+.B z/OS RACF
+مورد نیاز افزونه است؛ هر درخواست بازرسی انجام‌شده توسط افزونه از یک شناسه کاربری
+.B RACF
+(مطابق آنچه در فایل پیکربندی افزونه
+.BR zos\-remote.conf (5)
+تعیین شده است) استفاده خواهد کرد. این شناسه کاربری نیازمند دسترسی
+.B READ
+به منبع کلاس
+.B FACILITY
+با نام
+.B IRR.LDAP.REMOTE.AUDIT
+است. اگر شناسه کاربری
+.I BINDUSER
+باشد، مدیر سیستم می‌تواند با استفاده از دستورات
+.B TSO
+زیر،
+.B RACF
+را برای فعال‌سازی این کاربر جهت انجام درخواست‌های بازرسی راه دور پیکربندی کند:
+.TP
+.I TSO Commands: فعال‌سازی BINDUSER جهت انجام درخواست‌های بازرسی راه دور
+.nf
+rdefine FACILITY IRR.LDAP.REMOTE.AUDIT uacc(none)
+permit IRR.LDAP.REMOTE.AUDIT class(FACILITY) id(BINDUSER) access(READ)
+.fi
+
+.SS "افزودن کلاس @LINUX به RACF (Add @LINUX Class to RACF)"
+هنگام انجام درخواست‌های بازرسی راه دور، افزونه
+.B audispd\-zos\-remote
+از کلاس ویژه
+.B @LINUX
+به عنوان
+.I CDT Class
+و از نوع رکورد بازرسی (مانند
+.BR SYSCALL ،
+.BR AVC ،
+.BR PATH
+و...) به عنوان
+.I CDT Resource Class
+برای تمامی رویدادهای پردازش‌شده استفاده خواهد کرد.
+برای اطمینان از ثبت رویدادها، سرور
+.B RACF
+باید با یک کلاس
+.B Dynamic CDT
+به نام
+.B @LINUX
+با اندازه‌ها و ویژگی‌های صحیح پیکربندی شود. دستورات
+.B TSO
+زیر می‌توانند برای افزودن این کلاس استفاده شوند:
+.TP
+.I TSO Commands: افزودن کلاس CDT با نام @LINUX
+.nf
+rdefine cdt @LINUX cdtinfo(posit(493) FIRST(alpha,national,numeric,special) OTHER(alpha,national,numeric,special) RACLIST(REQUIRED) case(asis) generic(allowed) defaultuacc(none) maxlength(246))
+setr classact(cdt)
+setr raclist(cdt)
+setr raclist(cdt) refresh
+setr classact(@LINUX)
+setr raclist(@LINUX)
+setr generic(@LINUX)
+.fi
+
+.SS "افزودن پروفایل‌ها به کلاس @LINUX (Add profiles to the @LINUX Class)"
+پس از تعریف کلاس
+.BR CDT ،
+می‌توانید پروفایل‌هایی به آن بیفزایید و منابعی را برای ثبت یا نادیده‌گرفتن مشخص کنید (استفاده از کاراکترهای عام یا wildcards مجاز است). موارد زیر نمونه‌هایی از این دستورات هستند:
+.TP
+.I TSO Commands: تنها ثبت رکوردهای AVC (یک پروفایل عمومی و یک پروفایل مجزا):
+.nf
+rdefine @LINUX * uacc(none) audit(none(read))
+rdefine @LINUX AVC uacc(none) audit(all(read))
+setr raclist(@LINUX) refresh
+.fi
+
+.TP
+.I TSO Commands: ثبت همه موارد (یک پروفایل عمومی):
+.nf
+rdefine @LINUX * uacc(none) audit(all(read))
+setr raclist(@LINUX) refresh
+.fi
+
+.PP
+منابع همیشه با تک‌پروفایلی که
+.I بهترین
+تطابق (best match) را داشته باشد مطابقت داده می‌شوند.
+.PP
+روش‌های بسیار دیگری نیز برای تعریف ثبت لاگ در
+.B RACF
+وجود دارد. لطفاً برای جزئیات بیشتر به مستندات سرور مراجعه فرمایید.
+
+.SH "نگاشت SMF (SMF Mapping)"
+سرویس بازرسی راه دور
+.B ITDS
+هر بار که درخواستی را پردازش می‌کند، رکوردهای
+.B SMF
+نوع ۸۳ زیرنوع ۴ را صادر می‌کند. این افزونه برای هر رکورد بازرسی ورودی لینوکس یک درخواست بازرسی راه دور ارسال می‌کند (بدین معنا که یک رکورد لینوکس به یک رکورد
+.B SMF
+نگاشت خواهد شد)، و رکوردهای این نوع را با اطلاعات زیر پر می‌کند:
+.SS "مقدار پیوند (Link Value)"
+شماره سریال رویداد لینوکس، کدگذاری‌شده در نمایش هگزادسیمال با ترتیب بایت‌های شبکه (network-byte order). رکوردهای موجود در یک رویداد یکسان، مقدار پیوند مشترکی دارند.
+.SS "نقض (Violation)"
+همیشه صفر (0) \-
+.I False
+.SS "کد رویداد (Event Code)"
+همیشه دو (2) \- رویداد
+.I Authorization
+(مجوزدهی)
+.SS "توصیف‌کننده رویداد (Event Qualifier)"
+صفر (0) \-
+.IR Success ،
+اگر رویداد
+.B success=yes
+یا
+.B res=success
+را گزارش کرده باشد؛
+سه (3) \-
+.IR Fail ،
+اگر رویداد
+.B success=no
+یا
+.B res=failed
+را گزارش کرده باشد؛
+یا یک (1) \-
+.I Info
+در غیر این صورت.
+.SS "کلاس (Class)"
+همیشه
+.I @LINUX
+.SS "منبع (Resource)"
+نوع رکورد لینوکس برای رکورد پردازش‌شده؛ مانند:
+.IR SYSCALL ، AVC ، PATH ، CWD
+و غیره.
+.SS "رشته لاگ (Log String)"
+پیام متنی شامل شناسه کاربری
+.B RACF
+مورد استفاده برای انجام درخواست، به همراه نام میزبان لینوکس و نوع رکورد برای نخستین رکورد در رویداد پردازش‌شده؛ به عنوان مثال:
+.I Remote audit request from RACFUSER. Linux (hostname.localdomain):USER_AUTH
+.SS "فهرست فیلدهای داده (Data Field List)"
+همچنین با عنوان
+.I relocates
+شناخته می‌شود؛ این فهرست تمامی نام‌ها و مقادیر فیلدها را در قالب
+.B fieldname=value
+به عنوان یک
+.I relocate
+نوع ۱۱۴
+.RB ( "Application specific Data" )
+ارائه می‌دهد. این افزونه تا جای ممکن تلاش می‌کند تا آن فیلدها را تفسیر کند (به عنوان مثال، استفاده از نام کاربری خوانا برای انسان مانند
+.B root
+به جای شناسه کاربری عددی
+.BR 0 ).
+در حال حاضر، این افزونه همچنین یک
+.I relocate
+نوع ۱۱۳
+.RB ( "Date And Time Security Event Occurred" )
+را به همراه مهر زمانی رویداد در قالبی که توسط
+.BR ctime (3)
+بازگردانده می‌شود، اضافه می‌کند.
+
+.SH "خطاها (ERRORS)"
+خطاها و هشدارها به
+.B syslog
+(تحت تسهیلات
+.BR DAEMON )
+گزارش می‌شوند. در مواردی که رویداد ارسال شده باشد اما سرور
+.B z/OS
+یک وضعیت خطا برگرداند، پیام ثبت‌شده حاوی یک نام و به دنبال آن توضیحی خوانا برای انسان است. در ادامه برخی از شرایط متداول خطا آورده شده است:
+
+.TP
+.B NOTREQ \- No logging required
+منبع (نوع رکورد بازرسی) برای ثبت در سرور
+.B RACF
+تنظیم نشده است \- پروفایل کلاس
+.B @LINUX
+که بر این نوع رکورد بازرسی نظارت دارد، روی نادیده‌گرفتن تنظیم شده است. بخش
+.B "پیکربندی سرور IBM z/OS ITDS و RACF (IBM z/OS ITDS Server and RACF configuration)"
+را ببینید.
+.TP
+.B UNDETERMINED \- Undetermined result
+هیچ پروفایلی برای منبع مشخص‌شده یافت نشد. کلاس
+.B @LINUX
+پیکربندی نشده است یا هیچ پروفایل کلاس
+.B @LINUX
+مرتبط با این نوع رکورد بازرسی وجود ندارد. بخش
+.B "پیکربندی سرور IBM z/OS ITDS و RACF (IBM z/OS ITDS Server and RACF configuration)"
+را ببینید.
+.TP
+.B UNAUTHORIZED \- The user does not have authority the R_auditx service
+شناسه کاربری مرتبط با
+.B ITDS
+دسترسی
+.B READ
+به پروفایل کلاس
+.B FACILITY
+با نام
+.B IRR.AUDITX
+را ندارد. بخش
+.B "پیکربندی سرور IBM z/OS ITDS و RACF (IBM z/OS ITDS Server and RACF configuration)"
+را ببینید.
+.TP
+.B UNSUF_AUTH \- The user has insufficient authority for the requested function
+شناسه کاربری
+.B RACF
+مورد استفاده برای انجام درخواست‌های بازرسی راه دور (مطابق آنچه در
+.BR zos\-remote.conf (5)
+پیکربندی شده است) به پروفایل کلاس
+.B FACILITY
+با نام
+.B IRR.LDAP.REMOTE.AUDIT
+دسترسی ندارد. بخش
+.B "پیکربندی سرور IBM z/OS ITDS و RACF (IBM z/OS ITDS Server and RACF configuration)"
+را ببینید.
+
+.SH "اشکالات شناخته‌شده (BUGS)"
+این افزونه در حال حاضر بازرسی راه دور را بر اساس بهترین تلاش ممکن (best-effort) انجام می‌دهد، و در صورتی که ارتباط با سرور
+.B z/OS
+میسر نباشد (خطاهای شبکه) یا در هر وضعیت دیگری که ارسال رویداد ناموفق باشد، رویدادها را دور می‌ریزد.
+
+.SH "فایل‌ها (FILES)"
+.I /etc/audit/plugins.d/audispd\-zos\-remote.conf
+.br
+.I /etc/audit/zos\-remote.conf
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR auditd (8)،
+.BR zos\-remote.conf (5).
+
+.SH "نویسنده (AUTHOR)"
+Klaus Heinrich Kiwi <klausk@br.ibm.com>

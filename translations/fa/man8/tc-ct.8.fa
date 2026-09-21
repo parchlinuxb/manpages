@@ -1,0 +1,127 @@
+.TH "ct action in tc" 8 "14 May 2020" "iproute2" "Linux"
+.SH "نام (NAME)"
+tc-ct \- اکشن رهگیری اتصال در ابزار کنترل ترافیک (tc)
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR "tc ... action ct commit [ force ] [ zone "
+.IR ZONE
+.BR "] [ mark "
+.IR MASKED_MARK
+.BR "] [ label "
+.IR MASKED_LABEL
+.BR "] [ nat "
+.IR NAT_SPEC
+.BR "]"
+
+.ti -8
+.BR "tc ... action ct [ nat ] [ zone "
+.IR ZONE
+.BR "]"
+
+.ti -8
+.BR "tc ... action ct clear"
+
+.SH "توضیحات (DESCRIPTION)"
+اکشن
+.B ct
+یک اکشن در ابزار
+.B tc
+برای ارسال بسته‌ها و تعامل با ماژول رهگیری اتصال
+.RB ( conntrack )
+در نت‌فیلتر (netfilter) است.
+.PP
+این اکشن می‌تواند (همان‌طور که در خلاصه دستور و به ترتیب نشان داده شده است) کارهای زیر را انجام دهد:
+.PP
+ارسال بسته به
+.B conntrack
+و ثبت
+.RB ( commit )
+اتصال، در حالی که یک نشان
+.RB ( mark )
+۳۲ بیتی، یک برچسب
+.RB ( label )
+۱۲۸ بیتی و NAT مبدأ/مقصد را پیکربندی می‌کند.
+.PP
+ارسال بسته به
+.B conntrack
+که بسته را با وضعیت اتصال و فراداده‌های پیکربندی‌شده
+.RB ( mark / label )
+علامت‌گذاری کرده و NAT پیکربندی‌شده قبلی را اجرا می‌کند.
+.PP
+پاک‌سازی وضعیت قبلی رهگیری اتصال در بسته.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.BI zone " ZONE"
+مشخص کردن شماره ناحیه (zone) در conntrack که بسته باید از طریق آن به conntrack فرستاده شود.
+.TP
+.BI mark " MASKED_MARK"
+مشخص کردن یک نشان (mark) ۳۲ بیتی ماسک‌شده برای تنظیم روی اتصال (تنها همراه با
+.B commit
+معتبر است).
+.TP
+.BI label " MASKED_LABEL"
+مشخص کردن یک برچسب (label) ۱۲۸ بیتی ماسک‌شده برای تنظیم روی اتصال (تنها همراه با
+.B commit
+معتبر است).
+.TP
+.BI nat " NAT_SPEC"
+\fBکه در آن\fR \fINAT_SPEC\fR \fB:= {src|dst} addr\fR \fIaddr1\fR[\fB\-\fR\fIaddr2\fR] [\fBport\fR \fIport1\fR[\fB\-\fR\fIport2\fR]]
+.sp
+مشخص کردن مبدأ/مقصد و محدوده nat برای پیکربندی روی اتصال (تنها همراه با
+.B commit
+معتبر است).
+.RS
+.TP
+.BR src / dst
+پیکربندی nat مبدأ (src) یا مقصد (dst).
+.TP
+.BI "" "addr1" "/" "addr2" " \- آدرس‌های IPv4/IPv6"
+.TP
+.BI "" "port1" "/" "port2" " \- شماره پورت‌ها"
+.RE
+.TP
+.BI nat
+بازیابی هرگونه nat پیکربندی‌شده قبلی.
+.TP
+.BI clear
+حذف هرگونه وضعیت conntrack و فراداده (mark/label) از بسته (باید تنها گزینه مشخص‌شده باشد).
+.TP
+.BI force
+اجبار جهت conntrack برای اتصالات از پیش ثبت‌شده، به طوری که جهت فعلی به جهت اصلی تبدیل شود (تنها همراه با
+.B commit
+معتبر است).
+
+.SH "مثال‌ها (EXAMPLES)"
+نمونه‌ای که دیوار آتش با قابلیت NAT را در ناحیه ۲ conntrack و نحوه استفاده از conntrack mark نشان می‌دهد:
+.EX
+# افزودن qdisc ورودی (ingress) روی رابط‌های eth0 و eth1
+$ tc qdisc add dev eth0 ingress
+$ tc qdisc add dev eth1 ingress
+
+# تنظیم فیلترها روی eth0؛ اجازه باز کردن اتصالات جدید در ناحیه ۲ و انجام src nat + mark برای هر اتصال جدید
+$ tc filter add dev eth0 ingress prio 1 chain 0 proto ip flower ip_proto tcp ct_state -trk \\
+action ct zone 2 pipe action goto chain 2
+$ tc filter add dev eth0 ingress prio 1 chain 2 proto ip flower ct_state +trk+new \\
+action ct zone 2 commit mark 0xbb nat src addr 5.5.5.7 pipe action mirred egress redirect dev eth1
+$ tc filter add dev eth0 ingress prio 1 chain 2 proto ip flower ct_zone 2 ct_mark 0xbb ct_state +trk+est \\
+action ct nat pipe action mirred egress redirect dev eth1
+
+# تنظیم فیلترها روی eth1؛ تنها اجازه عبور اتصالات برقرار شده ناحیه ۲ و NAT معکوس (در این مورد dst nat)
+$ tc filter add dev eth1 ingress prio 1 chain 0 proto ip flower ip_proto tcp ct_state -trk \\
+action ct zone 2 pipe action goto chain 1
+$ tc filter add dev eth1 ingress prio 1 chain 1 proto ip flower ct_zone 2 ct_mark 0xbb ct_state +trk+est \\
+action ct nat pipe action mirred egress redirect dev eth0
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-flower (8),
+.BR tc-mirred (8)
+.SH "نویسندگان (AUTHORS)"
+Paul Blakey <paulb@mellanox.com>
+.PP
+Marcelo Ricardo Leitner <marcelo.leitner@gmail.com>
+.PP
+Yossi Kuperman <yossiku@mellanox.com>

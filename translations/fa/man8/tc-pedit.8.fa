@@ -1,0 +1,389 @@
+.TH "Generic packet editor action in tc" 8 "12 Jan 2015" "iproute2" "Linux"
+
+.SH "نام (NAME)"
+tc-pedit \- اکشن عمومی ویرایش بسته
+.SH "خلاصه دستور (SYNOPSIS)"
+.in +8
+.ti -8
+.BR tc " ... " "action pedit [ex] munge " {
+.IR RAW_OP " | " LAYERED_OP " | " EXTENDED_LAYERED_OP " } [ " CONTROL " ]"
+
+.ti -8
+.IR RAW_OP " := "
+.BI offset " OFFSET"
+.RB "{ " u8 " | " u16 " | " u32 " } ["
+.IR AT_SPEC " ] " CMD_SPEC
+
+.ti -8
+.IR AT_SPEC " := "
+.BI at " AT " offmask " MASK " shift " SHIFT"
+
+.ti -8
+.IR LAYERED_OP " := { "
+.BI ip " IPHDR_FIELD"
+|
+.BI ip " BEYOND_IPHDR_FIELD"
+.RI } " CMD_SPEC"
+
+.ti -8
+.IR EXTENDED_LAYERED_OP " := { "
+.BI eth " ETHHDR_FIELD"
+|
+.BI ip " IPHDR_FIELD"
+|
+.BI ip " EX_IPHDR_FIELD"
+|
+.BI ip6 " IP6HDR_FIELD"
+|
+.BI tcp " TCPHDR_FIELD"
+|
+.BI udp " UDPHDR_FIELD"
+.RI } " CMD_SPEC"
+
+.ti -8
+.IR ETHHDR_FIELD " := { "
+.BR src " | " dst " | " type " }"
+
+.ti -8
+.IR IPHDR_FIELD " := { "
+.BR src " | " dst " | " tos " | " dsfield " | " ihl " | " protocol " |"
+.BR precedence " | " nofrag " | " firstfrag " | " ce " | " df " }"
+
+.ti -8
+.IR BEYOND_IPHDR_FIELD " := { "
+.BR dport " | " sport " | " icmp_type " | " icmp_code " }"
+
+.ti -8
+.IR EX_IPHDR_FIELD " := { "
+.BR ttl " }"
+
+
+.ti -8
+.IR IP6HDR_FIELD " := { "
+.BR src " | " dst " | " traffic_class " | " flow_lbl " | " payload_len " | "
+.BR nexthdr " | " hoplimit " }"
+
+.ti -8
+.IR TCPHDR_FIELD " := { "
+.BR sport " | " dport " | " flags " }"
+
+.ti -8
+.IR UDPHDR_FIELD " := { "
+.BR sport " | " dport " }"
+
+.ti -8
+.IR CMD_SPEC " := {"
+.BR clear " | " invert " | " set
+.IR VAL " | "
+.BR add
+.IR VAL " | "
+.BR decrement " | "
+.BR preserve " } [ " retain
+.IR RVAL " ]"
+
+.ti -8
+.IR CONTROL " := {"
+.BR reclassify " | " pipe " | " drop " | " shot " | " continue " | " pass " | " goto " " chain " " CHAIN_INDEX " }"
+.SH "توضیحات (DESCRIPTION)"
+کنش
+.B pedit
+می‌تواند برای تغییر داده‌های دلخواه بسته استفاده شود. موقعیت داده‌ای که باید تغییر یابد، می‌تواند با تعیین یک آفست و اندازه همانند
+.IR RAW_OP
+مشخص شود، یا برای مقادیر سرایند (header) با ذکر نام سرایند و فیلدی که باید ویرایش شود تعیین گردد؛ در این صورت اندازه به صورت خودکار بر اساس اندازه فیلد سرایند انتخاب می‌شود.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B ex
+استفاده از حالت گسترش‌یافته pedit.
+عملگر
+.I EXTENDED_LAYERED_OP
+و مقادیر add/decrement در
+.I CMD_SPEC
+تنها در این حالت مجاز هستند.
+.TP
+.BI offset " OFFSET " "\fR{ \fBu32 \fR| \fBu16 \fR| \fBu8 \fR}"
+تعیین آفست (انحراف) محلی که داده‌ها باید تغییر کنند.
+.I OFFSET
+یک عدد صحیح دارای علامت است و مبنای عددی آن به طور خودکار انتخاب می‌شود (برای نمونه هگزادسیمال در صورت داشتن پیشوند
+.B 0x
+یا هشت‌هشتی در صورت داشتن پیشوند
+.BR 0 ).
+آرگومان دوم طول داده‌ای که باید تغییر کند را تعیین می‌کند، یعنی چهار بایت
+.RB ( u32 )،
+دو بایت
+.RB ( u16 )
+یا یک بایت
+.RB ( u8 ).
+.TP
+.BI at " AT " offmask " MASK " shift " SHIFT"
+این یک بخش اختیاری از
+.IR RAW_OP
+است که امکان داشتن یک
+.I OFFSET
+متغیر را بر اساس داده‌های بسته در آفست
+.IR AT
+فراهم می‌کند؛ این مقدار با
+.I MASK
+عملیات AND بیتی شده و پیش از اضافه شدن به
+.IR OFFSET ،
+به اندازه
+.I SHIFT
+به سمت راست شیفت داده می‌شود.
+.TP
+.BI eth " ETHHDR_FIELD"
+تغییر یک فیلد سرایند اترنت (ETH). کلیدواژه‌های پشتیبانی‌شده برای
+.I ETHHDR_FIELD
+عبارتند از:
+.RS
+.TP
+.B src
+.TQ
+.B dst
+آدرس MAC مبدأ یا مقصد در فرمت استاندارد: XX:XX:XX:XX:XX:XX
+.TP
+.B type
+مقدار عددی نوع اترنت (Ether-type).
+.RE
+.TP
+.BI ip " IPHDR_FIELD"
+تغییر یک فیلد سرایند IPv4. کلیدواژه‌های پشتیبانی‌شده برای
+.I IPHDR_FIELD
+عبارتند از:
+.RS
+.TP
+.B src
+.TQ
+.B dst
+آدرس IP مبدأ یا مقصد، یک مقدار چهار بایتی.
+.TP
+.B tos
+.TQ
+.B dsfield
+.TQ
+.B precedence
+فیلد نوع سرویس (Type Of Service)، یک مقدار هشت بیتی.
+.TP
+.B ihl
+تغییر فیلد طول سرایند آی‌پی (IP Header Length)، یک مقدار چهار بیتی.
+.TP
+.B protocol
+فیلد پروتکل لایه بعدی (Next-layer Protocol)، یک مقدار هشت بیتی.
+.TP
+.B nofrag
+.TQ
+.B firstfrag
+.TQ
+.B ce
+.TQ
+.B df
+.TQ
+.B mf
+تغییر فلگ‌های سرایند IP. توجه داشته باشید مقداری که به دستور
+.B set
+داده می‌شود فقط مقدار یک بیت نیست، بلکه کل بایت شامل فیلد فلگ‌ها است؛ با این حال تنها بیت‌های مربوط به آن مقدار در نظر گرفته شده و بقیه نادیده گرفته می‌شوند.
+.RE
+.TP
+.BI ip " BEYOND_IPHDR_FIELD"
+تنها برای عملیات‌های لایه‌ای غیرگسترش‌یافته (non-extended) پشتیبانی می‌شود. این به عنوان آفست‌های نسبی نسبت به ابتدای سرایند IP به هسته ارسال می‌شود و فرض می‌کند سرایند IP دارای حداقل اندازه (۲۰ بایت) است. کلیدواژه‌های پشتیبانی‌شده برای
+.I BEYOND_IPHDR_FIELD
+عبارتند از:
+.RS
+.TP
+.B dport
+.TQ
+.B sport
+شماره پورت‌های مقصد یا مبدأ، یک مقدار ۱۶ بیتی. در واقع، سرایندهای IPv4 این اطلاعات را در بر ندارند؛ در عوض، این گزینه آفستی را تنظیم می‌کند که اگر سرایند IP حداقل اندازه (۲۰ بایت) را داشته باشد، حداقل برای TCP و UDP مناسب است. در غیر این صورت، رفتارهای غیرمنتظره‌ای رخ خواهد داد.
+.TP
+.B icmp_type
+.TQ
+.B icmp_code
+مجدداً، این گزینه امکان تغییر داده‌های فراتر از خود سرایند واقعی IP را فراهم می‌کند. فرض بر این است که یک سرایند ICMP بلافاصله پس از سرایند IP (با اندازه کمینه) قرار گرفته است. اگر چنین نباشد یا سرایند IP بزرگ‌تر از اندازه کمینه ۲۰ بایت باشد، رفتارهای غیرمنتظره‌ای رخ خواهد داد. این فیلدها مقادیر هشت بیتی هستند.
+.RE
+.TP
+.BI ip " EX_IPHDR_FIELD"
+تنها زمانی که
+.I ex
+به کار رفته باشد پشتیبانی می‌شود. کلیدواژه‌های پشتیبانی‌شده برای
+.I EX_IPHDR_FIELD
+عبارتند از:
+.RS
+.TP
+.B ttl
+.RE
+.TP
+.BI ip6 " IP6HDR_FIELD"
+کلیدواژه‌های پشتیبانی‌شده برای
+.I IP6HDR_FIELD
+عبارتند از:
+.RS
+.TP
+.B src
+.TQ
+.B dst
+.TQ
+.B traffic_class
+.TQ
+.B flow_lbl
+.TQ
+.B payload_len
+.TQ
+.B nexthdr
+.TQ
+.B hoplimit
+.RE
+.TP
+.BI tcp " TCPHDR_FIELD"
+کلیدواژه‌های پشتیبانی‌شده برای
+.I TCPHDR_FIELD
+عبارتند از:
+.RS
+.TP
+.B sport
+.TQ
+.B dport
+شماره پورت مبدأ یا مقصد TCP، یک مقدار ۱۶ بیتی.
+.TP
+.B flags
+.RE
+.TP
+.BI udp " UDPHDR_FIELD"
+کلیدواژه‌های پشتیبانی‌شده برای
+.I UDPHDR_FIELD
+عبارتند از:
+.RS
+.TP
+.B sport
+.TQ
+.B dport
+شماره پورت مبدأ یا مقصد UDP، یک مقدار ۱۶ بیتی.
+.RE
+.TP
+.B clear
+پاک‌سازی داده‌های آدرس‌دهی شده (یعنی صفر کردن آن‌ها).
+.TP
+.B invert
+معکوس کردن تمام بیت‌ها در داده‌های آدرس‌دهی شده.
+.TP
+.BI set " VAL"
+تنظیم داده‌های آدرس‌دهی شده روی یک مقدار مشخص. اندازه
+.I VAL
+توسط یکی از کلیدواژه‌های
+.BR u32 "، " u16 " یا " u8
+در
+.IR RAW_OP
+یا اندازه فیلد سرایند آدرس‌دهی شده در
+.IR LAYERED_OP
+تعیین می‌شود.
+.TP
+.BI add " VAL"
+افزودن یک مقدار مشخص به داده‌های آدرس‌دهی شده. اندازه
+.I VAL
+توسط اندازه فیلد سرایند آدرس‌دهی شده در
+.IR EXTENDED_LAYERED_OP
+تعیین می‌شود. این عملیات فقط برای عملیات‌های لایه‌ای گسترش‌یافته (extended layered op) پشتیبانی می‌شود.
+.TP
+.BI decrement
+کاهش یک واحدی داده‌های آدرس‌دهی شده.
+این عملیات فقط برای
+.BR ip " " ttl " و " ip6 " " hoplimit "."
+پشتیبانی می‌شود.
+.TP
+.B preserve
+دست‌نخورده نگه داشتن داده‌های آدرس‌دهی شده.
+.TP
+.BI retain " RVAL"
+این بخش اختیاری اضافه در
+.I CMD_SPEC
+امکان مستثنی کردن بیت‌ها از تغییر را فراهم می‌کند. تنها برای فیلدهای ۳۲ بیتی یا کوچک‌تر پشتیبانی می‌شود.
+.TP
+.I CONTROL
+کلیدواژه‌های زیر به شما اجازه می‌دهند کنترل کنید که پس از این اکشن، درخت qdiscها، کلاس‌ها، فیلترها و اکشن‌ها چگونه پیمایش شوند.
+.RS
+.TP
+.B reclassify
+شروع مجدد از اولین فیلتر در فهرست فعلی.
+.TP
+.B pipe
+ادامه کار با اکشن بعدی متصل به همان فیلتر.
+.TP
+.B drop
+.TQ
+.B shot
+دور انداختن بسته.
+.TP
+.B continue
+ادامه دسته‌بندی با فیلتر بعدی در صف.
+.TP
+.B pass
+پایان فرآیند دسته‌بندی و بازگشت به qdisc فراخوان برای پردازش‌های بعدی بسته. این حالت پیش‌فرض است.
+.RE
+.SH "مثال‌ها (EXAMPLES)"
+با داشتن امکان ویرایش داده‌های بسته، می‌توان کارهای متنوعی انجام داد؛ به عنوان نمونه پیاده‌سازی تغییر مسیر پورت (port redirection). مسلماً این کاربردی‌ترین مورد استفاده نیست، اما به عنوان یک مثال مناسب خواهد بود:
+.PP
+ابتدا، لازم است qdiscها برای اتصال فیلترها به آن‌ها راه‌اندازی شوند. برای مسیر دریافت، یک qdisc ساده
+.B ingress
+کفایت می‌کند، و برای مسیر ارسال یک qdisc دارای کلاس
+.RB ( HTB
+در این مورد) مورد نیاز است:
+
+.RS
+.EX
+tc qdisc replace dev eth0 root handle 1: htb
+tc qdisc add dev eth0 ingress handle ffff:
+.EE
+.RE
+
+در نهایت، یک فیلتر به همراه اکشن
+.B pedit
+می‌تواند برای هر مسیر اضافه شود. در این مورد، فیلتر
+.B u32
+برای تطبیق روی شماره پورت جهت تغییر مسیر استفاده شده است، در حالی که
+.B pedit
+بازنویسی واقعی داده را انجام می‌دهد:
+
+.RS
+.EX
+tc filter add dev eth0 parent 1: u32 \\
+	match ip dport 23 0xffff \\
+	action pedit pedit munge ip dport set 22
+tc filter add dev eth0 parent ffff: u32 \\
+	match ip sport 22 0xffff \\
+	action pedit pedit munge ip sport set 23
+tc filter add dev eth0 parent ffff: u32 \\
+	match ip sport 22 0xffff \\
+	action pedit ex munge ip dst set 192.168.1.199
+tc filter add dev eth0 parent ffff: u32 \\
+	match ip sport 22 0xffff \\
+	action pedit ex munge ip6 dst set fe80::dacb:8aff:fec7:320e
+tc filter add dev eth0 parent ffff: u32 \\
+	match ip sport 22 0xffff \\
+	action pedit ex munge eth dst set 11:22:33:44:55:66
+tc filter add dev eth0 parent ffff: u32 \\
+	match ip dport 23 0xffff \\
+	action pedit ex munge tcp dport set 22
+.EE
+.RE
+
+برای بازنویسی تنها بخشی از یک فیلد، از دستورالعمل
+.B retain
+استفاده کنید. به عنوان مثال برای رونویسی بخش DSCP از یک فیلد dsfield با $DSCP، بدون دستکاری ECN:
+
+.RS
+.EX
+tc filter add dev eth0 ingress flower ... \\
+	action pedit ex munge ip dsfield set $((DSCP << 2)) retain 0xfc
+.EE
+.RE
+
+و برعکس، برای تنظیم ECN مثلاً به مقدار 1 بدون تأثیر گذاشتن روی DSCP:
+
+.RS
+.EX
+tc filter add dev eth0 ingress flower ... \\
+	action pedit ex munge ip dsfield set 1 retain 0x3
+.EE
+.RE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR tc (8),
+.BR tc-htb (8),
+.BR tc-u32 (8)

@@ -1,0 +1,115 @@
+.nh
+.TH containers-auth.json 5
+
+.SH "نام (NAME)"
+containers-auth.json \- نحو و ساختار فایل احراز هویت رجیستری کانتینر
+
+
+.SH "توضیحات (DESCRIPTION)"
+فایلی در قالب JSON که احراز هویت در رجیستری‌های ایمیج کانتینر را کنترل می‌کند.
+فایل اصلی (خواندنی/نوشتنی) در لینوکس در مسیر \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR
+و در ویندوز و macOS در \fB$HOME/.config/containers/auth.json\fR ذخیره می‌شود\&.
+
+.PP
+هنگام جستجو برای اطلاعات احراز هویت یک رجیستری، فایل‌های زیر به ترتیب خوانده می‌شوند تا زمانی که اعتبار معتبر یافت شود:
+ابتدا فایل اصلی (خواندنی/نوشتنی)، یا بازنویسی صریح با استفاده از یک گزینه در برنامه فراخوان.
+اگر اطلاعات احراز هویت در آنجا موجود نباشد،
+جستجو در \fB${XDG_CONFIG_HOME}/containers/auth.json\fR (معمولاً \fB~/.config/containers/auth.json\fR)، \fB$HOME/.docker/config.json\fR، و \fB$HOME/.dockercfg\fR ادامه می‌یابد\&.
+
+.PP
+به جز فایل اصلی (خواندنی/نوشتنی)، سایر فایل‌ها فقط‌خواندنی هستند مگر اینکه کاربر با استفاده از یک گزینه در برنامه فراخوان، صراحتاً آن را به عنوان بازنویسی مشخص کند.
+
+.SH "ساختار (FORMAT)"
+فایل auth.json اطلاعات احراز هویتی را ذخیره کرده یا به آن‌ها ارجاع می‌دهد که به کاربر اجازه می‌دهد در رجیستری‌های ایمیج کانتینر احراز هویت کند.
+این فایل در درجه اول توسط یک دستور \fBlogin\fR از یک ابزار کانتینری مانند \fBpodman login\fR،
+\fBbuildah login\fR، یا \fBskopeo login\fR مدیریت می‌شود\&.
+
+.PP
+هر مدخل شامل یک نام میزبان (مانند \fBdocker.io\fR) یا یک فضای نام (مانند \fBquay.io/user/image\fR) به عنوان کلید،
+و اطلاعات احراز هویت به شکل یک رشته کدگذاری‌شده با base64 به عنوان مقدار \fBauth\fR است\&.
+رشته کدگذاری‌شده با base64 شامل پیوند نام کاربری، یک دونقطه (:) و گذرواژه است.
+
+.PP
+هنگام بررسی اعتبارهای موجود، مخزن مربوطه بر اساس ترتیب سلسله‌مراتبی‌اش با کلیدهای موجود مطابقت داده می‌شود؛ از خاص‌ترین به عمومی‌ترین.
+برای مثال، دریافت (pull) یک ایمیج برای \fBmy-registry.local/namespace/user/image:latest\fR منجر به جستجو در \fBauth.json\fR به ترتیب زیر خواهد شد:
+.IP \(bu 2
+\fBmy-registry.local/namespace/user/image\fR
+.IP \(bu 2
+\fBmy-registry.local/namespace/user\fR
+.IP \(bu 2
+\fBmy-registry.local/namespace\fR
+.IP \(bu 2
+\fBmy-registry.local\fR
+
+.PP
+به این ترتیب می‌توان چندین اعتبار مختلف را برای یک رجیستری واحد تنظیم کرد که بر اساس مسیرشان از یکدیگر متمایز می‌شوند.
+
+.PP
+مثال زیر مقادیر موجود در auth.json را پس از ورود کاربر به حساب‌های خود در quay.io و docker.io نشان می‌دهد:
+
+.EX
+{
+	"auths": {
+		"docker.io": {
+			"auth": "erfi7sYi89234xJUqaqxgmzcnQ2rRFWM5aJX0EC="
+		},
+		"quay.io": {
+			"auth": "juQAqGmz5eR1ipzx8Evn6KGdw8fEa1w5MWczmgY="
+		}
+	}
+}
+.EE
+
+.PP
+این مثال نحوه استفاده از چندین مسیر را برای یک رجیستری واحد نشان می‌دهد، در حالی که یک مقدار رزرو (fallback) را برای \fBmy-registry.local\fR حفظ می‌کند:
+
+.EX
+{
+	"auths": {
+		"my-registry.local/foo/bar/image": {
+			"auth": "…"
+		},
+		"my-registry.local/foo": {
+			"auth": "…"
+		},
+		"my-registry.local": {
+			"auth": "…"
+		},
+	}
+}
+.EE
+
+.PP
+یک مدخل را می‌توان با استفاده از یک دستور \fBlogout\fR از یک ابزار کانتینری مانند \fBpodman logout\fR یا \fBbuildah logout\fR حذف کرد\&.
+
+.PP
+علاوه بر این، می‌توان برنامه‌های کمکی اعتبار (credential helpers) را برای رجیستری‌های خاص پیکربندی کرد، و نرم‌افزار credential-helper را می‌توان برای مدیریت امن‌تر اعتبارها نسبت به ذخیره صرفاً اعتبارهای کدگذاری‌شده با base64 در \fBauth.json\fR به کار برد\&.
+
+.PP
+هنگامی که برنامه کمکی اعتبار در پلتفرم لینوکس مورد استفاده قرار می‌گیرد، فایل auth.json حاوی کلیدهایی خواهد بود که دامنه رجیستری را مشخص می‌کنند و مقادیری که پسوند برنامه مورد استفاده را تعیین می‌کنند (یعنی هر چیزی پس از docker-credential-). برای مثال:
+
+.EX
+{
+    "auths": {
+        "localhost:5001": {}
+    },
+    "credHelpers": {
+		"registry.example.com": "secretservice"
+	}
+}
+.EE
+
+.PP
+برای اطلاعات بیشتر درباره برنامه‌های کمکی اعتبار، لطفاً به پروژه GitHub docker-credential-helpers مراجعه کنید
+\[la]https://github.com/docker/docker\-credential\-helpers/releases\[ra]\&.
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+.EX
+buildah-login(1), buildah-logout(1), podman-login(1), podman-logout(1), skopeo-login(1), skopeo-logout(1)
+.EE
+
+
+.SH "تاریخچه (HISTORY)"
+فوریه ۲۰۲۰، در ابتدا توسط Tom Sweeney tsweeney@redhat.com
+\[la]mailto:tsweeney@redhat.com\[ra] گردآوری شد.

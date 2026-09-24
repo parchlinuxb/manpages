@@ -1,0 +1,252 @@
+.\" Copyright © 2005-2010  Roger Leigh <rleigh@codelibre.net>
+.\"
+.\" schroot is free software: you can redistribute it and/or modify it
+.\" under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation, either version 3 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" schroot is distributed in the hope that it will be useful, but
+.\" WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+.\" General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program.  If not, see
+.\" <http://www.gnu.org/licenses/>.
+.\"
+.ds RELEASE_DATE 14 Aug 2022
+.ds VERSION 1.6.13
+.ds SCHROOT_LIBEXEC_DIR /usr/lib/schroot
+.ds SCHROOT_MOUNT_DIR /var/run/schroot/mount
+.ds SCHROOT_SESSION_DIR /var/lib/schroot/session
+.ds SCHROOT_FILE_UNPACK_DIR /var/lib/schroot/unpack
+.ds SCHROOT_OVERLAY_DIR /var/lib/schroot/union/overlay
+.ds SCHROOT_UNDERLAY_DIR /var/lib/schroot/union/underlay
+.ds SCHROOT_SYSCONF_DIR /etc/schroot
+.ds SCHROOT_CONF /etc/schroot/schroot.conf
+.ds SCHROOT_CONF_CHROOT_D /etc/schroot/chroot.d
+.ds SCHROOT_CONF_SETUP_D /etc/schroot/setup.d
+.ds SCHROOT_DATA_DIR /usr/share/schroot
+.ds SCHROOT_SETUP_DATA_DIR /usr/share/schroot/setup
+.ds SCHROOT_LOCALE_DIR /usr/share/locale
+.ds PACKAGE_LOCALE_DIR /usr/share/locale
+.ds PROGRAM schroot
+.TH SCHROOT\-SETUP 5 "\*[RELEASE_DATE]" "Version \*[VERSION]" "Debian sbuild"
+.SH "نام (NAME)"
+schroot\-setup \- اسکریپت‌های راه‌اندازی chroot در schroot
+.SH "توضیحات (DESCRIPTION)"
+دستور \fBschroot\fP از اسکریپت‌هایی برای برپایی و سپس پاک‌سازی محیط chroot استفاده می‌کند.
+دایرکتوری \f[BI]\*[SCHROOT_CONF_SETUP_D]\fP حاوی اسکریپت‌هایی است که هنگام
+ایجاد و نابودی یک chroot اجرا می‌شوند. هنگام اجرای اسکریپت‌ها چندین متغیر محیطی
+تنظیم می‌شوند که امکان سفارشی‌سازی رفتار آن‌ها را، برای نمونه بر اساس نوع chroot
+مورد استفاده، فراهم می‌سازد.
+.PP
+اسکریپت‌ها به ترتیب الفبای نامشان اجرا می‌شوند، مشابه اسکریپت‌های اجرا شده توسط
+.BR init (8)،
+و با استفاده از همان شیوه اجرایی
+.BR run-parts (8).
+.PP
+اسکریپت‌های برپایی همگی با دو آرگومان فراخوانی می‌شوند:
+.IP 1
+عملیاتی که باید انجام شود.
+.IP
+هنگامی که یک نشست (session) برای نخستین بار آغاز می‌شود، chroot با اجرای اسکریپت‌های موجود در
+\*[SCHROOT_CONF_SETUP_D] با گزینه \[oq]setup\-start\[cq] برپا می‌گردد. هنگامی که
+نشست پایان می‌یابد، اسکریپت‌های موجود در \fI\*[SCHROOT_CONF_SETUP_D]\fP با ترتیب
+معکوس و با گزینه \[oq]setup\-stop\[cq] اجرا می‌شوند.
+.IP 2
+وضعیت chroot.
+.IP
+این مقدار در صورت نبود مشکل برابر \[oq]ok\[cq] و در صورت بروز خطا برابر \[oq]fail\[cq]
+خواهد بود. برای نمونه، ممکن است برخی اقدامات مشخص در هنگام شکست نادیده گرفته شوند.
+.PP
+توجه داشته باشید که اسکریپت‌ها باید \fIidempotent\fP (دارای اثر یکسان در اجرای مکرر) باشند.
+آن‌ها در طول فاز \[oq]setup\-stop\[cq] \fBحتماً\fP باید idempotent باشند، زیرا ممکن است
+بیش از یک بار اجرا شوند، برای نمونه هنگام بروز خطا.
+.SH "محیط (ENVIRONMENT)"
+.SS متغیرهای عمومی (General variables)
+.TP
+AUTH_USER
+نام کاربری کاربری که دستور درون chroot با دسترسی او اجرا خواهد شد.
+.TP
+CHROOT_NAME
+نام chroot. توجه داشته باشید که این نام chroot اصلی پیش از ایجاد نشست است؛ احتمالاً شما به SESSION_ID نیاز دارید.
+.TP
+LIBEXEC_DIR
+دایرکتوری‌ای که برنامه‌های کمکی در آن قرار دارند.
+.TP
+MOUNT_DIR
+دایرکتوری‌ای که chrootهای غیر فایل‌سیستمی در آن متصل (mount) می‌شوند (مانند دستگاه‌های بلوکی و snapshotهای LVM).
+.TP
+PID
+شناسه فرایند (PID) مربوط به فرایند schroot.
+.TP
+PLATFORM
+پلتفرم سیستم‌عاملی که schroot روی آن در حال اجرا است. این متغیر می‌تواند در صورت نیاز برای اعمال رفتارهای وابسته به پلتفرم در اسکریپت‌های برپایی استفاده شود. توجه داشته باشید که متغیرهای HOST احتمالاً موارد مورد نیاز شما هستند. در چارچوب schroot، پلتفرم پیکربندی و رفتار پشتیبانی‌شده برای یک معماری معین است و ممکن است در میان معماری‌های مختلف یکسان باشد.
+.TP
+SESSION_ID
+شناسه نشست (session identifier).
+.TP
+VERBOSE
+در صورتی که فقط پیام‌های خطا باید چاپ شوند روی \[oq]quiet\[cq] تنظیم می‌شود، اگر سایر پیام‌ها نیز مجاز به چاپ باشند روی \[oq]normal\[cq]، و اگر تمام پیام‌ها باید چاپ شوند روی \[oq]verbose\[cq]. این متغیر قبلاً AUTH_VERBOSITY نامیده می‌شد.
+.TP
+CHROOT_SESSION_CREATE
+اگر نشستی قرار است ایجاد شود برابر \[oq]true\[cq] و در غیر این صورت \[oq]false\[cq] تنظیم می‌شود.
+.TP
+CHROOT_SESSION_CLONE
+اگر یک نشست قرار است کلون (همانندسازی) شود روی \[oq]true\[cq] تنظیم می‌شود، در غیر این صورت \[oq]false\[cq].
+.TP
+CHROOT_SESSION_PURGE
+اگر یک نشست قرار است پاک‌سازی کامل (purge) شود روی \[oq]true\[cq] تنظیم می‌شود، در غیر این صورت \[oq]false\[cq].
+.TP
+CHROOT_SESSION_SOURCE
+اگر نشستی قرار است از یک chroot مبدأ (source) ایجاد شود روی \[oq]true\[cq] تنظیم می‌شود، در غیر این صورت \[oq]false\[cq].
+.TP
+CHROOT_TYPE
+نوع chroot. این متغیر برای محدود کردن یک وظیفه برپایی به انواع خاصی از chroot (مانند فقط دستگاه‌های بلوکی یا snapshotهای LVM) مفید است.
+.TP
+CHROOT_NAME
+نام chroot. این متغیر برای محدود کردن یک وظیفه برپایی به یک chroot خاص یا مجموعه‌ای از chrootها مفید است.
+.TP
+CHROOT_ALIAS
+نام مستعار (alias) استفاده‌شده برای انتخاب chroot. این متغیر برای تخصیص یک وظیفه برپایی بر اساس یکی از نام‌های مستعار جایگزین یا نام پیش‌فرض chroot مفید است. برای نمونه، می‌توان از آن برای تعیین مخازن اضافی در \fI/etc/apt/sources.list\fP استفاده کرد، مانند نام مستعار stable-security برای یک chroot پایدار، یا نام مستعار experimental برای یک chroot ناپایدار.
+.TP
+CHROOT_DESCRIPTION
+توضیحات chroot.
+.TP
+CHROOT_MOUNT_LOCATION
+مکانی برای متصل کردن chroot. این مقدار برای ایجاد نقطه اتصال (mount point) و سوار کردن استفاده می‌شود.
+.TP
+CHROOT_LOCATION
+مکان chroot درون نقطه اتصال. این متغیر اجازه می‌دهد چندین chroot روی یک فایل‌سیستم واحد وجود داشته باشند. این متغیر برای تمام انواع chrootهای قابل اتصال تنظیم می‌شود.
+.TP
+CHROOT_PATH
+مسیر مطلق به chroot. این مسیر معمولاً حاصل الحاق CHROOT_MOUNT_LOCATION و CHROOT_LOCATION است. این مسیری است که باید برای دسترسی به chrootها استفاده شود.
+.SS متغیرهای chrootهای ساده و دایرکتوری (Plain and directory chroot variables)
+این انواع chroot تنها از متغیرهای عمومی استفاده می‌کنند.
+.SS متغیرهای فایل (File variables)
+.TP
+CHROOT_FILE
+فایلی که حاوی فایل‌های chroot است.
+.TP
+CHROOT_FILE_REPACK
+برای بسته‌بندی مجدد chroot در یک فایل آرشیو هنگام پایان نشست روی \[oq]true\[cq] تنظیم می‌شود، در غیر این صورت \[oq]false\[cq].
+.SS متغیرهای chrootهای قابل اتصال (Mountable chroot variables)
+.PP
+این متغیرها تنها برای انواع chrootهایی که مستقیماً قابل اتصال هستند تنظیم می‌شوند.
+.TP
+CHROOT_MOUNT_DEVICE
+دستگاهی که حاوی chroot است و باید متصل شود.
+.TP
+CHROOT_MOUNT_OPTIONS
+گزینه‌هایی که باید به
+.BR mount (8)
+ارسال شوند.
+.TP
+CHROOT_LOCATION
+مکان chroot درون نقطه اتصال. این ویژگی امکان وجود چندین chroot را روی یک فایل‌سیستم واحد فراهم می‌کند.
+.SS متغیرهای فایل‌سیستم پیوندی (Filesystem union variables)
+.TP
+CHROOT_UNION_TYPE
+نوع فایل‌سیستم پیوندی (union).
+.TP
+CHROOT_UNION_MOUNT_OPTIONS
+گزینه‌های اتصال فایل‌سیستم پیوندی.
+.TP
+CHROOT_UNION_OVERLAY_DIRECTORY
+دایرکتوری overlay فایل‌سیستم پیوندی (قابل نوشتن).
+.TP
+CHROOT_UNION_UNDERLAY_DIRECTORY
+دایرکتوری underlay فایل‌سیستم پیوندی (فقط‌خواندنی).
+.SS متغیرهای دستگاه بلوکی (Block device variables)
+.TP
+CHROOT_DEVICE
+دستگاه حاوی فایل‌سیستم ریشه chroot. این دستگاه معمولاً، اما نه لزوماً، همان دستگاهی است که متصل خواهد شد. برای مثال، برای یک snapshot در LVM، این دستگاه همان حجم منطقی (logical volume) اصلی خواهد بود.
+.SS متغیرهای snapshot در LVM (LVM snapshot variables)
+.TP
+CHROOT_LVM_SNAPSHOT_NAME
+نام snapshot برای ارسال به
+.BR lvcreate (8).
+.TP
+CHROOT_LVM_SNAPSHOT_DEVICE
+نام دستگاه snapshot در LVM.
+.TP
+CHROOT_LVM_SNAPSHOT_OPTIONS
+گزینه‌هایی که باید به
+.BR lvcreate (8)
+ارسال شوند.
+.SS متغیرهای سفارشی (Custom variables)
+.PP
+کلیدهای سفارشی تنظیم‌شده در \fIschroot.conf\fP به حروف بزرگ تبدیل شده و همان‌گونه که در
+.BR schroot.conf (5)
+شرح داده شده در محیط مقداردهی می‌شوند.
+.SH "فایل‌ها (FILES)"
+.SS پیکربندی اسکریپت برپایی (Setup script configuration)
+دایرکتوری \f[BI]\*[SCHROOT_SYSCONF_DIR]/default\fP شامل تنظیمات پیش‌فرضی است که توسط اسکریپت‌های برپایی استفاده می‌شوند.
+.TP
+\f[BI]config\fP
+فایل پیکربندی اصلی که توسط اسکریپت‌های برپایی خوانده می‌شود. ساختار این فایل در
+.BR schroot\-script\-config (5)
+شرح داده شده است. این مقدار پیش‌فرض برای کلید \f[CI]script\-config\fP است. توجه داشته باشید که این فایل قبلاً با نام \fI\*[SCHROOT_SYSCONF_DIR]/script\-defaults\fP شناخته می‌شد. فایل‌های زیر به طور پیش‌فرض ارجاع داده می‌شوند:
+.TP
+\f[BI]copyfiles\fP
+فهرستی از فایل‌ها برای کپی شدن از سیستم میزبان به درون chroot. توجه داشته باشید که این فایل قبلاً با نام \fI\*[SCHROOT_SYSCONF_DIR]/copyfiles\-defaults\fP شناخته می‌شد.
+.TP
+\f[BI]fstab\fP
+فایلی با ساختار توصیف‌شده در
+.BR fstab (5)،
+که برای متصل کردن فایل‌سیستم‌ها درون chroot استفاده می‌شود. مکان نقطه اتصال نسبت به ریشه chroot سنجیده می‌شود. توجه داشته باشید که این فایل قبلاً با نام
+\fI\*[SCHROOT_SYSCONF_DIR]/mount\-defaults\fP شناخته می‌شد.
+.TP
+\f[BI]nssdatabases\fP
+پایگاه‌های داده سیستمی (همان‌طور که در \fI/etc/nsswitch.conf\fP در سیستم‌های گنو/لینوکس توضیح داده شده است) برای کپی شدن از میزبان به درون chroot. توجه داشته باشید که این فایل قبلاً با نام \fI\*[SCHROOT_SYSCONF_DIR]/nssdatabases\-defaults\fP شناخته می‌شد.
+.SS اسکریپت‌های برپایی (Setup scripts)
+دایرکتوری \f[BI]\*[SCHROOT_CONF_SETUP_D]\fP حاوی اسکریپت‌های برپایی chroot است.
+.TP
+\f[BI]00check\fP
+چاپ اطلاعات عیب‌یابی (دیباگ) و انجام بررسی‌های صحت‌سنجی اولیه.
+.TP
+\f[BI]05file\fP
+استخراج (unpack)، پاک‌سازی و بسته‌بندی مجدد (repack) chrootهای مبتنی بر فایل.
+.TP
+\f[BI]05fsunion\fP
+ایجاد و حذف فایل‌سیستم‌های پیوندی (union).
+.TP
+\f[BI]05lvm\fP
+ایجاد و حذف snapshotهای LVM.
+.TP
+\f[BI]10mount\fP
+اتصال (mount) و جداسازی (unmount) فایل‌سیستم‌ها.
+.TP
+\f[BI]15binfmt\fP
+راه‌اندازی شبیه‌ساز کاربر QEMU با استفاده از binfmt-support. این کار امکان استفاده شفاف از یک chroot برای معماری پردازنده (CPU) متفاوت را فراهم می‌آورد و جایگزینی برای کامپایل متقاطع یا شبیه‌سازی کل ماشین است.
+.TP
+\f[BI]15killprocs\fP
+کشتن (kill) فرایندهایی که هنگام پایان یک نشست هنوز در داخل chroot در حال اجرا هستند، که در غیر این صورت مانع از جداسازی فایل‌سیستم‌ها و پاک‌سازی سایر منابع می‌شوند.
+.TP
+\f[BI]20copyfiles\fP
+کپی کردن فایل‌ها از سیستم میزبان به داخل chroot. برای نمونه، پیکربندی شبکه با کپی کردن \fIhosts\fP و \fIresolv.conf\fP.
+.TP
+\f[BI]20nssdatabases\fP
+پیکربندی پایگاه‌های داده سیستمی با کپی کردن passwd، shadow، group و غیره به داخل chroot.
+.TP
+\f[BI]50chrootname\fP
+تنظیم نام chroot (\fI/etc/debian_chroot\fP) در داخل chroot. این مقدار ممکن است توسط اعلان شل (shell prompt) برای نمایش chroot فعلی استفاده شود.
+.SH "نویسندگان (AUTHORS)"
+Roger Leigh.
+.SH "کپی‌رایت (COPYRIGHT)"
+Copyright \(co 2005\-2012  Roger Leigh \f[CR]<rleigh@codelibre.net>\fP
+.PP
+\fB\*[PROGRAM]\fP یک نرم‌افزار آزاد است: شما می‌توانید آن را تحت شرایط «اجازه‌نامه عمومی همگانی گنو» (GNU General Public License) که توسط بنیاد نرم‌افزارهای آزاد منتشر شده است، چه نسخه ۳ این اجازه‌نامه یا (به انتخاب خودتان) هر نسخه بعدی، بازتوزیع کرده و/یا تغییر دهید.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR schroot (1),
+.BR fstab (5),
+.BR schroot.conf (5),
+.BR schroot\-script\-config (5),
+.BR run\-parts (8).
+.\"#
+.\"# The following sets edit modes for GNU EMACS
+.\"# Local Variables:
+.\"# mode:nroff
+.\"# fill-column:79
+.\"# End:

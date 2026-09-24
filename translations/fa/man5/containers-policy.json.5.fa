@@ -1,0 +1,484 @@
+.nh
+.TH CONTAINERS-POLICY.JSON 5 "سپتامبر ۲۰۱۶" "Parch Linux" "راهنمای فایل‌های پیکربندی"
+
+.SH "نام (NAME)"
+containers-policy.json \- نحو و ساختار فایل خط‌مشی اعتبارسنجی امضا
+
+.SH "توضیحات (DESCRIPTION)"
+فایل‌های خط‌مشی اعتبارسنجی امضا برای تعیین خط‌مشی‌ها (مانند کلیدهای مورد اعتماد) به‌کار می‌روند؛ این خط‌مشی‌ها هنگام تصمیم‌گیری درباره معتبر بودن یا نبودن یک تصویر (image) یا امضاهای منفرد آن تصویر اعمال می‌شوند.
+
+.PP
+به‌طور پیش‌فرض، این خط‌مشی در صورت وجود از مسیر \fB$XDG_CONFIG_HOME/containers/policy.json\fR (یا در صورت تنظیم نبودن \fB$XDG_CONFIG_HOME\fR از \fB$HOME/.config/containers/policy.json\fR) خوانده می‌شود؛ در غیر این صورت از \fB/etc/containers/policy.json\fR؛ و در غیر این صورت از \fB/usr/share/containers/policy.json\fR\&. برنامه‌هایی که اعتبارسنجی را انجام می‌دهند ممکن است امکان استفاده از یک خط‌مشی جایگزین را فراهم کنند.
+
+.PP
+اگر متغیر محیطی \fBCONTAINERS_POLICY_JSON\fR تنظیم شده باشد، فایل خط‌مشی مورد استفاده را مشخص می‌کند، مگر اینکه توسط پیکربندی اختصاصی برنامه بازنویسی شده باشد.
+
+.SH "قالب و ساختار (FORMAT)"
+فایل خط‌مشی اعتبارسنجی امضا، که معمولاً \fBpolicy.json\fR نامیده می‌شود، از قالب JSON استفاده می‌کند. برخلاف برخی دیگر از فایل‌های JSON، تجزیه و اعتبارسنجی آن بسیار سخت‌گیرانه است: فیلدهای ناشناخته، تکراری یا نامعتبر باعث رد شدن کل فایل و معمولاً لغو کل عملیات می‌شوند.
+
+.PP
+هدف از فایل خط‌مشی، تعریف مجموعه‌ای از \fIالزامات خط‌مشی (policy requirements)\fP برای یک تصویر کانتینر است که معمولاً به موقعیت آن (محلی که تصویر از آن کشیده یا pull می‌شود) یا هویت تعریف‌شده آن بستگی دارد.
+
+.PP
+الزامات خط‌مشی می‌توانند برای موارد زیر تعریف شوند:
+.IP \(bu 2
+یک \fIدامنه (scope)\fP مشخص در یک \fIروش انتقال (transport)\fP\&.
+مقادیر \fItransport\fP همان پیشوندهای انتقال هنگام ارسال/دریافت (push/pull) تصاویر هستند (مانند \fBdocker:\fR، \fBatomic:\fR) و مقادیر \fIscope\fP توسط هر روش انتقال تعریف می‌شوند؛ برای جزئیات بیشتر به ادامه متن مراجعه کنید.
+
+.PP
+معمولاً می‌توان یک دامنه را طوری تعریف کرد که با یک تصویر منفرد مطابقت داشته باشد، و پیشوندهای مختلف چنین دامنه خاصی، فضاهای نام (namespaces) تصاویر منطبق را تعریف می‌کنند.
+.IP \(bu 2
+یک خط‌مشی پیش‌فرض برای یک روش انتقال منفرد، که با استفاده از یک رشته خالی به عنوان دامنه مشخص می‌شود.
+.IP \(bu 2
+یک خط‌مشی پیش‌فرض سراسری (global).
+
+.PP
+اگر چندین الزام خط‌مشی با یک تصویر مشخص مطابقت داشته باشند، تنها الزامات حاصل از منطبق‌ترین و خاص‌ترین دامنه اعمال می‌شود و تعاریف عمومی‌تر خط‌مشی نادیده گرفته می‌شوند.
+
+.PP
+این موضوع در JSON با استفاده از نحو سطح بالا (top-level) زیر نمایش داده می‌شود:
+
+.EX
+{
+    "default": [/* الزامات خط‌مشی: پیش‌فرض سراسری */]
+    "transports": {
+        transport_name: {
+            "": [/* الزامات خط‌مشی: پیش‌فرض برای روش انتقال $transport_name */],
+            scope_1: [/* الزامات خط‌مشی: پیش‌فرض برای $scope_1 در $transport_name */],
+            scope_2: [/*…*/]
+            /*…*/
+        },
+        transport_name_2: {/*…*/}
+        /*…*/
+    }
+}
+.EE
+
+.PP
+مجموعه الزامات خط‌مشی سراسری \fBdefault\fR اجباری است؛ تمامی فیلدهای دیگر (خود \fBtransports\fR، هر انتقال خاص، پیش‌فرض اختصاصی انتقال و غیره) اختیاری هستند.
+
+.SH "روش‌های انتقال پشتیبانی‌شده و دامنه‌های آن‌ها (SUPPORTED TRANSPORTS AND THEIR SCOPES)"
+برای مستندات کلی درباره روش‌های انتقال و نحو ارجاع آن‌ها به containers-transports(5) مراجعه کنید.
+
+.SS \fBatomic:\fR
+روش انتقال منسوخ‌شده \fBatomic:\fR به تصاویری در یک Atomic Registry اشاره دارد.
+
+.PP
+دامنه‌های پشتیبانی‌شده از فرمت \fIhostname\fP[\fB:\fR\fIport\fP][\fB/\fR\fInamespace\fP[\fB/\fR\fIimagestream\fP [\fB:\fR\fItag\fP]]] استفاده می‌کنند، یعنی یا تعیین نام کامل یک تصویر دارای برچسب (tag)، یا پیشوندی که یک میزبان/فضای‌نام/جریان تصویر (image stream) را نشان می‌دهد، یا عبارتی دارای نویسه عام (wildcard) که با \fB*.\fR شروع می‌شود تا با تمام زیردامنه‌ها مطابقت پیدا کند. برای تطبیق با زیردامنه دارای نویسه عام، \fB*.example.com\fR معتبر است، اما \fBexample*.*.com\fR معتبر نیست.
+
+.PP
+\fIنکته:\fP مقادیر \fIhostname\fP و \fIport\fP به میزبان و درگاه رجیستری کانتینر (که برای مثال در \fBdocker pull\fR استفاده می‌شود) اشاره دارند، \fIنه\fP به میزبان و درگاه API در OpenShift.
+
+.SS \fBcontainers-storage:\fR
+دامنه‌های پشتیبانی‌شده دارای قالب \fB[\fR\fIstorage-specifier\fP\fB]\fR\fIimage-scope\fP هستند.
+
+.PP
+مقدار \fB[\fR\fIstorage-specifier\fP\fB]\fR معمولاً به صورت \fB[\fR\fIgraph-driver-name\fP\fB@\fR\fIgraph-root\fP\fB]\fR است، مانند \fB[overlay@/var/lib/containers/storage]\fR\&.
+
+.PP
+مقدار \fIimage-scope\fP که با تصویر تکی مطابقت دارد عبارت است از:
+- یک مرجع نام‌گذاری‌شده Docker \fIبه صورت کاملاً بسط‌یافته (fully expanded)\fP، با استفاده از برچسب (tag) یا دایجست (digest). به عنوان مثال، \fBdocker.io/library/busybox:latest\fR (\fIنه\fP \fBbusybox:latest\fR)
+- و/یا (بسته به آنچه ورودی کاربر ارائه می‌دهد) \fB@\fR\fIimage-id\fP
+
+.PP
+دامنه‌های عمومی‌تر، پیشوندهای دامنه‌های تصویر تکی هستند و تصویری با دقت کمتر، یا یک مخزن (با حذف شناسه تصویر در ابتدا در صورت وجود؛ سپس دایجست در صورت وجود؛ و در نهایت برچسب در صورت وجود)، یک فضای نام مخزن، یا یک میزبان رجیستری (صرفاً با مشخص کردن نام میزبان و احتمالاً شماره پورت) را تعیین می‌کنند.
+
+.PP
+در نهایت، دو مشخص‌کننده کامل فضای ذخیره‌سازی که با تمام تصاویر موجود در آن فضا مطابقت دارند، دامنه‌های معتبری هستند:
+- \fB[\fR\fIgraph-driver-name\fP\fB@\fR\fIgraph-root\fP\fB]\fR و
+- \fB[\fR\fIgraph-root\fP\fB]\fR
+
+.PP
+توجه داشته باشید که برخی از ابزارها مانند Podman و Buildah بازنویسی‌های درون‌برنامه‌ای (hard-coded) برای خط‌مشی اعتبارسنجی امضا در عملیات "push" دارند که اجازه انجام این عملیات را صرف‌نظر از پیکربندی \fBpolicy.json\fR می‌دهد.
+
+.SS \fBdir:\fR
+روش انتقال \fBdir:\fR به تصاویری اشاره دارد که در دایرکتوری‌های محلی ذخیره شده‌اند.
+
+.PP
+دامنه‌های پشتیبانی‌شده، مسیرهای دایرکتوری‌ها هستند (یا شامل یک تصویر تکی، یا زیردایرکتوری‌هایی که احتمالاً شامل تصاویری هستند).
+
+.PP
+\fIنکته:\fP
+- مسیرها باید مطلق بوده و فاقد پیوند نمادین (symlink) باشند. مسیرهایی که این الزامات را نقض کنند ممکن است بدون هشدار نادیده گرفته شوند.
+- دامنه سطح بالا \fB"/"\fR ممنوع است؛ جهت سازگاری با سایر روش‌های انتقال، از دامنه پیش‌فرض \fB""\fR استفاده کنید.
+
+.SS \fBdocker:\fR
+روش انتقال \fBdocker:\fR به تصاویری در یک رجیستری اشاره دارد که "Docker Registry HTTP API V2" را پیاده‌سازی کرده است.
+
+.PP
+دامنه‌های منطبق با تصاویر تکی، مراجع نام‌گذاری‌شده Docker \fIبه صورت کاملاً بسط‌یافته\fP هستند که از برچسب یا دایجست استفاده می‌کنند. برای مثال، \fBdocker.io/library/busybox:latest\fR (\fIنه\fP \fBbusybox:latest\fR).
+
+.PP
+دامنه‌های عمومی‌تر پیشوندهای دامنه‌های تصویر تکی هستند و یک مخزن (با حذف برچسب یا دایجست)، یک فضای نام مخزن، یا یک میزبان رجیستری (فقط با مشخص کردن نام میزبان و احتمالاً شماره پورت) یا یک عبارت دارای نویسه عام که با \fB*.\fR شروع می‌شود برای تطبیق با تمام زیردامنه‌ها (بدون شماره پورت) را مشخص می‌کنند. برای تطبیق با زیردامنه دارای نویسه عام، \fB*.example.com\fR معتبر است، اما \fBexample*.*.com\fR معتبر نیست.
+
+.SS \fBdocker-archive:\fR
+تنها دامنه پیش‌فرض \fB""\fR پشتیبانی می‌شود.
+
+.SS \fBdocker-daemon:\fR
+برای مراجعی که از قالب \fIalgo:digest\fP استفاده می‌کنند (که به شناسه تصویر اشاره دارد)، فقط دامنه پیش‌فرض \fB""\fR استفاده می‌شود.
+
+.PP
+برای تصاویری که از مرجع نام‌گذاری‌شده استفاده می‌کنند، دامنه‌های منطبق با تصاویر تکی \fIبه صورت کاملاً بسط‌یافته\fP هستند که از برچسب یا دایجست استفاده می‌کنند. برای مثال، \fBdocker.io/library/busybox:latest\fR (\fIنه\fP \fBbusybox:latest\fR).
+
+.PP
+دامنه‌های نام‌گذاری‌شده عمومی‌تر، پیشوندهای دامنه‌های تصویر تکی هستند و یک مخزن (با حذف برچسب یا دایجست)، یک فضای نام مخزن، یا یک میزبان رجیستری (با تعیین نام میزبان و در صورت وجود شماره پورت) یا یک عبارت دارای نویسه عام شروع‌شده با \fB*.\fR برای تطبیق با همه زیردامنه‌ها (بدون شماره پورت) را مشخص می‌کنند. برای تطبیق زیردامنه‌ها، \fB*.example.com\fR معتبر است اما \fBexample*.*.com\fR معتبر نیست.
+
+.SS \fBoci:\fR
+روش انتقال \fBoci:\fR به تصاویری در دایرکتوری‌های مطابق با "Open Container Image Layout Specification" اشاره دارد.
+
+.PP
+دامنه‌های پشتیبانی‌شده، مسیرهای دایرکتوری‌ها هستند (یا شامل یک ساختار OCI یا زیردایرکتوری‌هایی که احتمالاً شامل دایرکتوری‌های ساختار OCI هستند). مقدار یادداشت (annotation) مرجع (\fIreference\fP)، در صورت وجود، استفاده نمی‌شود.
+
+.PP
+\fIنکته:\fP
+- مسیرها باید مطلق و فاقد پیوند نمادین باشند. مسیرهای ناقض این شرایط ممکن است بدون هشدار نادیده گرفته شوند.
+- دامنه سطح بالا \fB"/"\fR ممنوع است؛ جهت سازگاری با سایر روش‌های انتقال از دامنه پیش‌فرض \fB""\fR استفاده کنید.
+
+.SS \fBoci-archive:\fR
+دامنه‌های پشتیبانی‌شده، مسیرهای فایل‌های آرشیو OCI و دایرکتوری‌های والد آن‌ها هستند (یا شامل یک آرشیو تکی یا زیردایرکتوری‌هایی که احتمالاً شامل آرشیو هستند). مقدار یادداشت \fIreference\fP، در صورت وجود، استفاده نمی‌شود.
+
+.PP
+\fIنکته:\fP
+- مسیرها باید مطلق و فاقد پیوند نمادین باشند. مسیرهای ناقض این شرایط ممکن است بدون هشدار نادیده گرفته شوند.
+- دامنه سطح بالا \fB"/"\fR ممنوع است؛ از دامنه پیش‌فرض انتقال \fB""\fR استفاده کنید.
+
+.SS \fBsif:\fR
+دامنه‌های پشتیبانی‌شده مسیرهای تصاویر Singularity و دایرکتوری‌های والد آن‌ها هستند (یا شامل تصاویر یا زیردایرکتوری‌هایی که احتمالاً شامل تصویر هستند).
+
+.PP
+\fIنکته:\fP
+- مسیرها باید مطلق و بدون پیوند نمادین باشند. مسیرهای ناقض این شرایط ممکن است بدون هشدار نادیده گرفته شوند.
+- دامنه سطح بالا \fB"/"\fR ممنوع است؛ از دامنه پیش‌فرض \fB""\fR استفاده کنید.
+
+.SS \fBtarball:\fR
+روش انتقال \fBtarball:\fR یک جزئیات پیاده‌سازی از برخی فرآیندهای واردسازی (import) است. تنها دامنه پیش‌فرض \fB""\fR پشتیبانی می‌شود.
+
+.SH "الزامات خط‌مشی (POLICY REQUIREMENTS)"
+با استفاده از سازوکارهای فوق، مجموعه‌ای از الزامات خط‌مشی جستجو و پیدا می‌شود. الزامات خط‌مشی به صورت یک آرایه JSON از اشیای الزامات منفرد نمایش داده می‌شوند. برای پذیرفته شدن یک تصویر، \fIتمامی\fP الزامات باید به صورت هم‌زمان برآورده شوند.
+
+.PP
+الزامات خط‌مشی همچنین می‌توانند برای تصمیم‌گیری درباره اینکه آیا یک امضای منفرد پذیرفته می‌شود یا خیر (= توسط یک کلید شناخته‌شده از یک نویسنده معلوم امضا شده باشد) به کار روند؛ در این حالت ممکن است برخی الزامات فقط برای برخی امضاها اعمال شوند، اما هر امضا باید توسط \fIحداقل یک\fP شیء الزام پذیرفته شود.
+
+.PP
+اشیای الزامات زیر پشتیبانی می‌شوند:
+
+.SS \fBinsecureAcceptAnything\fR
+یک الزام ساده با نحو زیر:
+
+.EX
+{"type":"insecureAcceptAnything"}
+.EE
+
+.PP
+این الزام هر تصویری را می‌پذیرد (اما توجه داشته باشید که سایر الزامات موجود در آرایه همچنان اعمال می‌شوند).
+
+.PP
+هنگام تصمیم‌گیری برای پذیرش یک امضای منفرد، این الزام هیچ تأثیری ندارد؛ و باعث پذیرش امضا نیز \fIنمی‌شود\fP.
+
+.PP
+این گزینه عمدتاً برای دامنه‌هایی کاربرد دارد که نیازی به اعتبارسنجی امضا ندارند؛ از آنجا که آرایه الزامات خط‌مشی نباید خالی باشد، از این الزام برای نشان دادن صریح عدم وجود الزامات استفاده می‌شود.
+
+.SS \fBreject\fR
+یک الزام ساده با نحو زیر:
+
+.EX
+{"type":"reject"}
+.EE
+
+.PP
+این الزام هر تصویر و هر امضایی را رد می‌کند.
+
+.SS \fBsignedBy\fR
+این الزام مستلزم آن است که یک تصویر با استفاده از "امضای ساده (simple signing)" و با یک هویت مورد انتظار امضا شده باشد، یا در صورتی که امضا با هویت و کلید مورد انتظار انجام شده باشد آن را می‌پذیرد.
+
+.EX
+{
+    "type":    "signedBy",
+    "keyType": "GPGKeys", /* تنها مقدار پشتیبانی‌شده در حال حاضر */
+    "keyPath": "/path/to/local/keyring/file",
+    "keyPaths": ["/path/to/local/keyring/file1","/path/to/local/keyring/file2"…],
+    "keyData": "base64-encoded-keyring-data",
+    "signedIdentity": identity_requirement
+}
+.EE
+
+.PP
+دقیقاً باید یکی از گزینه‌های \fBkeyPath\fR، \fBkeyPaths\fR و \fBkeyData\fR وجود داشته باشد که شامل یک جاکلیدی (keyring) حاوی یک یا چند کلید عمومی GPG است. تنها امضاهای ایجادشده توسط این کلیدها پذیرفته می‌شوند.
+
+.PP
+فیلد \fBsignedIdentity\fR، که یک شیء JSON است، مشخص می‌کند که امضا چه هویت تصویری را ادعا می‌کند. یکی از گزینه‌های زیر پشتیبانی می‌شود:
+.IP \(bu 2
+هویت موجود در امضا باید دقیقاً با هویت تصویر مطابقت داشته باشد. توجه داشته باشید که با این حالت، ارجاع به تصویر از طریق دایجست (با امضایی که هویت \fIrepository\fP\fB:\fR\fItag\fP را ادعا می‌کند) با شکست مواجه خواهد شد.
+
+.EX
+  {"type":"matchExact"}
+.EE
+
+.IP \(bu 2
+اگر هویت تصویر دارای برچسب (tag) باشد، هویت موجود در امضا باید دقیقاً مطابقت داشته باشد؛ اگر هویت تصویر از ارجاع با دایجست استفاده کند، هویت در امضا باید در همان مخزن تصویر باشد (با هر برچسبی).
+
+.PP
+(توجه داشته باشید که در تصاویر شناسایی‌شده با دایجست، دایجستِ ارجاع حتی قبل از شروع اعتبارسنجی امضا تأیید اعتبار می‌شود.)
+
+.EX
+  {"type":"matchRepoDigestOrExact"}
+.EE
+
+.IP \(bu 2
+هویت در امضا باید در همان مخزن هویت تصویر باشد. این مورد مثلاً برای کشیدن تصویری با برچسب \fB:latest\fR مفید است وقتی که تصویر با برچسبی که نسخه دقیق تصویر را مشخص می‌کند امضا شده باشد.
+
+.EX
+  {"type":"matchRepository"}
+.EE
+
+.IP \(bu 2
+هویت در امضا باید دقیقاً با یک هویت مشخص‌شده مطابقت داشته باشد. این مورد مثلاً هنگام آینه‌سازی محلی (local mirroring) تصاویری که با هویت عمومی‌شان امضا شده‌اند کاربرد دارد.
+
+.EX
+  {
+      "type": "exactReference",
+      "dockerReference": docker_reference_value
+  }
+.EE
+
+.IP \(bu 2
+هویت در امضا باید در همان مخزن یک هویت مشخص‌شده باشد. این حالت ویژگی‌های \fBmatchRepository\fR و \fBexactReference\fR را با هم ترکیب می‌کند.
+
+.EX
+  {
+      "type": "exactRepository",
+      "dockerRepository": docker_repository_value
+  }
+.EE
+
+.IP \(bu 2
+نگاشت مجدد پیشوند (Prefix remapping):
+
+.PP
+اگر هویت تصویر با پیشوند مشخص‌شده مطابقت داشته باشد، آن پیشوند با "پیشوند امضاشده (signed prefix)" جایگزین می‌شود (در غیر این صورت بدون تغییر استفاده می‌شود و نگاشت مجددی رخ نمی‌دهد)؛ سپس تطبیق از معناشناسی \fBmatchRepoDigestOrExact\fR که در بالا توضیح داده شد پیروی می‌کند (یعنی اگر هویت تصویر دارای برچسب باشد، هویت در امضا باید دقیقاً مطابقت کند، و اگر از دایجست استفاده کند، مخزن باید مطابقت داشته باشد).
+
+.PP
+مقادیر \fBprefix\fR و \fBsignedPrefix\fR می‌توانند مقادیر host[:port] باشند (که دقیقاً با همان رشته host[:port] مطابقت دارند)، یا فضاهای نام مخزن، یا مخازن (یعنی نباید شامل tag/digest باشند)، و به عنوان پیشوندهای \fIفرم کاملاً بسط‌یافته\fP مطابقت داده می‌شوند. به عنوان مثال، \fBdocker.io/library/busybox\fR (\fIنه\fP \fBbusybox\fR) برای تعیین آن مخزن تکی، یا \fBdocker.io/library\fR (نه یک رشته خالی) برای تعیین فضای نام والدِ \fBdocker.io/library/busybox\fR==\fBbusybox\fR\&.
+
+.PP
+مقدار \fBprefix\fR معمولاً همان دامنه‌ای است که شامل الزام والد \fBsignedBy\fR است.
+
+.EX
+  {
+      "type": "remapIdentity",
+      "prefix": prefix,
+      "signedPrefix": prefix,
+  }
+.EE
+
+.PP
+اگر فیلد \fBsignedIdentity\fR وجود نداشته باشد، با آن مانند \fBmatchRepoDigestOrExact\fR رفتار می‌شود.
+
+.PP
+\fIنکته:\fP مقادیر \fBmatchExact\fR، \fBmatchRepoDigestOrExact\fR و \fBmatchRepository\fR تنها در صورتی قابل استفاده هستند که هویتی شبیه به هویت داکر توسط روش انتقال ارائه شود. به‌ویژه، روش‌های انتقال \fBdir:\fR و \fBoci:\fR فقط با \fBexactReference\fR یا \fBexactRepository\fR قابل استفاده هستند.
+
+.SS \fBsigstoreSigned\fR
+این الزام مستلزم آن است که یک تصویر با استفاده از امضای sigstore با هویت و کلید مورد انتظار امضا شده باشد.
+
+.EX
+{
+    "type":    "sigstoreSigned",
+    "keyPath": "/path/to/local/public/key/file",
+    "keyPaths": ["/path/to/first/public/key/one", "/path/to/first/public/key/two"],
+    "keyData": "base64-encoded-public-key-data",
+    "keyDatas": ["base64-encoded-public-key-one-data", "base64-encoded-public-key-two-data"]
+    "fulcio": {
+        "caPath": "/path/to/local/CA/file",
+        "caData": "base64-encoded-CA-data",
+        "oidcIssuer": "https://expected.OIDC.issuer/",
+        "subjectEmail", "expected-signing-user@example.com",
+    },
+    "pki": {
+        "caRootsPath": "/path/to/local/CARoots/file",
+        "caRootsData": "base64-encoded-CARoots-data",
+        "caIntermediatesPath": "/path/to/local/CAIntermediates/file",
+        "caIntermediatesData": "base64-encoded-CAIntermediates-data",
+        "subjectHostname": "expected-signing-hostname.example.com",
+        "subjectEmail": "expected-signing-user@example.com"
+    },
+    "rekorPublicKeyPath": "/path/to/local/public/key/file",
+    "rekorPublicKeyPaths": ["/path/to/local/public/key/one","/path/to/local/public/key/two"],
+    "rekorPublicKeyData": "base64-encoded-public-key-data",
+    "rekorPublicKeyDatas": ["base64-encoded-public-key-one-data","base64-encoded-public-key-two-data"],
+    "signedIdentity": identity_requirement
+}
+.EE
+
+.PP
+دقیقاً باید یکی از فیلدهای \fBkeyPath\fR، \fBkeyPaths\fR، \fBkeyData\fR، \fBkeyDatas\fR، \fBfulcio\fR و \fBpki\fR وجود داشته باشد.
+
+.PP
+اگر \fBkeyPath\fR یا \fBkeyData\fR وجود داشته باشد، حاوی یک کلید عمومی sigstore است. تنها امضاهای ایجادشده توسط این کلید پذیرفته می‌شوند.
+
+.PP
+اگر \fBkeyPaths\fR یا \fBkeyDatas\fR وجود داشته باشد، حاوی کلیدهای عمومی sigstore است. تنها امضاهای ایجادشده توسط هر یک از کلیدهای موجود در لیست پذیرفته می‌شوند.
+
+.PP
+اگر \fBfulcio\fR وجود داشته باشد، امضا باید مبتنی بر گواهی صادرشده توسط Fulcio باشد. باید یکی از گزینه‌های \fBcaPath\fR و \fBcaData\fR مشخص شود که شامل کلید عمومی نمونه Fulcio است. هر دو فیلد \fBoidcIssuer\fR و \fBsubjectEmail\fR اجباری هستند و دقیقاً ارائه‌دهنده هویت مورد انتظار و هویت کاربری که گواهی Fulcio را دریافت کرده است را مشخص می‌کنند.
+
+.PP
+اگر \fBpki\fR وجود داشته باشد، امضا باید مبتنی بر یک گواهی X.509 غیر Fulcio باشد. باید یکی از گزینه‌های \fBcaRootsPath\fR و \fBcaRootsData\fR مشخص شود که شامل گواهی‌های مرجع صدور گواهی (CA) است. تنها یکی از گزینه‌های \fBcaIntermediatesPath\fR و \fBcaIntermediatesData\fR می‌تواند وجود داشته باشد که شامل گواهی‌های CA میانی است. باید یکی از گزینه‌های \fBsubjectEmail\fR و \fBsubjectHostname\fR مشخص شود که دقیقاً هویت مورد انتظاری که گواهی برای آن صادر شده را تعیین می‌کند.
+
+.PP
+حداکثر یکی از \fBrekorPublicKeyPath\fR، \fBrekorPublicKeyPaths\fR، \fBrekorPublicKeyData\fR و \fBrekorPublicKeyDatas\fR می‌تواند وجود داشته باشد؛ در صورت مشخص شدن \fBfulcio\fR، وجود این مورد اجباری است. اگر کلید عمومی Rekor مشخص شده باشد، امضا باید روی یک سرور Rekor بارگذاری شده باشد و امضا باید شامل یک "برچسب زمانی ورودی امضاشده (signed entry timestamp)" (قابل تأیید به‌صورت آفلاین) باشد که وجود رکورد لاگ Rekor را با امضای یکی از کلیدهای عمومی ارائه‌شده اثبات کند.
+
+.PP
+فیلد \fBsignedIdentity\fR همان معناشناسی الزام \fBsignedBy\fR توضیح داده شده در بالا را دارد. توجه داشته باشید که امضاهای ایجادشده توسط \fBcosign\fR فقط شامل یک مخزن هستند، بنابراین تنها \fBmatchRepository\fR و \fBexactRepository\fR می‌توانند برای پذیرش آن‌ها استفاده شوند (و این کار در برابر جایگزینی یک تصویر امضاشده با یک برچسب غیرمنتظره محافظت نمی‌کند).
+
+.PP
+برای استفاده از این ویژگی با تصاویری که در رجیستری‌های تصویر میزبانی می‌شوند، گزینه \fBuse-sigstore-attachments\fR باید برای رجیستری یا مخزن مربوطه در containers-registries.d(5) کلاینت فعال باشد.
+
+.SH "مثال‌ها (EXAMPLES)"
+\fIاکیداً\fP توصیه می‌شود که خط‌مشی \fBdefault\fR روی \fBreject\fR تنظیم شود و سپس بر حسب نیاز، روش‌های انتقال و دامنه‌های مجزا به‌صورت انتخابی مجاز شوند.
+
+.SS یک سیستم با امنیت معقول و محدودشده
+(توجه داشته باشید که کامنت‌های \fB/*\fR…\fB*/\fR در JSON معتبر نیستند و نباید در خط‌مشی‌های واقعی استفاده شوند.)
+
+.EX
+{
+    "default": [{"type": "reject"}], /* رد کردن هر چیزی که صراحتاً مجاز نشده است */
+    "transports": {
+        "docker": {
+            /* اجازه نصب تصاویر از یک فضای نام مخزن خاص، بدون اعتبارسنجی رمزنگاری.
+               این فضای نام شامل تصاویری مانند openshift/hello-openshift و openshift/origin است. */
+            "docker.io/openshift": [{"type": "insecureAcceptAnything"}],
+            /* به همین ترتیب، اجازه نصب تصاویر "رسمی" busybox. توجه کنید که چگونه
+               فرم کاملاً بسط‌یافته، با /library/ صریح، باید استفاده شود. */
+            "docker.io/library/busybox": [{"type": "insecureAcceptAnything"}],
+            /* اجازه نصب تصاویر از تمام زیردامنه‌ها */
+            "*.temporary-project.example.com": [{"type": "insecureAcceptAnything"}],
+            /* یک مخزن امضاشده با sigstore */
+            "hostname:5000/myns/sigstore-signed-with-full-references": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPath": "/path/to/sigstore-pubkey.pub"
+                }
+            ],
+            /* یک مخزن امضاشده با sigstore با استفاده از سرورهای عمومی Fulcio+Rekor.
+
+               کلیدهای عمومی سرورهای عمومی را می‌توان از آدرس زیر دریافت کرد:
+               https://github.com/sigstore/sigstore/tree/main/pkg/tuf/repository/targets . */
+            "hostname:5000/myns/sigstore-signed-fulcio-rekor": [
+                {
+                    "type": "sigstoreSigned",
+                    "fulcio": {
+                        "caPath": "/path/to/fulcio_v1.crt.pem",
+                        "oidcIssuer": "https://github.com/login/oauth",
+                        "subjectEmail": "test-user@example.com"
+                    },
+                    "rekorPublicKeyPath": "/path/to/rekor.pub",
+                }
+            ],
+            /* یک مخزن امضاشده با Sigstore با استفاده از گواهی تولیدشده توسط یک زیرساخت کلید عمومی سفارشی. */
+            "hostname:5000/myns/sigstore-signed-byopki": [
+                {
+                    "type": "sigstoreSigned",
+                    "pki": {
+                        "caRootsPath": "/path/to/pki_root_crts.pem",
+                        "caIntermediatesPath": "/path/to/pki_intermediate_crts.pem",
+                        "subjectHostname": "test-user.example.com"
+                        "subjectEmail": "test-user@example.com"
+                    }
+                }
+            ],
+            /* یک مخزن امضاشده با sigstore، امضاهای ایجادشده توسط /usr/bin/cosign را می‌پذیرد */
+            "hostname:5000/myns/sigstore-signed-allows-malicious-tag-substitution": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPath": "/path/to/sigstore-pubkey.pub",
+                    "signedIdentity": {"type": "matchRepository"}
+                }
+            ],
+            /* یک مخزن امضاشده با sigstore با استفاده از سرورهای عمومی Fulcio+Rekor،
+               امضاهای ایجادشده توسط /usr/bin/cosign را می‌پذیرد.
+
+               کلیدهای عمومی سرورهای عمومی را می‌توان از آدرس زیر دریافت کرد:
+               https://github.com/sigstore/sigstore/tree/main/pkg/tuf/repository/targets . */
+            "hostname:5000/myns/sigstore-signed-fulcio-rekor- allows-malicious-tag-substitution": [
+                {
+                    "type": "sigstoreSigned",
+                    "fulcio": {
+                        "caPath": "/path/to/fulcio_v1.crt.pem",
+                        "oidcIssuer": "https://github.com/login/oauth",
+                        "subjectEmail": "test-user@example.com"
+                    },
+                    "rekorPublicKeyPath": "/path/to/rekor.pub",
+                    "signedIdentity": { "type": "matchRepository" }
+                }
+            ]
+              /* سایر تصاویر :docker از خط‌مشی پیش‌فرض سراسری استفاده کرده و رد می‌شوند */
+        },
+        "dir": {
+            "": [{"type": "insecureAcceptAnything"}] /* اجازه به هر تصویری که مبدأ آن در دایرکتوری‌های محلی است */
+        },
+        "atomic": {
+            /* حالت رایج: استفاده از یک کلید شناخته‌شده برای یک مخزن یا مجموعه‌ای از مخازن */
+            "hostname:5000/myns/official": [
+                {
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "/path/to/official-pubkey.gpg"
+                }
+            ],
+            /* یک مثال پیچیده‌تر، برای مخزنی که شامل آینه یک محصول شخص ثالث است
+               و باید توسط واحد IT محلی تأیید شود */
+            "hostname:5000/vendor/product": [
+                { /* الزام به اینکه تصویر توسط ارائه‌دهنده اصلی و با استفاده از مکان مخزن ارائه‌دهنده امضا شده باشد. */
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "/path/to/vendor-pubkey.gpg",
+                    "signedIdentity": {
+                        "type": "exactRepository",
+                        "dockerRepository": "vendor-hostname/product/repository"
+                    }
+                },
+                { /* الزام به اینکه تصویر _همچنین_ توسط یک بازبین محلی امضا شود. */
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "/path/to/reviewer-pubkey.gpg"
+                }
+            ],
+            /* روشی برای آینه‌سازی چندین مخزن از یک ارائه‌دهنده منفرد */
+            "private-mirror:5000/vendor-mirror": [
+                { /* الزام به اینکه تصویر توسط ارائه‌دهنده اصلی و با استفاده از مکان مخزن ارائه‌دهنده امضا شده باشد.
+                     برای مثال، private-mirror:5000/vendor-mirror/productA/image1:latest باید به عنوان
+                     vendor.example/productA/image1:latest امضا شده باشد. */
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "/path/to/vendor-pubkey.gpg",
+                    "signedIdentity": {
+                        "type": "remapIdentity",
+                        "prefix": "private-mirror:5000/vendor-mirror",
+                        "signedPrefix": "vendor.example.com"
+                    }
+                }
+            ]
+        }
+    }
+}
+.EE
+
+.SS غیرفعال کردن کامل امنیت، اجازه به تمام تصاویر و عدم اعتماد به هرگونه امضا
+.EX
+{
+    "default": [{"type": "insecureAcceptAnything"}]
+}
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR atomic (1),
+.BR containers-transports (5),
+.BR containers-registries.d (5)
+
+.SH "تاریخچه (HISTORY)"
+اوت ۲۰۱۸، تغییر نام به containers-policy.json(5) توسط Valentin Rothberg vrothberg@suse.com
+\[la]mailto:vrothberg@suse.com\[ra]
+
+.PP
+سپتامبر ۲۰۱۶، گردآوری اولیه توسط Miloslav Trmač mitr@redhat.com
+\[la]mailto:mitr@redhat.com\[ra]

@@ -1,0 +1,407 @@
+.\"	$Id: dhcp-eval.5,v 1.33 2012/05/17 15:50:14 sar Exp $
+.\"
+.\" Copyright (C) 2009-2022 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 2004,2007 by Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (c) 1996-2003 by Internet Software Consortium
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+.\" OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\"   Internet Systems Consortium, Inc.
+.\"   PO Box 360
+.\"   Newmarket, NH 03857 USA
+.\"   <info@isc.org>
+.\"   https://www.isc.org/
+.\"
+.\" Support and other services are available for ISC products - see
+.\" https://www.isc.org for more information or to learn more about ISC.
+.\"
+.TH dhcp-eval 5
+.SH "نام (NAME)"
+dhcp-eval \- ارزیابی شرطی در ISC DHCP
+.SH "توضیحات (DESCRIPTION)"
+کارخواه (کلاینت) و کارگزار (سرور) پروتکل DHCP ارائه‌شده توسط Internet Systems Consortium، هر دو امکان اعمال رفتار شرطی بر اساس محتوای بسته‌های دریافتی را فراهم می‌کنند. نحو (syntax) لازم برای تعیین این رفتار شرطی در این سند شرح داده شده است.
+.SH "مرجع: رفتار شرطی (REFERENCE: CONDITIONAL BEHAVIOUR)"
+رفتار شرطی را می‌توان با استفاده از عبارت \fBif\fR و عبارت‌های \fBelse\fR یا \fBelsif\fR، یا عبارت‌های \fBswitch\fR و \fBcase\fR تعیین کرد. یک عبارت شرطی می‌تواند در هر کجایی که یک عبارت معمولی (مانند عبارت \fBoption\fR) مجاز است قرار گیرد، و می‌تواند یک یا چند مورد از این عبارت‌ها را در بر بگیرد.
+.PP
+.B رفتار شرطی: IF (CONDITIONAL BEHAVIOUR: IF)
+.PP
+یک عبارت شرطی نمونهٔ \fBif\fR در سمت سرور می‌تواند به صورت زیر باشد:
+.PP
+.nf
+if option dhcp-user-class = "accounting" {
+  max-lease-time 17600;
+  option domain-name "accounting.example.org";
+  option domain-name-servers ns1.accounting.example.org,
+			     ns2.accounting.example.org;
+} elsif option dhcp-user-class = "sales" {
+  max-lease-time 17600;
+  option domain-name "sales.example.org";
+  option domain-name-servers ns1.sales.example.org,
+			     ns2.sales.example.org;
+} elsif option dhcp-user-class = "engineering" {
+  max-lease-time 17600;
+  option domain-name "engineering.example.org";
+  option domain-name-servers ns1.engineering.example.org,
+			     ns2.engineering.example.org;
+} else {
+  max-lease-time 600;
+  option domain-name "misc.example.org";
+  option domain-name-servers ns1.misc.example.org,
+			     ns2.misc.example.org;
+}
+.fi
+.PP
+در سمت کارخواه، مثالی از ارزیابی شرطی می‌تواند به این صورت باشد:
+.PP
+.nf
+# example.org filters DNS at its firewall, so we have to use their DNS
+# servers when we connect to their network.  If we are not at
+# example.org, prefer our own DNS server.
+if not option domain-name = "example.org" {
+  prepend domain-name-servers 127.0.0.1;
+}
+.fi
+.PP
+عبارت
+.B if
+و عبارت ادامه‌دهندهٔ
+.B elsif
+هر دو عبارت‌های بولی (boolean) را به عنوان آرگومان دریافت می‌کنند. یعنی عبارت‌هایی را می‌پذیرند که پس از ارزیابی، یک نتیجهٔ بولی تولید می‌کنند. اگر نتیجهٔ ارزیابی عبارت درست (true) باشد، دستورات محصور در آکولادهای پس از عبارت
+.B if
+اجرا می‌شوند و تمام بندهای بعدی
+.B elsif
+و
+.B else
+نادیده گرفته می‌شوند. در غیر این صورت، عبارت هر بند بعدی
+.B elsif
+بررسی می‌شود تا زمانی که به یک بند elsif برخورد شود که شرط آن درست ارزیابی گردد. اگر چنین بندی یافت شود، دستورات داخل آکولاد بعد از آن اجرا شده و سپس تمام بندهای بعدی
+.B elsif
+و
+.B else
+نادیده گرفته می‌شوند. اگر تمام بندهای
+.B if
+و
+.B elsif
+بررسی شوند اما عبارت هیچ‌کدام درست ارزیابی نشود، در صورت وجود بند
+.BR else ،
+دستورات محصور در آکولادهای پس از
+.B else
+اجرا می‌شوند. عبارت‌های بولی که مقدار null تولید می‌کنند، در عبارات شرطی به عنوان نادرست (false) در نظر گرفته می‌شوند.
+.PP
+.B رفتار شرطی: SWITCH (CONDITIONAL BEHAVIOUR: SWITCH)
+.PP
+مثال بالا را می‌توان با ساختار switch نیز بازنویسی کرد.
+.PP
+.nf
+switch (option dhcp-user-class) {
+  case "accounting":
+    max-lease-time 17600;
+    option domain-name "accounting.example.org";
+    option domain-name-servers ns1.accounting.example.org,
+			       ns2.accounting.example.org;
+  case "sales":
+    max-lease-time 17600;
+    option domain-name "sales.example.org";
+    option domain-name-servers ns1.sales.example.org,
+			       ns2.sales.example.org;
+    break;
+  case "engineering":
+    max-lease-time 17600;
+    option domain-name "engineering.example.org";
+    option domain-name-servers ns1.engineering.example.org,
+			       ns2.engineering.example.org;
+    break;
+  default:
+    max-lease-time 600;
+    option domain-name "misc.example.org";
+    option domain-name-servers ns1.misc.example.org,
+			       ns2.misc.example.org;
+    break;
+}
+.fi
+.PP
+عبارت
+.B switch
+و عبارت‌های
+.B case
+می‌توانند عبارت‌های داده‌ای یا عبارت‌های عددی باشند. در یک عبارت switch، همهٔ آن‌ها باید از یک نوع داده باشند. سرور عبارت مربوط به دستور switch را ارزیابی کرده و سپس عبارت‌های دستورات case را تا زمان یافتن تطابق، ارزیابی می‌کند.
+.PP
+اگر تطابقی پیدا شود، اجرای دستورات از آن case تا عبارت break بعدی آغاز می‌شود. اگر تطابقی پیدا نشود، اجرا از عبارت default شروع شده و مجدداً تا عبارت break بعدی پیش می‌رود. در صورتی که هیچ تطابقی وجود نداشته باشد و default نیز تعریف نشده باشد، هیچ عملی صورت نمی‌گیرد.
+.PP
+.SH "عبارت‌های بولی (BOOLEAN EXPRESSIONS)"
+فهرست زیر، مجموعهٔ عبارت‌های بولی است که در حال حاضر توسط توزیع DHCP پشتیبانی می‌شوند:
+.PP
+.I data-expression-1 \fB=\fR \fIdata-expression-2\fR
+.RS 0.25i
+.PP
+عملگر \fB=\fR مقادیر دو عبارت داده‌ای را مقایسه می‌کند؛ در صورت برابر بودن مقدار true و در صورت نابرابری مقدار false را برمی‌گرداند. اگر هر یک از طرف‌های چپ یا راست null باشند، نتیجه نیز null خواهد بود.
+.RE
+.PP
+.I data-expression-1 \fB~=\fR \fIdata-expression-2\fR
+.I data-expression-1 \fB~~\fR \fIdata-expression-2\fR
+.RS 0.25i
+.PP
+عملگرهای \fB~=\fR و \fB~~\fR (که در همهٔ سیستم‌ها در دسترس نیستند) تطابق با عبارات منظم گستردهٔ regex(7) را روی مقادیر دو عبارت داده‌ای انجام می‌دهند؛ در صورتی که \fIdata-expression-1\fR با عبارت منظم حاصل از ارزیابی \fIdata-expression-2\fR تطابق داشته باشد مقدار true، و در صورت عدم تطابق یا بروز خطا مقدار false را برمی‌گردانند. اگر سمت چپ یا سمت راست null یا رشتهٔ خالی باشد، نتیجه نیز false خواهد بود. تفاوت عملگر \fB~~\fR با عملگر \fB~=\fR در این است که به بزرگی و کوچکی حروف حساس نیست (case-insensitive).
+.RE
+.PP
+.I boolean-expression-1 \fBand\fR \fIboolean-expression-2\fR
+.PP
+.RS 0.25i
+عملگر \fBand\fR در صورتی که عبارت بولی سمت چپ و عبارت بولی سمت راست هر دو true ارزیابی شوند، مقدار true را برمی‌گرداند. در غیر این صورت، false برمی‌گرداند. اگر هر یک از عبارت‌های سمت چپ یا راست null باشند، نتیجه null خواهد بود.
+.RE
+.PP
+.I boolean-expression-1 \fBor\fR \fIboolean-expression-2\fR
+.PP
+.RS 0.25i
+عملگر \fBor\fR در صورتی که حداقل یکی از عبارت‌های بولی سمت چپ یا راست true ارزیابی شوند، مقدار true را برمی‌گرداند. در غیر این صورت، false برمی‌گرداند. اگر هر یک از عبارت‌های سمت چپ یا راست null باشند، نتیجه null خواهد بود.
+.RE
+.PP
+.B not \fIboolean-expression
+.PP
+.RS 0.25i
+عملگر \fBnot\fR در صورتی که \fIboolean-expression\fR به false ارزیابی شود مقدار true، و اگر \fIboolean-expression\fR به true ارزیابی شود مقدار false برمی‌گرداند. اگر \fIboolean-expression\fR به null ارزیابی شود، نتیجه نیز null خواهد بود.
+.RE
+.PP
+.B exists \fIoption-name\fR
+.PP
+.RS 0.25i
+عبارت \fBexists\fR در صورتی که گزینهٔ مشخص‌شده در بستهٔ DHCP ورودیِ در حال پردازش وجود داشته باشد، مقدار true برمی‌گرداند.
+.RE
+.B known
+.PP
+.RS 0.25i
+عبارت \fBknown\fR در صورتی که کارخواهی که درخواستش در حال پردازش است شناخته‌شده باشد — یعنی یک اعلان میزبان (host declaration) برای آن وجود داشته باشد — مقدار true برمی‌گرداند.
+.RE
+.B static
+.PP
+.RS 0.25i
+عبارت \fBstatic\fR در صورتی که اجارهٔ (lease) اختصاص‌یافته به کارخواهی که درخواستش در حال پردازش است برگرفته از یک تخصیص آدرس ایستا (static) باشد، مقدار true برمی‌گرداند.
+.RE
+.SH "عبارت‌های داده‌ای (DATA EXPRESSIONS)"
+بسیاری از عبارت‌های بولی فوق به نتایج ارزیابی عبارت‌های داده‌ای وابسته‌اند. فهرستی از این عبارت‌ها در اینجا ارائه شده است.
+.PP
+.B substring (\fIdata-expr\fB, \fIoffset\fB, \fIlength\fB)\fR
+.PP
+.RS 0.25i
+عملگر \fBsubstring\fR عبارت داده‌ای را ارزیابی کرده و زیررشته‌ای از نتیجهٔ آن ارزیابی را برمی‌گرداند که از بایت شمارهٔ \fIoffset\fR از ابتدا شروع شده و به طول \fIlength\fR بایت ادامه می‌یابد. \fIOffset\fR و \fIlength\fR هر دو عبارت‌های عددی هستند. اگر \fIdata-expr\fR، \fIoffset\fR یا \fIlength\fR به null ارزیابی شوند، نتیجه نیز null خواهد بود. اگر \fIoffset\fR بزرگ‌تر یا مساوی با طول دادهٔ ارزیابی‌شده باشد، یک رشته داده با طول صفر برگردانده می‌شود. اگر \fIlength\fR بزرگ‌تر از طول دادهٔ باقی‌مانده پس از \fIoffset\fR باشد، یک رشته داده شامل تمام داده‌ها از \fIoffset\fR تا انتهای دادهٔ ارزیابی‌شده برگردانده می‌شود.
+.RE
+.PP
+.B suffix (\fIdata-expr\fB, \fIlength\fB)\fR
+.PP
+.RS 0.25i
+عملگر \fBsuffix\fR عبارت \fIdata-expr\fR را ارزیابی کرده و \fIlength\fR بایت پایانی نتیجهٔ آن ارزیابی را برمی‌گرداند. \fILength\fR یک عبارت عددی است. اگر \fIdata-expr\fR یا \fIlength\fR به null ارزیابی شوند، نتیجه نیز null خواهد بود. اگر \fIsuffix\fR به عددی بزرگ‌تر از طول دادهٔ ارزیابی‌شده ارزیابی شود، کل دادهٔ ارزیابی‌شده برگردانده می‌شود.
+.RE
+.PP
+.B lcase (\fIdata-expr\fB)\fR
+.PP
+.RS 0.25i
+تابع \fBlcase\fR نتیجهٔ ارزیابی \fIdata-expr\fR را پس از تبدیل به حروف کوچک (lower case) برمی‌گرداند. اگر \fIdata-expr\fR به null ارزیابی شود، نتیجه نیز null خواهد بود.
+.RE
+.PP
+.B ucase (\fIdata-expr\fB)\fR
+.PP
+.RS 0.25i
+تابع \fBucase\fR نتیجهٔ ارزیابی \fIdata-expr\fR را پس از تبدیل به حروف بزرگ (upper case) برمی‌گرداند. اگر \fIdata-expr\fR به null ارزیابی شود، نتیجه نیز null خواهد بود.
+.RE
+.PP
+.B option \fIoption-name\fR
+.PP
+.RS 0.25i
+عملگر \fBoption\fR محتوای گزینهٔ مشخص‌شده در بسته‌ای را که سرور در حال پاسخ به آن است برمی‌گرداند.
+.RE
+.PP
+.B config-option \fIoption-name\fR
+.PP
+.RS 0.25i
+عملگر \fBconfig-option\fR مقدار گزینهٔ مشخص‌شده‌ای را برمی‌گرداند که کلاینت یا سرور DHCP برای ارسال آن پیکربندی شده است.
+.RE
+.PP
+.B gethostname()
+.PP
+.RS 0.25i
+تابع \fBgethostname()\fR یک رشته داده برمی‌گرداند که محتوای آن یک رشته نویسه‌ای حاصل از فراخوانی gethostname() روی سیستم محلی با محدودیت اندازهٔ ۲۵۵ بایت (بدون احتساب نویسهٔ پایانی NULL) است. این تابع به عنوان مثال می‌تواند برای پیکربندی dhclient جهت ارسال نام میزبان محلی، بدون نیاز به دانستن نام میزبان در زمان نوشتن dhclient.conf، استفاده شود.
+.RE
+.PP
+.B hardware
+.PP
+.RS 0.25i
+عملگر \fBhardware\fR یک رشته داده برمی‌گرداند که نخستین عنصر آن نوع واسط شبکهٔ قیدشده در بستهٔ مورد بررسی است، و عناصر بعدی آن آدرس لایهٔ پیوند داده (link-layer) کارخواه هستند. اگر بسته‌ای وجود نداشته باشد، یا اگر فیلد \fIhlen\fR در RFC2131 نامعتبر باشد، نتیجه null خواهد بود. انواع سخت‌افزار شامل ethernet (۱)، token-ring (۶) و fddi (۸) هستند. انواع سخت‌افزار توسط IETF مشخص شده‌اند و جزئیات نحوهٔ تعریف شماره انواع را می‌توان در RFC2131 یافت (در توزیع ISC DHCP، این مورد در زیرشاخهٔ doc/ قرار دارد).
+.RE
+.PP
+.B packet (\fIoffset\fB, \fIlength\fB)\fR
+.PP
+.RS 0.25i
+عملگر \fBpacket\fR بخش مشخص‌شده از بستهٔ مورد بررسی را برمی‌گرداند، یا در زمینه‌هایی که هیچ بسته‌ای مورد بررسی نیست مقدار null برمی‌گرداند. \fIOffset\fR و \fIlength\fR مشابه با عملگر \fBsubstring\fR روی محتوای بسته اعمال می‌شوند.
+.RE
+.PP
+.I string
+.PP
+.RS 0.25i
+یک رشته که درون گیومه قرار گرفته است می‌تواند به عنوان یک عبارت داده‌ای مشخص شود و متن بین گیومه‌ها را با کدگذاری ASCII برمی‌گرداند. نویسهٔ بک‌اسلش ('\\') همانند برنامه‌نویسی C به شکل ویژه‌ای رفتار می‌شود: '\\t' به معنی TAB، '\\r' به معنی بازگشت به ابتدای سطر (carriage return)، '\\n' به معنی سطر جدید (newline) و '\\b' به معنی زنگ (bell) است. هر مقدار در مبنای هشت (octal) می‌تواند با '\\nnn' مشخص شود که در آن nnn هر عدد مثبت هشت‌هشتی کوچک‌تر از 0400 است. هر مقدار در مبنای شانزده (hexadecimal) می‌تواند با '\\xnn' مشخص شود که در آن nn هر عدد مثبت هگزادسیمال کوچک‌تر یا مساوی با 0xff است.
+.RE
+.PP
+.I colon-separated hexadecimal list
+.PP
+.RS 0.25i
+فهرستی از مقادیر هشت‌بیتی (octet) هگزادسیمال که با دو‌نقطه (:) از یکدیگر جدا شده‌اند، می‌تواند به عنوان یک عبارت داده‌ای مشخص شود.
+.RE
+.PP
+.B concat (\fIdata-expr1\fB, ..., \fIdata-exprN\fB)\fR
+.RS 0.25i
+عبارت‌ها ارزیابی می‌شوند و نتایج هر ارزیابی به همان ترتیبی که زیرعبارت‌ها فهرست شده‌اند به یکدیگر متصل (الحاق) می‌شوند. اگر هر یک از زیرعبارت‌ها به null ارزیابی شود، نتیجهٔ الحاق null خواهد بود.
+.RE
+.PP
+.B reverse (\fInumeric-expr1\fB, \fIdata-expr2\fB)\fR
+.RS 0.25i
+دو عبارت ارزیابی می‌شوند و سپس نتیجهٔ ارزیابی عبارت داده‌ای، درجا و با استفاده از قطعاتی به اندازهٔ مشخص‌شده در عبارت عددی معکوس می‌شود. برای نمونه، اگر عبارت عددی به ۴ و عبارت داده‌ای به ۱۲ بایت داده ارزیابی شوند، عبارت معکوس به ۱۲ بایت داده ارزیابی خواهد شد که شامل ۴ بایت آخر داده‌های ورودی، به دنبال آن ۴ بایت میانی، و در نهایت ۴ بایت اول است.
+.RE
+.PP
+.B leased-address
+.RS 0.25i
+در هر زمینه‌ای که به کارخواهی که درخواستش در حال پردازش است یک آدرس IP اختصاص داده شده باشد، این عبارت داده‌ای آن آدرس IP را برمی‌گرداند. در هر زمینه‌ای که به کارخواهی که درخواستش در حال پردازش است آدرس IP تخصیص داده نشده باشد، اگر این عبارت داده‌ای در دستورات اجرایی مربوط به آن کارخواه یافت شود، یک پیام گزارش با مضمون "there is no lease associated with this client" در سطح اشکال‌زدایی (debug) در گزارش‌های سیستمی (syslog) ثبت می‌شود (این مورد به عنوان اطلاعات اشکال‌زدایی dhcpd.conf در نظر گرفته می‌شود).
+.RE
+.PP
+.B binary-to-ascii (\fInumeric-expr1\fB, \fInumeric-expr2\fB,
+.B \fIdata-expr1\fB,\fR \fIdata-expr2\fB)\fR
+.RS 0.25i
+نتیجهٔ ارزیابی data-expr2 را به یک رشتهٔ متنی شامل یک عدد به ازای هر عنصر از نتیجهٔ ارزیابی data-expr2 تبدیل می‌کند. هر عدد توسط نتیجهٔ ارزیابی data-expr1 از دیگری جدا می‌شود. نتیجهٔ ارزیابی numeric-expr1 مبنای عددی (۲ تا ۱۶) را که اعداد باید به آن تبدیل شوند مشخص می‌کند. نتیجهٔ ارزیابی numeric-expr2 عرض (تعداد بیت‌های) هر عدد را مشخص می‌کند که می‌تواند ۸، ۱۶ یا ۳۲ باشد.
+.PP
+به عنوان مثالی از سه نوع عبارت پیشین، برای تولید نام یک رکورد PTR برای آدرس IP اختصاص‌یافته به یک کارخواه، می‌توان عبارت زیر را نوشت:
+.RE
+.PP
+.nf
+        concat (binary-to-ascii (10, 8, ".",
+                                 reverse (1, leased-address)),
+                ".in-addr.arpa.");
+
+.fi
+.RE
+.PP
+.B encode-int (\fInumeric-expr\fB, \fIwidth\fB)\fR
+.RS 0.25i
+عبارت numeric-expr ارزیابی شده و به صورت یک رشته داده با عرض مشخص‌شده در ترتیب بایتی شبکه (بایت پرارزش‌تر در ابتدا - network byte order) کدگذاری می‌شود. اگر عبارت عددی به مقدار null ارزیابی شود، نتیجه نیز null خواهد بود.
+.RE
+.PP
+.B pick-first-value (\fIdata-expr1\fR [ ... \fIexpr\fRn ] \fB)\fR
+.RS 0.25i
+تابع pick-first-value هر تعداد عبارت داده‌ای را به عنوان آرگومان‌های خود می‌پذیرد. هر عبارت، با شروع از اولین مورد در فهرست، ارزیابی می‌شود تا زمانی که عبارتی یافت شود که به مقدار null ارزیابی نشود. آن عبارت برگردانده می‌شود و هیچ‌یک از عبارت‌های بعدی ارزیابی نخواهند شد. اگر همهٔ عبارت‌ها به مقدار null ارزیابی شوند، مقدار null برگردانده می‌شود.
+.RE
+.PP
+.B host-decl-name
+.RS 0.25i
+تابع host-decl-name نام اعلان میزبان (host declaration) را که با کارخواه در حال پردازش مطابقت داشته است، در صورت وجود، برمی‌گرداند. اگر هیچ اعلان میزبانی مطابقت نداشته باشد، نتیجه مقدار null خواهد بود.
+.RE
+.SH "عبارت‌های عددی (NUMERIC EXPRESSIONS)"
+عبارت‌های عددی عبارت‌هایی هستند که به یک عدد صحیح ارزیابی می‌شوند. به طور کلی، نباید فرض کرد که حداکثر اندازهٔ چنین عدد صحیحی در کمتر از ۳۲ بیت قابل نمایش است، اما دقت چنین اعدادی ممکن است بیش از ۳۲ بیت باشد.
+.PP
+علاوه بر عملگرهای زیر، چندین تابع ریاضی استاندارد نیز در دسترس هستند. آن‌ها عبارتند از:
+.nf
+عملیات (operation)    نماد (symbol)
+جمع (add)              \fB+\fR
+تفریق (subtract)       \fB-\fR
+تقسیم (divide)         \fB/\fR
+ضرب (multiply)         \fB*\fR
+باقی‌مانده (modulus)    \fB%\fR
+and بیتی (bitwise and) \fB&\fR
+or بیتی (bitwise or)   \fB|\fR
+xor بیتی (bitwise xor) \fB^\fR
+.fi
+.PP
+.B extract-int (\fIdata-expr\fB, \fIwidth\fB)\fR
+.PP
+.RS 0.25i
+عملگر \fBextract-int\fR یک مقدار عدد صحیح را با ترتیب بایتی شبکه (network byte order) از نتیجهٔ ارزیابی عبارت داده‌ای مشخص‌شده استخراج می‌کند. Width عرض عدد صحیح مورد استخراج بر حسب بیت است. در حال حاضر تنها عرض‌های پشتیبانی‌شده ۸، ۱۶ و ۳۲ هستند. اگر ارزیابی عبارت داده‌ای بیت‌های کافی برای استخراج عدد صحیحی با اندازهٔ مشخص‌شده را فراهم نکند، مقدار null برگردانده می‌شود.
+.RE
+.PP
+.B lease-time
+.PP
+.RS 0.25i
+مدت‌زمان اجارهٔ فعلی — یعنی تفاوت بین زمان کنونی و زمانی که اجاره منقضی می‌شود.
+.RE
+.PP
+.I number
+.PP
+.RS 0.25i
+هر عددی بین صفر و حداکثر اندازهٔ قابل نمایش می‌تواند به عنوان یک عبارت عددی مشخص شود.
+.RE
+.PP
+.B client-state
+.PP
+.RS 0.25i
+وضعیت کنونی نمونهٔ کارخواه در حال پردازش. این گزینه فقط در فایل‌های پیکربندی کلاینت DHCP کاربرد دارد. مقادیر ممکن عبارتند از:
+.TP 2
+.I \(bu
+Booting \- کارخواه DHCP در وضعیت INIT است و هنوز آدرس IP ندارد. پیام بعدی که فرستاده می‌شود DHCPDISCOVER خواهد بود که به صورت همه‌پخشی (broadcast) ارسال می‌گردد.
+.TP
+.I \(bu
+Reboot \- کارخواه DHCP در وضعیت INIT-REBOOT است. دارای آدرس IP است، اما هنوز از آن استفاده نمی‌کند. پیام بعدی که ارسال می‌شود DHCPREQUEST خواهد بود که همه‌پخشی می‌شود. اگر پاسخی دریافت نشود، کارخواه به آدرس خود متصل شده و به وضعیت BOUND تغییر وضعیت می‌دهد.
+.TP
+.I \(bu
+Select \- کارخواه DHCP در وضعیت SELECTING است \- حداقل یک پیام DHCPOFFER دریافت کرده است، اما منتظر است تا ببیند آیا پیام‌های DHCPOFFER دیگری از سرورهای دیگر دریافت می‌کند یا خیر. در وضعیت SELECTING هیچ پیامی ارسال نمی‌شود.
+.TP
+.I \(bu
+Request \- کارخواه DHCP در وضعیت REQUESTING است \- حداقل یک پیام DHCPOFFER دریافت کرده و انتخاب کرده است که کدام‌یک را درخواست کند. پیام بعدی که ارسال خواهد شد پیام DHCPREQUEST است که همه‌پخشی می‌شود.
+.TP
+.I \(bu
+Bound \- کارخواه DHCP در وضعیت BOUND است \- دارای یک آدرس IP است. در این وضعیت هیچ پیامی ارسال نمی‌شود.
+.TP
+.I \(bu
+Renew \- کارخواه DHCP در وضعیت RENEWING است \- دارای آدرس IP است و در تلاش است برای تمدید آن با کارگزار ارتباط برقرار کند. پیام بعدی ارسالی یک پیام DHCPREQUEST خواهد بود که مستقیماً (تک‌پخشی / unicast) به سرور ارسال می‌شود.
+.TP
+.I \(bu
+Rebind \- کارخواه DHCP در وضعیت REBINDING است \- دارای آدرس IP است و سعی می‌کند برای تمدید آن با هر سروری تماس بگیرد. پیام بعدی ارسالی یک DHCPREQUEST خواهد بود که به صورت همه‌پخشی ارسال می‌شود.
+.RE
+.SH "مرجع: عبارت‌های عملیاتی (REFERENCE: ACTION EXPRESSIONS)"
+.PP
+.B log (\fIpriority\fB, \fIdata-expr\fB)\fR
+.RS 0.25i
+.PP
+دستورات ثبت لاگ (logging) می‌توانند برای ارسال اطلاعات به کانال‌های استاندارد ثبت رویداد استفاده شوند. یک دستور ثبت لاگ شامل یک اولویت اختیاری (\fBfatal\fR، \fBerror\fR، \fBinfo\fR، یا \fBdebug\fR) و یک عبارت داده‌ای است.
+.PP
+دستورات ثبت وقایع تنها یک عبارت داده‌ای به عنوان آرگومان می‌پذیرند، بنابراین اگر می‌خواهید چندین مقدار داده را خروجی دهید، باید از عملگر \fBconcat\fR برای الحاق آن‌ها استفاده کنید.
+.RE
+.PP
+.B execute (\fIcommand-path\fB [, \fIdata-expr1\fB, ... \fIdata-exprN\fB]);\fR
+.RS 0.25i
+.PP
+دستور \fBexecute\fR یک دستور خارجی را اجرا می‌کند. آرگومان اول یک رشتهٔ متنی شامل نام یا مسیر دستوری است که باید اجرا شود. سایر آرگومان‌ها، در صورت وجود، یا رشته‌های متنی هستند یا عبارت‌های داده‌ای که پس از ارزیابی به رشته‌های متنی تبدیل می‌شوند، تا به عنوان آرگومان‌های خط فرمان به دستور پاس داده شوند.
+.PP
+دستور \fBexecute\fR همگام (synchronous) است؛ برنامه تا زمان پایان اجرای دستور خارجی متوقف (بلاک) خواهد شد. لطفاً توجه داشته باشید که اجرای طولانی‌مدت برنامه‌ها (برای نمونه در یک بخش "on commit" در dhcpd.conf) ممکن است منجر به افت کارایی و سررسید زمان (timeout) شود. تنها برنامه‌های خارجی با زمان اجرای بسیار کوتاه برای استفاده مناسب هستند.
+.PP
+ارسال داده‌های ارائه‌شده توسط کاربر به یک برنامهٔ خارجی می‌تواند خطرناک باشد. اطمینان حاصل کنید که برنامهٔ خارجی بافرهای ورودی را از نظر اعتبار بررسی می‌کند. نویسه‌های غیرقابل چاپ ASCII به کدهای گریز هشت‌هشتی زبان dhcpd.conf ("\\nnn") تبدیل می‌شوند، اطمینان حاصل کنید که دستور خارجی شما آن‌ها را به همین صورت مدیریت می‌کند.
+.PP
+امکان استفاده از دستور execute در هر زمینه‌ای وجود دارد، نه فقط در رویدادها. اگر آن را در یک دامنهٔ معمولی (scope) در فایل پیکربندی قرار دهید، هر بار که آن دامنه ارزیابی شود، آن دستور را اجرا خواهید کرد.
+.RE
+.PP
+.B parse-vendor-option;\fR
+.RS 0.25i
+.PP
+دستور \fBparse-vendor-option\fR تلاش می‌کند یک گزینهٔ ارائه‌دهنده (کد ۴۳ - vendor option) را تجزیه کند. این دستور تنها هنگام پردازش یک بسته روی سرور کاربرد دارد و مستلزم آن است که مدیر سیستم پیش‌تر از دستور \fBvendor-option-space\fR برای انتخاب یک فضای معتبر ارائه‌دهنده (vendor space) استفاده کرده باشد.
+.PP
+این قابلیت زمانی استفاده می‌شود که سرور بسته به مقادیری که کلاینت در گزینهٔ سازنده قرار داده است نیاز به انجام اقدامات مختلفی داشته باشد و زیرگزینه‌ها در مکان‌های ثابتی قرار نداشته باشند. این دستور به عنوان یک عمل پیاده‌سازی شده تا به مدیر سیستم اجازه دهد گزینه‌های ورودی را بررسی کرده و فضای مناسب ارائه‌دهنده را انتخاب کند.
+.RE
+.SH "مرجع: به‌روزرسانی‌های پویای دی‌ان‌اس (REFERENCE: DYNAMIC DNS UPDATES)"
+.PP
+برای کسب اطلاعات بیشتر در مورد DDNS، به صفحات راهنمای dhcpd.conf و dhclient.conf مراجعه کنید.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR dhcpd.conf (5)،
+.BR dhcpd.leases (5)،
+.BR dhclient.conf (5)،
+.BR dhcp-options (5)،
+.BR dhcpd (8)،
+.BR dhclient (8)،
+.BR RFC2132 ،
+.BR RFC2131 .
+.SH "نویسندگان (AUTHORS)"
+اطلاعات تکمیلی دربارهٔ Internet Systems Consortium در پیوند زیر در دسترس است:
+.B https://www.isc.org

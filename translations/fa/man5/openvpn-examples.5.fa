@@ -1,0 +1,585 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "openvpn examples" "5" "" "" "فایل‌های پیکربندی"
+.SH "نام (NAME)"
+openvpn examples \- مثال‌هایی از راه‌اندازی و پیکربندی دیمن تونل امن IP
+.SH "مقدمه (INTRODUCTION)"
+.sp
+این صفحهٔ راهنما چند مثال ساده برای راه‌اندازی OpenVPN و ایجاد فایل‌های پیکربندی ارائه می‌دهد.
+.SH "راه‌اندازی کوچک OPENVPN با PEER-FINGERPRINT"
+.sp
+این بخش شامل دستورالعمل‌هایی برای ایجاد یک راه‌اندازی کوچک OpenVPN با استفاده از گزینهٔ
+\fBpeer\-fingerprint\fP است. مزیت این روش، راه‌اندازی آسان آن است و برای بیشتر
+محیط‌های آزمایشگاهی کوچک و مصارف خانگی بدون نیاز به زیرساخت کلید عمومی (PKI) مناسب می‌باشد.
+برای راه‌اندازی‌های در مقیاس بزرگ‌تر، همچنان راه‌اندازی یک PKI (برای مثال از طریق easy\-rsa) توصیه می‌شود.
+.sp
+هر دو پیکربندی سرور و کلاینت را می‌توان برای سفارشی‌سازی بیشتر تغییر داد.
+.SS "راه‌اندازی سرور"
+.INDENT 0.0
+.IP 1. 3
+نصب openvpn
+.sp
+کامپایل از کد منبع (فایل \fBINSTALL\fP را ببینید) یا نصب از طریق مدیر بسته‌های توزیع (apt/yum/pacman/ports)
+یا از طریق نصاب (ویندوز).
+.IP 2. 3
+تولید یک گواهی خودامضا (self\-signed) برای سرور:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+openssl req \-x509 \-newkey ec \-pkeyopt ec_paramgen_curve:secp384r1 \-keyout server.key \-out server.crt \-nodes \-sha256 \-days 3650 \-subj \(aq/CN=server\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.IP 3. 3
+تولید اثر انگشت (fingerprint) SHA256 گواهی سرور
+.sp
+استفاده از ابزار خط فرمان OpenSSL برای مشاهدهٔ اثر انگشت گواهی ایجادشده:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+openssl x509 \-fingerprint \-sha256 \-in server.crt \-noout
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+خروجی دستوری مشابه این خواهد بود:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+SHA256 Fingerprint=00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
+.EE
+.UNINDENT
+.UNINDENT
+.IP 4. 3
+نوشتن فایل پیکربندی سرور (\fBserver.conf\fP):
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+# The server certificate we created in step 1
+cert server.crt
+key server.key
+
+dh none
+dev tun
+
+# Listen on IPv6+IPv4 simultaneously
+proto udp6
+
+# The ip address the server will distribute
+server 10.8.0.0 255.255.255.0
+server\-ipv6 fd00:6f76:706e::/64
+
+# A tun\-mtu of 1400 avoids problems of too big packets after VPN encapsulation
+tun\-mtu 1400
+
+# The fingerprints of your clients. After adding/removing one here restart the
+# server
+<peer\-fingerprint>
+</peer\-fingerprint>
+
+# Notify clients when you restart the server to reconnect quickly
+explicit\-exit\-notify 1
+
+# Ping every 60s, restart if no data received for 5 minutes
+keepalive 60 300
+
+# Uncomment the line below if you want to have persistent IP addresses
+# ifconfig\-pool\-persist  /etc/openvpn/server/ipp.txt
+
+# Uncomment the line below to push a DNS server to clients
+# push \(dqdhcp\-option DNS 1.1.1.1\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.IP 5. 3
+افزودن حداقل یک کلاینت مطابق توضیحات بخش کلاینت.
+.IP 6. 3
+.INDENT 3.0
+.TP
+.B راه‌اندازی سرور.
+.INDENT 7.0
+.IP \(bu 2
+در توزیع‌های مبتنی بر systemd، فایل‌های \fBserver.crt\fP، \fBserver.key\fP و
+\fBserver.conf\fP را به \fB/etc/openvpn/server\fP منتقل کرده و آن را از طریق systemctl اجرا کنید:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+sudo mv server.conf server.key server.crt /etc/openvpn/server
+
+sudo systemctl start openvpn\-server@server
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS "افزودن کلاینت"
+.INDENT 0.0
+.IP 1. 3
+نصب OpenVPN
+.IP 2. 3
+تولید یک گواهی خودامضا برای کلاینت. در این مثال، نام کلاینت alice است.
+هر کلاینت باید نامی یکتا داشته باشد. alice را با نام متفاوتی برای هر کلاینت جایگزین کنید.
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+openssl req \-x509 \-newkey ec \-pkeyopt ec_paramgen_curve:secp384r1 \-keyout \- \-nodes \-sha256 \-days 3650 \-subj \(aq/CN=alice\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+این دستور یک گواهی و کلید برای کلاینت تولید می‌کند. خروجی دستور چیزی شبیه به این خواهد بود:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+\-\-\-\-\-BEGIN PRIVATE KEY\-\-\-\-\-
+[base64 content]
+\-\-\-\-\-END PRIVATE KEY\-\-\-\-\-
+\-\-\-\-\-
+\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-
+[base 64 content]
+\-\-\-\-\-END CERTIFICATE\-\-\-\-\-
+.EE
+.UNINDENT
+.UNINDENT
+.IP 3. 3
+ایجاد یک فایل پیکربندی کلاینت جدید. در این مثال نام فایل را
+\fBalice.ovpn\fP می‌گذاریم:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+# The name of your server to connect to
+remote yourserver.example.net
+client
+# use a random source port instead the fixed 1194
+nobind
+
+# Uncomment the following line if you want to route
+# all traffic via the VPN
+# redirect\-gateway def1 ipv6
+
+# To set a DNS server
+# dhcp\-option DNS 192.168.234.1
+
+<key>
+\-\-\-\-\-BEGIN PRIVATE KEY\-\-\-\-\-
+[Insert here the key created in step 2]
+\-\-\-\-\-END PRIVATE KEY\-\-\-\-\-
+</key>
+<cert>
+\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-
+[Insert here the certificate created in step 2]
+\-\-\-\-\-END CERTIFICATE\-\-\-\-\-
+</cert>
+
+# This is the fingerprint of the server that we trust. We generated this fingerprint
+# in step 2 of the server setup
+peer\-fingerprint 00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff:00:11:22:33:44:55:66:77:88:99:aa:bb:cc:dd:ee:ff
+
+# The tun\-mtu of the client should match the server MTU
+tun\-mtu 1400
+dev tun
+.EE
+.UNINDENT
+.UNINDENT
+.IP 4. 3
+تولید اثر انگشت گواهی کلاینت. برای این کار اجازه می‌دهیم OpenSSL فایل پیکربندی کلاینت را بخواند،
+زیرا دستور x509 هر چیزی را که بین نشانگرهای شروع و پایان گواهی نباشد نادیده می‌گیرد:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+openssl x509 \-fingerprint \-sha256 \-noout \-in alice.ovpn
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+این دستور مجدداً خروجی شبیه به این تولید می‌کند:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+SHA256 Fingerprint=ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00:ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
+.EE
+.UNINDENT
+.UNINDENT
+.IP 5. 3
+فایل پیکربندی \fBserver.conf\fP را ویرایش کرده و اثر انگشت کلاینت جدید را
+به عنوان یک خط اضافی بین \fB<peer\-fingerprint>\fP
+و \fB</peer\-fingerprint>\fP اضافه کنید.
+.sp
+پس از افزودن \fIدو\fP کلاینت، این بخش از پیکربندی به این شکل خواهد بود:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+<peer\-fingerprint>
+ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00:ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00
+99:88:77:66:55:44:33:22:11:00:ff:ee:dd:cc:bb:aa:99:88:77:66:55:44:33:22:11:00:88:77:66:55:44:33
+</peer\-fingerprint>
+.EE
+.UNINDENT
+.UNINDENT
+.IP 6. 3
+(اختیاری) اگر کلاینت نسخهٔ قدیمی‌تری است که از
+\fBpeer\-fingerprint\fP پشتیبانی نمی‌کند (مانند OpenVPN 2.5 و قدیمی‌تر، یا OpenVPN Connect 3.3
+و قدیمی‌تر)، می‌توان پیکربندی کلاینت \fBalice.ovpn\fP را برای کار با این کلاینت‌ها تغییر داد.
+.sp
+خطی که با \fBpeer\-fingerprint\fP شروع می‌شود را حذف کنید. سپس یک بخش جدید \fB<ca>\fP در انتهای
+فایل پیکربندی با محتوای \fBserver.crt\fP که در مرحلهٔ ۲ راه‌اندازی سرور ایجاد شد، اضافه نمایید.
+انتهای فایل \fBalice.ovpn\fP باید به این صورت باشد:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+[...]  # Beginning of the file skipped
+</cert>
+
+# The tun\-mtu of the client should match the server MTU
+tun\-mtu 1400
+dev tun
+
+<ca>
+[contents of the server.crt]
+</ca>
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+توجه داشته باشید که ما بخش \fB<ca>\fP را پس از بخش \fB<cert>\fP قرار می‌دهیم تا تولید اثر انگشت
+مرحلهٔ ۴ همچنان کار کند، زیرا تنها از اولین گواهی‌ای که پیدا می‌کند استفاده خواهد کرد.
+.IP 7. 3
+فایل را در کلاینت OpenVPN وارد (Import) کنید یا فقط از دستور
+\fBopenvpn alice.ovpn\fP برای راه‌اندازی VPN استفاده نمایید.
+.UNINDENT
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+پیش از اجرای این مثال‌ها، باید OpenVPN روی دو رایانه که دارای ارتباط شبکه‌ای با یکدیگر هستند،
+نصب شده باشد. اگر هنوز OpenVPN را نصب نکرده‌اید، فایل INSTALL موجود در توزیع OpenVPN را مطالعه کنید.
+.SS "پیکربندی دیوار آتش (Firewall Setup):"
+.sp
+اگر دیوارهای آتش بین دو رایانه وجود دارند، باید به گونه‌ای تنظیم شوند که پورتی که OpenVPN
+برای استفاده از آن پیکربندی شده است را در هر دو جهت عبور دهند. پورت پیش‌فرض برای OpenVPN مقدار 1194/udp است.
+اگر کنترلی روی دیوارهای آتش بین دو رایانه ندارید، ممکن است همچنان بتوانید با افزودن \fB\-\-ping 15\fP به هر
+یک از دستورات \fBopenvpn\fP که در مثال‌های زیر به کار رفته‌اند از OpenVPN استفاده کنید (این کار باعث می‌شود
+هر همتا هر ۱۵ ثانیه یک پینگ UDP به همتای دوردست خود بفرستد، که موجب می‌شود بسیاری از دیوارهای آتشِ مبتنی بر وضعیت
+(stateful) بسته‌ها را در هر دو جهت بدون نیاز به یک قانون صریح عبور دهند).
+.sp
+لطفاً برای چگونگی پیکربندی دیوار آتش در سیستم خود، راهنماهای سیستم‌عاملتان را مطالعه کنید.
+.SS "پیکربندی آدرس‌های VPN (VPN Address Setup):"
+.sp
+به منظور این مثال‌ها، دو دستگاه ما \fBbob.example.com\fP و \fBalice.example.com\fP نامیده می‌شوند.
+اگر در حال ساخت یک VPN بر بستر اینترنت هستید، \fBbob.example.com\fP و \fBalice.example.com\fP را با
+نام میزبان اینترنتی یا آدرس IP که هر رایانه برای ارتباط با دیگری در اینترنت استفاده می‌کند، جایگزین کنید.
+.sp
+اکنون نقاط انتهایی تونل (endpoints) را انتخاب می‌کنیم. نقاط انتهایی تونل، آدرس‌های IP خصوصی هستند
+که فقط در بستر VPN معنا دارند. هر رایانه از نقطه پایانی تونل رایانهٔ دیگر برای دسترسی به آن از طریق VPN استفاده می‌کند.
+در مثال ما، نقطه پایانی تونل برای bob.example.com برابر با 10.4.0.1 و برای alice.example.com برابر با 10.4.0.2 خواهد بود.
+.sp
+پس از برقراری VPN، شما اساساً یک مسیر جایگزینِ امن بین دو میزبان ایجاد کرده‌اید که با استفاده از آدرس‌های پایانی
+تونل قابل دسترس است. شما می‌توانید با انتخاب استفاده از (الف) آدرس پایانی VPN یا (ب) آدرس اینترنتی عمومی برای دسترسی
+به میزبان دوردست، مشخص کنید که کدام ترافیک شبکه (الف) از طریق VPN یا (ب) مستقل از VPN بین میزبان‌ها تبادل شود.
+برای مثال، اگر در bob.example.com هستید و می‌خواهید از طریق \fBssh\fP بدون استفاده از VPN به \fBalice.example.com\fP
+متصل شوید (زیرا \fBssh\fP امنیت توکار خود را دارد)، از دستور \fBssh alice.example.com\fP استفاده می‌کنید. با این حال
+در همان سناریو، می‌توانید از دستور \fBtelnet 10.4.0.2\fP برای ایجاد یک نشست telnet با alice.example.com از بستر VPN استفاده کنید
+که به جای \fBssh\fP، از VPN برای ایمن‌سازی نشست استفاده می‌کند.
+.sp
+شما می‌توانید از هر آدرسی که تمایل دارید برای نقاط پایانی تونل استفاده کنید، اما مطمئن شوید که آن‌ها آدرس‌های
+خصوصی هستند (مانند آن‌هایی که با 10 یا 192.168 شروع می‌شوند) و متعلق به هیچ‌یک از زیرشبکه‌های موجود در شبکهٔ هیچ‌یک
+از دو طرف نیستند، مگر اینکه از پل‌زدن (bridging) استفاده کنید. اگر از آدرسی استفاده کنید که بخشی از زیرشبکهٔ محلی شما
+برای هر یک از نقاط پایانی تونل باشد، با یک حلقهٔ بازخورد (feedback loop) عجیب مواجه خواهید شد.
+.SS "مثال ۱: یک تونل ساده بدون امنیت (توصیه نمی‌شود)"
+.sp
+از آنجایی که \fBtun\fP نوع پیش‌فرض دستگاه است، گزینهٔ \fB\-\-dev\fP اختیاری است؛ هنگامی که حذف شود،
+OpenVPN دستگاهی با نام پویا مانند \fBtunX\fP ایجاد می‌کند. در مثال‌های زیر، برای شفافیت بیشتر،
+نام دستگاه صراحتاً (\fB\-\-dev tun1\fP) قید شده است.
+.sp
+در bob:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openvpn \-\-remote alice.example.com \-\-dev tun1 \e
+         \-\-ifconfig 10.4.0.1 10.4.0.2 \-\-verb 9
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openvpn \-\-remote bob.example.com \-\-dev tun1 \e
+         \-\-ifconfig 10.4.0.2 10.4.0.1 \-\-verb 9
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+اکنون با پینگ کردن از طریق تونل، کارکرد آن را بررسی کنید.
+.sp
+در bob:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ping 10.4.0.2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ping 10.4.0.1
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+گزینهٔ \fB\-\-verb 9\fP خروجی مفصلی شبیه به برنامهٔ \fBtcpdump\fP(8) تولید می‌کند.
+برای اینکه OpenVPN با جزئیات کمتر و آرام اجرا شود، گزینهٔ \fB\-\-verb 9\fP را حذف کنید.
+.SS "مثال ۲: تونل با گواهی‌های خودامضا و اثر انگشت"
+.sp
+ابتدا یک گواهی خودامضا روی bob بسازید و اثر انگشت آن را نمایش دهید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openssl req \-x509 \-newkey ec:<(openssl ecparam \-name secp384r1) \-keyout bob.pem \-out bob.pem \-nodes \-sha256 \-days 3650 \-subj \(aq/CN=bob\(aq
+openssl x509 \-noout \-sha256 \-fingerprint \-in bob.pem
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+و به همین ترتیب در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openssl req \-x509 \-newkey ec:<(openssl ecparam \-name secp384r1) \-keyout alice.pem \-out alice.pem \-nodes \-sha256 \-days 3650 \-subj \(aq/CN=alice\(aq
+openssl x509 \-noout \-sha256 \-fingerprint \-in alice.pem
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+این دستورات یک فایل متنی به نام \fBbob.pem\fP یا \fBalice.pem\fP (در قالب ascii) ایجاد می‌کنند
+که شامل گواهی خودامضا و کلید است و اثر انگشت گواهی‌ها را نمایش می‌دهد.
+اثر انگشت‌ها را از طریق یک بستر امن مانند برنامه‌های \fBscp\fP(1) یا \fBssh\fP(1) انتقال دهید.
+.sp
+در bob:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openvpn \-\-ifconfig 10.4.0.1 10.4.0.2 \-\-tls\-server \-\-dev tun \-\-dh none \e
+        \-\-cert bob.pem \-\-key bob.pem \-\-cipher AES\-256\-GCM \e
+        \-\-peer\-fingerprint \(dq$fingerprint_of_alices_cert\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openvpn \-\-remote bob.example.com \-\-tls\-client \-\-dev tun1   \e
+        \-\-ifconfig 10.4.0.2 10.4.0.1 \-\-cipher AES\-256\-GCM  \e
+        \-\-cert alice.pem \-\-key alice.pem                   \e
+        \-\-peer\-fingerprint \(dq$fingerprint_of_bobs_cert\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+اکنون با پینگ کردن از طریق تونل، کارکرد آن را بررسی کنید.
+.sp
+در bob:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ping 10.4.0.2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ping 10.4.0.1
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+نکته: این مثال از یک منحنی بیضوی (\fBsecp384\fP) استفاده می‌کند که اجازه می‌دهد
+\fB\-\-dh\fP روی \fBnone\fP تنظیم شود.
+.SS "مثال ۳: تونل با PKI کامل و امنیت مبتنی بر TLS"
+.sp
+برای این آزمایش، ما \fBbob\fP را به عنوان کلاینت TLS و \fBalice\fP را به عنوان سرور TLS تعیین می‌کنیم.
+.INDENT 0.0
+.TP
+.B \fIنکته:\fP
+تعیین کلاینت یا سرور فقط برای زیرسیستم TLS معنا دارد و هیچ تأثیری بر مدل ارتباطی نظیربه‌نظیر (peer\-to\-peer)
+مبتنی بر UDP در OpenVPN ندارد.
+.UNINDENT
+.sp
+ابتدا یک جفت گواهی/کلید مجزا برای هر دو میزبان bob و alice ایجاد کنید (برای اطلاعات بیشتر به توضیحات \fB\-\-cert\fP مراجعه کنید).
+سپس پارامترهای دیفی-هلمن (Diffie Hellman) را بسازید (برای اطلاعات بیشتر به توضیحات \fB\-\-dh\fP مراجعه کنید).
+همچنین می‌توانید از فایل‌های آزمایشی موجود شامل \fBclient.crt\fP،
+\fBclient.key\fP، \fBserver.crt\fP، \fBserver.key\fP و
+\fBca.crt\fP استفاده کنید. فایل‌های \fB\&.crt\fP گواهی‌ها/کلیدهای عمومی،
+فایل‌های \fB\&.key\fP کلیدهای خصوصی، و \fBca.crt\fP مرجع صدور گواهی است
+که هر دو فایل \fBclient.crt\fP و \fBserver.crt\fP را امضا کرده است.
+برای پارامترهای دیفی-هلمن می‌توانید از فایل موجود \fBdh2048.pem\fP استفاده کنید.
+.INDENT 0.0
+.TP
+.B \fIهشدار:\fP
+تمام گواهی‌ها و کلیدهای کلاینت، سرور و مرجع صدور گواهی موجود در توزیع OpenVPN
+کاملاً ناامن بوده و صرفاً باید برای مقاصد آزمایشی استفاده شوند.
+.UNINDENT
+.sp
+در bob:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openvpn \-\-remote alice.example.com \-\-dev tun1    \e
+        \-\-ifconfig 10.4.0.1 10.4.0.2             \e
+        \-\-tls\-client \-\-ca ca.crt                 \e
+        \-\-cert client.crt \-\-key client.key       \e
+        \-\-reneg\-sec 60 \-\-verb 5
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+openvpn \-\-remote bob.example.com \-\-dev tun1      \e
+        \-\-ifconfig 10.4.0.2 10.4.0.1             \e
+        \-\-tls\-server \-\-dh dh1024.pem \-\-ca ca.crt \e
+        \-\-cert server.crt \-\-key server.key       \e
+        \-\-reneg\-sec 60 \-\-verb 5
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+اکنون با پینگ کردن از طریق تونل، کارکرد آن را بررسی کنید.
+.sp
+در bob:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ping 10.4.0.2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ping 10.4.0.1
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+به گزینهٔ \fB\-\-reneg\-sec 60\fP که در بالا استفاده کردیم توجه کنید. این گزینه به OpenVPN می‌گوید
+که کلیدهای کانال داده را در هر دقیقه دوباره مذاکره (renegotiate) کند. از آنجا که در بالا از
+\fB\-\-verb 5\fP استفاده کردیم، اطلاعات وضعیت را در هر مذاکرهٔ کلید جدید مشاهده خواهید کرد.
+.sp
+برای عملیات واقعی و محیط‌های تولید (production)، فاصلهٔ مذاکرهٔ مجدد کلید به مدت ۶۰ ثانیه احتمالاً
+بیش از حد مکرر است. برای استفاده از مقدار پیش‌فرض OpenVPN یعنی بازهٔ یک ساعته، گزینهٔ \fB\-\-reneg\-sec 60\fP را حذف کنید.
+.SS "مسیریابی (Routing):"
+.sp
+با فرض اینکه بتوانید از طریق تونل پینگ بگیرید، گام بعدی مسیریابی یک زیرشبکهٔ واقعی از روی تونل امن است.
+فرض کنید bob و alice هر کدام دو رابط شبکه دارند؛ یکی متصل به اینترنت و دیگری متصل به یک شبکهٔ خصوصی.
+هدف ما اتصال امن این دو شبکهٔ خصوصی به یکدیگر است. فرض می‌کنیم زیرشبکهٔ خصوصی bob برابر با \fI10.0.0.0/24\fP و
+برای alice برابر با \fI10.0.1.0/24\fP باشد.
+.sp
+ابتدا مطمئن شوید فورواردینگ IP (IP forwarding) روی هر دو همتا فعال است. در لینوکس، مسیریابی را فعال کنید:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+echo 1 > /proc/sys/net/ipv4/ip_forward
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+این تنظیم پایدار (persistent) نیست. لطفاً مستندات سیستم‌عامل خود را برای چگونگی پیکربندی مناسب
+فورواردینگ IP که پس از راه‌اندازی مجدد سیستم نیز پایدار بماند، مطالعه کنید.
+.sp
+اگر سیستم شما با دیوار آتش پیکربندی شده است، لطفاً راهنمای سیستم‌عامل خود را دربارهٔ چگونگی پیکربندی
+دیوار آتش مطالعه کنید. معمولاً می‌بایست اجازهٔ عبور ترافیک ورودی و خروجی از آداپتور tun/tap را که OpenVPN
+برای استفاده از آن پیکربندی شده است، بدهید.
+.sp
+در bob:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+route add \-net 10.0.1.0 netmask 255.255.255.0 gw 10.4.0.2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+در alice:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+route add \-net 10.0.0.0 netmask 255.255.255.0 gw 10.4.0.1
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+اکنون هر رایانه‌ای در زیرشبکهٔ \fI10.0.0.0/24\fP می‌تواند به هر رایانه‌ای در زیرشبکهٔ
+\fI10.0.1.0/24\fP از طریق تونل امن دسترسی داشته باشد (و برعکس).
+.sp
+در یک محیط عملیاتی، می‌توانید دستور(های) route را در یک اسکریپت قرار داده و آن را با گزینهٔ \fB\-\-up\fP اجرا کنید.
+.\" End of generated man page.

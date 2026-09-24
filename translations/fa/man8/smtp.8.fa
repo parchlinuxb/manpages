@@ -1,0 +1,773 @@
+.TH SMTP 8
+.ad
+.fi
+.SH "نام (NAME)"
+smtp, lmtp
+\-
+کلاینت SMTP+LMTP در Postfix
+.SH "خلاصه دستور (SYNOPSIS)"
+.na
+.nf
+\fBsmtp\fR [گزینه‌های عمومی دیمن Postfix] [flags=DORX]
+
+\fBlmtp\fR [گزینه‌های عمومی دیمن Postfix] [flags=DORX]
+.SH "توضیحات (DESCRIPTION)"
+.ad
+.fi
+کلاینت SMTP+LMTP در Postfix پروتکل‌های تحویل ایمیل SMTP و LMTP را پیاده‌سازی می‌کند. این کلاینت درخواست‌های تحویل پیام را از مدیر صف پردازش می‌کند. هر درخواست یک فایل صف، یک آدرس فرستنده، یک دامنه یا میزبان جهت تحویل، و اطلاعات گیرنده را مشخص می‌کند. انتظار می‌رود این برنامه از طریق مدیر فرایند \fBmaster\fR(8) اجرا شود. نام فرایند، \fBsmtp\fR یا \fBlmtp\fR، پروتکل و نام پارامترهای پیکربندی مورد استفاده را کنترل می‌کند.
+
+کلاینت SMTP+LMTP فایل صف را به‌روزرسانی کرده و گیرندگان را به عنوان انجام‌شده علامت‌گذاری می‌کند، یا به مدیر صف اطلاع می‌دهد که تحویل باید در زمان دیگری دوباره امتحان شود. گزارش‌های وضعیت تحویل بر حسب مورد به دیمن‌های \fBbounce\fR(8)، \fBdefer\fR(8) یا \fBtrace\fR(8) ارسال می‌شوند.
+
+راهبرد جستجوی سرور برای SMTP و LMTP متفاوت است، همان‌طور که در بخش‌های «جستجوی سرور SMTP» و «جستجوی سرور LMTP» شرح داده شده است.
+
+پس از یک تراکنش پستی موفق، یک اتصال ممکن است در سرور کش اتصال \fBscache\fR(8) ذخیره شود، تا بتواند توسط هر کلاینت SMTP+LMTP برای تراکنش‌های بعدی مورد استفاده قرار گیرد.
+
+به‌طور پیش‌فرض، کش کردن اتصال به‌صورت موقت برای مقصدهایی که حجم بالایی از ایمیل در صف فعال دارند، فعال می‌شود. کش کردن اتصال را می‌توان به‌صورت دائمی برای مقصدهای خاص فعال کرد.
+.SH "جستجوی سرور SMTP (SMTP SERVER LOOKUP)"
+.na
+.nf
+.ad
+.fi
+کلاینت SMTP در Postfix از چندین مقصد که با کاما یا فاصله از هم جدا شده‌اند پشتیبانی می‌کند (Postfix 3.5 و جدیدتر). هر مقصد به ترتیب مشخص‌شده امتحان می‌شود.
+
+مقصدهای SMTP دارای ساختار زیر هستند:
+.IP \fIdomainname\fR
+.IP \fIdomainname\fR:\fIservice\fR
+جستجوی مبادله‌کننده‌های ایمیل برای دامنه مشخص‌شده، و اتصال به سرویس مشخص‌شده (پیش‌فرض: \fBsmtp\fR).
+در صورت تمایل، مبادله‌کننده‌های ایمیل را می‌توان با پرس‌وجوهای SRV به جای MX جستجو کرد؛ این کار مستلزم آن است که \fIservice\fR به صورت نمادین ارائه شود.
+.IP [\fIhostname\fR]
+.IP [\fIhostname\fR]:\fIservice\fR
+جستجوی آدرس(های) میزبان مشخص‌شده، و اتصال به سرویس مشخص‌شده (پیش‌فرض: \fBsmtp\fR).
+.IP [\fIaddress\fR]
+.IP [\fIaddress\fR]:\fIservice\fR
+اتصال به میزبان در آدرس مشخص‌شده، و اتصال به سرویس مشخص‌شده (پیش‌فرض: \fBsmtp\fR). یک آدرس IPv6 باید در قالب [\fBipv6\fR:\fIaddress\fR] قالب‌بندی شود.
+.SH "جستجوی سرور LMTP (LMTP SERVER LOOKUP)"
+.na
+.nf
+.ad
+.fi
+کلاینت LMTP در Postfix از چندین مقصد که با کاما یا فاصله از هم جدا شده‌اند پشتیبانی می‌کند (Postfix 3.5 و جدیدتر). هر مقصد به ترتیب مشخص‌شده امتحان می‌شود.
+
+مقصدهای LMTP دارای ساختار زیر هستند:
+.IP \fBunix\fR:\fIpathname\fR
+اتصال به سرور محلی دامنه یونیکس که به \fIpathname\fR مشخص‌شده متصل (bind) شده است. اگر فرایند در محیط chroot اجرا شود، یک مسیر مطلق به صورت نسبی نسبت به دایرکتوری صف Postfix تفسیر می‌شود.
+.IP \fBinet\fR:\fIdomainname\fR
+.IP \fBinet\fR:\fIdomainname\fR:\fIservice\fR
+جستجوی سرورهای LMTP برای دامنه و سرویس مشخص‌شده (پیش‌فرض: \fBlmtp\fR).
+این قالب هنگامی که جستجوهای SRV فعال باشند پشتیبانی می‌شود و نیازمند آن است که \fIservice\fR به شکل نمادین باشد.
+.IP \fBinet\fR:\fIhostname\fR
+.IP \fBinet\fR:\fIhostname\fR:\fIservice\fR
+جستجوی آدرس(های) میزبان مشخص‌شده، و اتصال به سرویس مشخص‌شده (پیش‌فرض: \fBlmtp\fR). هنگامی که جستجوهای SRV فعال هستند، از قالب \fB[\fIhostname\fB]\fR برای اجبار جستجوهای آدرس استفاده کنید.
+.IP \fBinet\fR:[\fIaddress\fR]
+.IP \fBinet\fR:[\fIaddress\fR]:\fIservice\fR
+اتصال به میزبان و سرویس مشخص‌شده محلی یا دوردست (پیش‌فرض: \fBlmtp\fR).
+یک آدرس IPv6 باید در قالب [\fBipv6\fR:\fIaddress\fR] قالب‌بندی شود.
+.SH "تحویل تک‌گیرنده (SINGLE-RECIPIENT DELIVERY)"
+.na
+.nf
+.ad
+.fi
+به‌طور پیش‌فرض، کلاینت SMTP+LMTP در Postfix نامه‌ها را در هر درخواست تحویل به چندین گیرنده تحویل می‌دهد. این امر هنگام اضافه کردن سرآیند پیام \fBDelivered\-to:\fR یا \fBX\-Original\-To:\fR نامطلوب است. برای جلوگیری از ارسال چندین گیرنده در هر درخواست تحویل توسط Postfix، عبارت زیر را:
+.sp
+.nf
+    \fItransport\fB_destination_recipient_limit = 1\fR
+.fi
+
+در فایل \fBmain.cf\fR در Postfix مشخص کنید، که در آن \fItransport\fR نام موجود در ستون اول مدخل \fBmaster.cf\fR در Postfix برای این سرویس تحویل ایمیل است.
+.SH "نحو ویژگی‌های دستور (COMMAND ATTRIBUTE SYNTAX)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBflags=DORX\fR (اختیاری)"
+فلگ‌های اختیاری پردازش پیام.
+.RS
+.IP \fBD\fR
+اضافه کردن یک سرآیند پیام "\fBDelivered\-To: \fIrecipient\fR" با آدرس گیرنده پاکت در ابتدای پیام. توجه: برای کارکرد این قابلیت، مقدار \fItransport\fB_destination_recipient_limit\fR باید ۱ باشد (برای جزئیات به بخش «تحویل تک‌گیرنده» در بالا مراجعه کنید).
+.sp
+فلگ \fBD\fR همچنین تشخیص حلقه را اعمال می‌کند: اگر پیامی از قبل حاوی سرآیند \fBDelivered\-To:\fR با همان آدرس گیرنده باشد، پیام به عنوان غیرقابل‌تحویل بازگردانده می‌شود. مقایسه آدرس بدون حساسیت به بزرگی و کوچکی حروف انجام می‌شود.
+.sp
+این ویژگی از Postfix 3.5 به بعد در دسترس است.
+.IP \fBO\fR
+اضافه کردن یک سرآیند پیام "\fBX\-Original\-To: \fIrecipient\fR" با آدرس گیرنده آن‌گونه که به Postfix داده شده در ابتدای پیام. توجه: برای کارکرد این قابلیت، مقدار \fItransport\fB_destination_recipient_limit\fR باید ۱ باشد (برای جزئیات به بخش «تحویل تک‌گیرنده» در بالا مراجعه کنید).
+.sp
+این ویژگی از Postfix 3.5 به بعد در دسترس است.
+.IP \fBR\fR
+اضافه کردن یک سرآیند پیام "\fBReturn\-Path: <\fIsender\fB>\fR" با آدرس فرستنده پاکت در ابتدای پیام.
+.sp
+این ویژگی از Postfix 3.5 به بعد در دسترس است.
+.IP \fBX\fR
+نشان می‌دهد که تحویل نهایی است. این فلگ بر وضعیت گزارش‌شده در پیام‌های DSN (اعلان وضعیت تحویل) از نوع «موفقیت» (success) تأثیر می‌گذارد و آن را از "relayed" (رله‌شده) به "delivered" (تحویل داده‌شده) تغییر می‌دهد.
+.sp
+این ویژگی از Postfix 3.5 به بعد در دسترس است.
+.RE
+.SH "امنیت (SECURITY)"
+.na
+.nf
+.ad
+.fi
+کلاینت SMTP+LMTP از نظر امنیتی حساسیت متوسطی دارد. این کلاینت با سرورهای SMTP یا LMTP و سرورهای DNS در شبکه ارتباط برقرار می‌کند. کلاینت SMTP+LMTP را می‌توان در محیط chroot با امتیازات پایین ثابت اجرا کرد.
+.SH "استانداردها (STANDARDS)"
+.na
+.nf
+RFC 821 (پروتکل SMTP)
+RFC 822 (پیام‌های متنی اینترنت ARPA)
+RFC 1651 (افزونه‌های سرویس SMTP)
+RFC 1652 (انتقال 8bit\-MIME)
+RFC 1870 (اعلام اندازه پیام)
+RFC 2033 (پروتکل LMTP)
+RFC 2034 (کدهای خطای ارتقایافته SMTP)
+RFC 2045 (MIME: قالب بدنه‌های پیام اینترنتی)
+RFC 2046 (MIME: انواع رسانه)
+RFC 2554 (دستور AUTH)
+RFC 2821 (پروتکل SMTP)
+RFC 2782 (رکوردهای منبع SRV)
+RFC 2920 (خط لوله‌بندی SMTP)
+RFC 3207 (دستور STARTTLS)
+RFC 3461 (افزونه DSN برای SMTP)
+RFC 3463 (کدهای وضعیت ارتقایافته)
+RFC 4954 (دستور AUTH)
+RFC 5321 (پروتکل SMTP)
+RFC 6531 (SMTP بین‌المللی‌شده)
+RFC 6533 (اعلان‌های وضعیت تحویل بین‌المللی‌شده)
+RFC 7672 (امنیت SMTP از طریق DANE TLS فرصت‌طلبانه)
+RFC 8689 (افزونه REQUIRETLS در SMTP، سرآیند TLS\-Required)
+.SH "عیب‌یابی (DIAGNOSTICS)"
+.ad
+.fi
+مشکلات و تراکنش‌ها در \fBsyslogd\fR(8) یا \fBpostlogd\fR(8) ثبت می‌شوند.
+فایل‌های پیام آسیب‌دیده علامت‌گذاری می‌شوند تا مدیر صف بتواند آن‌ها را برای بررسی بیشتر به صف \fBcorrupt\fR منتقل کند.
+
+بسته به تنظیمات پارامتر \fBnotify_classes\fR، مدیر پستچی (postmaster) از برگشت‌ها (bounces)، مشکلات پروتکل و سایر اشکالات مطلع می‌شود.
+.SH "اشکالات (BUGS)"
+.ad
+.fi
+استفاده مجدد از اتصال SMTP و LMTP برای TLS (بدون بستن اتصال SMTP یا LMTP) پیش از Postfix 3.4 پشتیبانی نمی‌شود.
+
+استفاده مجدد از اتصال SMTP و LMTP فرض می‌کند که اعتبارنامه‌های SASL برای تمام مقصدهایی که به همان آدرس IP و درگاه TCP نگاشت می‌شوند معتبر است.
+.SH "پارامترهای پیکربندی (CONFIGURATION PARAMETERS)"
+.na
+.nf
+.ad
+.fi
+نسخه‌های 2.3 و جدیدتر Postfix کلاینت SMTP و LMTP را با همان برنامه پیاده‌سازی می‌کنند، و پروتکل و پارامترهای پیکربندی را بر اساس نام فرایند، یعنی \fBsmtp\fR یا \fBlmtp\fR، انتخاب می‌کنند.
+
+بیشتر پارامترهای پیکربندی smtp_\fIxxx\fR دارای یک پارامتر «آینه‌ای» lmtp_\fIxxx\fR برای قابلیت معادل LMTP هستند. این سند تنها آن دسته از پارامترهای مربوط به LMTP را توصیف می‌کند که صرفاً پارامترهای «آینه‌ای» نیستند.
+
+تغییرات در \fBmain.cf\fR به‌طور خودکار اعمال می‌شوند، زیرا فرایندهای \fBsmtp\fR(8) تنها برای مدت زمان محدودی اجرا می‌شوند. از دستور "\fBpostfix reload\fR" برای سرعت بخشیدن به اعمال تغییرات استفاده کنید.
+
+متن زیر تنها خلاصه‌ای از پارامترها را ارائه می‌دهد. برای جزئیات بیشتر به همراه مثال‌ها، \fBpostconf\fR(5) را ببینید.
+.SH "کنترل‌های سازگاری (COMPATIBILITY CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBignore_mx_lookup_error (no)\fR"
+نادیده گرفتن جستجوهای DNS MX که پاسخی در بر ندارند.
+.IP "\fBsmtp_always_send_ehlo (yes)\fR"
+ارسال همیشگی EHLO در آغاز یک نشست SMTP.
+.IP "\fBsmtp_never_send_ehlo (no)\fR"
+عدم ارسال EHLO در آغاز یک نشست SMTP.
+.IP "\fBsmtp_defer_if_no_mx_address_found (no)\fR"
+به تعویق انداختن تحویل ایمیل هنگامی که هیچ رکورد MX به یک آدرس IP تبدیل نشود.
+.IP "\fBsmtp_line_length_limit (998)\fR"
+حداکثر طول خطوط سرآیند و بدنه پیام که Postfix از طریق SMTP ارسال خواهد کرد.
+.IP "\fBsmtp_pix_workaround_delay_time (10s)\fR"
+مدت زمانی که کلاینت SMTP در Postfix قبل از ارسال ".<CR><LF>" مکث می‌کند تا باگ "<CR><LF>.<CR><LF>" در فایروال PIX را دور بزند.
+.IP "\fBsmtp_pix_workaround_threshold_time (500s)\fR"
+مدت زمانی که یک پیام باید در صف باشد پیش از آنکه کلاینت SMTP در Postfix راهکار دور زدن باگ "<CR><LF>.<CR><LF>" فایروال PIX را برای تحویل از میان فایروال‌هایی با حالت فعال "smtp fixup" فعال کند.
+.IP "\fBsmtp_pix_workarounds (disable_esmtp, delay_dotcrlf)\fR"
+فهرستی که صفر یا چند راهکار را برای باگ‌های فایروال CISCO PIX مشخص می‌کند.
+.IP "\fBsmtp_pix_workaround_maps (empty)\fR"
+جدول‌های جستجو، ایندکس‌شده با آدرس سرور SMTP دوردست، با راهکارهای دور زدن به ازای هر مقصد برای باگ‌های فایروال CISCO PIX.
+.IP "\fBsmtp_quote_rfc821_envelope (yes)\fR"
+قرار دادن آدرس‌ها در داخل گیومه در دستورات MAIL FROM و RCPT TO کلاینت SMTP در Postfix همان‌طور که توسط RFC 5321 الزامی شده است.
+.IP "\fBsmtp_reply_filter (empty)\fR"
+سازوکاری برای تبدیل پاسخ‌های سرورهای SMTP دوردست، به صورت خط به خط.
+.IP "\fBsmtp_skip_5xx_greeting (yes)\fR"
+نادیده گرفتن سرورهای SMTP دوردست که با یک کد وضعیت 5XX خوش‌آمدگویی می‌کنند.
+.IP "\fBsmtp_skip_quit_response (yes)\fR"
+منتظر نماندن برای پاسخ به دستور QUIT در SMTP.
+.PP
+موجود در Postfix نسخه 2.0 و پیش‌تر:
+.IP "\fBsmtp_skip_4xx_greeting (yes)\fR"
+نادیده گرفتن سرورهای SMTP که با یک کد وضعیت 4XX خوش‌آمدگویی می‌کنند (برو، بعداً دوباره امتحان کن).
+.PP
+موجود در Postfix نسخه 2.2 و جدیدتر:
+.IP "\fBsmtp_discard_ehlo_keyword_address_maps (empty)\fR"
+جدول‌های جستجو، ایندکس‌شده بر اساس آدرس سرور SMTP دوردست، با فهرست‌هایی غیرحساس به حروف بزرگ و کوچک از کلیدواژه‌های EHLO (مانند pipelining، starttls، auth و غیره) که کلاینت SMTP در Postfix در پاسخ EHLO از یک سرور SMTP دوردست نادیده خواهد گرفت.
+.IP "\fBsmtp_discard_ehlo_keywords (empty)\fR"
+فهرستی غیرحساس به حروف بزرگ و کوچک از کلیدواژه‌های EHLO (مانند pipelining، starttls، auth و غیره) که کلاینت SMTP در Postfix در پاسخ EHLO از یک سرور SMTP دوردست نادیده خواهد گرفت.
+.IP "\fBsmtp_generic_maps (empty)\fR"
+جدول‌های جستجوی اختیاری که بازنویسی آدرس را در کلاینت SMTP در Postfix انجام می‌دهند؛ معمولاً برای تبدیل یک آدرس معتبر محلی به یک آدرس معتبر سراسری هنگام ارسال ایمیل در بستر اینترنت.
+.PP
+موجود در Postfix نسخه 2.2.9 و جدیدتر:
+.IP "\fBsmtp_cname_overrides_servername (version dependent)\fR"
+هنگامی که نام سرور SMTP دوردست یک CNAME در DNS است، نام سرور را با نتیجه بسط CNAME جایگزین می‌کند تا برای اهداف ثبت وقایع، جستجوی گذرواژه SASL، تصمیمات خط‌مشی TLS، یا اعتبارسنجی گواهی TLS استفاده شود.
+.PP
+موجود در Postfix نسخه 2.3 و جدیدتر:
+.IP "\fBlmtp_discard_lhlo_keyword_address_maps (empty)\fR"
+جدول‌های جستجو، ایندکس‌شده بر اساس آدرس سرور LMTP دوردست، با فهرست‌هایی غیرحساس به حروف بزرگ و کوچک از کلیدواژه‌های LHLO (مانند pipelining، starttls، auth و غیره) که کلاینت LMTP در Postfix در پاسخ LHLO از یک سرور LMTP دوردست نادیده خواهد گرفت.
+.IP "\fBlmtp_discard_lhlo_keywords (empty)\fR"
+فهرستی غیرحساس به حروف بزرگ و کوچک از کلیدواژه‌های LHLO (مانند pipelining، starttls، auth و غیره) که کلاینت LMTP در Postfix در پاسخ LHLO از یک سرور LMTP دوردست نادیده خواهد گرفت.
+.PP
+موجود در Postfix نسخه 2.4.4 و جدیدتر:
+.IP "\fBsend_cyrus_sasl_authzid (no)\fR"
+هنگام احراز هویت در یک سرور SMTP یا LMTP دوردست با تنظیم پیش‌فرض "no"، هیچ شناسه مجازسازی (authzid) در SASL ارسال نشود؛ تنها شناسه احراز هویت (authcid) در SASL به همراه گذرواژه authcid ارسال شود.
+.PP
+موجود در Postfix نسخه 2.5 و جدیدتر:
+.IP "\fBsmtp_header_checks (empty)\fR"
+جدول‌های محدودشده \fBheader_checks\fR(5) برای کلاینت SMTP در Postfix.
+.IP "\fBsmtp_mime_header_checks (empty)\fR"
+جدول‌های محدودشده \fBmime_header_checks\fR(5) برای کلاینت SMTP در Postfix.
+.IP "\fBsmtp_nested_header_checks (empty)\fR"
+جدول‌های محدودشده \fBnested_header_checks\fR(5) برای کلاینت SMTP در Postfix.
+.IP "\fBsmtp_body_checks (empty)\fR"
+جدول‌های محدودشده \fBbody_checks\fR(5) برای کلاینت SMTP در Postfix.
+.PP
+موجود در Postfix نسخه 2.6 و جدیدتر:
+.IP "\fBtcp_windowsize (0)\fR"
+یک راهکار دور زدن اختیاری برای روترهایی که مقیاس‌بندی پنجره TCP را دچار اختلال می‌کنند.
+.PP
+موجود در Postfix نسخه 2.8 و جدیدتر:
+.IP "\fBsmtp_dns_resolver_options (empty)\fR"
+گزینه‌های تحلیلگر DNS برای کلاینت SMTP در Postfix.
+.PP
+موجود در Postfix نسخه 2.9 تا 3.6:
+.IP "\fBsmtp_per_record_deadline (no)\fR"
+تغییر رفتار محدودیت‌های زمانی smtp_*_timeout، از یک محدودیت زمانی به ازای هر فراخوانی سیستمی خواندن یا نوشتن، به یک محدودیت زمانی برای ارسال یا دریافت یک رکورد کامل (یک خط دستور SMTP، یک خط پاسخ SMTP، یک خط محتوای پیام SMTP، یا یک پیام پروتکل TLS).
+.PP
+موجود در Postfix نسخه 2.9 و جدیدتر:
+.IP "\fBsmtp_send_dummy_mail_auth (no)\fR"
+اینکه گزینه "AUTH=<>" به دستور MAIL FROM در نشست‌های SMTP احراز هویت‌شده با SASL اضافه شود یا خیر.
+.PP
+موجود در Postfix نسخه 2.11 و جدیدتر:
+.IP "\fBsmtp_dns_support_level (empty)\fR"
+سطح پشتیبانی DNS در کلاینت SMTP در Postfix.
+.PP
+موجود در Postfix نسخه 3.0 و جدیدتر:
+.IP "\fBsmtp_delivery_status_filter ($default_delivery_status_filter)\fR"
+فیلتر اختیاری برای عامل تحویل \fBsmtp\fR(8) جهت تغییر کد وضعیت تحویل یا متن توضیحی تحویل‌های موفق یا ناموفق.
+.IP "\fBsmtp_dns_reply_filter (empty)\fR"
+فیلتر اختیاری برای نتایج جستجوی DNS در کلاینت SMTP در Postfix.
+.PP
+موجود در Postfix نسخه 3.3 و جدیدتر:
+.IP "\fBsmtp_balance_inet_protocols (yes)\fR"
+هنگامی که یک مقصد دوردست به ترکیبی از آدرس‌های IPv4 و IPv6 تبدیل می‌شود، اطمینان حاصل می‌کند که کلاینت SMTP در Postfix می‌تواند هر دو نوع آدرس را پیش از رسیدن به smtp_mx_address_limit امتحان کند.
+.PP
+موجود در Postfix نسخه 3.5 و جدیدتر:
+.IP "\fBinfo_log_address_format (external)\fR"
+قالب آدرس ایمیلی که در لاگ‌های غیردیباگ (info، warning و غیره) استفاده خواهد شد.
+.PP
+موجود در Postfix نسخه 3.6 و جدیدتر:
+.IP "\fBdnssec_probe (ns:.)\fR"
+نوع پرس‌وجوی DNS (پیش‌فرض: "ns") و نام پرس‌وجوی DNS (پیش‌فرض: ".") که Postfix ممکن است برای تعیین اینکه آیا اعتبارسنجی DNSSEC در دسترس است یا خیر، استفاده کند.
+.IP "\fBknown_tcp_ports (lmtp=24, smtp=25, smtps=submissions=465, submission=587)\fR"
+تنظیمات اختیاری که از جستجو در پایگاه داده \fBservices\fR(5) جلوگیری می‌کند.
+.PP
+موجود در Postfix نسخه 3.7 و جدیدتر:
+.IP "\fBsmtp_per_request_deadline (no)\fR"
+تغییر رفتار محدودیت‌های زمانی smtp_*_timeout، از یک محدودیت زمانی به ازای هر فراخوانی خواندن یا نوشتن متن ساده یا TLS، به یک محدودیت زمانی ترکیبی برای ارسال یک درخواست کامل SMTP و دریافت یک پاسخ کامل SMTP.
+.IP "\fBsmtp_min_data_rate (500)\fR"
+حداقل نرخ انتقال داده متنی به بایت/ثانیه برای درخواست‌های DATA، هنگامی که مهلت‌های زمانی با smtp_per_request_deadline فعال شده باشند.
+.IP "\fBheader_from_format (standard)\fR"
+قالب سرآیند \fBFrom:\fR تولیدشده توسط Postfix.
+.PP
+موجود در Postfix نسخه 3.8 و جدیدتر:
+.IP "\fBuse_srv_lookup (empty)\fR"
+فعال‌سازی کشف برای سرویس(های) مشخص‌شده با استفاده از رکوردهای SRV در DNS.
+.IP "\fBignore_srv_lookup_error (no)\fR"
+هنگامی که جستجوی رکورد SRV ناموفق باشد، بازگشت به جستجوی MX یا آدرس IP به گونه‌ای که گویی جستجوی رکورد SRV فعال نبوده است.
+.IP "\fBallow_srv_lookup_fallback (no)\fR"
+هنگامی که جستجوی رکورد SRV ناموفق باشد یا هیچ رکورد SRV وجود نداشته باشد، بازگشت به جستجوی MX یا آدرس IP به گونه‌ای که گویی جستجوی رکورد SRV فعال نبوده است.
+.SH "کنترل‌های پردازش MIME (MIME PROCESSING CONTROLS)"
+.na
+.nf
+.ad
+.fi
+موجود در Postfix نسخه 2.0 و جدیدتر:
+.IP "\fBdisable_mime_output_conversion (no)\fR"
+غیرفعال‌سازی تبدیل قالب 8BITMIME به قالب 7BIT.
+.IP "\fBmime_boundary_length_limit (2048)\fR"
+حداکثر طول رشته‌های مرزی (boundary) چندبخشی MIME.
+.IP "\fBmime_nesting_limit (100)\fR"
+حداکثر سطح بازگشتی که پردازشگر MIME اداره خواهد کرد.
+.SH "کنترل‌های بازرسی محتوای خارجی (EXTERNAL CONTENT INSPECTION CONTROLS)"
+.na
+.nf
+.ad
+.fi
+موجود در Postfix نسخه 2.1 و جدیدتر:
+.IP "\fBsmtp_send_xforward_command (no)\fR"
+ارسال دستور غیراستاندارد XFORWARD هنگامی که پاسخ EHLO سرور SMTP در Postfix پشتیبانی از XFORWARD را اعلام می‌کند.
+.SH "کنترل‌های احراز هویت SASL (SASL AUTHENTICATION CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBsmtp_sasl_auth_enable (no)\fR"
+فعال‌سازی احراز هویت SASL در کلاینت SMTP در Postfix.
+.IP "\fBsmtp_sasl_password_maps (empty)\fR"
+جدول‌های جستجوی اختیاری کلاینت SMTP در Postfix با یک مدخل username:password به ازای هر فرستنده، نام میزبان دوردست یا دامنه گام بعدی (next\-hop).
+.IP "\fBsmtp_sasl_security_options (noplaintext, noanonymous)\fR"
+گزینه‌های امنیتی SASL کلاینت SMTP در Postfix؛ از Postfix 2.3 به بعد فهرست ویژگی‌های در دسترس به پیاده‌سازی کلاینت SASL انتخاب‌شده با \fBsmtp_sasl_type\fR بستگی دارد.
+.PP
+موجود در Postfix نسخه 2.2 و جدیدتر:
+.IP "\fBsmtp_sasl_mechanism_filter (empty)\fR"
+در صورت غیرخالی بودن، فیلتری برای کلاینت SMTP در Postfix جهت پالایش فهرست مکانیسم‌های SASL ارائه‌شده توسط سرور SMTP دوردست.
+.PP
+موجود در Postfix نسخه 2.3 و جدیدتر:
+.IP "\fBsmtp_sender_dependent_authentication (no)\fR"
+فعال‌سازی احراز هویت وابسته به فرستنده در کلاینت SMTP در Postfix؛ این گزینه تنها همراه با احراز هویت SASL در دسترس است و کش کردن اتصال SMTP را غیرفعال می‌کند تا اطمینان حاصل شود نامه‌های فرستندگان مختلف از اعتبارنامه‌های مناسب استفاده خواهند کرد.
+.IP "\fBsmtp_sasl_path (empty)\fR"
+اطلاعات وابسته به پیاده‌سازی که کلاینت SMTP در Postfix به پیاده‌سازی افزونه SASL انتخاب‌شده با \fBsmtp_sasl_type\fR منتقل می‌کند.
+.IP "\fBsmtp_sasl_type (cyrus)\fR"
+نوع افزونه SASL که کلاینت SMTP در Postfix باید برای احراز هویت استفاده کند.
+.PP
+موجود در Postfix نسخه 2.5 و جدیدتر:
+.IP "\fBsmtp_sasl_auth_cache_name (empty)\fR"
+یک جدول اختیاری برای جلوگیری از شکست‌های مکرر احراز هویت SASL با همان نام میزبان سرور SMTP دوردست، نام کاربری و گذرواژه.
+.IP "\fBsmtp_sasl_auth_cache_time (90d)\fR"
+حداکثر عمر یک مدخل smtp_sasl_auth_cache_name پیش از حذف آن.
+.IP "\fBsmtp_sasl_auth_soft_bounce (yes)\fR"
+هنگامی که یک سرور SMTP دوردست یک درخواست احراز هویت SASL را با کد پاسخ 535 رد می‌کند، به جای بازگرداندن نامه به عنوان غیرقابل‌تحویل، تحویل نامه به تعویق بیفتد.
+.PP
+موجود در Postfix نسخه 2.9 و جدیدتر:
+.IP "\fBsmtp_send_dummy_mail_auth (no)\fR"
+اینکه گزینه "AUTH=<>" به دستور MAIL FROM در نشست‌های SMTP احراز هویت‌شده با SASL اضافه شود یا خیر.
+.PP
+موجود در Postfix نسخه 3.9 و جدیدتر:
+.IP "\fBsmtp_sasl_password_result_delimiter (:)\fR"
+جداکننده بین نام کاربری و گذرواژه در نتایج جستجوی sasl_passwd_maps.
+.SH "کنترل‌های پشتیبانی از TLS (TLS SUPPORT CONTROLS)"
+.na
+.nf
+.ad
+.fi
+اطلاعات دقیق درباره پیکربندی STARTTLS را می‌توان در سند TLS_README یافت.
+.IP "\fBsmtp_tls_security_level (Postfix >= 3.11: may; Postfix < 3.11: empty)\fR"
+سطح امنیتی پیش‌فرض SMTP TLS برای کلاینت SMTP در Postfix.
+.IP "\fBsmtp_sasl_tls_security_options ($smtp_sasl_security_options)\fR"
+گزینه‌های امنیتی احراز هویت SASL که کلاینت SMTP در Postfix برای نشست‌های SMTP رمزگذاری‌شده با TLS استفاده می‌کند.
+.IP "\fBsmtp_starttls_timeout (300s)\fR"
+محدودیت زمانی برای عملیات نوشتن و خواندن کلاینت SMTP در Postfix در طول مراحل دست‌تکانی راه‌اندازی و خاموشی TLS.
+.IP "\fBsmtp_tls_CAfile (empty)\fR"
+فایلی شامل گواهی‌های مرجع صدور گواهی (CA) از CAهای ریشه که برای امضای گواهی‌های سرور SMTP دوردست یا گواهی‌های CA میانی مورد اعتماد هستند.
+.IP "\fBsmtp_tls_CApath (empty)\fR"
+دایرکتوری حاوی گواهی‌های مرجع صدور گواهی در قالب PEM که کلاینت SMTP در Postfix برای اعتبارسنجی گواهی سرور SMTP دوردست استفاده می‌کند.
+.IP "\fBsmtp_tls_cert_file (empty)\fR"
+فایل حاوی گواهی RSA کلاینت SMTP در Postfix در قالب PEM.
+.IP "\fBsmtp_tls_mandatory_ciphers (medium)\fR"
+حداقل درجه الگوریتم رمزنگاری در TLS که کلاینت SMTP در Postfix با رمزگذاری اجباری TLS استفاده خواهد کرد.
+.IP "\fBsmtp_tls_exclude_ciphers (empty)\fR"
+فهرستی از الگوریتم‌های رمزنگاری یا انواع آن‌ها برای مستثنی کردن از فهرست الگوریتم‌های رمزنگاری کلاینت SMTP در Postfix در تمامی سطوح امنیتی TLS.
+.IP "\fBsmtp_tls_mandatory_exclude_ciphers (empty)\fR"
+فهرست اضافی از الگوریتم‌های رمزنگاری یا انواع آن‌ها برای مستثنی کردن از فهرست الگوریتم‌های رمزنگاری کلاینت SMTP در Postfix در سطوح امنیتی اجباری TLS.
+.IP "\fBsmtp_tls_dcert_file (empty)\fR"
+فایل حاوی گواهی DSA کلاینت SMTP در Postfix در قالب PEM.
+.IP "\fBsmtp_tls_dkey_file ($smtp_tls_dcert_file)\fR"
+فایل حاوی کلید خصوصی DSA کلاینت SMTP در Postfix در قالب PEM.
+.IP "\fBsmtp_tls_key_file ($smtp_tls_cert_file)\fR"
+فایل حاوی کلید خصوصی RSA کلاینت SMTP در Postfix در قالب PEM.
+.IP "\fBsmtp_tls_loglevel (0)\fR"
+فعال‌سازی ثبت وقایع اضافی فعالیت TLS در کلاینت SMTP در Postfix.
+.IP "\fBsmtp_tls_note_starttls_offer (no)\fR"
+ثبت نام میزبان یک سرور SMTP دوردست که STARTTLS را پیشنهاد می‌دهد، هنگامی که TLS از قبل برای آن سرور فعال نشده باشد.
+.IP "\fBsmtp_tls_policy_maps (empty)\fR"
+جدول‌های جستجوی اختیاری با خط‌مشی امنیتی TLS کلاینت SMTP در Postfix بر اساس مقصد گام بعدی (next\-hop)؛ هنگامی که مقداری غیرخالی مشخص شود، این مقدار بر پارامتر منسوخ smtp_tls_per_site ارجحیت دارد.
+.IP "\fBsmtp_tls_mandatory_protocols (see 'postconf -d' output)\fR"
+پروتکل‌های TLS که کلاینت SMTP در Postfix با رمزگذاری اجباری TLS استفاده خواهد کرد.
+.IP "\fBsmtp_tls_scert_verifydepth (9)\fR"
+عمق اعتبارسنجی برای گواهی‌های سرور SMTP دوردست.
+.IP "\fBsmtp_tls_secure_cert_match (nexthop, dot\-nexthop)\fR"
+چگونگی اعتبارسنجی نام همتا (peername) در گواهی سرور توسط کلاینت SMTP در Postfix برای سطح امنیتی "secure" در TLS.
+.IP "\fBsmtp_tls_session_cache_database (empty)\fR"
+نام فایل حاوی کش اختیاری نشست TLS در کلاینت SMTP در Postfix.
+.IP "\fBsmtp_tls_session_cache_timeout (3600s)\fR"
+زمان انقضای اطلاعات کش نشست TLS در کلاینت SMTP در Postfix.
+.IP "\fBsmtp_tls_verify_cert_match (hostname)\fR"
+چگونگی اعتبارسنجی نام همتا (peername) در گواهی سرور توسط کلاینت SMTP در Postfix برای سطح امنیتی "verify" در TLS.
+.IP "\fBtls_daemon_random_bytes (32)\fR"
+تعداد بایت‌های شبه‌تصادفی که یک فرایند \fBsmtp\fR(8) یا \fBsmtpd\fR(8) از سرور \fBtlsmgr\fR(8) درخواست می‌کند تا مولد داخلی اعداد شبه‌تصادفی (PRNG) خود را مقداردهی اولیه (seed) کند.
+.IP "\fBtls_high_cipherlist (see 'postconf -d' output)\fR"
+فهرست الگوریتم‌های رمزنگاری OpenSSL برای الگوریتم‌های درجه "high" (بالا).
+.IP "\fBtls_medium_cipherlist (see 'postconf -d' output)\fR"
+فهرست الگوریتم‌های رمزنگاری OpenSSL برای الگوریتم‌های درجه "medium" (متوسط) یا بالاتر.
+.IP "\fBtls_null_cipherlist (eNULL:!aNULL)\fR"
+فهرست الگوریتم‌های رمزنگاری OpenSSL برای الگوریتم‌های درجه "NULL" که احراز هویت را بدون رمزگذاری ارائه می‌دهند.
+.PP
+موجود در Postfix نسخه 2.3 تا 3.7:
+.IP "\fBtls_low_cipherlist (see 'postconf -d' output)\fR"
+فهرست الگوریتم‌های رمزنگاری OpenSSL برای الگوریتم‌های درجه "low" (پایین) یا بالاتر.
+.IP "\fBtls_export_cipherlist (see 'postconf -d' output)\fR"
+فهرست الگوریتم‌های رمزنگاری OpenSSL برای الگوریتم‌های درجه "export" یا بالاتر.
+.PP
+موجود در Postfix نسخه 2.4 و جدیدتر:
+.IP "\fBsmtp_sasl_tls_verified_security_options ($smtp_sasl_tls_security_options)\fR"
+گزینه‌های امنیتی احراز هویت SASL که کلاینت SMTP در Postfix برای نشست‌های SMTP رمزگذاری‌شده با TLS به همراه یک گواهی سرور تأییدشده استفاده می‌کند.
+.PP
+موجود در Postfix نسخه 2.5 و جدیدتر:
+.IP "\fBsmtp_tls_fingerprint_cert_match (empty)\fR"
+فهرستی از اثرانگشت‌های قابل‌قبول گواهی سرور SMTP دوردست برای سطح امنیتی "fingerprint" در TLS (\fBsmtp_tls_security_level\fR = fingerprint).
+.IP "\fBsmtp_tls_fingerprint_digest (see 'postconf -d' output)\fR"
+الگوریتم خلاصه پیام مورد استفاده برای ساخت اثرانگشت‌های گواهی سرور SMTP دوردست.
+.PP
+موجود در Postfix نسخه 2.6 و جدیدتر:
+.IP "\fBsmtp_tls_protocols (see 'postconf -d' output)\fR"
+پروتکل‌های TLS که کلاینت SMTP در Postfix با رمزگذاری فرصت‌طلبانه TLS استفاده خواهد کرد.
+.IP "\fBsmtp_tls_ciphers (medium)\fR"
+حداقل درجه الگوریتم رمزنگاری TLS که کلاینت SMTP در Postfix با رمزگذاری فرصت‌طلبانه TLS استفاده خواهد کرد.
+.IP "\fBsmtp_tls_eccert_file (empty)\fR"
+فایل حاوی گواهی ECDSA کلاینت SMTP در Postfix در قالب PEM.
+.IP "\fBsmtp_tls_eckey_file ($smtp_tls_eccert_file)\fR"
+فایل حاوی کلید خصوصی ECDSA کلاینت SMTP در Postfix در قالب PEM.
+.PP
+موجود در Postfix نسخه 2.7 و جدیدتر:
+.IP "\fBsmtp_tls_block_early_mail_reply (no)\fR"
+تلاش برای تشخیص حمله ربایش ایمیل بر اساس آسیب‌پذیری پروتکل TLS (شناسه CVE\-2009\-3555)، که در آن مهاجم دستورات مخرب HELO، MAIL، RCPT و DATA را به ابتدای نشست TLS کلاینت SMTP در Postfix اضافه می‌کند.
+.PP
+موجود در Postfix نسخه 2.8 و جدیدتر:
+.IP "\fBtls_disable_workarounds (see 'postconf -d' output)\fR"
+فهرست یا ماسک بیتی از راهکارهای دور زدن باگ‌های OpenSSL جهت غیرفعال‌سازی.
+.PP
+موجود در Postfix نسخه 2.11 تا 3.1:
+.IP "\fBtls_dane_digest_agility (on)\fR"
+پیکربندی چابکی الگوریتم خلاصه RFC7671 DANE TLSA.
+.IP "\fBtls_dane_trust_anchor_digest_enable (yes)\fR"
+فعال‌سازی پشتیبانی از رکوردهای DNS استاندارد RFC 6698 (DANE TLSA) که حاوی خلاصه‌های مراجع اعتماد با کاربرد گواهی "2" هستند.
+.PP
+موجود در Postfix نسخه 2.11 و جدیدتر:
+.IP "\fBsmtp_tls_trust_anchor_file (empty)\fR"
+صفر یا چند فایل در قالب PEM حاوی گواهی‌های مرجع اعتماد و/یا کلیدهای عمومی.
+.IP "\fBsmtp_tls_force_insecure_host_tlsa_lookup (no)\fR"
+جستجوی مجموعه رکوردهای مرتبط DANE TLSA حتی هنگامی که یک نام میزبان نام مستعار نیست و رکوردهای آدرس آن در یک منطقه امضانشده قرار دارند.
+.IP "\fBtlsmgr_service_name (tlsmgr)\fR"
+نام مدخل سرویس \fBtlsmgr\fR(8) در master.cf.
+.PP
+موجود در Postfix نسخه 3.0 و جدیدتر:
+.IP "\fBsmtp_tls_wrappermode (no)\fR"
+درخواست اینکه کلاینت SMTP در Postfix با استفاده از پروتکل SUBMISSIONS (که قبلاً SMTPS نامیده می‌شد) به جای استفاده از دستور STARTTLS متصل شود.
+.PP
+موجود در Postfix نسخه 3.1 و جدیدتر:
+.IP "\fBsmtp_tls_dane_insecure_mx_policy (dane)\fR"
+خط‌مشی TLS برای میزبان‌های MX با رکوردهای TLSA از نوع "secure" هنگامی که سطح امنیتی مقصد گام بعدی \fBdane\fR باشد، اما رکورد MX از طریق یک جستجوی ناامن MX پیدا شده باشد.
+.PP
+موجود در Postfix نسخه 3.2 و جدیدتر:
+.IP "\fBtls_eecdh_auto_curves (see 'postconf -d' output)\fR"
+فهرست اولویت‌بندی‌شده منحنی‌های بیضوی که باید در کلاینت و سرور SMTP در Postfix فعال شوند.
+.PP
+موجود در Postfix نسخه 3.4 و جدیدتر:
+.IP "\fBsmtp_tls_connection_reuse (no)\fR"
+تلاش برای انجام چندین تحویل در هر اتصال رمزگذاری‌شده با TLS.
+.IP "\fBsmtp_tls_chain_files (empty)\fR"
+فهرستی از یک یا چند فایل PEM، که هر یک حاوی یک یا چند کلید خصوصی هستند که بلافاصله پس از آن‌ها زنجیره گواهی متناظر قرار دارد.
+.IP "\fBsmtp_tls_servername (empty)\fR"
+نام اختیاری برای ارسال به سرور SMTP دوردست در افزونه نشان‌دهنده نام سرور (SNI) در TLS.
+.PP
+موجود در Postfix نسخه 3.5، 3.4.6، 3.3.5، 3.2.10، 3.1.13 و جدیدتر:
+.IP "\fBtls_fast_shutdown_enable (yes)\fR"
+یک راهکار دور زدن برای پیاده‌سازی‌هایی که Postfix را هنگام قطع نشست TLS تا زمان پایان مهلت Postfix معلق نگه می‌دارند.
+.PP
+موجود در Postfix نسخه 3.8 و جدیدتر:
+.IP "\fBtls_ffdhe_auto_groups (see 'postconf -d' output)\fR"
+فهرست اولویت‌بندی‌شده گروه‌های تبادل کلید دیفی-هلمن موقت میدان محدود (FFDHE) که توسط کلاینت و سرور SMTP در Postfix پشتیبانی می‌شوند.
+.PP
+موجود در Postfix نسخه 3.9، 3.8.1، 3.7.6، 3.6.10، 3.5.20 و جدیدتر:
+.IP "\fBtls_config_file (default)\fR"
+فایل پیکربندی اختیاری با تنظیمات مبنایی OpenSSL.
+.IP "\fBtls_config_name (empty)\fR"
+نام برنامه‌ای که توسط Postfix به توابع مقداردهی اولیه کتابخانه OpenSSL منتقل می‌شود.
+.PP
+موجود در Postfix نسخه 3.9 و جدیدتر:
+.IP "\fBsmtp_tls_enable_rpk (no)\fR"
+درخواست اینکه سرورهای SMTP دوردست به جای یک گواهی X.509، یک کلید عمومی خام RFC7250 ارسال کنند.
+.PP
+موجود در Postfix نسخه 3.10 و جدیدتر:
+.IP "\fBsmtp_tlsrpt_enable (no)\fR"
+فعال‌سازی پشتیبانی از اعلان‌های TLSRPT استاندارد RFC 8460.
+.IP "\fBsmtp_tlsrpt_socket_name (empty)\fR"
+مسیر یک سوکت دیتاگرام دامنه یونیکس که توسط یک سرویس گزارش‌دهی محلی TLSRPT مدیریت می‌شود.
+.IP "\fBsmtp_tlsrpt_skip_reused_handshakes (Postfix >= 3.11: no, Postfix 3.10: yes)\fR"
+هنگامی که روی "yes" تنظیم شود، وضعیت TLSRPT را فقط برای نشست‌های TLS «جدید» گزارش می‌دهد.
+.IP "\fBtls_required_enable (yes)\fR"
+فعال‌سازی پشتیبانی از سرآیند پیام "TLS\-Required: no"، تعریف‌شده در RFC 8689.
+.PP
+موجود در Postfix نسخه 3.10.5 و جدیدتر:
+.IP "\fBsmtp_tls_enforce_sts_mx_patterns (yes)\fR"
+تبدیل خط‌مشی TLS از یک افزونه خط‌مشی STS: اتصال به یک میزبان MX تنها در صورتی که نام آن با هر یک از الگوهای میزبان MX خط‌مشی STS مطابقت داشته باشد، و تطبیق گواهی سرور با نام میزبان MX.
+.PP
+موجود در Postfix نسخه 3.11 و جدیدتر:
+.IP "\fBrequiretls_enable (yes)\fR"
+فعال‌سازی پشتیبانی از فعل ESMTP با عنوان "REQUIRETLS" در دستور "MAIL FROM".
+.IP "\fBsmtp_requiretls_policy (see 'postconf -d smtp_requiretls_policy' output)\fR"
+نحوه اعمال REQUIRETLS توسط کلاینت SMTP و LMTP در Postfix برای پیام‌های دریافت‌شده با گزینه REQUIRETLS.
+.IP "\fBsmtp_log_tls_feature_status (yes)\fR"
+فعال‌سازی ثبت اطلاعات قابلیت‌های TLS در ثبت وضعیت تحویل.
+.SH "کنترل‌های منسوخ TLS (OBSOLETE TLS CONTROLS)"
+.na
+.nf
+.ad
+.fi
+پارامترهای پیکربندی زیر برای سازگاری با نسخه‌های Postfix پیش از 2.3 وجود دارند. پشتیبانی از این موارد در نسخه‌های آینده حذف خواهد شد.
+.IP "\fBsmtp_use_tls (no)\fR"
+حالت فرصت‌طلبانه: استفاده از TLS هنگامی که یک سرور SMTP دوردست پشتیبانی از STARTTLS را اعلام می‌کند، در غیر این صورت ارسال ایمیل به صورت متن آشکار.
+.IP "\fBsmtp_enforce_tls (no)\fR"
+حالت اجباری: الزام سرورهای SMTP دوردست به استفاده از رمزگذاری TLS، و عدم ارسال هرگز ایمیل به صورت متن آشکار.
+.IP "\fBsmtp_tls_enforce_peername (yes)\fR"
+در رمزگذاری اجباری TLS، الزام به تطابق نام میزبان سرور SMTP دوردست با اطلاعات موجود در گواهی سرور SMTP دوردست.
+.IP "\fBsmtp_tls_per_site (empty)\fR"
+جدول‌های جستجوی اختیاری حاوی خط‌مشی استفاده از TLS در کلاینت SMTP در Postfix بر اساس مقصد گام بعدی و نام میزبان سرور SMTP دوردست.
+.IP "\fBsmtp_tls_cipherlist (empty)\fR"
+کنترل منسوخ Postfix < 2.3 برای فهرست الگوریتم‌های رمزنگاری TLS کلاینت SMTP در Postfix.
+.SH "کنترل‌های منابع و نرخ (RESOURCE AND RATE CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBsmtp_connect_timeout (30s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای برقراری یک اتصال TCP، یا صفر (استفاده از محدودیت زمانی توکار سیستم‌عامل).
+.IP "\fBsmtp_helo_timeout (300s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال دستور HELO یا EHLO، و برای دریافت پاسخ اولیه سرور SMTP دوردست.
+.IP "\fBlmtp_lhlo_timeout (300s)\fR"
+محدودیت زمانی کلاینت LMTP در Postfix برای ارسال دستور LHLO، و برای دریافت پاسخ اولیه سرور LMTP دوردست.
+.IP "\fBsmtp_xforward_timeout (300s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال دستور XFORWARD، و برای دریافت پاسخ سرور SMTP دوردست.
+.IP "\fBsmtp_mail_timeout (300s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال دستور MAIL FROM، و برای دریافت پاسخ سرور SMTP دوردست.
+.IP "\fBsmtp_rcpt_timeout (300s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال دستور SMTP RCPT TO، و برای دریافت پاسخ سرور SMTP دوردست.
+.IP "\fBsmtp_data_init_timeout (120s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال دستور SMTP DATA، و برای دریافت پاسخ سرور SMTP دوردست.
+.IP "\fBsmtp_data_xfer_timeout (180s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال محتوای پیام SMTP.
+.IP "\fBsmtp_data_done_timeout (600s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال "." در SMTP، و برای دریافت پاسخ سرور SMTP دوردست.
+.IP "\fBsmtp_quit_timeout (300s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال دستور QUIT، و برای دریافت پاسخ سرور SMTP دوردست.
+.PP
+موجود در Postfix نسخه 2.1 و جدیدتر:
+.IP "\fBsmtp_mx_address_limit (5)\fR"
+حداکثر تعداد آدرس‌های IP مربوط به MX (مبادله‌کننده ایمیل) که می‌تواند از جستجوهای مبادله‌کننده ایمیل کلاینت SMTP در Postfix حاصل شود، یا صفر (بدون محدودیت).
+.IP "\fBsmtp_mx_session_limit (2)\fR"
+حداکثر تعداد نشست‌های SMTP در هر درخواست تحویل پیش از آنکه کلاینت SMTP در Postfix منصرف شود یا به یک میزبان رله جایگزین تحویل دهد، یا صفر (بدون محدودیت).
+.IP "\fBsmtp_rset_timeout (20s)\fR"
+محدودیت زمانی کلاینت SMTP در Postfix برای ارسال دستور RSET، و برای دریافت پاسخ سرور SMTP دوردست.
+.PP
+موجود در Postfix نسخه 2.2 و پیش‌تر:
+.IP "\fBlmtp_cache_connection (yes)\fR"
+باز نگه داشتن اتصالات کلاینت LMTP در Postfix تا سقف max_idle$ ثانیه.
+.PP
+موجود در Postfix نسخه 2.2 و جدیدتر:
+.IP "\fBsmtp_connection_cache_destinations (empty)\fR"
+فعال‌سازی دائمی کش کردن اتصال SMTP برای مقصدهای مشخص‌شده.
+.IP "\fBsmtp_connection_cache_on_demand (yes)\fR"
+فعال‌سازی موقت کش کردن اتصال SMTP مادامی که یک مقصد دارای حجم بالایی از ایمیل در صف فعال باشد.
+.IP "\fBsmtp_connection_reuse_time_limit (300s)\fR"
+مدت زمانی که Postfix در طی آن از یک اتصال SMTP به صورت مکرر استفاده خواهد کرد.
+.IP "\fBsmtp_connection_cache_time_limit (2s)\fR"
+هنگامی که کش کردن اتصال SMTP فعال است، مدت زمانی که یک سوکت کلاینت SMTP بلااستفاده پیش از بسته شدن باز نگه داشته می‌شود.
+.PP
+موجود در Postfix نسخه 2.3 و جدیدتر:
+.IP "\fBconnection_cache_protocol_timeout (5s)\fR"
+محدودیت زمانی برای عملیات اتصال، ارسال یا دریافت در کش اتصال.
+.PP
+موجود در Postfix نسخه 2.9 تا 3.6:
+.IP "\fBsmtp_per_record_deadline (no)\fR"
+تغییر رفتار محدودیت‌های زمانی smtp_*_timeout، از یک محدودیت زمانی به ازای هر فراخوانی سیستمی خواندن یا نوشتن، به یک محدودیت زمانی برای ارسال یا دریافت یک رکورد کامل (یک خط دستور SMTP، یک خط پاسخ SMTP، یک خط محتوای پیام SMTP، یا یک پیام پروتکل TLS).
+.PP
+موجود در Postfix نسخه 2.11 و جدیدتر:
+.IP "\fBsmtp_connection_reuse_count_limit (0)\fR"
+هنگامی که کش کردن اتصال SMTP فعال است، تعداد دفعاتی که یک نشست SMTP پیش از بسته شدن می‌تواند مجدداً استفاده شود، یا صفر (بدون محدودیت).
+.PP
+موجود در Postfix نسخه 3.4 و جدیدتر:
+.IP "\fBsmtp_tls_connection_reuse (no)\fR"
+تلاش برای انجام چندین تحویل در هر اتصال رمزگذاری‌شده با TLS.
+.PP
+موجود در Postfix نسخه 3.7 و جدیدتر:
+.IP "\fBsmtp_per_request_deadline (no)\fR"
+تغییر رفتار محدودیت‌های زمانی smtp_*_timeout، از یک محدودیت زمانی به ازای هر فراخوانی خواندن یا نوشتن متن ساده یا TLS، به یک محدودیت زمانی ترکیبی برای ارسال یک درخواست کامل SMTP و دریافت یک پاسخ کامل SMTP.
+.IP "\fBsmtp_min_data_rate (500)\fR"
+حداقل نرخ انتقال داده متنی به بایت/ثانیه برای درخواست‌های DATA، هنگامی که مهلت‌های زمانی با smtp_per_request_deadline فعال شده باشند.
+.PP
+پیاده‌سازی‌شده در دیمن qmgr(8):
+.IP "\fBtransport_destination_concurrency_limit ($default_destination_concurrency_limit)\fR"
+یک مقدار جایگزین خاص روش انتقال برای مقدار پارامتر default_destination_concurrency_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBtransport_destination_recipient_limit ($default_destination_recipient_limit)\fR"
+یک مقدار جایگزین خاص روش انتقال برای مقدار پارامتر default_destination_recipient_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.SH "کنترل‌های SMTPUTF8 (SMTPUTF8 CONTROLS)"
+.na
+.nf
+.ad
+.fi
+پشتیبانی مقدماتی از SMTPUTF8 در Postfix 3.0 معرفی شده است.
+.IP "\fBsmtputf8_enable (yes)\fR"
+فعال‌سازی پشتیبانی مقدماتی از SMTPUTF8 برای پروتکل‌های توصیف‌شده در RFC 6531، RFC 6532 و RFC 6533.
+.IP "\fBsmtputf8_autodetect_classes (sendmail, verify)\fR"
+تشخیص اینکه یک پیام برای کلاس‌های مبدأ پیام مشخص‌شده نیازمند پشتیبانی از SMTPUTF8 است.
+.PP
+موجود در Postfix نسخه 3.2 و جدیدتر:
+.IP "\fBenable_idna2003_compatibility (no)\fR"
+فعال‌سازی سازگاری «گذار» بین IDNA2003 و IDNA2008، هنگام تبدیل نام‌های دامنه UTF\-8 به/از قالب ASCII که برای جستجوهای DNS استفاده می‌شود.
+.SH "کنترل‌های عیب‌یابی (TROUBLE SHOOTING CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBdebug_peer_level (2)\fR"
+میزان افزایش در سطح ثبت وقایع پرجزئیات هنگامی که یک مقصد گام بعدی، نام کلاینت یا سرور دوردست یا آدرس شبکه با الگوی ارائه‌شده در پارامتر debug_peer_list مطابقت داشته باشد.
+.IP "\fBdebug_peer_list (empty)\fR"
+فهرست اختیاری از الگوهای مقصد گام بعدی، نام کلاینت یا سرور دوردست یا آدرس شبکه که در صورت تطابق، باعث افزایش سطح ثبت وقایع پرجزئیات به میزان مشخص‌شده در debug_peer_level$ می‌شود.
+.IP "\fBerror_notice_recipient (postmaster)\fR"
+گیرنده اعلان‌های مدیر پستچی درباره مشکلات تحویل ایمیل که ناشی از خطاهای خط‌مشی، منبع، نرم‌افزار یا پروتکل هستند.
+.IP "\fBinternal_mail_filter_classes (empty)\fR"
+دسته‌بندی‌هایی از ایمیل‌های تولیدشده توسط Postfix که مشمول بازرسی محتوا پیش از صف توسط non_smtpd_milters، header_checks و body_checks می‌شوند.
+.IP "\fBnotify_classes (resource, software)\fR"
+فهرست کلاس‌های خطایی که به مدیر پستچی گزارش می‌شوند.
+.SH "کنترل‌های متفرقه (MISCELLANEOUS CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBbest_mx_transport (empty)\fR"
+محلی که کلاینت SMTP در Postfix باید ایمیل را در صورت تشخیص شرایط خطای «حلقه زدن ایمیل به خود» به آنجا تحویل دهد.
+.IP "\fBconfig_directory (see 'postconf -d' output)\fR"
+مکان پیش‌فرض فایل‌های پیکربندی main.cf و master.cf در Postfix.
+.IP "\fBdaemon_timeout (18000s)\fR"
+مدت زمانی که یک فرایند دیمن Postfix ممکن است برای رسیدگی به یک درخواست صرف کند پیش از آنکه توسط یک زمان‌سنج ناظر توکار خاتمه یابد.
+.IP "\fBdelay_logging_resolution_limit (2)\fR"
+حداکثر تعداد ارقام پس از ممیز اعشار هنگام ثبت مقادیر تأخیر در لاگ.
+.IP "\fBdisable_dns_lookups (no)\fR"
+غیرفعال‌سازی جستجوهای DNS در کلاینت‌های SMTP و LMTP در Postfix.
+.IP "\fBinet_interfaces (all)\fR"
+آدرس‌های رابط شبکه محلی که این سیستم پستی روی آن‌ها ایمیل دریافت می‌کند.
+.IP "\fBinet_protocols (see 'postconf -d' output)\fR"
+پروتکل‌های اینترنتی که Postfix هنگام برقراری یا پذیرش اتصالات تلاش خواهد کرد استفاده کند.
+.IP "\fBipc_timeout (3600s)\fR"
+محدودیت زمانی برای ارسال یا دریافت اطلاعات روی یک کانال ارتباطی داخلی.
+.IP "\fBlmtp_assume_final (no)\fR"
+هنگامی که یک سرور LMTP دوردست عدم پشتیبانی از DSN را اعلام می‌کند، فرض شود که سرور تحویل نهایی را انجام می‌دهد، و اعلان وضعیت تحویل "delivered" (تحویل داده‌شده) به جای "relayed" (رله‌شده) ارسال شود.
+.IP "\fBlmtp_tcp_port (24)\fR"
+درگاه TCP پیش‌فرضی که کلاینت LMTP در Postfix به آن متصل می‌شود.
+.IP "\fBmax_idle (100s)\fR"
+حداکثر مدت زمانی که یک فرایند دیمن بیکار Postfix پیش از خاتمه داوطلبانه، منتظر اتصال ورودی می‌ماند.
+.IP "\fBmax_use (100)\fR"
+حداکثر تعداد اتصالات ورودی که یک فرایند دیمن Postfix پیش از خاتمه داوطلبانه به آن‌ها سرویس می‌دهد.
+.IP "\fBprocess_id (read\-only)\fR"
+شناسه فرایند (PID) یک دستور یا فرایند دیمن Postfix.
+.IP "\fBprocess_name (read\-only)\fR"
+نام فرایند یک دستور یا فرایند دیمن Postfix.
+.IP "\fBproxy_interfaces (empty)\fR"
+آدرس‌های رابط شبکه دوردست که این سیستم پستی از طریق یک پراکسی یا واحد ترجمه آدرس شبکه روی آن‌ها ایمیل دریافت می‌کند.
+.IP "\fBsmtp_address_preference (any)\fR"
+نوع آدرس ("ipv6"، "ipv4" یا "any") که کلاینت SMTP در Postfix ابتدا امتحان خواهد کرد، هنگامی که یک مقصد دارای آدرس‌های IPv6 و IPv4 با اولویت MX برابر باشد.
+.IP "\fBsmtp_bind_address (empty)\fR"
+یک آدرس عددی شبکه اختیاری که کلاینت SMTP در Postfix هنگام برقراری اتصال IPv4 باید به آن متصل (bind) شود.
+.IP "\fBsmtp_bind_address6 (empty)\fR"
+یک آدرس عددی شبکه اختیاری که کلاینت SMTP در Postfix هنگام برقراری اتصال IPv6 باید به آن متصل (bind) شود.
+.IP "\fBsmtp_helo_name ($myhostname)\fR"
+نام میزبانی که در دستور HELO یا EHLO در SMTP ارسال می‌شود.
+.IP "\fBlmtp_lhlo_name ($myhostname)\fR"
+نام میزبانی که در دستور LHLO در LMTP ارسال می‌شود.
+.IP "\fBsmtp_host_lookup (dns)\fR"
+سازوکارهایی که کلاینت SMTP در Postfix برای جستجوی آدرس IP یک میزبان استفاده می‌کند.
+.IP "\fBsmtp_randomize_addresses (yes)\fR"
+تصادفی‌سازی ترتیب آدرس‌های میزبان MX با اولویت یکسان.
+.IP "\fBsyslog_facility (mail)\fR"
+امکانات (facility) مربوط به syslog برای ثبت گزارش‌های Postfix.
+.IP "\fBsyslog_name (see 'postconf -d' output)\fR"
+پیشوندی که به نام فرایند در رکوردهای syslog اضافه می‌شود، به طوری که برای مثال "smtpd" به صورت "prefix/smtpd" ثبت می‌شود.
+.PP
+موجود در Postfix نسخه 2.2 و پیش‌تر:
+.IP "\fBfallback_relay (empty)\fR"
+فهرست اختیاری از میزبان‌های رله برای مقصدهای SMTP که پیدا نمی‌شوند یا غیرقابل‌دسترس هستند.
+.PP
+موجود در Postfix نسخه 2.3 و جدیدتر:
+.IP "\fBsmtp_fallback_relay ($fallback_relay)\fR"
+فهرست اختیاری از مقصدهای رله که در صورت پیدا نشدن مقصد SMTP یا هنگامی که تحویل به دلیل یک خطای غیردائمی با شکست مواجه شود، استفاده خواهند شد.
+.PP
+موجود در Postfix نسخه 3.0 و جدیدتر:
+.IP "\fBsmtp_address_verify_target (rcpt)\fR"
+در چارچوب اعتبارسنجی آدرس ایمیل، مرحله پروتکل SMTP که تعیین می‌کند آیا یک آدرس ایمیل قابل تحویل است یا خیر.
+.PP
+موجود در Postfix نسخه 3.1 و جدیدتر:
+.IP "\fBlmtp_fallback_relay (empty)\fR"
+فهرست اختیاری از میزبان‌های رله برای مقصدهای LMTP که پیدا نمی‌شوند یا غیرقابل‌دسترس هستند.
+.PP
+موجود در Postfix نسخه 3.2 و جدیدتر:
+.IP "\fBsmtp_tcp_port (smtp)\fR"
+درگاه TCP پیش‌فرضی که کلاینت SMTP در Postfix به آن متصل می‌شود.
+.PP
+موجود در Postfix نسخه 3.3 و جدیدتر:
+.IP "\fBservice_name (read\-only)\fR"
+نام سرویس یک فرایند دیمن Postfix در master.cf.
+.PP
+موجود در Postfix نسخه 3.7 و جدیدتر:
+.IP "\fBsmtp_bind_address_enforce (no)\fR"
+به تعویق انداختن تحویل هنگامی که کلاینت SMTP در Postfix نمی‌تواند تنظیمات smtp_bind_address یا smtp_bind_address6 را اعمال کند.
+.SH "همچنین ببینید (SEE ALSO)"
+.na
+.nf
+generic(5), بازنویسی آدرس خروجی
+header_checks(5), بازرسی محتوای سرآیند پیام
+body_checks(5), بازرسی محتوای بخش‌های بدنه
+qmgr(8), مدیر صف
+bounce(8), گزارش‌های وضعیت تحویل
+scache(8), سرور کش اتصال
+postconf(5), پارامترهای پیکربندی
+master(5), گزینه‌های عمومی دیمن
+master(8), مدیر فرایند
+tlsmgr(8), مدیریت نشست TLS و PRNG
+postlogd(8), ثبت گزارش‌های Postfix
+syslogd(8), ثبت گزارش‌های سیستم
+.SH "فایل‌های README (README FILES)"
+.na
+.nf
+.ad
+.fi
+از "\fBpostconf readme_directory\fR" یا "\fBpostconf html_directory\fR" برای یافتن مکان این اطلاعات استفاده کنید.
+.na
+.nf
+SASL_README, راهنمای نحوه استفاده از SASL در Postfix
+TLS_README, راهنمای نحوه استفاده از STARTTLS در Postfix
+.SH "مجوز (LICENSE)"
+.na
+.nf
+.ad
+.fi
+مجوز نرم‌افزار Secure Mailer باید همراه با این نرم‌افزار توزیع شود.
+.SH "نویسندگان (AUTHOR(S))"
+.na
+.nf
+Wietse Venema
+IBM T.J. Watson Research
+P.O. Box 704
+Yorktown Heights, NY 10598, USA
+
+Wietse Venema
+Google, Inc.
+111 8th Avenue
+New York, NY 10011, USA
+
+خط‌لوله‌بندی دستورات با همکاری:
+Jon Ribbens
+Oaktree Internet Solutions Ltd.,
+Internet House,
+Canal Basin,
+Coventry,
+CV1 4LY, United Kingdom.
+
+پشتیبانی اولیه از SASL توسط:
+Till Franke
+SuSE Rhein/Main AG
+65760 Eschborn, Germany
+
+پشتیبانی اولیه از TLS توسط:
+Lutz Jaenicke
+BTU Cottbus
+Allgemeine Elektrotechnik
+Universitaetsplatz 3\-4
+D\-03044 Cottbus, Germany
+
+بازنگری پشتیبانی از TLS و کش اتصال SMTP توسط:
+Victor Duchovni
+Morgan Stanley

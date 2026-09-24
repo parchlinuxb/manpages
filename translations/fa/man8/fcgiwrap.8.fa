@@ -1,0 +1,97 @@
+.\"                                      Hey, EMACS: -*- nroff -*-
+.TH FCGIWRAP 8 "Jun 3, 2010"
+.\" Please adjust this date whenever revising the manpage.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH "نام (NAME)"
+fcgiwrap \- اجرای برنامه‌های CGI بر بستر FastCGI
+.SH "خلاصه دستور (SYNOPSIS)"
+.B fcgiwrap
+.I [OPTIONS]
+
+.SH "توضیحات (DESCRIPTION)"
+\fBfcgiwrap\fP یک سرور ساده برای اجرای برنامه‌های CGI بر بستر FastCGI است. این برنامه با هدف ارائه پشتیبانی تر و تمیز از CGI برای Nginx (و سایر سرورهای وبی که ممکن است به آن نیاز داشته باشند) توسعه یافته است.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B \-c \fInumber\fP
+تعداد فرآیندهای fcgiwrap که باید از پیش ایجاد (prefork) شوند.
+.TP
+.B \-f
+تغییر مسیر خروجی خطای استاندارد (STDERR) از CGI اجرا شده از طریق FastCGI تا در گزارش خطاهای (error log) وب‌سرور نمایش داده شود. در غیر این صورت، این خروجی روی STDERR خودِ \fBfcgiwrap\fP برگردانده می‌شود که می‌توان مسیر آن را تغییر داد.
+در صورت اجرا از طریق \fBspawn-fcgi\fP، خروجی STDERR مربوط به \fBfcgiwrap\fP به /dev/null ارسال می‌شود؛ بنابراین این گزینه راهکاری برای بازگرداندن و دریافت آن خروجی فراهم می‌کند.
+.TP
+.B \-s \fIsocket_url\fP
+یک آدرس URL برای سوکت شنود (listen socket) جهت اتصال (bind). به‌طور پیش‌فرض، \fBfcgiwrap\fP انتظار دارد که سوکت شنود بر روی توصیف‌کننده فایل ۰ (file descriptor 0) ارسال شود که مطابق با استاندارد FastCGI است.
+روش توصیه‌شده برای استقرار \fBfcgiwrap\fP، اجرای آن تحت یک مدیر فرآیند (process manager) است که وظیفه باز کردن سوکت را بر عهده می‌گیرد. با این حال، برای پیکربندی‌های ساده و آزمایش‌های موردی می‌توان از این گزینه استفاده کرد. مقادیر معتبر برای socket_url شامل \fIunix:/path/to/unix/socket\fP، \fItcp:dot.ted.qu.ad:port\fP و \fItcp6:[ipv6_addr]:port\fP است.
+.TP
+.B \-h
+نمایش پیام راهنما و خروج.
+
+.SH "متغیرهای محیطی (ENVIRONMENT)"
+هنگام اجرا، \fBfcgiwrap\fP این متغیرهای محیطی را که توسط وب‌سرورِ فراخواننده fcgi-script تنظیم شده‌اند، ارزیابی می‌کند. متغیرهای DOCUMENT_ROOT و SCRIPT_NAME به یکدیگر الحاق می‌شوند و فایل اجرایی حاصل به‌عنوان اسکریپت CGI در قالب FastCGI اجرا می‌شود؛ همچنین باقی‌مانده مسیر پس از نام اسکریپت در قالب PATH_INFO در دسترس خواهد بود. برای غیرفعال کردن دستکاری PATH_INFO، وب‌سرور خود را طوری پیکربندی کنید که SCRIPT_FILENAME را ارسال کند که باید حاوی مسیر کامل به اسکریپت باشد. در این صورت PATH_INFO تغییر نخواهد کرد.
+
+DOCUMENT_ROOT
+.RS
+دایرکتوری‌ای که اسکریپت در آن قرار دارد
+.RE
+SCRIPT_NAME
+.RS
+فایل اجرایی واقعی
+.RE
+SCRIPT_FILENAME
+.RS
+مسیر کامل به اسکریپت CGI. در صورت تنظیم، اولویت بیشتری نسبت به DOCUMENT_ROOT و SCRIPT_NAME دارد
+.RE
+
+.SH "مثال (EXAMPLE)"
+سریع‌ترین راه برای مشاهده عملکرد \fBfcgiwrap\fP، اجرای آن در خط فرمان به شکل زیر است:
+.br
+fcgiwrap \-s unix:/var/run/fcgiwrap.sock
+.br
+صرف‌نظر از مشکلات احتمالی دسترسی‌ها و غیره، برنامه باید آماده پذیرش درخواست‌های FastCGI و اجرای اسکریپت‌های CGI باشد.
+
+به احتمال زیاد مایل خواهید بود \fBfcgiwrap\fP را توسط
+.I spawn-fcgi
+با استفاده از پیکربندی‌ای مانند زیر راه‌اندازی کنید:
+
+FCGI_SOCKET=/var/run/fcgiwrap.sock
+.br
+FCGI_PROGRAM=/usr/sbin/fcgiwrap
+.br
+FCGI_USER=nginx
+.br
+FCGI_GROUP=www
+.br
+FCGI_EXTRA_OPTIONS="\-M 0700"
+.br
+ALLOWED_ENV="PATH"
+
+.I Nginx
+را می‌توان برای اجرای اسکریپت دلخواه CGI مانند
+.I cgit
+به‌صورت FastCGI به شیوه زیر پیکربندی کرد:
+
+location / {
+.br
+	fastcgi_param DOCUMENT_ROOT /var/www/localhost/htdocs/cgit/;
+.br
+	fastcgi_param SCRIPT_NAME   cgit;
+.br
+	fastcgi_pass unix:/var/run/fastcgi.sock;
+.br
+}
+
+.SH "نویسنده (AUTHOR)"
+برنامه fcgiwrap توسط Grzegorz Nosek <root@localdomain.pl> با مشارکت W-Mark Kubacki <wmark@hurrikane.de> نوشته شده است.
+.PP
+این صفحه راهنما توسط Jordi Mallach <jordi@debian.org> (با مشارکت Grzegorz Nosek) برای پروژه دبیان نوشته شده است (و ممکن است توسط دیگران نیز استفاده شود).

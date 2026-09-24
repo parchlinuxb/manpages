@@ -1,0 +1,351 @@
+.TH QMGR 8
+.ad
+.fi
+.SH "نام (NAME)"
+qmgr
+\-
+مدیر صف Postfix
+.SH "خلاصه دستور (SYNOPSIS)"
+.na
+.nf
+\fBqmgr\fR [گزینه‌های عمومی دیمن Postfix]
+.SH "توضیحات (DESCRIPTION)"
+.ad
+.fi
+دیمن \fBqmgr\fR(8) در انتظار ورود نامه‌های دریافتی می‌ماند و ترتیب تحویل آن‌ها را از طریق فرایندهای تحویل Postfix فراهم می‌کند. راهبرد واقعی مسیریابی نامه به دیمن \fBtrivial\-rewrite\fR(8) واگذار شده است. انتظار می‌رود این برنامه از طریق مدیر فرایند \fBmaster\fR(8) اجرا شود.
+
+نامه‌های ارسال‌شده به نشانی محلی \fBdouble\-bounce\fR لاگ شده و دور ریخته می‌شوند. این کار مانع از ایجاد حلقه‌های احتمالی ناشی از اعلان‌های جهش (bounce notifications) غیرقابل تحویل می‌شود.
+.SH "صف‌های پستی (MAIL QUEUES)"
+.na
+.nf
+.ad
+.fi
+دیمن \fBqmgr\fR(8) صف‌های زیر را نگهداری می‌کند:
+.IP \fBincoming\fR
+نامه‌های ورودی از شبکه، یا نامه‌هایی که توسط دیمن محلی \fBpickup\fR(8) از دایرکتوری \fBmaildrop\fR برداشته شده‌اند.
+.IP \fBactive\fR
+پیام‌هایی که مدیر صف برای تحویل باز کرده است. فقط تعداد محدودی پیام اجازه ورود به صف \fBactive\fR را دارند (راهبرد سطل سوراخ‌دار [leaky bucket]، برای نرخ تحویل ثابت).
+.IP \fBdeferred\fR
+نامه‌هایی که در نخستین تلاش تحویل داده نشده‌اند. مدیر صف با دو برابر کردن زمان بین تلاش‌های تحویل، عقب‌نشینی نمایی (exponential backoff) را پیاده‌سازی می‌کند.
+.IP \fBcorrupt\fR
+فایل‌های صف ناخوانا یا آسیب‌دیده برای بررسی به اینجا منتقل می‌شوند.
+.IP \fBhold\fR
+پیام‌هایی که در حالت «در انتظار» (on hold) هستند تا زمانی که فردی آن‌ها را آزاد کند، در اینجا نگهداری می‌شوند.
+.SH "گزارش‌های وضعیت تحویل (DELIVERY STATUS REPORTS)"
+.na
+.nf
+.ad
+.fi
+دیمن \fBqmgr\fR(8) گزارش‌های وضعیت تحویل به ازای هر پیام را در دایرکتوری‌های زیر زیر نظر دارد. هر فایل گزارش وضعیت، نامی مشابه فایل پیام متناظر خود دارد:
+.IP \fBbounce\fR
+اطلاعات وضعیت به ازای هر گیرنده درباره چرایی برگشت خوردن (bounce) نامه. این فایل‌ها توسط دیمن \fBbounce\fR(8) نگهداری می‌شوند.
+.IP \fBdefer\fR
+اطلاعات وضعیت به ازای هر گیرنده درباره چرایی به تعویق افتادن یا تأخیر تحویل نامه. این فایل‌ها توسط دیمن \fBdefer\fR(8) نگهداری می‌شوند.
+.IP \fBtrace\fR
+اطلاعات وضعیت به ازای هر گیرنده همان‌طور که با دستور «\fBsendmail \-v\fR» یا «\fBsendmail \-bv\fR» در Postfix درخواست شده است. این فایل‌ها توسط دیمن \fBtrace\fR(8) نگهداری می‌شوند.
+.PP
+دیمن \fBqmgr\fR(8) مسئول درخواست از دیمن‌های \fBbounce\fR(8)، \fBdefer\fR(8) یا \fBtrace\fR(8) برای ارسال گزارش‌های تحویل است.
+.SH "راهبردها (STRATEGIES)"
+.na
+.nf
+.ad
+.fi
+مدیر صف راهبردهای گوناگونی را برای باز کردن فایل‌های صف (ورودی) یا برای تحویل پیام (خروجی) پیاده‌سازی می‌کند.
+.IP "\fBleaky bucket\fR"
+این راهبرد تعداد پیام‌ها در صف \fBactive\fR را محدود می‌کند و مانع از اتمام حافظه مدیر صف تحت بار سنگین می‌شود.
+.IP \fBfairness\fR
+هنگامی که صف \fBactive\fR جا داشته باشد، مدیر صف یک پیام از صف \fBincoming\fR و یکی از صف \fBdeferred\fR برمی‌دارد. این کار مانع از آن می‌شود که انباشتگی بزرگ نامه‌ها مانع تحویل نامه‌های جدید شود.
+.IP "\fBslow start\fR"
+این راهبرد با تنظیم تدریجی تعداد تحویل‌های موازی به یک مقصد یکسان، مشکل «ازدحام رمه‌ای» (thundering herd) را برطرف می‌کند.
+.IP "\fBround robin\fR"
+مدیر صف درخواست‌های تحویل را بر اساس مقصد مرتب می‌کند. انتخاب نوبت‌گردشی (round\-robin) مانع از آن می‌شود که یک مقصد بر تحویل‌ها به مقصدهای دیگر چیره شود.
+.IP "\fBexponential backoff\fR"
+نامه‌ای که در نخستین تلاش تحویل داده نشود به تعویق می‌افتد. بازه زمانی بین تلاش‌های تحویل پس از هر بار تلاش دو برابر می‌شود.
+.IP "\fBdestination status cache\fR"
+مدیر صف با نگهداری یک فهرست کوتاه‌مدت درون‌حافظه‌ای از مقصدهای غیرقابل‌دسترس، از تلاش‌های تحویل غیرضروری جلوگیری می‌کند.
+.IP "\fBpreemptive message scheduling\fR"
+مدیر صف تلاش می‌کند میانگین تأخیر به ازای هر گیرنده را به حداقل برساند و در عین حال با استفاده از یک زمان‌بندی پیام انحصاری/پیشگیرانه پیشرفته، تأخیرهای صحیح به ازای هر پیام را حفظ کند.
+.SH "راه‌اندازها (TRIGGERS)"
+.na
+.nf
+.ad
+.fi
+در یک سیستم بیکار، مدیر صف در انتظار رسیدن رویدادهای راه‌انداز می‌ماند، یا منتظر به پایان رسیدن یک زمان‌سنج است. یک راه‌انداز یک پیام تک‌بایتی است.
+بسته به پیام دریافت‌شده، مدیر صف یکی از کارهای زیر را انجام می‌دهد (پس از پیام، ثوابت نمادین مورد استفاده در داخل نرم‌افزار آمده است):
+.IP "\fBD (QMGR_REQ_SCAN_DEFERRED)\fR"
+شروع پویش صف معوق. اگر یک پویش صف معوق در حال حاضر در جریان باشد، آن پویش به محض پایان یافتن دوباره آغاز خواهد شد.
+.IP "\fBI (QMGR_REQ_SCAN_INCOMING)\fR"
+شروع پویش صف ورودی. اگر یک پویش صف ورودی در حال حاضر در جریان باشد، آن پویش به محض پایان یافتن دوباره آغاز خواهد شد.
+.IP "\fBA (QMGR_REQ_SCAN_ALL)\fR"
+نادیده گرفتن برچسب‌های زمانی فایل‌های صف معوق. این درخواست بر پویش بعدی صف معوق تأثیر می‌گذارد.
+.IP "\fBF (QMGR_REQ_FLUSH_DEAD)\fR"
+پاکسازی تمام اطلاعات درباره روش‌های انتقال و مقصدهای از کار افتاده (dead).
+.IP "\fBW (TRIGGER_REQ_WAKEUP)\fR"
+فراخوانی بیدارباش؛ این مورد توسط کارساز master برای راه‌اندازی کارسازهایی استفاده می‌شود که نباید برای همیشه متوقف شوند. اقدام مربوطه، شروع یک پویش صف ورودی است.
+.PP
+دیمن \fBqmgr\fR(8) به اندازه یک بافر کامل از راه‌اندازها را می‌خواند. چندین درخواست راه‌انداز یکسان در یک درخواست ادغام می‌شوند، و درخواست‌های راه‌انداز مرتب می‌شوند به‌گونه‌ای که \fBA\fR و \fBF\fR پیش از \fBD\fR و \fBI\fR قرار گیرند. بنابراین، برای تحمیل اجرای صف معوق، فرد باید \fBA F D\fR را درخواست کند؛ برای مطلع کردن مدیر صف از رسیدن نامه جدید، فرد باید \fBI\fR را درخواست کند.
+.SH "استانداردها (STANDARDS)"
+.na
+.nf
+RFC 3463 (کدهای وضعیت ارتقایافته)
+RFC 3464 (اعلان‌های وضعیت تحویل)
+.SH "امنیت (SECURITY)"
+.na
+.nf
+.ad
+.fi
+دیمن \fBqmgr\fR(8) از نظر امنیتی حساس نیست. این دیمن پیام‌های تک‌نویسه‌ای را از کاربران محلی غیرقابل‌اعتماد می‌خواند، و از این رو ممکن است در برابر حملات منع خدمت (DoS) آسیب‌پذیر باشد. دیمن \fBqmgr\fR(8) با دنیای بیرون ارتباط برقرار نمی‌کند، و می‌تواند با سطح دسترسی پایین ثابت در یک محیط chroot اجرا شود.
+.SH "عیب‌یابی (DIAGNOSTICS)"
+.ad
+.fi
+مشکلات و تراکنش‌ها در \fBsyslogd\fR(8) یا \fBpostlogd\fR(8) ثبت می‌شوند. فایل‌های پیام آسیب‌دیده برای بررسی بیشتر در صف \fBcorrupt\fR ذخیره می‌شوند.
+
+بسته به تنظیم پارامتر \fBnotify_classes\fR، مدیر پست (postmaster) از برگشت‌ها (bounces) و سایر مشکلات مطلع می‌شود.
+.SH "اشکالات (BUGS)"
+.ad
+.fi
+یک فرایند واحد مدیر صف باید برای دسترسی به دیسک با چندین فرایند پیشین (front\-end) مانند \fBcleanup\fR(8) رقابت کند. هجوم ناگهانی نامه‌های ورودی می‌تواند بر نرخ تحویل خروجی تأثیر منفی بگذارد.
+.SH "پارامترهای پیکربندی (CONFIGURATION PARAMETERS)"
+.na
+.nf
+.ad
+.fi
+تغییرات در \fBmain.cf\fR به‌طور خودکار اعمال نمی‌شوند زیرا \fBqmgr\fR(8) یک فرایند ماندگار است. پس از تغییر در پیکربندی، از دستور «\fBpostfix reload\fR» استفاده کنید.
+
+متن زیر تنها خلاصه پارامترها را ارائه می‌دهد. برای جزئیات بیشتر شامل مثال‌ها به \fBpostconf\fR(5) مراجعه کنید.
+
+در متن زیر، \fItransport\fR فیلد نخست در یک مدخل \fBmaster.cf\fR است.
+.SH "کنترل‌های سازگاری (COMPATIBILITY CONTROLS)"
+.na
+.nf
+.ad
+.fi
+موجود قبل از نسخه 2.5 در Postfix:
+.IP "\fBallow_min_user (no)\fR"
+اجازه دادن به اینکه نشانی فرستنده یا گیرنده دارای «\-» به عنوان نویسه نخست باشد.
+.PP
+موجود در Postfix نسخه 2.7 و بالاتر:
+.IP "\fBdefault_filter_nexthop (empty)\fR"
+هنگامی که یک درخواست content_filter یا FILTER هیچ مقصد صریح گام بعدی (next\-hop) را مشخص نکرده باشد، به جای آن از default_filter_nexthop$ استفاده می‌شود؛ اگر این مقدار خالی باشد، از دامنه موجود در نشانی گیرنده استفاده می‌شود.
+.SH "کنترل‌های صف فعال (ACTIVE QUEUE CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBqmgr_clog_warn_time (300s)\fR"
+حداقل تأخیر بین هشدارهایی مبنی بر اینکه یک مقصد خاص در حال مسدود کردن صف فعال Postfix است.
+.IP "\fBqmgr_message_active_limit (20000)\fR"
+حداکثر تعداد پیام‌ها در صف فعال.
+.IP "\fBqmgr_message_recipient_limit (20000)\fR"
+حداکثر تعداد گیرندگانی که توسط مدیر صف Postfix در حافظه نگهداری می‌شوند، و حداکثر اندازه حافظه پنهان کوتاه‌مدت و درون‌حافظه‌ای وضعیت مقصدهای «از کار افتاده» (dead).
+.IP "\fBqmgr_message_recipient_minimum (10)\fR"
+حداقل تعداد گیرندگان درون‌حافظه‌ای برای هر پیام.
+.IP "\fBdefault_recipient_limit (20000)\fR"
+حد بالای پیش‌فرض به ازای هر روش انتقال برای تعداد گیرندگان درون‌حافظه‌ای.
+.IP "\fBtransport_recipient_limit ($default_recipient_limit)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_recipient_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_extra_recipient_limit (1000)\fR"
+مقدار پیش‌فرض برای حد اضافی به ازای هر روش انتقال که بر تعداد گیرندگان درون‌حافظه‌ای اعمال می‌شود.
+.IP "\fBtransport_extra_recipient_limit ($default_extra_recipient_limit)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_extra_recipient_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.PP
+موجود در Postfix نسخه 2.4 و بالاتر:
+.IP "\fBdefault_recipient_refill_limit (100)\fR"
+حد پیش‌فرض به ازای هر روش انتقال برای تعداد گیرندگانی که به‌طور هم‌زمان دوباره پر می‌شوند.
+.IP "\fBtransport_recipient_refill_limit ($default_recipient_refill_limit)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_recipient_refill_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_recipient_refill_delay (5s)\fR"
+حداکثر تأخیر پیش‌فرض به ازای هر روش انتقال بین دفعات پر کردن مجدد گیرندگان.
+.IP "\fBtransport_recipient_refill_delay ($default_recipient_refill_delay)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_recipient_refill_delay، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.SH "کنترل‌های هم‌زمانی تحویل (DELIVERY CONCURRENCY CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBinitial_destination_concurrency (5)\fR"
+سطح هم‌زمانی اولیه به ازای هر مقصد برای تحویل موازی به همان مقصد.
+.IP "\fBdefault_destination_concurrency_limit (20)\fR"
+حداکثر تعداد پیش‌فرض تحویل‌های موازی به یک مقصد یکسان.
+.IP "\fBtransport_destination_concurrency_limit ($default_destination_concurrency_limit)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_destination_concurrency_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.PP
+موجود در Postfix نسخه 2.5 و بالاتر:
+.IP "\fBtransport_initial_destination_concurrency ($initial_destination_concurrency)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر initial_destination_concurrency، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_destination_concurrency_failed_cohort_limit (1)\fR"
+تعداد شبه‌گروه‌هایی (pseudo\-cohorts) که پیش از غیرقابل‌دسترس تلقی شدن یک مقصد خاص (و تعلیق تحویل‌های بعدی) باید با شکست اتصال یا دست‌تکانی مواجه شوند.
+.IP "\fBtransport_destination_concurrency_failed_cohort_limit ($default_destination_concurrency_failed_cohort_limit)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_destination_concurrency_failed_cohort_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_destination_concurrency_negative_feedback (1)\fR"
+میزان بازخورد منفی هم‌زمانی تحویل به ازای هر مقصد، پس از اینکه یک تحویل با شکست اتصال یا دست‌تکانی پایان یابد.
+.IP "\fBtransport_destination_concurrency_negative_feedback ($default_destination_concurrency_negative_feedback)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_destination_concurrency_negative_feedback، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_destination_concurrency_positive_feedback (1)\fR"
+میزان بازخورد مثبت هم‌زمانی تحویل به ازای هر مقصد، پس از اینکه یک تحویل بدون شکست اتصال یا دست‌تکانی پایان یابد.
+.IP "\fBtransport_destination_concurrency_positive_feedback ($default_destination_concurrency_positive_feedback)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_destination_concurrency_positive_feedback، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdestination_concurrency_feedback_debug (no)\fR"
+پرحرف (verbose) کردن الگوریتم بازخورد مدیر صف جهت اهداف تحلیل کارایی.
+.SH "کنترل‌های زمان‌بندی گیرنده (RECIPIENT SCHEDULING CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBdefault_destination_recipient_limit (50)\fR"
+حداکثر تعداد پیش‌فرض گیرندگان به ازای هر تحویل پیام.
+.IP "\fBtransport_destination_recipient_limit ($default_destination_recipient_limit)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_destination_recipient_limit، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.SH "کنترل‌های زمان‌بندی پیام (MESSAGE SCHEDULING CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBdefault_delivery_slot_cost (5)\fR"
+میزان مجاز بودن زمان‌بند مدیر صف Postfix برای متوقف ساختن انحصاری (preempt) تحویل یک پیام با پیامی دیگر.
+.IP "\fBtransport_delivery_slot_cost ($default_delivery_slot_cost)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_delivery_slot_cost، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_minimum_delivery_slots (3)\fR"
+تعداد گیرندگانی که یک پیام باید داشته باشد تا الگوریتم زمان‌بندی مدیر صف Postfix اصلاً فراخوانی شود.
+.IP "\fBtransport_minimum_delivery_slots ($default_minimum_delivery_slots)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_minimum_delivery_slots، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_delivery_slot_discount (50)\fR"
+مقدار پیش‌فرض برای تنظیمات _delivery_slot_discount ویژه روش انتقال.
+.IP "\fBtransport_delivery_slot_discount ($default_delivery_slot_discount)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_delivery_slot_discount، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.IP "\fBdefault_delivery_slot_loan (3)\fR"
+مقدار پیش‌فرض برای تنظیمات _delivery_slot_loan ویژه روش انتقال.
+.IP "\fBtransport_delivery_slot_loan ($default_delivery_slot_loan)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_delivery_slot_loan، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.SH "سایر کنترل‌های منابع و نرخ (OTHER RESOURCE AND RATE CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBminimal_backoff_time (300s)\fR"
+حداقل زمان بین تلاش‌ها برای تحویل یک پیام معوق (deferred)؛ پیش از Postfix نسخه 2.4 مقدار پیش‌فرض 1000s بود.
+.IP "\fBmaximal_backoff_time (4000s)\fR"
+حداکثر زمان بین تلاش‌ها برای تحویل یک پیام معوق.
+.IP "\fBmaximal_queue_lifetime (5d)\fR"
+غیرقابل تحویل در نظر گرفتن یک پیام، هنگامی که تحویل با خطای موقت مواجه شود و زمان ماندن در صف به حد maximal_queue_lifetime برسد.
+.IP "\fBqueue_run_delay (300s)\fR"
+مدت زمان بین پویش‌های صف معوق توسط مدیر صف؛ پیش از Postfix نسخه 2.4 مقدار پیش‌فرض 1000s بود.
+.IP "\fBtransport_retry_time (60s)\fR"
+مدت زمان بین تلاش‌های مدیر صف Postfix برای تماس با یک روش انتقال تحویل پیام دارای نقص عملکرد.
+.PP
+موجود در Postfix نسخه 2.1 و بالاتر:
+.IP "\fBbounce_queue_lifetime (5d)\fR"
+غیرقابل تحویل در نظر گرفتن یک پیام جهش/برگشت، هنگامی که تحویل با خطای موقت مواجه شود و زمان ماندن در صف به حد bounce_queue_lifetime برسد.
+.PP
+موجود در Postfix نسخه 2.5 و بالاتر:
+.IP "\fBdefault_destination_rate_delay (0s)\fR"
+میزان تأخیر پیش‌فرض که بین تحویل پیام‌های منفرد به یک مقصد یکسان و از طریق یک روش انتقال تحویل پیام یکسان اعمال می‌شود.
+.IP "\fBtransport_destination_rate_delay ($default_destination_rate_delay)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_destination_rate_delay، که در آن \fItransport\fR نام روش انتقال تحویل پیام در master.cf است.
+.PP
+موجود در Postfix نسخه 3.1 و بالاتر:
+.IP "\fBdefault_transport_rate_delay (0s)\fR"
+میزان تأخیر پیش‌فرض که بین تحویل پیام‌های منفرد از طریق یک روش انتقال تحویل پیام یکسان، بدون در نظر گرفتن مقصد، اعمال می‌شود.
+.IP "\fBtransport_transport_rate_delay ($default_transport_rate_delay)\fR"
+لغو تنظیمات ویژه هر روش انتقال برای مقدار پارامتر default_transport_rate_delay، که در آن بخش نخست \fItransport\fR در نام پارامتر، نام روش انتقال تحویل پیام در master.cf است.
+.SH "کنترل‌های ایمنی (SAFETY CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBqmgr_daemon_timeout (1000s)\fR"
+مدت زمانی که یک فرایند مدیر صف Postfix مجاز است برای رسیدگی به یک درخواست صرف کند، پیش از آنکه توسط تایمر نگهبان داخلی خاتمه یابد.
+.IP "\fBqmgr_ipc_timeout (60s)\fR"
+محدودیت زمانی برای ارسال یا دریافت اطلاعات توسط مدیر صف از طریق یک کانال ارتباطی داخلی.
+.PP
+موجود در Postfix نسخه 3.1 و بالاتر:
+.IP "\fBaddress_verify_pending_request_limit (see 'postconf -d' output)\fR"
+یک حد ایمنی که از غرق شدن و اشباع صف Postfix توسط درخواست‌های اعتبارسنجی نشانی جلوگیری می‌کند.
+.SH "کنترل‌های گوناگون (MISCELLANEOUS CONTROLS)"
+.na
+.nf
+.ad
+.fi
+.IP "\fBconfig_directory (see 'postconf -d' output)\fR"
+مکان پیش‌فرض فایل‌های پیکربندی main.cf و master.cf در Postfix.
+.IP "\fBdefer_transports (empty)\fR"
+نام روش‌های انتقال تحویل پیامی که نباید نامه‌ای را تحویل دهند مگر اینکه فردی دستور «\fBsendmail \-q\fR» یا معادل آن را اجرا کند.
+.IP "\fBdelay_logging_resolution_limit (2)\fR"
+حداکثر تعداد ارقام پس از نقطه اعشار هنگام ثبت مقادیر تأخیر در لاگ.
+.IP "\fBhelpful_warnings (yes)\fR"
+ثبت هشدارهای لاگ درباره تنظیمات پیکربندی مشکل‌ساز، و ارائه پیشنهادهای مفید.
+.IP "\fBprocess_id (read\-only)\fR"
+شناسه فرایند یک دستور یا فرایند دیمن Postfix.
+.IP "\fBprocess_name (read\-only)\fR"
+نام فرایند یک دستور یا فرایند دیمن Postfix.
+.IP "\fBqueue_directory (see 'postconf -d' output)\fR"
+مکان دایرکتوری سطح بالای صف در Postfix.
+.IP "\fBsyslog_facility (mail)\fR"
+تسهیلات لاگ‌گیری سیستم برای ثبت لاگ‌های Postfix.
+.IP "\fBsyslog_name (see 'postconf -d' output)\fR"
+پیشوندی که به ابتدای نام فرایند در رکوردهای syslog افزوده می‌شود، به‌طوری که برای مثال «smtpd» به «prefix/smtpd» تبدیل می‌شود.
+.PP
+موجود در Postfix نسخه 3.0 و بالاتر:
+.IP "\fBconfirm_delay_cleared (no)\fR"
+پس از ارسال اعلان «پیام شما با تأخیر مواجه شده است»، هنگامی که مشکل تأخیر برطرف شد، به فرستنده اطلاع داده شود.
+.PP
+موجود در Postfix 3.3 و بالاتر:
+.IP "\fBservice_name (read\-only)\fR"
+نام سرویس در master.cf برای یک فرایند دیمن Postfix.
+.PP
+موجود در Postfix 3.5 و بالاتر:
+.IP "\fBinfo_log_address_format (external)\fR"
+قالب نشانی ایمیلی که در ثبت لاگ‌های غیر اشکال‌زدایی (info، warning و غیره) استفاده خواهد شد.
+.SH "فایل‌ها (FILES)"
+.na
+.nf
+/var/spool/postfix/incoming, صف نامه‌های ورودی
+/var/spool/postfix/active, صف فعال
+/var/spool/postfix/deferred, صف نامه‌های معوق
+/var/spool/postfix/bounce, وضعیت عدم تحویل
+/var/spool/postfix/defer, وضعیت عدم تحویل
+/var/spool/postfix/trace, وضعیت تحویل
+.SH "همچنین ببینید (SEE ALSO)"
+.na
+.nf
+trivial\-rewrite(8), مسیریابی نشانی
+bounce(8), گزارش‌های وضعیت تحویل
+postconf(5), پارامترهای پیکربندی
+master(5), گزینه‌های عمومی دیمن
+master(8), مدیر فرایند
+postlogd(8), ثبت لاگ Postfix
+syslogd(8), ثبت لاگ سیستم
+.SH "فایل‌های README (README FILES)"
+.na
+.nf
+.ad
+.fi
+برای یافتن این اطلاعات از «\fBpostconf readme_directory\fR» یا
+«\fBpostconf html_directory\fR» استفاده کنید.
+.na
+.nf
+SCHEDULER_README, الگوریتم زمان‌بندی
+QSHAPE_README, تحلیل صف Postfix
+.SH "مجوز (LICENSE)"
+.na
+.nf
+.ad
+.fi
+مجوز Secure Mailer باید همراه با این نرم‌افزار توزیع شود.
+.SH "نویسندگان (AUTHOR(S))"
+.na
+.nf
+Wietse Venema
+IBM T.J. Watson Research
+P.O. Box 704
+Yorktown Heights, NY 10598, USA
+
+بهبودهای زمان‌بند پیشگیرانه:
+Patrik Rak
+Modra 6
+155 00, Prague, Czech Republic
+
+Wietse Venema
+Google, Inc.
+111 8th Avenue
+New York, NY 10011, USA

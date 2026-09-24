@@ -1,0 +1,569 @@
+.TH SNMPD.EXAMPLES 5 "13 Oct 2006" V5.9.5.2 "Net-SNMP"
+.SH "نام (NAME)"
+snmpd.examples \- پیکربندی‌های نمونه برای کارگزار Net-SNMP
+.SH "توضیحات (DESCRIPTION)"
+صفحه راهنمای
+.I snmpd.conf(5)
+نحو و رفتار دستورالعمل‌های پیکربندی مختلفی را تعریف می‌کند که می‌توانند برای کنترل عملکرد کارگزار Net-SNMP و اطلاعات مدیریتی ارائه‌شده توسط آن استفاده شوند.
+.PP
+این صفحه راهنمای مکمل، این دستورالعمل‌ها را شرح داده و نمونه‌های کاربردی از نحوه استفاده از آن‌ها را نمایش می‌دهد.
+.SH "رفتار کارگزار (AGENT BEHAVIOUR)"
+.SS "نشانی‌های شنود (Listening addresses)"
+رفتار پیش‌فرض کارگزار (شنود روی درگاه استاندارد SNMP UDP در تمام واسط‌ها) معادل دستورالعمل زیر است:
+.RS
+agentaddress udp:161
+.RE
+یا به سادگی:
+.RS
+agentaddress 161
+.RE
+کارگزار را می‌توان به‌گونه‌ای پیکربندی کرد که \fIتنها\fR درخواست‌های ارسال‌شده به واسط محلی loopback را بپذیرد (مجدداً با شنود روی درگاه SNMP UDP)، با استفاده از:
+.RS
+agentaddress localhost:161     \fI# (udp implicit)\fR
+.RE
+یا:
+.RS
+agentaddress 127.0.0.1     \fI# (udp and standard port implicit)\fR
+.RE
+می‌توان آن را طوری پیکربندی کرد که هر دو درخواست UDP و TCP را (روی هر دو پروتکل IPv4 و IPv6) بپذیرد، با استفاده از:
+.RS
+agentaddress udp:161,tcp:161,udp6:161,tcp6:161
+.RE
+.\"
+.\" Can the agent handle the same port for both IPv4 & IPv6
+.\"
+سایر ترکیب‌ها نیز معتبر هستند.
+.SS "امتیازات زمان اجرا (Run-time privileges)"
+کارگزار را می‌توان به‌گونه‌ای پیکربندی کرد که پس از باز کردن درگاه‌های شنود اولیه، هرگونه دسترسی ممتاز (ریشه) خود را رها کند. با در نظر گرفتن یک گروه مناسب "snmp" (تعریف‌شده در \fI/etc/group\fR)، این کار را می‌توان با استفاده از دستورالعمل‌های زیر انجام داد:
+.RS
+.nf
+agentuser  nobody
+agentgroup snmp
+.fi
+.RE
+نتیجه‌ای مشابه را می‌توان با استفاده از مقادیر عددی UID و/یا GID به دست آورد:
+.RS
+.nf
+agentuser  #10
+agentgroup #10
+.fi
+.RE
+.\"
+.\" What effect will/may this have on the information returned.
+.\"   ??? Mention this in the main man page.
+.\"
+.SS "پیکربندی SNMPv3 (SNMPv3 Configuration)"
+شناسه موتور (engine ID) برای کارگزار به جای این‌که به صورت شبه‌تصادفی تولید شود، می‌تواند بر اساس آدرس MAC واسط شبکه دوم (\fIeth1\fR) با استفاده از دستورالعمل‌های زیر محاسبه شود:
+.RS
+engineIDType 3
+engineIDNic  eth1
+.RE
+یا می‌تواند از روی (اولین) آدرس IP محاسبه شود، با استفاده از:
+.RS
+engineIDType 1
+.RE
+یا می‌توان آن را به صراحت مشخص کرد، با استفاده از:
+.RS
+engineID "XXX - WHAT FORMAT"
+.RE
+.\"
+.\" Does engineID override the other directives, or what?
+.\"
+.SH "کنترل دسترسی (ACCESS CONTROL)"
+.SS "کاربران SNMPv3 (SNMPv3 Users)"
+دستورالعمل‌های زیر سه کاربر ایجاد می‌کنند که همگی دقیقاً از تنظیمات احراز هویت و رمزنگاری یکسانی استفاده می‌کنند:
+.RS
+.nf
+createUser me     MD5 "single pass phrase"
+createUser myself MD5 "single pass phrase" DES
+createUser andI   MD5 "single pass phrase" DES "single pass phrase"
+.fi
+.RE
+توجه داشته باشید که این سه کاربر \fIمتمایز\fR را تعریف می‌کند که می‌توان به آن‌ها سطوح دسترسی متفاوتی اعطا کرد. تغییر عبارت عبور برای هر یک از آن‌ها تأثیری بر دو کاربر دیگر نخواهد گذاشت.
+.PP
+می‌توان عبارت‌های عبور جداگانه‌ای را برای احراز هویت و رمزنگاری مشخص کرد:
+.RS
+createUser onering SHA "to rule them all" AES "to bind them"
+.RE
+به یاد داشته باشید که این دستورالعمل‌های \fIcreateUser\fR باید در فایل /var/net-snmp/snmpd.conf تعریف شوند، نه در مکان معمول.
+.RE
+.\"
+.\"  ??? Illustrate "\-e", "\-l" and "\-m" forms ??
+.\"
+.SS "کنترل دسترسی سنتی (Traditional Access Control)"
+به کاربران SNMPv3 تعریف‌شده در بالا می‌توان دسترسی به کل درخت MIB را با استفاده از دستورالعمل‌های زیر اعطا کرد:
+.RS
+.nf
+rouser me
+rwuser onering
+.fi
+.RE
+یا دسترسی انتخابی به زیردرخت‌های مجزا با استفاده از:
+.RS
+.nf
+rouser myself   .1.3.6.1.2
+rwuser andI     system
+.fi
+.RE
+.PP
+توجه داشته باشید که ترکیبی که یک کاربر یکسان را تکرار می‌کند، مانند:
+.RS
+.nf
+rouser onering
+rwuser onering
+.fi
+.RE
+\fBنباید\fR استفاده شود. این کار کاربر \fIonering\fR را با دسترسی فقط-خواندنی پیکربندی می‌کند (و مدخل \fIrwuser\fR را به‌طور کلی نادیده می‌گیرد). همین امر برای دستورالعمل‌های مبتنی بر کامیونیتی (community) نیز صادق است.
+.PP
+دستورالعمل‌های:
+.RS
+.nf
+rocommunity public
+rwcommunity private
+.fi
+.RE
+رشته‌های کامیونیتی خواندن و نوشتن رایج را برای درخواست‌های SNMPv1 و SNMPv2c تعریف می‌کنند. این رفتار به‌طور پیش‌فرض پیکربندی \fBنشده است\fR و باید به‌طور صریح تنظیم شود.
+.RS
+.IP "نکته:"
+همچنین ایده بسیار خوبی است که \fIprivate\fR را به چیزی با قابلیت پیش‌بینی کمتر تغییر دهید!
+.RE
+.PP
+یک پیکربندی با آسیب‌پذیری کمی کمتر ممکن است اطلاعات قابل بازیابی را محدود کند:
+.RS
+rocommunity public   default system
+.RE
+یا سیستم‌های مدیریتی را که تنظیمات می‌توانند از آن‌ها دستکاری شوند محدود نماید:
+.RS
+rwcommunity private  10.10.10.0/24
+.RE
+یا ترکیبی از هر دو.
+.SS "پیکربندی VACM (VACM Configuration)"
+این جفت تنظیمات آخر معادل تعاریف کامل VACM هستند:
+.RS
+.nf
+\fI#         sec.name  source        community\fR
+com2sec   public    default       public
+com2sec   mynet     10.10.10.0/24 private
+com2sec6  mynet     fec0::/64     private
+
+\fI#                  sec.model  sec.name\fR
+group  worldGroup  v1         public
+group  worldGroup  v2c        public
+group  myGroup     v1         mynet
+group  myGroup     v2c        mynet
+
+\fI#              incl/excl   subtree     [mask]\fR
+view   all     included    .1
+view   sysView included    system
+
+\fI#              context model level   prefix  read    write  notify (unused)\fR
+access  worldGroup  ""  any  noauth  exact   system  none   none
+access  myGroup     ""  any  noauth  exact   all     all    none
+.fi
+.RE
+.PP
+چندین نکته در این مثال قابل توجه است:
+.PP
+دستورالعمل‌های \fIgroup\fR باید برای هر دو درخواست SNMPv1 و SNMPv2c تکرار شوند.
+.PP
+نام امنیتی \fIcom2sec\fR متمایز از رشته کامیونیتی است که به آن نگاشت شده است. آن‌ها می‌توانند یکسان ("public") یا متفاوت ("mynet"/"private") باشند - اما آنچه در دستورالعمل \fIgroup\fR ظاهر می‌شود نام امنیتی است، بدون در نظر گرفتن رشته کامیونیتی اصلی.
+.PP
+هر دو دستورالعمل \fIview\fR زیردرخت‌های ساده OID را تعریف می‌کنند، بنابراین هیچ‌کدام نیازی به ماسک صریح ندارند. همین امر برای نمای "زیردرخت ترکیبی" تعریف‌شده در زیر نیز صادق است. در واقع، یک فیلد ماسک تنها هنگام تعریف برش‌های سطری در یک جدول (یا نماهای مشابه) مورد نیاز است و تقریباً همیشه می‌توان آن را حذف کرد.
+.PP
+به‌طور کلی، توصیه می‌شود تنظیمات پیکربندی دسترسی سنتی و مبتنی بر VACM را ترکیب نکنید، زیرا این تنظیمات گاهی اوقات می‌توانند به روش‌های غیرمنتظره‌ای با یکدیگر تداخل داشته باشند. یک سبک خاص از پیکربندی دسترسی را انتخاب کرده و به آن پایبند باشید.
+.\"
+.\" Mention/use hardwired views	'_all_' and '_none_'
+.\"
+.\" Illustrate other, more flexible configurations
+.\"   including SNMPv3 access.
+.\"
+.SS "پیکربندی نمای نوع‌دار (Typed-View Configuration)"
+پیکربندی مشابهی را می‌توان به صورت زیر نیز انجام داد:
+.RS
+.nf
+view   sys2View included    system
+view   sys2View included    .1.3.6.1.2.1.25.1
+
+authcommunity read       public  default      \-v sys2View
+authcommunity read,write private 10.10.10.0/8
+.fi
+.RE
+.PP
+این سازوکار اجازه می‌دهد تا نماهای چند زیردرختی (یا سایر نماهای غیرساده) با سبک پیکربندی یک‌خطی \fIrocommunity\fR استفاده شوند.
+.PP
+همچنین در صورت نیاز، از پیکربندی دسترسی "فقط-نوشتنی" نیز پشتیبانی می‌کند.
+.\"
+.\" Expand this example
+.\"
+.SH "اطلاعات سیستم (SYSTEM INFORMATION)"
+.SS "گروه سیستم (System Group)"
+محتوای کامل گروه 'system' (به استثنای \fCsysUpTime\fR) را می‌توان به‌طور صریح با استفاده از دستورات زیر پیکربندی کرد:
+.RS
+.nf
+\fI# بازنویسی 'uname \-a' و OID سیستم تعبیه‌شده - مقادیر ذاتاً فقط-خواندنی\fR
+sysDescr     Universal Turing Machine mk I
+sysObjectID  .1.3.6.1.4.1.8072.3.2.1066
+
+\fI# بازنویسی مقادیر پیش‌فرض از 'configure' - این اشیا را فقط-خواندنی می‌کند\fR
+sysContact   Alan.Turing@pre\-cs.man.ac.uk
+sysName      tortoise.turing.com
+sysLocation  An idea in the mind of AT
+
+\fI# رفتار استاندارد میزبان نهایی (end-host)\fR
+sysServices  72
+.fi
+.RE
+.SS "گروه منابع میزبان (Host Resources Group)"
+فهرست دستگاه‌های بررسی‌شده برای گنجاندن احتمالی در \fChrDiskStorageTable\fR (و \fChrDeviceTable\fR) را می‌توان با استفاده از هر یک از دستورالعمل‌های زیر اصلاح کرد:
+.RS
+ignoredisk /dev/rdsk/c0t2d0
+.RE
+که از پویش دستگاه \fI/dev/rdsk/c0t2d0\fR جلوگیری می‌کند،
+.RS
+.nf
+ignoredisk /dev/rdsk/c0t[!6]d0
+ignoredisk /dev/rdsk/c0t[0\-57\-9a\-f]d0
+.fi
+.RE
+که هر کدام از پویش تمام دستگاه‌های \fI/dev/rdsk/c0t\fRX\fId0\fR (به جز .../\fIc0t6d0\fR) جلوگیری می‌کنند،
+.RS
+ignoredisk /dev/rdsk/c1*
+.RE
+که از پویش تمام دستگاه‌هایی که نام آن‌ها با \fI/dev/rdsk/c1\fR شروع می‌شود جلوگیری می‌کند، یا
+.RS
+ignoredisk /dev/rdsk/c?t0d0
+.RE
+که از پویش تمام دستگاه‌های \fI/dev/rdsk/c\fRX\fIt0d0\fR (که در آن 'X' هر تک‌نویسه‌ای است) جلوگیری می‌کند.
+.SS "پایش فرایندها (Process Monitoring)"
+فهرست سرویس‌های در حال اجرا روی یک سیستم را می‌توان پایش کرد (و تمهیداتی برای اصلاح هرگونه مشکل فراهم نمود)، با استفاده از:
+.RS
+.nf
+\fI# حداقل یک فرایند وب‌سرور باید همیشه در حال اجرا باشد\fR
+proc    httpd
+procfix httpd  /etc/rc.d/init.d/httpd restart
+
+\fI# هرگز نباید بیش از ۱۰ فرایند ایمیل در حال اجرا باشد
+#    (تعداد بیشتر نشان‌دهنده طوفان احتمالی ایمیل است، بنابراین سیستم ایمیل را خاموش کنید)\fR
+proc    sendmail   10
+procfix sendmail  /etc/rc.d/init.d/sendmail stop
+
+\fI# باید یک کارگزار مدیریت شبکه منفرد در حال اجرا باشد
+#   ("فقط یکی می‌تواند وجود داشته باشد")\fR
+proc    snmpd    1  1
+.fi
+.RE
+همچنین بخش "پایگاه داده رخداد DisMan" را در ادامه ببینید.
+.SS "پایش مصرف دیسک (Disk Usage Monitoring)"
+وضعیت فضای ذخیره‌سازی دیسک را می‌توان با استفاده از موارد زیر پایش کرد:
+.RS
+.nf
+includeAllDisks 10%
+disk /var 20%
+disk /usr  3%
+\fI#  نگهداری ۱۰۰ مگابایت فضای خالی برای crash dumpها\fR
+disk /mnt/crash  100000
+.fi
+.RE
+.SS "پایش بار سیستم (System Load Monitoring)"
+یک بررسی ساده برای سیستمی با بار کاری بیش از حد می‌تواند چنین باشد:
+.RS
+load 10
+.RE
+یک بررسی دقیق‌تر (برای مجاز دانستن دوره‌های کوتاه استفاده سنگین، اما تشخیص بار مداوم متوسط تا سنگین) می‌تواند چنین باشد:
+.RS
+load 30 10 5
+.RE
+.SS "پایش فایل‌های گزارش (Log File Monitoring)"
+.I TODO
+.RS
+file FILE [MAXSIZE]
+.RE
+.RS
+logmatch NAME PATH CYCLETIME REGEX
+.RE
+.SH "پایش فعال (ACTIVE MONITORING)"
+.SS "مدیریت اعلان‌ها (Notification Handling)"
+پیکربندی کارگزار برای گزارش تلاش‌های نامعتبر برای دسترسی را می‌توان به صورت زیر انجام داد:
+.RS
+.nf
+authtrapenable 1
+trapcommunity  public
+trap2sink      localhost
+.fi
+.RE
+به‌عنوان روش جایگزین، دستورالعمل‌های دوم و سوم را می‌توان ترکیب کرد (و درخواست تایید دریافت اعلان نمود) با استفاده از:
+.RS
+informsink     localhost  public
+.RE
+پیکربندی با مقصدهای تکراری گیرنده اعلان، مانند:
+.RS
+.nf
+trapsink       localhost
+trap2sink      localhost
+informsink     localhost
+.fi
+.RE
+\fBنباید\fR استفاده شود، زیرا باعث می‌شود چندین نسخه از هر تله (trap) به یک گیرنده تله یکسان ارسال شود.
+.PP
+.I "TODO - discuss SNMPv3 traps"
+.RS
+trapsess  \fIsnmpv3 options\fR  localhost:162
+.RE
+.PP
+.I "TODO - mention trapd access configuration"
+
+.SS "پایگاه داده رخداد DisMan (DisMan Event MIB)"
+ساده‌ترین پیکربندی برای خودپایشی فعال کارگزار، توسط کارگزار، برای کارگزار، احتمالاً چنین است:
+.RS
+.nf
+\fI# تنظیم اطلاعات کاربری برای بازیابی مقادیر پایش‌شده\fR
+createUser    _internal MD5 "the first sign of madness"
+iquerySecName _internal
+rouser        _internal
+
+\fI# فعال‌سازی مدخل‌های پایش استاندارد\fR
+defaultMonitors         yes
+linkUpDownNotifications yes
+
+\fI# اگر مشکلی وجود دارد، به کسی اطلاع بده!\fR
+trap2sink localhost
+.fi
+.RE
+.PP
+بلوک اول یک کاربر مناسب را برای بازیابی اطلاعاتی که باید پایش شوند تنظیم می‌کند، در حالی که جفت دستورالعمل‌های بعدی، مدخل‌های مختلف پایش توکار را فعال می‌کنند.
+.PP
+توجه داشته باشید که دستورالعمل‌های DisMan به خودی خود برای گزارش فعالانه مشکلات کافی نیستند - همچنین باید یک مقصد مناسب پیکربندی شده باشد تا اعلان‌های حاصل عملاً به آن ارسال شوند.
+.PP
+یک مثال مانیتور دقیق‌تر در زیر آورده شده است:
+.RS
+monitor \-u me \-o hrSWRunName "high process memory" hrSWRunPerfMem > 10000
+.RE
+.PP
+این یک مدخل مانیتور بولی صریح را تعریف می‌کند که به دنبال هر فرایندی است که بیش از ۱۰ مگابایت حافظه فعال استفاده می‌کند. چنین فرایندهایی با استفاده از تله استاندارد DisMan به نام \fCmteTriggerFired\fR گزارش می‌شوند، اما یک varbind اضافی \fChrSWRunName\fR (با نویسه عمومی) نیز افزوده می‌شود.
+.PP
+این مدخل همچنین یک کاربر صریح (\fIme\fR، همان‌طور که قبلاً تعریف شد) را برای بازیابی مقادیر پایش‌شده و ساخت تله مشخص می‌کند.
+.PP
+اشیاء یا مقادیری که می‌توانند در حوالی سطح مشخص‌شده نوسان داشته باشند، بهتر است با استفاده از یک مدخل پایش آستانه پایش شوند:
+.RS
+monitor \-D \-r 10 "network traffic" ifInOctets 1000000 5000000
+.RE
+.PP
+این دستور هر زمان که ترافیک ورودی روی هر واسط شبکه از (تقریباً) ۵۰۰ کیلوبایت بر ثانیه بالاتر برود یک تله \fCmteTriggerRising\fR ارسال می‌کند، و هنگامی که دوباره به زیر ۱۰۰ کیلوبایت بر ثانیه کاهش یابد یک تله متناظر \fCmteTriggerFalling\fR ارسال می‌کند.
+.PP
+توجه داشته باشید که این دستور تفاوت‌های بین نمونه‌های متوالی (\fI\-D\fR) را پایش می‌کند، نه مقادیر واقعی خود نمونه‌ها را. همین اثر را می‌توان با استفاده از دستور زیر به دست آورد:
+.RS
+monitor \-r 10 "network traffic" ifInOctets \- \- 1000000 5000000
+.RE
+.PP
+دستورالعمل \fIlinkUpDownNotifications\fR بالا به‌طور کلی معادل موارد زیر است:
+.RS
+.nf
+notificationEvent  linkUpTrap    linkUp   ifIndex ifAdminStatus ifOperStatus
+notificationEvent  linkDownTrap  linkDown ifIndex ifAdminStatus ifOperStatus
+
+monitor  \-r 60 \-e linkUpTrap   "Generate linkUp"   ifOperStatus != 2
+monitor  \-r 60 \-e linkDownTrap "Generate linkDown" ifOperStatus == 2
+.fi
+.RE
+.PP
+این بخش تله‌هایی را که باید ارسال شوند (با استفاده از \fInotificationEvent\fR) تعریف می‌کند و به‌طور صریح به اعلان مربوطه در مدخل مانیتور متناظر ارجاع می‌دهد (به جای استفاده از تله‌های پیش‌فرض DisMan).
+.PP
+دستورالعمل \fIdefaultMonitors\fR بالا معادل مجموعه‌ای از مدخل‌های مانیتور (بولی) است:
+.RS
+.nf
+monitor	\-o prNames      \-o prErrMessage  "procTable" prErrorFlag   != 0
+monitor	\-o memErrorName \-o memSwapErrorMsg "memory"  memSwapError  != 0
+monitor	\-o extNames     \-o extOutput     "extTable"  extResult     != 0
+monitor	\-o dskPath      \-o dskErrorMsg   "dskTable"  dskErrorFlag  != 0
+monitor	\-o laNames      \-o laErrMessage  "laTable"   laErrorFlag   != 0
+monitor	\-o fileName     \-o fileErrorMsg  "fileTable" fileErrorFlag != 0
+.fi
+.RE
+و هر زمان که هر یک از این مدخل‌ها نشان‌دهنده یک مشکل باشند، یک تله ارسال خواهد کرد.
+.PP
+یک رویکرد جایگزین این است که اقدام "اصلاح" (fix) متناظر به‌طور خودکار فراخوانی شود:
+.RS
+.nf
+setEvent   prFixIt  prErrFix = 1
+monitor \-e prFixIt "procTable" prErrorFlag   != 0
+.fi
+.RE
+(و به همین ترتیب برای هر یک از مدخل‌های دیگر \fIdefaultMonitor\fR).
+.SS "پایگاه داده زمان‌بندی DisMan (DisMan Schedule MIB)"
+کارگزار را می‌توان به‌گونه‌ای پیکربندی کرد که پیکربندی خود را هر یک ساعت یک بار بازخوانی کند، با استفاده از:
+.RS
+repeat 3600 versionUpdateConfig.0 = 1
+.RE
+.PP
+به‌عنوان روش جایگزین، این را می‌توان برای اجرا در زمان‌های خاصی از روز پیکربندی کرد (شاید پس از چرخش گزارش‌ها):
+.RS
+cron 10 0 * * * versionUpdateConfig.0 = 1
+.RE
+.PP
+سبک زمان‌بندی یک‌باره بسیار کمتر رایج است، اما ویروس مخفی SNMP را می‌توان در رخداد بعدی جمعه سیزدهم فعال کرد با استفاده از:
+.RS
+at   13 13 13 * 5 snmpVirus.0 = 1
+.RE
+.SH "گسترش قابلیت‌های کارگزار (EXTENDING AGENT FUNCTIONALITY)"
+.SS "دستورات گسترش دلخواه (Arbitrary Extension Commands)"
+.I "سبک قدیمی"
+.RS 
+.nf
+exec [MIBOID] NAME PROG ARGS"
+sh   [MIBOID] NAME PROG ARGS"
+execfix NAME PROG ARGS"
+.fi
+.RE
+.I "سبک جدید"
+.RS
+.nf
+extend [MIBOID] NAME PROG ARGS"
+extendfix [MIBOID] NAME PROG ARGS"
+.fi
+.RE
+.SS "دستورات گسترش مختص MIB (MIB-Specific Extension Commands)"
+.I یک‌باره (One-Shot)
+.RS
+"pass [\-p priority] MIBOID PROG"
+.RE
+.IP
+.I مانا (Persistent)
+.RS
+"pass_persist [\-p priority] MIBOID PROG"
+.RE
+.SS "پشتیبانی از پرل تعبیه‌شده (Embedded Perl Support)"
+اگر پشتیبانی از پرل تعبیه‌شده در کارگزار فعال باشد، مقداردهی اولیه پیش‌فرض معادل دستورالعمل‌های زیر است:
+.RS
+.nf
+disablePerl  false
+perlInitFile /usr/share/snmp/snmp_perl.pl
+.fi
+.RE
+سازوکار اصلی برای تعریف اسکریپت‌های پرل تعبیه‌شده، دستورالعمل \fIperl\fR است. یک گرداننده بسیار ساده (هرچند تا حدی بی‌هدف) MIB را می‌توان با استفاده از موارد زیر ثبت کرد:
+.RS
+.nf
+perl use Data::Dumper;
+perl sub myroutine  { print "got called: ",Dumper(@_),"\\n"; }
+perl $agent\->register('mylink', '.1.3.6.1.8765', \\&myroutine);
+.fi
+.RE
+.PP
+این به شیء \fI$agent\fR متکی است که در فایل نمونه \fCsnmp_perl.pl\fR تعریف شده است.
+.PP
+یک گرداننده MIB واقعی‌تر ممکن است چنین باشد:
+.RS
+.nf
+\fIXXX - WHAT ???\fR
+.fi
+.RE
+به‌عنوان روش جایگزین، این کد می‌تواند در یک فایل خارجی ذخیره شده و با استفاده از دستور زیر بارگذاری شود:
+.RS
+perl 'do /usr/share/snmp/perl_example.pl';
+.RE
+.\"
+.\" XXX - does this last entry need the quotes ??
+.\"
+.SS "ماژول‌های با بارگذاری پویا (Dynamically Loadable Modules)"
+.I TODO
+.RS
+dlmod NAME PATH"
+.RE
+.SS "پشتیبانی از پروکسی (Proxy Support)"
+یک پیکربندی برای عمل کردن به عنوان یک پروکسی ساده برای دو کارگزار SNMP دیگر (در حال اجرا روی سیستم‌های دوردست) ممکن است چنین باشد:
+.RS
+.nf
+com2sec \-Cn rem1context  rem1user default  remotehost1
+com2sec \-Cn rem2context  rem2user default  remotehost2
+
+proxy \-Cn rem1context  \-v 1 -c public  remotehost1  .1.3
+proxy \-Cn rem2context  \-v 1 -c public  remotehost2  .1.3
+.fi
+.RE
+(به همراه مدخل‌های کنترل دسترسی مناسب).
+.PP
+همین دستورالعمل‌های \fIproxy\fR برای درخواست‌های (ورودی) SNMPv3 نیز کار می‌کنند، که می‌توانند مستقیماً یک بافتار (context) را مشخص کنند. احتمالاً منطقی‌تر خواهد بود که از بافتارهای \fIremotehost1\fR و \fIremotehost2\fR استفاده شود - نام‌های بالا برای نشان دادن نحوه کارکرد این دستورالعمل‌ها با یکدیگر انتخاب شده‌اند.
+.PP
+توجه داشته باشید که تنظیمات مدیریتی برای درخواست پروکسی‌شده به‌طور صریح مشخص می‌شوند و مستقل از تنظیمات درخواست ورودی هستند.
+.PP
+کاربرد دیگر دستورالعمل \fIproxy\fR ارسال بخشی از درخت OID به کارگزار دیگر است (خواه روی یک میزبان دوردست یا در حال شنود روی درگاهی متفاوت در همان سیستم)، در حالی که بقیه موارد را به‌طور داخلی مدیریت می‌کند:
+.RS
+proxy \-v 1 \-c public  localhost:6161  .1.3.6.1.4.1.99
+.RE
+از این سازوکار می‌توان برای پیوند دادن دو کارگزار SNMP جداگانه به یکدیگر استفاده کرد.
+.PP
+یک رویکرد کمتر معمول، نگاشت یک زیردرخت به ناحیه متفاوتی از درخت کلی MIB است (خواه به صورت محلی یا روی یک سیستم دوردست):
+.RS
+.nf
+\fI# uses SNMPv3 to access the MIB tree .1.3.6.1.2.1.1 on 'remotehost'
+# and maps this to the local tree .1.3.6.1.3.10\fR
+proxy \-v 3 \-l noAuthNoPriv \-u user remotehost .1.3.6.1.3.10 .1.3.6.1.2.1.1
+.fi
+.RE
+.SS "زیرکارگزارهای SMUX (SMUX Sub-Agents)"
+.RS
+.nf
+smuxsocket 127.0.0.1
+smuxpeer .1.3.6.1.2.1.14 ospf_pass
+.fi
+.RE
+.SS "زیرکارگزارهای AgentX (AgentX Sub-Agents)"
+کارگزار Net-SNMP را می‌توان به‌گونه‌ای پیکربندی کرد که به عنوان یک کارگزار اصلی AgentX عمل کند (با شنود روی یک سوکت نام‌گذاری‌شده غیراستاندارد، و اجرا با استفاده از امتیازات دسترسی تعریف‌شده در قبل)، با استفاده از:
+.RS
+.nf
+master agentx
+agentXSocket /tmp/agentx/master
+agentXPerms  0660 0550 nobody snmp
+.fi
+.RE
+.\"
+.\" XXX - do numeric UID/GID take a leading '#' ??
+.\"       why not??
+.\"
+یک زیرکارگزار که مایل به اتصال به این کارگزار اصلی است، به همان دستورالعمل \fIagentXSocket\fR یا کد معادل آن نیاز دارد:
+.RS
+.nf
+netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID, NETSNMP_DS_AGENT_X_SOCKET, 
+                      "/tmp/agentx/master");
+.fi
+.RE
+.PP
+پیکربندی AgentX تحت شبکه loopback را می‌توان با استفاده از موارد زیر تنظیم کرد:
+.RS
+.nf
+agentXSocket   tcp:localhost:705
+agentXTimeout  5
+agentXRetries  2
+.fi
+.RE
+روی سمت اصلی (master)، و:
+.RS
+.nf
+agentXSocket   tcp:localhost:705
+agentXTimeout  10
+agentXRetries  1
+agentXPingInterval 600
+.fi
+.RE
+روی کلاینت.
+.PP
+توجه داشته باشید که تنظیمات مهلت زمانی (timeout) و تلاش مجدد (retry) می‌توانند برای دو جهت نامتقارن باشند، و زیرکارگزار می‌تواند کارگزار اصلی را در فواصل منظم (۶۰۰ ثانیه = هر ۱۰ دقیقه) بررسی کند تا از برقراری اتصال اطمینان حاصل نماید.
+.SH "سایر پیکربندی‌ها (OTHER CONFIGURATION)"
+.RS
+override sysDescr.0 octet_str "my own sysDescr"
+.RE
+.RS
+injectHandler stash_cache NAME table_iterator
+.RE
+.SH "فایل‌ها (FILES)"
+/etc/snmp/snmpd.conf
+.SH "همچنین ببینید (SEE ALSO)"
+.BR snmpconf (1),
+.BR snmpd.conf (5),
+.BR snmp.conf (5),
+.BR snmp_config (5),
+.BR snmpd (8),
+EXAMPLE.conf,
+.BR netsnmp_config_api (3).
+.\" Local Variables:
+.\"  mode: nroff
+.\" End:

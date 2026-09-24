@@ -1,0 +1,127 @@
+.if !'po4a'hide' .TH ext_session_acl 8 "9 October 2011"
+.
+.SH "نام (NAME)"
+ext_session_acl \- برنامه کمکی بیرونی acl برای ردیابی نشست در Squid.
+.PP
+نسخه 1.2
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+.if !'po4a'hide' .B ext_session_acl
+.if !'po4a'hide' .B "[\-t"
+timeout
+.if !'po4a'hide' .B "] [\-b"
+database
+.if !'po4a'hide' .B "] [\-a]"
+.
+.SH "توضیحات (DESCRIPTION)"
+برنامه
+.B ext_session_acl
+با پایش درخواست‌ها و منقضی کردن نشست‌ها، مفهوم نشست را مدیریت می‌کند. زمان انقضا بر پایه عدم فعالیت (
+.B \-t
+) یا یک بازه زمانی مشخص و ثابت (
+.B \-T
+) تعیین می‌شود. حالت نخست برای نمایش شرایط و قوانین به کاربر مناسب است؛ حالت دوم برای نمایش آگهی‌ها یا سایر اعلان‌ها به کار می‌رود (هر دو به صورت یک صفحه اعلان یا splash page \- نمونه‌های پیکربندی را در ویکی آنلاین ببینید). همچنین در صورتی که
+.B %LOGIN
+و
+.B \-a
+هر دو استفاده شوند، این برنامه کمکی نشست می‌تواند برای اجبار کاربران به احراز هویت مجدد به کار رود.
+.
+.SH "گزینه‌ها (OPTIONS)"
+.if !'po4a'hide' .TP 12
+.if !'po4a'hide' .B "\-t timeout"
+مدت‌زمان انقضا بر اثر عدم فعالیت (idle timeout) برای هر نشست. در صورت عدم تعیین، این حالت پیش‌فرض است (بر روی ۳۶۰۰ ثانیه تنظیم شده است).
+.
+.if !'po4a'hide' .TP
+.if !'po4a'hide' .B "\-T timeout"
+مدت‌زمان انقضای ثابت برای هر نشست. این گزینه فارغ از میزان فعالیت کاربر، نشست را پس از پایان این مدت خاتمه می‌دهد. در صورت استفاده در حالت
+.B active
+، این گزینه نشست کاربر را پس از
+.B timeout
+پایان می‌دهد که پس از آن ورود مجدد (
+.B LOGIN
+) لازم خواهد بود.
+.B LOGOUT
+نشست و زمان انقضا را بازنشانی خواهد کرد.
+.
+.if !'po4a'hide' .TP
+.if !'po4a'hide' .B "\-b path"
+.B مسیر
+به پایگاه‌داده پایدار (persistent). اگر یک فایل تعیین شود، همان تک‌فایل به عنوان پایگاه‌داده استفاده می‌شود. اگر یک مسیر مشخص شود، یک محیط پایگاه‌داده Berkeley DB درون آن دایرکتوری ایجاد می‌شود. مزیت حالت دوم، پشتیبانی بهتر پایگاه‌داده میان چندین نمونه از برنامه کمکی نشست است. استفاده از چندین نمونه برنامه کمکی نشست با یک فایل پایگاه‌داده منفرد، سبب بروز مشکلات همگام‌سازی بین فرایندها خواهد شد. اگر این گزینه مشخص نشود، جزئیات نشست‌ها تنها در حافظه نگهداری می‌شوند و با هر بار راه‌اندازی مجدد برنامه‌های کمکی توسط Squid (راه‌اندازی مجدد Squid یا چرخش لاگ‌ها)، تمامی نشست‌ها بازنشانی خواهند شد.
+.
+.if !'po4a'hide' .TP
+.if !'po4a'hide' .B \-a
+حالت فعال (Active mode). در این حالت، نشست‌ها با ارزیابی یک acl با آرگومان
+.B LOGIN
+آغاز می‌شوند یا با آرگومان
+.B LOGOUT
+خاتمه می‌یابند. بدون این پرچم، برنامه کمکی به‌طور خودکار پس از دریافت نخستین درخواست، نشست را آغاز می‌کند.
+.SH "پیکربندی (CONFIGURATION)"
+.PP
+برنامه کمکی
+.B ext_session_acl
+یک برنامه کمکی هم‌روند (concurrent) است؛ بنابراین گزینه concurrency=
+.B باید
+در پیکربندی مشخص شود.
+.PP
+مثال پیکربندی نشست غیرفعال (passive) با استفاده از حالت خودکار پیش‌فرض:
+.if !'po4a'hide' .RS
+.if !'po4a'hide' .B external_acl_type session ttl=300 negative_ttl=0 children=1 concurrency=200 %LOGIN /usr/local/squid/libexec/ext_session_acl
+.if !'po4a'hide' .br
+.if !'po4a'hide' .B acl session external session
+.if !'po4a'hide' .br
+.if !'po4a'hide' .B http_access deny !session
+.if !'po4a'hide' .br
+.if !'po4a'hide' .B deny_info http://your.server.example.com/bannerpage?url=%s session
+.if !'po4a'hide' .RE
+.PP
+سپس
+.B http://your.server.example.com/bannerpage
+را برپا کنید تا یک صفحه آغاز نشست نمایش داده شود و سپس کاربر را به نشانی درخواستی که در پارامتر پرسمان url آمده است بازگرداند (redirect کند).
+.
+.SH "نویسنده (AUTHOR)"
+این برنامه و مستندات آن توسط اشخاص زیر نوشته شده است:
+.if !'po4a'hide' .I Henrik Nordstrom <henrik@henriknordstrom.net>
+.if !'po4a'hide' .I Andrew Beverley <andy@andybev.com>
+.
+.SH "حق نشر (COPYRIGHT)"
+.PP
+ * Copyright (C) 1996-2026 The Squid Software Foundation and contributors
+ *
+ * Squid software is distributed under GPLv2+ license and includes
+ * contributions from numerous individuals and organizations.
+ * Please see the COPYING and CONTRIBUTORS files for details.
+.PP
+حق نشر این برنامه و مستندات آن متعلق به نویسندگان نام‌برده در بالا است.
+.PP
+تحت مجوز عمومی همگانی گنو (GNU GPL) نسخه ۲ یا بالاتر (GPLv2+) توزیع شده است.
+.
+.SH "پرسش‌ها (QUESTIONS)"
+پرسش‌ها در مورد استفاده از این برنامه را می‌توانید به
+.I فهرست پستی کاربران Squid
+.if !'po4a'hide' <squid-users@lists.squid-cache.org>
+ارسال کنید.
+.
+.SH "گزارش باگ‌ها (REPORTING BUGS)"
+گزارش‌های باگ باید به زبان انگلیسی ارسال شوند.
+برای جزئیات مواردی که باید در گزارش باگ خود بگنجانید، به https://wiki.squid-cache.org/SquidFaq/BugReporting مراجعه کنید.
+.PP
+باگ‌ها یا وصله‌های اصلاحی را با استفاده از https://bugs.squid-cache.org/ گزارش کنید.
+.PP
+باگ‌های امنیتی جدی را به
+.I باگ‌های Squid <squid-bugs@lists.squid-cache.org>
+گزارش دهید.
+.PP
+ایده‌ها برای بهبودهای جدید را به
+.I فهرست پستی توسعه‌دهندگان Squid
+.if !'po4a'hide' <squid-dev@lists.squid-cache.org>
+ارسال کنید.
+.
+.SH "همچنین ببینید (SEE ALSO)"
+.if !'po4a'hide' .BR squid "(8), "
+.if !'po4a'hide' .BR GPL "(7), "
+.br
+ویکی پرسش‌های متداول Squid
+.if !'po4a'hide' https://wiki.squid-cache.org/SquidFaq
+.br
+راهنمای پیکربندی Squid
+.if !'po4a'hide' http://www.squid-cache.org/Doc/config/

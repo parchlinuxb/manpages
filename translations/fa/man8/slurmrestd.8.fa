@@ -1,0 +1,649 @@
+.TH slurmrestd "8" "Slurm REST Daemon" "Slurm 26.05" "Slurm REST Daemon"
+
+.SH "نام (NAME)"
+slurmrestd \- رابط کاربری Slurm از طریق REST API.
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBslurmrestd\fR [\fIOPTIONS\fR...] <\fI[host]:port\fR|\fIunix:/path/to/socket\fR>...
+.SH "توضیحات (DESCRIPTION)"
+\fBslurmrestd\fR رابط REST API برای Slurm است. این دیمن می‌تواند در دو حالت استفاده شود:
+
+.PP
+\fBحالت Inetd (Inetd Mode)\fR: slurmrestd روی ورودی/خروجی استاندارد (STDIO) می‌خواند و می‌نویسد. اگر STDIN یک توصیف‌کننده فایل (file descriptor) سوکت باشد، slurmrestd آن را تشخیص داده و از قابلیت‌های مربوطه استفاده می‌کند. این حالت برای کار با ورودی لوله‌کشی‌شده (piped input)، inetd، xinetd یا فعال‌سازی سوکت توسط systemd طراحی شده است.
+
+.PP
+\fBحالت شنود (Listen Mode)\fR: slurmrestd یک سوکت شنود روی هر جفت \fIhost\fR:\fIport\fR یا سوکت یونیکسِ درخواستی باز می‌کند.
+
+.SH "گزینه‌ها (OPTIONS)"
+
+.TP
+\fB[https://][host]:port\fR
+نام میزبان و درگاه (port) برای شنود. \fIhost\fR می‌تواند یک آدرس IPv4/IPv6 یا یک نام میزبان قابل‌حل (resolvable) باشد. نام‌های میزبان تنها در زمان راه‌اندازی واکشی می‌شوند و در طول چرخه حیات فرآیند تغییر نمی‌کنند. مشخص کردن \fIhost\fR اختیاری است؛ اگر ارائه نشود، slurmrestd روی تمام رابط‌های شبکه شنود خواهد کرد. \fIhttps://\fR اختیاری است؛ اگر مشخص نشود، slurmrestd در صورت امکان به‌طور خودکار از افزونه TLS برای رمزگذاری ترافیک استفاده می‌کند. اگر \fIhttps://\fR تعیین شده باشد، slurmrestd الزامی می‌کند که افزونه TLS پیکربندی‌شده ترافیک را رمزگذاری کند.
+.IP
+
+.TP
+\fBunix:///path/to/socket\fR
+شنود روی سوکت محلی یونیکس. باید مجوز لازم برای ایجاد سوکت در سیستم فایل وجود داشته باشد.
+.IP
+
+.TP
+\fB\-a <plugin>\fR[,plugin]...
+فهرست جداشده با کاما از افزونه‌های احراز هویت برای بارگذاری.
+به‌طور پیش‌فرض، تمام افزونه‌های احراز هویت در دسترس بارگذاری خواهند شد.
+.RS
+.TP
+\fBlist\fR
+نمایش فهرستی از افزونه‌های قابل بارگذاری.
+.IP
+
+.TP
+\fBrest_auth/local\fR
+امکان احراز هویت از طریق سوکت‌های یونیکس را هنگامی که \fBauth/munge\fR فعال است فراهم می‌کند.
+.br
+\fBنکته\fR: فرآیندهای slurmrestd و کلاینت باید تحت یک شناسه کاربری (UID) یکسان اجرا شوند، در غیر این صورت درخواست‌های کلاینت رد خواهند شد.
+.IP
+
+.TP
+\fBrest_auth/jwt\fR
+امکان احراز هویت از طریق سوکت‌های TCP و یونیکس را هنگامی که \fBAuthAltTypes=auth/jwt\fR فعال است فراهم می‌کند. کاربر باید همراه با هر درخواست، کوکی‌های HTTP زیر را مشخص کند:
+.RS
+.TP
+\fBX-SLURM-USER-NAME\fR:<user name>
+.IP
+.TP
+\fBX-SLURM-USER-TOKEN\fR:<JSON Web Token>
+.RE
+.IP
+\fBنکته\fR: توکن‌ها معمولاً با اجرای دستور «\fBscontrol token\fR» تولید می‌شوند.
+.RE
+.IP
+
+.TP
+\fB\-d <plugin>\fR[,plugin]...
+فهرست جداشده با کاما از افزونه‌های data_parser که قالب خروجی را تعیین می‌کنند. می‌تواند شامل فلگ‌های اختیاری باشد که با نماد «+» مشخص می‌شوند. به‌طور پیش‌فرض، تمام افزونه‌های data_parser در دسترس بدون هیچ فلگ اختیاری بارگذاری خواهند شد.
+همچنین برای افزونه‌های OpenAPI که محتوای در دسترس را کنترل می‌کنند، \fB\-s\fR را ببینید.
+.BR
+پیش‌فرض: تمام افزونه‌های data_parser توکار پشتیبانی‌شده.
+.RS
+.TP
+\fBlist[+flags]\fR
+نمایش فهرستی از افزونه‌های قابل بارگذاری.
+.IP
+
+.TP
+\fBlatest\fR
+به‌طور خودکار با آخرین نسخه افزونه جایگزین می‌شود. برای توضیحات و فلگ‌های احتمالی به افزونه مربوطه مراجعه کنید.
+.IP
+
+.TP
+\fB[data_parser/]v0.0.40[+fast]\fR
+بارگذاری افزونه [data_parser/]v0.0.40 برای قالب‌بندی داده‌ها. فقط با افزونه‌های محتوایی \fBopenapi/slurmctld\fR و \fBopenapi/slurmdbd\fR سازگار است.
+.RS
+.TP
+\fB+fast\fR
+غیرفعال کردن هشدارهای توکار و سایر منطق‌ها برای اعتبارسنجی دقیق درخواست‌های دریافتی. این گزینه فقط باید در محیط عملیاتی با کلاینت‌های کاملاً آزمایش‌شده استفاده شود؛ درخواست‌های با قالب احتمالاً نادرست همان‌گونه که هستند پذیرفته می‌شوند و هیچ هشداری درباره فیلدها یا مقادیر نادیده‌گرفته‌شده یا نادرست تولید نخواهد شد.
+.IP
+.RE
+.IP
+
+.TP
+\fB[data_parser/]v0.0.41[+fast][+prefer_refs]\fR
+بارگذاری افزونه [data_parser/]v0.0.41 برای قالب‌بندی داده‌ها. فقط با افزونه‌های محتوایی \fBopenapi/slurmctld\fR و \fBopenapi/slurmdbd\fR سازگار است.
+.RS
+.TP
+\fB+fast\fR
+غیرفعال کردن هشدارهای توکار و سایر منطق‌ها برای اعتبارسنجی دقیق درخواست‌های دریافتی. این گزینه فقط باید در محیط عملیاتی با کلاینت‌های کاملاً آزمایش‌شده استفاده شود؛ درخواست‌های با قالب احتمالاً نادرست همان‌گونه که هستند پذیرفته می‌شوند و هیچ هشداری درباره فیلدها یا مقادیر نادیده‌گرفته‌شده یا نادرست تولید نخواهد شد.
+.IP
+.TP
+\fB+prefer_refs\fR
+ترجیح گسترش درون‌خطی شِماهای ارجاع‌شده (از طریق \fI$ref\fR) در مشخصات OpenAPI تولیدشده در صورتی که به اسکیما تنها یک بار ارجاع داده شده باشد.
+.IP
+.RE
+.IP
+
+.TP
+\fB[data_parser/]v0.0.42[+fast][+minimize_refs][+inline_enums]\fR
+بارگذاری افزونه [data_parser/]v0.0.42 برای قالب‌بندی داده‌ها. فقط با افزونه‌های محتوایی \fBopenapi/slurmctld\fR و \fBopenapi/slurmdbd\fR سازگار است.
+.RS
+.TP
+\fB+fast\fR
+غیرفعال کردن هشدارهای توکار و سایر منطق‌ها برای اعتبارسنجی دقیق درخواست‌های دریافتی. این گزینه فقط باید در محیط عملیاتی با کلاینت‌های کاملاً آزمایش‌شده استفاده شود؛ درخواست‌های با قالب احتمالاً نادرست همان‌گونه که هستند پذیرفته می‌شوند و هیچ هشداری درباره فیلدها یا مقادیر نادیده‌گرفته‌شده یا نادرست تولید نخواهد شد.
+.IP
+.TP
+\fB+minimize_refs\fR
+اجتناب از گسترش درون‌خطی شِماهای ارجاع‌شده (از طریق \fI$ref\fR) در مشخصات OpenAPI تولیدشده در صورتی که به اسکیما تنها یک بار ارجاع داده شده باشد.
+.IP
+.TP
+\fB+inline_enums\fR
+اجتناب از گسترش درون‌خطی شِماهای ارجاع‌شده (از طریق \fI$ref\fR) در مشخصات OpenAPI تولیدشده برای آرایه‌های شمارشی (enum).
+.IP
+.RE
+.IP
+
+.TP
+\fB[data_parser/]v0.0.43[+fast][+minimize_refs]\fR
+بارگذاری افزونه [data_parser/]v0.0.43 برای قالب‌بندی داده‌ها. فقط با افزونه‌های محتوایی \fBopenapi/slurmctld\fR و \fBopenapi/slurmdbd\fR سازگار است.
+.RS
+.TP
+\fB+fast\fR
+غیرفعال کردن هشدارهای توکار و سایر منطق‌ها برای اعتبارسنجی دقیق درخواست‌های دریافتی. این گزینه فقط باید در محیط عملیاتی با کلاینت‌های کاملاً آزمایش‌شده استفاده شود؛ درخواست‌های با قالب احتمالاً نادرست همان‌گونه که هستند پذیرفته می‌شوند و هیچ هشداری درباره فیلدها یا مقادیر نادیده‌گرفته‌شده یا نادرست تولید نخواهد شد.
+.IP
+.TP
+\fB+minimize_refs\fR
+اجتناب از گسترش درون‌خطی شِماهای ارجاع‌شده (از طریق \fI$ref\fR) در مشخصات OpenAPI تولیدشده در صورتی که به اسکیما تنها یک بار ارجاع داده شده باشد.
+.IP
+.RE
+.IP
+
+.TP
+\fB[data_parser/]v0.0.44[+fast][+minimize_refs]\fR
+بارگذاری افزونه [data_parser/]v0.0.44 برای قالب‌بندی داده‌ها. فقط با افزونه‌های محتوایی \fBopenapi/slurmctld\fR، \fBopenapi/slurmdbd\fR و \fBopenapi/util\fR سازگار است.
+.RS
+.TP
+\fB+fast\fR
+غیرفعال کردن هشدارهای توکار و سایر منطق‌ها برای اعتبارسنجی دقیق درخواست‌های دریافتی. این گزینه فقط باید در محیط عملیاتی با کلاینت‌های کاملاً آزمایش‌شده استفاده شود؛ درخواست‌های با قالب احتمالاً نادرست همان‌گونه که هستند پذیرفته می‌شوند و هیچ هشداری درباره فیلدها یا مقادیر نادیده‌گرفته‌شده یا نادرست تولید نخواهد شد.
+.IP
+.TP
+\fB+minimize_refs\fR
+اجتناب از گسترش درون‌خطی شِماهای ارجاع‌شده (از طریق \fI$ref\fR) در مشخصات OpenAPI تولیدشده در صورتی که به اسکیما تنها یک بار ارجاع داده شده باشد.
+.IP
+.RE
+.IP
+
+.RE
+.IP
+
+.TP
+\fB\-f <file>\fR
+خواندن پیکربندی Slurm از فایل مشخص‌شده. به بخش \fBنکات (NOTES)\fR در زیر مراجعه کنید.
+.IP
+
+.TP
+\fB\-\-generate\-openapi\-spec\fR
+تخلیه (dump) مشخصات OpenAPI با فرمت JSON در stdout و خروج فوری. حداقل افزونه‌های مورد نیاز را بارگذاری می‌کند. تمام فیلدهای «content» فقط با فرمت JSON خواهند بود حتی اگر افزونه \fIserializer/yaml\fR موجود و قابل بارگذاری باشد. بارگذاری \fBslurm.conf\fR(5) می‌تواند با ارسال آرگومان‌های اضافی \fB\-f /dev/null\fR یا تنظیم \fBSLURM_CONF\fR=/dev/null در محیط غیرفعال شود.
+.IP
+
+.TP
+\fB\-g <group id>\fR
+تغییر شناسه گروه (group id) (و رها کردن گروه‌های تکمیلی) پیش از پردازش درخواست کلاینت. این باید یک گروه یکتا و بدون دسترسی نوشتن یا مجوزهای ویژه باشد. این را روی گروه متعلق به SlurmUser یا ریشه (root) تنظیم نکنید، در غیر این صورت دیمن با تنظیمات پیش‌فرض شروع به کار نخواهد کرد.
+.IP
+
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+راهنما؛ چاپ خلاصه‌ای کوتاه از گزینه‌های دستور.
+.IP
+
+.TP
+\fB\-\-max\-connections <count>\fR
+تنظیم حداکثر تعداد اتصال‌هایی که در هر لحظه پردازش می‌شوند. این مستقل از تعداد اتصال‌هایی است که می‌توانند در هر لحظه به slurmrestd متصل شوند. هنگامی که کوکی‌های SYN فعال باشند، هسته به هر تعداد اتصال اجازه می‌دهد تا در وضعیت تعلیق برای پردازش قرار گیرند.
+.RS
+.TP
+\fBهشدار\fR:
+هر اتصال می‌تواند سبب یک فراخوانی RPC به دیمن‌های کنترل‌کننده شود که ممکن است به بار بیش از حد روی کنترل‌کننده بینجامد. همچنین هر اتصال می‌تواند در طول چرخه حیات خود حافظه را اشغال کند. پردازش هم‌زمان تعداد بسیار زیادی از اتصالات ممکن است حافظه قابل‌توجهی را مصرف کند. در صورت افزایش این مقدار، ممکن است محدودیت‌های فرآیند (\fBulimit\fR(3)) نیاز به تنظیم داشته باشند.
+.TP
+پیش‌فرض: 124
+.RE
+.IP
+
+.TP
+\fB\-s <plugin>\fR[,plugin]...
+فهرست جداشده با کاما از افزونه‌های OpenAPI برای بارگذاری، که محتوای در دسترس را مشخص می‌کنند. به‌طور پیش‌فرض، اگر \fBAccountingStorageType\fR=\fIaccounting_storage/slurmdbd\fR در \fBslurm.conf\fR(5) پیکربندی شده باشد، افزونه‌های OpenAPI بارگذاری‌شده \fIslurmctld,slurmdbd\fR و برای هر پیکربندی دیگری \fIslurmctld\fR خواهند بود.
+همچنین برای افزونه‌های data_parser که قالب خروجی را کنترل می‌کنند، \fB\-d\fR را ببینید.
+.RS
+.TP
+\fBlist\fR
+نمایش فهرستی از افزونه‌های قابل بارگذاری.
+.IP
+
+.TP
+\fB[openapi/]slurmctld\fR
+نقاط پایانی 'slurm/' را برای افزونه‌های بارگذاری‌شده data_parser فراهم می‌کند.
+.IP
+
+.TP
+\fB[openapi/]slurmdbd\fR
+نقاط پایانی 'slurmdb/' را برای افزونه‌های بارگذاری‌شده data_parser فراهم می‌کند. اگر از \fBaccounting_storage/slurmdbd\fR در کلاستر استفاده نشود، این افزونه با خطا مواجه خواهد شد.
+.IP
+
+.TP
+\fB[openapi/]util\fR
+نقاط پایانی 'util/' را برای افزونه‌های بارگذاری‌شده data_parser فراهم می‌کند. Util مخفف utility است و ابزارهای کمکی قابل‌دسترس را مستقیماً از طریق slurmrestd ارائه می‌دهد.
+.IP
+.RE
+.IP
+
+.TP
+\fB\-t <THREAD COUNT>\fR
+مشخص کردن تعداد ریسه‌ها (threads) برای پردازش اتصالات کلاینت. در حالت inetd نادیده گرفته می‌شود.
+.IP
+
+.TP
+\fB\-u <user id>\fR
+تغییر شناسه کاربری (user id) پیش از پردازش درخواست کلاینت. این باید یک کاربر یکتا و بدون دسترسی نوشتن یا مجوزهای ویژه باشد. این کاربر را روی SlurmUser یا ریشه (root) تنظیم نکنید، در غیر این صورت دیمن با تنظیمات پیش‌فرض شروع به کار نخواهد کرد.
+.IP
+
+.TP
+\fB\-v\fR
+عملیات پرگو (verbose). می‌توان چندین \fBv\fR مشخص کرد که هر '\fBv\fR' فراتر از اولی، میزان پرگویی گزارش‌ها را افزایش می‌دهد، تا حداکثر ۶ بار (یعنی \-vvvvvv). سطوح بالاتر پرگویی تأثیر چشمگیری بر کارایی خواهند داشت. برای توضیحات مقاصد ثبت گزارش، \fBSLURMRESTD_DEBUG\fR را ببینید.
+.IP
+
+.TP
+\fB\-V\fR
+چاپ اطلاعات نسخه و خروج.
+.IP
+
+.SH "تی‌ال‌اس (TLS)"
+\fBslurmrestd\fR از رمزگذاری TLS از طریق رابط افزونه TLS پشتیبانی می‌کند. برای توضیحات دقیق درباره پشتیبانی از TLS در Slurm، به <https://slurm.schedmd.com/tls.html> مراجعه کنید.
+.PP
+\fBslurmrestd\fR از رمزگذاری TLS برای اتصالات ورودی HTTPS، صرف‌نظر از چگونگی پیکربندی \fBTLSType\fR در \fBslurm.conf\fR(5)، پشتیبانی می‌کند. پیکربندی \fBTLSParameters\fR در \fBslurm.conf\fR(5) همیشه اعمال می‌شود. این امر اجازه می‌دهد تا لایه RPC اسلورم بدون رمزگذاری TLS باقی بماند، در حالی که slurmrestd امکان سرویس‌دهی به درخواست‌های HTTPS را از طریق TLS دارد.
+.PP
+\fBslurmrestd\fR شامل تشخیص خودکار اتصالات ورودی TLS است. اگر افزونه TLS کاملاً پیکربندی شده و در زمان راه‌اندازی با موفقیت بارگذاری شود، تمام اتصالات ورودی جدید برای دست‌تکانی‌های (handshakes) پروتکل SSLv3 (مطابق با RFC#6101) و TLSv1.x (مطابق با RFC#8446) اثرانگشت‌نگاری (fingerprint) می‌شوند. پس از تطابق اثرانگشت، هر یک از اتصالات ورودی در طول مدت اتصال، از طریق افزونه TLS پیکربندی‌شده رمزگذاری خواهند شد. پشتیبانی از TLS صرف‌نظر از اینکه اتصال از نوع \fBsocket\fR(2) [\fBunix\fR(2)] یا \fBpipe\fR(2) (در حالت INETD) باشد، مدیریت می‌شود. اتصالات شنودی که با \fBhttps://\fR ایجاد شده‌اند، ملزم به رمزگذاری از طریق افزونه TLS خواهند بود. هرگونه اتصال ورودی به این شنوندگان بدون رمزگذاری TLS، فوراً و بدون ارسال پاسخ خطا به کلاینت بسته خواهد شد.
+.PP
+پشتیبانی از TLS در slurmrestd به نیازمندی‌های افزونه TLS وابسته است. slurmrestd تلاش خواهد کرد تا در هنگام راه‌اندازی، نخستین افزونه در دسترس TLS (به جز \fItls/none\fR) را به‌طور خودکار بارگذاری کند. نیازمندی‌های هر افزونه در زیر فهرست شده است:
+.TP
+\fBtls/s2n\fR
+فایل‌های زیر باید در هنگام راه‌اندازی، موجود و توسط کاربر فراخواننده (پیش از اعمال \fB\-u <user id>\fR) قابل خواندن باشند:
+.IP
+.RS
+.TP
+\fBrestd_cert_file.pem\fR
+گواهی عمومی سرور TLS x509. باید توسط مرجع صدور گواهی (CA) معتمد برای کلاینت‌ها امضا شده باشد. نام عمومی (\fICN\fR) گواهی باید با نام میزبان مطابقت داشته باشد. slurmrestd هاست را در درخواست‌های HTTP کلاینت نادیده می‌گیرد اما اکثر کلاینت‌های TLS تطابق آن‌ها را الزامی می‌دانند.
+.sp 1
+نکته: فایل گواهی باید در متغیر پوشه نصب sysconfdir مربوط به \fBautoconf\fR(1) قرار گیرد که می‌توان آن را با تنظیم \fBTLSParameters\fR=\fBrestd_cert_file=\fR\fI/path/to/restd_cert_file.pem\fR در \fBslurm.conf\fR(5) بازنویسی کرد.
+.IP
+
+.TP
+\fBrestd_cert_key_file.pem\fR
+کلید خصوصی برای \fBrestd_cert_file.pem\fR. این فایل \fBفقط\fR باید توسط کاربر slurmrestd قابل خواندن باشد.
+.sp 1
+نکته: فایل گواهی باید در متغیر پوشه نصب sysconfdir مربوط به \fBautoconf\fR(1) قرار گیرد که می‌توان آن را با تنظیم \fBTLSParameters\fR=\fBrestd_cert_key_file=\fR\fI/path/to/restd_cert_key.pem\fR در \fBslurm.conf\fR(5) بازنویسی کرد.
+.IP
+
+.RE
+.IP
+
+.SH "متغیرهای محیطی (ENVIRONMENT VARIABLES)"
+متغیرهای محیطی زیر می‌توانند برای بازنویسی تنظیمات کامپایل‌شده در slurmrestd استفاده شوند.
+
+.TP
+\fBABORT_ON_FATAL\fR
+هنگامی که خطایی مهلک تشخیص داده می‌شود، به جای exit() از abort() برای خاتمه دادن به فرآیند استفاده می‌کند. این امکان را فراهم می‌سازد که ردگیری پشته (backtrace) بدون نیاز به کامپایل مجدد Slurm ثبت شود.
+.IP
+
+.TP
+\fBSLURM_CONF\fR
+محل فایل پیکربندی Slurm.
+.IP
+
+.TP
+\fBSLURM_DEBUG_FLAGS\fR
+مشخص کردن فلگ‌های اشکال‌زدایی برای استفاده توسط slurmrestd. برای فهرست کامل فلگ‌ها، DebugFlags را در صفحه راهنمای \fBslurm.conf\fR(5) ببینید. متغیر محیطی بر تنظیمات درون slurm.conf تقدم دارد.
+.IP
+
+.TP
+\fBSLURM_DEBUG\fR
+تنظیم صریح سطح اشکال‌زدایی. مقادیر معتبر 0\-9 یا مقادیر رشته‌ای مشابه با گزینه‌های اشکال‌زدایی نظیر SlurmctldDebug در \fBslurm.conf\fR(5) هستند. در صورت ارسال \fB\-v\fR به عنوان آرگومان در زمان فراخوانی، افزایش می‌یابد. در صورت تنظیم \fBSLURMRESTD_DEBUG\fR، \fBSLURMRESTD_DEBUG_STDERR\fR یا \fBSLURMRESTD_DEBUG_SYSLOG\fR در محیط، نادیده گرفته می‌شود. برای توضیحات مقاصد ثبت گزارش، \fBSLURMRESTD_DEBUG\fR را ببینید.
+.IP
+
+.TP
+\fBSLURMRESTD_JSON\fR یا \fBSLURM_JSON\fR
+کنترل سریال‌سازی JSON:
+.IP
+.RS
+.TP
+\fBcompact\fR
+ارائه خروجی JSON تا حد ممکن فشرده.
+.IP
+
+.TP
+\fBpretty\fR
+ارائه خروجی JSON با فرمت آراسته (pretty) برای خوانایی بیشتر.
+.IP
+.RE
+
+.TP
+\fBSLURM_JWT\fR
+این متغیر باید برای استفاده از احراز هویت با توکن JWT تنظیم شود.
+.IP
+
+.TP
+\fBSLURMRESTD_AUTH_TYPES\fR
+تنظیم انواع مجاز احراز هویت. به \fB\-a\fR مراجعه کنید.
+.IP
+
+.TP
+\fBSLURMRESTD_DEBUG\fR
+تنظیم صریح سطح اشکال‌زدایی. مقادیر معتبر 0\-9 یا مقادیر رشته‌ای مشابه با گزینه‌های اشکال‌زدایی نظیر SlurmctldDebug در \fBslurm.conf\fR(5) هستند. اگر یک TTY کنترلی شناسایی شود، حالت تعاملی به‌طور خودکار فعال می‌شود تا اطلاعات گزارش تکمیلی را به stderr ارسال کند. اگر TTY کنترلی شناسایی نشود، گزارش‌ها به syslog ارسال می‌شوند. در صورت ارسال \fB\-v\fR به عنوان آرگومان در زمان فراخوانی، افزایش می‌یابد. در صورت تنظیم \fBSLURMRESTD_DEBUG_STDERR\fR یا \fBSLURMRESTD_DEBUG_SYSLOG\fR در محیط، نادیده گرفته می‌شود.
+.IP
+
+.TP
+\fBSLURMRESTD_DEBUG_STDERR\fR
+تنظیم صریح سطح اشکال‌زدایی برای ثبت گزارش در STDERR. مقادیر معتبر 0\-9 یا مقادیر رشته‌ای مشابه با گزینه‌های اشکال‌زدایی نظیر SlurmctldDebug در \fBslurm.conf\fR(5) هستند. در صورت ارسال \fB\-v\fR به عنوان آرگومان در زمان فراخوانی، افزایش می‌یابد.
+.IP
+
+.TP
+\fBSLURMRESTD_DEBUG_SYSLOG\fR
+تنظیم صریح سطح اشکال‌زدایی برای ثبت گزارش در syslog. مقادیر معتبر 0\-9 یا مقادیر رشته‌ای مشابه با گزینه‌های اشکال‌زدایی نظیر SlurmctldDebug در \fBslurm.conf\fR(5) هستند. در صورت ارسال \fB\-v\fR به عنوان آرگومان در زمان فراخوانی، افزایش می‌یابد.
+.IP
+
+.TP
+\fBSLURMRESTD_DATA_PARSER_PLUGINS\fR
+فهرست جداشده با کاما از افزونه‌های data_parser برای بارگذاری. به \fB\-d\fR مراجعه کنید.
+.IP
+
+.TP
+\fBSLURMRESTD_LISTEN\fR
+فهرست جداشده با کاما از جفت‌های host:port یا سوکت‌های یونیکس برای شنود.
+.IP
+
+.TP
+\fBSLURMRESTD_MAX_CONNECTIONS\fR
+تنظیم حداکثر تعداد اتصال‌هایی که در هر لحظه پردازش می‌شوند. به \fB\-\-max\-connections\fR مراجعه کنید.
+.IP
+
+.TP
+\fBSLURMRESTD_OPENAPI_PLUGINS\fR
+فهرست جداشده با کاما از افزونه‌های OpenAPI برای بارگذاری. به \fB\-s\fR مراجعه کنید.
+.IP
+
+.TP
+\fBSLURMRESTD_RESPONSE_STATUS_CODES\fR
+فهرست جداشده با کاما از پاسخ‌های متد OpenAPI جهت تولید در مشخصات OpenAPI.
+.BR
+پیش‌فرض: 200,default
+.IP
+
+.TP
+\fBSLURMRESTD_SECURITY\fR
+کنترل قابلیت‌های امنیتی slurmrestd با استفاده از مقادیر زیر که با کاما جدا شده‌اند:
+.IP
+.RS
+.TP
+\fBbecome_user\fR
+به \fBslurmrestd\fR اجازه می‌دهد تا به عنوان ریشه (root) اجرا شود تا برای تمام درخواست‌ها هویت کاربر درخواست‌دهنده را اتخاذ کند. هنگام ترکیب با \fBrest_auth/local\fR، زمانی که یک کاربر از طریق یک سوکت نام‌گذاری‌شده یونیکس متصل می‌شود، \fBslurmrestd\fR تابع‌های setuid()/setgid() را برای تغییر به آن کاربر/گروه اجرا می‌کند و سپس تمام درخواست‌ها را به عنوان آن کاربر تکمیل می‌نماید. این حالت فقط برای حالت inet در نظر گرفته شده است زیرا تغییر کاربر تا پایان عمر فرآیند دائمی است. این حالت با \fBrest_auth/jwt\fR ناسازگار است و پیشنهاد می‌شود که \fBslurmrestd\fR با آرگومان‌های "-a \fBrest_auth/local\fR" آغاز شود.
+.IP
+
+.TP
+\fBdisable_unshare_files\fR
+غیرفعال کردن لغو اشتراک‌گذاری (unsharing) توصیف‌کننده‌های فایل با فرآیند والد.
+.IP
+
+.TP
+\fBdisable_unshare_sysv\fR
+غیرفعال کردن لغو اشتراک‌گذاری فضای نام SYSV.
+.IP
+
+.TP
+\fBdisable_user_check\fR
+بررسی عدم اجرای slurmrestd به عنوان ریشه (root) یا SlurmUser، یا با گروه اصلی root یا SlurmUser را غیرفعال می‌کند. غیرفعال کردن این بررسی به slurmrestd اجازه می‌دهد تا به عنوان کاربر root یا SlurmUser اجرا شود، که به هر کسی که بتواند با این دیمن ارتباط برقرار کند امکان می‌دهد هر چیزی را به عنوان کاربر ریشه در کلاستر اجرا کند.
+.RE
+.IP
+
+.TP
+\fBSLURMRESTD_YAML\fR یا \fBSLURM_YAML\fR
+کنترل سریال‌سازی YAML:
+.IP
+.RS
+.TP
+\fBcompact\fR
+ارائه خروجی YAML تا حد ممکن فشرده.
+.IP
+
+.TP
+\fBno_tag\fR
+ارائه خروجی YAML بدون !!tags مربوط به نوع داده.
+.IP
+
+.TP
+\fBpretty\fR
+ارائه خروجی YAML با فرمت آراسته (pretty) برای خوانایی بیشتر.
+.RE
+.IP
+
+.SH "سیگنال‌ها (SIGNALS)"
+
+.TP 6
+\fBSIGINT\fR
+\fBslurmrestd\fR به صورت تمیز و ایمن متوقف خواهد شد.
+.IP
+
+.TP
+\fBSIGPIPE\fR
+این سیگنال صراحتاً نادیده گرفته می‌شود.
+.IP
+
+.TP
+\fBSIGPROF\fR
+ثبت وضعیت مدیر اتصال در لاگ هنگامی که سطح اشکال‌زدایی حداقل info باشد.
+.IP
+
+.SH "نکات (NOTES)"
+افزونه‌های \fBSPANK\fR و \fBclifilter\fR به دلیل عدم ایمنی در ریسه‌ها (lack of thread safety) در \fBslurmrestd\fR پشتیبانی نمی‌شوند. افزونه‌های فعال \fBSPANK\fR و \fBJobSubmitPlugins\fR در \fBslurmctld\fR مستقل از slurmrestd هستند و می‌توان از آن‌ها برای اعمال سیاست‌های محلی بر ثبت کارها استفاده کرد.
+
+.SH "مثال‌ها (EXAMPLES)"
+
+.LP
+تولید مشخصات OpenAPI بدون نیاز به فایل پیکربندی:
+.IP
+.nf
+$ slurmrestd -f /dev/null  --generate-openapi-spec -s slurmdbd,slurmctld -d v0.0.42 > openapi.json
+.fi
+
+.LP
+راه‌اندازی \fBslurmrestd\fR با یک سوکت یونیکس در حالت شنود:
+.IP
+.nf
+$ export SLURMRESTD=/var/spool/slurm/restd/rest
+$ slurmrestd -s slurmctld,slurmdbd -d v0.0.42 unix:$SLURMRESTD
+.fi
+
+.LP
+بررسی برقراری ارتباط با slurmctld از طریق ping، در حالی که \fBslurmrestd\fR در حالت شنود اجرا می‌شود:
+.IP
+.nf
+$ export $(scontrol token)
+$ curl --unix-socket "${SLURMRESTD}" -H "X-SLURM-USER-TOKEN:${SLURM_JWT}" 'http://ignored_with_unix_sockets/slurm/v0.0.42/ping' | jq '.pings'
+[
+  {
+    "hostname": "omicronpersei8",
+    "pinged": "UP",
+    "latency": 314,
+    "mode": "primary"
+  }
+]
+.fi
+
+.LP
+بررسی برقراری ارتباط با slurmdbd با یک درخواست diag، در حالی که \fBslurmrestd\fR در حالت شنود اجرا می‌شود:
+.IP
+.nf
+$ export $(scontrol token)
+$ curl --unix-socket "${SLURMRESTD}" -H "X-SLURM-USER-TOKEN:${SLURM_JWT}" 'http://ignored_with_unix_sockets/slurmdb/v0.0.42/diag' | jq '.pings'
+1722009793
+.fi
+
+.LP
+استعلام وضعیت یک گره در حالی که \fBslurmrestd\fR در حالت INETD اجرا می‌شود:
+.IP
+.nf
+$ echo -e "GET http://ignored/slurm/v0.0.42/node/host1 HTTP/1.1\\r\\n" | slurmrestd
+HTTP/1.1 200 OK
+Content-Length: 3174
+Content-Type: application/json
+
+{
+  "nodes": [
+    {
+      "architecture": "x86_64",
+      "burstbuffer_network_address": "",
+      "boards": 1,
+      "boot_time": {
+        "set": true,
+        "infinite": false,
+	"number": 1720820315
+      },
+      "cluster_name": "",
+      "cores": 16,
+      "specialized_cores": 0,
+      "cpu_binding": 0,
+      "cpu_load": 446,
+      "free_mem": {
+        "set": true,
+        "infinite": false,
+	"number": 39871
+      },
+      "cpus": 32,
+      "effective_cpus": 32,
+      "specialized_cpus": "",
+      "energy": {
+        "average_watts": 0,
+        "base_consumed_energy": 0,
+        "consumed_energy": 0,
+	"current_watts": {
+          "set": false,
+          "infinite": false,
+          "number": 0
+        },
+	"previous_consumed_energy": 0,
+	"last_collected": 0
+      },
+      "external_sensors": {},
+      "extra": "",
+      "power": {},
+      "features": [],
+      "active_features": [],
+      "gpu_spec": "",
+      "gres": "gpu:fake1:1(S:0),gpu:fake2:1(S:0)",
+      "gres_drained": "N\/A",
+      "gres_used": "gpu:fake1:0(IDX:N\/A),gpu:fake2:0(IDX:N\/A)",
+      "instance_id": "",
+      "instance_type": "",
+      "last_busy": {
+	"set": true,
+	"infinite": false,
+	"number": 1722009794
+      },
+      "mcs_label": "",
+      "specialized_memory": 0,
+      "name": "host1",
+      "next_state_after_reboot": [
+	"INVALID"
+      ],
+      "address": "localhost",
+      "hostname": "omicronpersei8",
+      "state": [
+        "IDLE"
+      ],
+      "operating_system": "Linux 6.5.0-44-generic #44-Ubuntu SMP PREEMPT_DYNAMIC Fri Jun  7 15:10:09 UTC 2024",
+      "owner": "",
+      "partitions": [
+        "debug"
+      ],
+      "port": 5015,
+      "real_memory": 127927,
+      "res_cores_per_gpu": 0,
+      "comment": "",
+      "reason": "",
+      "reason_changed_at": {
+	"set": true,
+	"infinite": false,
+	"number": 0
+      },
+      "reason_set_by_user": "",
+      "resume_after": {
+        "set": true,
+        "infinite": false,
+        "number": 0
+      },
+      "reservation": "",
+      "alloc_memory": 0,
+      "alloc_cpus": 0,
+      "alloc_idle_cpus": 32,
+      "tres_used": "",
+      "tres_weighted": 0.0,
+      "slurmd_start_time": {
+	"set": true,
+	"infinite": false,
+	"number": 1722009794
+      },
+      "sockets": 1,
+      "threads": 2,
+      "temporary_disk": 0,
+      "weight": 1,
+      "tres": "cpu=32,mem=127927M,billing=32,gres\/gpu=2",
+      "version": "24.11.0-0rc1"
+    }
+  ],
+  "last_update": {
+    "set": true,
+    "infinite": false,
+    "number": 1722010273
+  },
+  "meta": {
+<<< TRIMMED >>>
+  },
+  "errors": [],
+  "warnings": []
+}
+.fi
+
+.LP
+ارسال یک کار (job) به \fBslurmrestd\fR در حالی که در حالت شنود اجرا می‌شود:
+.IP
+.nf
+$ jq . example_job.json
+{
+  "job": {
+    "script": "#!/bin/bash\\nsleep 30",
+    "name": "ExampleJob",
+    "account": "sub1",
+    "environment": [
+      "PATH=/usr/bin/:/bin/"
+    ],
+    "current_working_directory": "/tmp/",
+    "tasks": 12,
+    "memory_per_cpu": 100,
+    "time_limit": 240
+  }
+}
+
+$ curl -H "Content-Type: application/json" --data-binary @example_job.json --unix-socket "${SLURMRESTD}" 'http://ignored/slurm/v0.0.42/job/submit'
+{
+  "job_id": 9,
+  "step_id": "batch",
+  "job_submit_user_msg": "",
+  "meta": {
+<<< TRIMMED >>>
+  },
+  "errors": [],
+  "warnings": []
+}
+
+$ curl -H "Content-Type: application/json" --data-binary @example_job.json --unix-socket "${SLURMRESTD}" 'http://ignored/slurm/v0.0.42/job/submit'
+{
+  "job_id": 7,
+  "step_id": "batch",
+  "job_submit_user_msg": "",
+  "meta": {
+  },
+  "errors": [],
+  "warnings": [
+    {
+      "description": "Expected OpenAPI type=array (Slurm type=list) but got OpenAPI type=object (Slurm type=dictionary): {\"PATH\":\"\\\/bin\"}",
+      "source": "#\/job\/environment\/"
+    }
+  ]
+}
+.fi
+
+.SH "کپی‌رایت (COPYING)"
+Copyright (C) 2019\-2022 SchedMD LLC.
+.LP
+این فایل بخشی از Slurm است که یک برنامه مدیریت منابع می‌باشد.
+برای جزئیات بیشتر، به <https://slurm.schedmd.com> مراجعه کنید.
+.LP
+نرم‌افزار Slurm یک نرم‌افزار آزاد است؛ شما می‌توانید آن را تحت شرایط «مجوز عمومی همگانی گنو» (GNU General Public License) همان‌طور که توسط «بنیاد نرم‌افزارهای آزاد» منتشر شده است، چه نسخه ۲ مجوز و چه (به انتخاب خودتان) هر نسخه بعدی، بازتوزیع کرده و/یا تغییر دهید.
+.LP
+توزیع Slurm به این امید انجام شده است که مفید واقع شود، اما بدون هرگونه ضمانت؛ حتی بدون ضمانت ضمنی قابل فروش بودن یا مناسب بودن برای یک هدف مشخص. برای جزئیات بیشتر به «مجوز عمومی همگانی گنو» مراجعه کنید.
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBslurm.conf\fR(5), \fBslurmctld\fR(8), \fBslurmdbd\fR(8)

@@ -1,0 +1,65 @@
+'\" t
+.nh
+.TH podman\-healthcheck 1
+.SH "نام (NAME)"
+podman\-healthcheck \- مدیریت بررسی سلامت (healthcheck) کانتینرها
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman healthcheck\fP \fIزیردستور\fP
+
+.SH "توضیحات (DESCRIPTION)"
+مجموعه دستورهای \fBpodman healthcheck\fP برای مدیریت بررسی سلامت کانتینرها استفاده می‌شوند.
+
+.PP
+بررسی‌های سلامت معمولاً از ایمیج‌ها تأمین می‌شوند. از \fBpodman image inspect\fR برای شناسایی healthcheck در بخش Config ایمیج استفاده کنید.
+
+.PP
+بررسی‌های سلامت همچنین می‌توانند هنگام ایجاد کانتینر از طریق \fBpodman run\fR یا \fBpodman create\fR با استفاده از موارد زیر تعریف شوند:
+\- \fB\-\-health\-cmd\fR برای تنظیم دستور بررسی (شکل رشته‌ای از طریق CMD\-SHELL اجرا می‌شود؛ شکل آرایه‌ای از CMD استفاده می‌کند)
+\- \fB\-\-health\-interval\fR، \fB\-\-health\-timeout\fR، \fB\-\-health\-retries\fR، \fB\-\-health\-start\-period\fR
+\- \fB\-\-no\-healthcheck\fR برای غیرفعال کردن بررسی سلامت تعریف‌شده در ایمیج
+\- تنظیمات بررسی سلامت راه‌اندازی: \fB\-\-health\-startup\-cmd\fR، \fB\-\-health\-startup\-interval\fR، \fB\-\-health\-startup\-retries\fR، \fB\-\-health\-startup\-success\fR، \fB\-\-health\-startup\-timeout\fR
+
+.SS "بررسی سلامت راه‌اندازی در برابر بررسی سلامت عادی (Startup Healthcheck vs Regular Healthcheck)"
+\fBبررسی سلامت عادی (Regular healthcheck)\fP به طور مداوم در طول چرخه حیات کانتینر برای نظارت بر سلامت آن اجرا می‌شود. گزینه \fB\-\-health\-start\-period\fR یک دوره مهلت را در طول مقداردهی اولیه کانتینر فراهم می‌کند که در آن خرابی‌ها کانتینر را به عنوان ناسالم علامت‌گذاری نمی‌کنند.
+
+.PP
+\fBبررسی سلامت راه‌اندازی (Startup healthcheck)\fP یک بررسی سلامت جداگانه است که در طول راه‌اندازی کانتینر اجرا می‌شود و پس از راه‌اندازی موفقیت‌آمیز کانتینر به بررسی سلامت عادی انتقال می‌یابد. این قابلیت برای کانتینرهایی با زمان‌های راه‌اندازی طولانی یا غیرقابل‌پیش‌بینی طراحی شده است:
+\- با \fB\-\-health\-startup\-cmd\fR تعریف می‌شود (نیازمند تنظیم یک بررسی سلامت عادی نیز هست)
+\- بررسی سلامت راه‌اندازی نمی‌تواند از ایمیج تأمین شود؛ تنها به صورت دستی قابل تنظیم است
+\- پس از موفقیت بررسی سلامت راه‌اندازی (بر اساس موفقیت‌های متوالی \fB\-\-health\-startup\-success\fR)، متوقف شده و بررسی سلامت عادی کنترل را به دست می‌گیرد
+\- در صورت شکست مکرر (\fB\-\-health\-startup\-retries\fR)، کانتینر می‌تواند بر اساس \fB\-\-health\-on\-failure\fR بازراه‌اندازی شود
+
+.PP
+\fBزمان استفاده از هرکدام:\fP
+\- از \fB\-\-health\-start\-period\fR برای موارد ساده استفاده کنید که در آن‌ها تقریباً می‌دانید راه‌اندازی چقدر طول می‌کشد
+\- از بررسی سلامت راه‌اندازی (\fB\-\-health\-startup\-cmd\fR) زمانی استفاده کنید که زمان راه‌اندازی غیرقابل پیش‌بینی است یا در طول راه‌اندازی به بررسی متفاوتی نسبت به عملکرد عادی نیاز دارید
+
+.PP
+برای اشکال‌زدایی یا بازرسی بررسی‌های سلامت:
+\- از \fBpodman inspect <container>\fR استفاده کنید و بخش \fB\&.Config.Healthcheck\fR را برای تنظیمات مؤثر مشاهده نمایید. سایر بخش‌های مرتبط شامل \fB\&.State.Healthcheck\fR، \fBConfig.StartupHealthCheck\fR، \fB\&.Config.HealthcheckOnFailureAction\fR، \fB\&.Config.HealthMaxLogCount\fR، \fB\&.Config.HealthMaxLogSize\fR و \fB\&.Config.HealthLogDestination\fR هستند
+\- از دستور \fBpodman inspect \-\-format '{{.State.Health.Status}} {{.Config.Healthcheck}}' <container>\fR برای نمایش وضعیت سلامت فعلی و پیکربندی healthcheck استفاده کنید
+\- به صورت درخواستی با \fBpodman healthcheck run <container>\fR اجرا کنید و کد خروج را بررسی نمایید (0=موفقیت، 1=شکست، 125=خطا)
+\- برای دریافت جزئیات بیشتر در مورد دلیل شکست healthcheck، دستور \fBpodman \-\-log\-level debug healthcheck run <container>\fR را اجرا کنید
+\- اطمینان حاصل کنید که دستور بررسی سلامت داخل کانتینر وجود دارد و به درستی نقل‌قول (quote) شده است (برای پایپ‌لاین‌های شل، نقل‌قول تکی ترجیح داده می‌شود)
+
+.PP
+برای به‌روزرسانی بررسی‌های سلامت:
+\- از \fBpodman update <flag> <container>\fR برای به‌روزرسانی تنظیمات healthcheck کانتینر در حین اجرای کانتینر استفاده کنید
+\- مثال: \fBpodman update \-\-health\-max\-log\-count=10 <container>\fR برای ذخیره تا ۱۰ نتیجه healthcheck در گزارش
+
+.SH "زیردستورها (SUBCOMMANDS)"
+.TS
+allbox;
+l l l
+l l l .
+\fBدستور\fP	\fBصفحه راهنما\fP	\fBتوضیحات\fP
+run	podman\-healthcheck\-run(1)	اجرای بررسی سلامت کانتینر
+.TE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman\-run(1)\fP, \fBpodman\-create(1)\fP, \fBpodman\-inspect(1)\fP, \fBpodman\-update(1)\fP
+
+.SH "تاریخچه (HISTORY)"
+فوریه ۲۰۱۹، نگارش اولیه توسط Brent Baude bbaude@redhat.com
+\[la]mailto:bbaude@redhat.com\[ra]

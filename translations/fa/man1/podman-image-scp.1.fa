@@ -1,0 +1,137 @@
+.nh
+.TH podman-image-scp 1
+.SH "نام (NAME)"
+podman-image-scp \- کپی امن ایمیج بین میزبان‌ها در پادمن
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman image scp\fP [\fIoptions\fP] \fIname\fP[:\fItag\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+دستور \fBpodman image scp\fP ایمیج‌های کانتینر را بین میزبان‌ها روی یک شبکه کپی می‌کند. این دستور می‌تواند ایمیج‌ها را به میزبان دوردست، از میزبان دوردست و همچنین بین دو میزبان دوردست کپی کند.
+نکته: نماد \fB::\fR بسته به اینکه پادمن در حال ذخیره یا بارگذاری باشد، برای تعیین نام ایمیج استفاده می‌شود. همچنین می‌توان ایمیج‌ها را از ذخیره‌ساز rootful به rootless روی همان سیستم بدون استفاده از sshd منتقل کرد. این ویژگی روی کلاینت دوردست، از جمله سیستم‌های مک و ویندوز (به‌جز WSL2) پشتیبانی نمی‌شود.
+
+.PP
+این یک کپی مستقیم بین دو ذخیره‌ساز نیست. ایمیج درون یک بایگانی ذخیره می‌شود (با استفاده از \fBpodman save\fP)، فایل بایگانی انتقال می‌یابد (مثلاً از طریق SSH)، و سپس در مقصد بارگذاری می‌شود. در نتیجه، ارجاعات دایجست به حباب‌های فشرده‌شده اصلی حفظ نمی‌شوند (به عنوان مثال \fBpodman pull\fP \fIimage\fP@\fIdigest\fP و به دنبال آن \fBpodman image scp\fP و سپس بررسی با آن دایجست ممکن است کار نکند). برای جریان‌های کاری معمول، استفاده از یک رجیستری (ارسال از مبدا با push، دریافت در مقصد با pull) اغلب ترجیح داده می‌شود.
+
+.PP
+\fBpodman image scp [GLOBAL OPTIONS]\fP
+
+.PP
+\fBpodman image\fP \fIscp [OPTIONS] NAME[:TAG] [HOSTNAME::]\fP
+
+.PP
+\fBpodman image\fP \fIscp [OPTIONS] [HOSTNAME::]IMAGENAME\fP
+
+.PP
+\fBpodman image\fP \fIscp [OPTIONS] [HOSTNAME::]IMAGENAME [HOSTNAME::]\fP
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--format\fP=\fIformat\fP
+قالب ارائه‌شده به \fBpodman save\fP هنگام ایجاد بایگانی انتقال. مقادیر مجاز عبارتند از \fBoci-archive\fP و \fBdocker-archive\fP\&. در صورت حذف، \fBpodman save\fP از مقدار پیش‌فرض خود (docker-archive) استفاده می‌کند.
+
+.PP
+تنها قالب‌های بایگانی (tar) شامل \fBoci-archive\fP و \fBdocker-archive\fP پشتیبانی می‌شوند. قالب‌های دایرکتوری (\fBoci-dir\fP، \fBdocker-dir\fP) پشتیبانی نمی‌شوند زیرا انتقال یک فایل منفرد را ارسال می‌کند؛ مسیر دوردست از ساختارهای دایرکتوری پشتیبانی نمی‌کند.
+
+.SS \fB--help\fP, \fB-h\fP
+چاپ راهنمای استفاده
+
+.SS \fB--quiet\fP, \fB-q\fP
+جلوگیری از چاپ خروجی
+
+.SH "مثال‌ها (EXAMPLES)"
+کپی ایمیج مشخص‌شده به ذخیره‌ساز محلی:
+
+.EX
+$ podman image scp alpine
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+کپی ایمیج مشخص‌شده از ذخیره‌ساز محلی به اتصال دوردست:
+
+.EX
+$ podman image scp alpine Fedora::/home/charliedoern/Documents/alpine
+Getting image source signatures
+Copying blob 72e830a4dff5 done
+Copying config 85f9dc67c7 done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+کپی ایمیج مشخص‌شده از یک اتصال دوردست به اتصال دوردست دیگر:
+
+.EX
+$ podman image scp Fedora::alpine RHEL::
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+کپی ایمیج مشخص‌شده از طریق ssh به ذخیره‌ساز محلی:
+
+.EX
+$ podman image scp charliedoern@192.168.68.126:22/run/user/1000/podman/podman.sock::alpine
+WARN[0000] Unknown connection name given. Please use system connection add to specify the default remote socket location
+Getting image source signatures
+Copying blob 9450ef9feb15 [--------------------------------------] 0.0b / 0.0b
+Copying config 1f97f0559c done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+کپی ایمیج مشخص‌شده از حساب کاربری ریشه (root) به ذخیره‌ساز محلی حساب‌های کاربری:
+
+.EX
+$ sudo podman image scp root@localhost::alpine username@localhost::
+Copying blob e2eb06d8af82 done
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Getting image source signatures
+Copying blob 5eb901baf107 skipped: already exists
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+کپی ایمیج مشخص‌شده از حساب ریشه به ذخیره‌ساز محلی:
+
+.EX
+$ sudo podman image scp root@localhost::alpine
+Copying blob e2eb06d8af82 done
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Getting image source signatures
+Copying blob 5eb901baf107
+Copying config 696d33ca15 done
+Writing manifest to image destination
+Storing signatures
+Loaded image: docker.io/library/alpine:latest
+.EE
+
+.PP
+کپی ایمیج به ذخیره‌ساز rootful با قالب بایگانی OCI:
+
+.EX
+$ podman image scp --format oci-archive quay.io/fedora/fedora:43 root@localhost::
+.EE
+
+.PP
+کپی ایمیج به میزبان دوردست (در صورت حذف \fB--format\fP از قالب پیش‌فرض استفاده می‌شود):
+
+.EX
+$ podman image scp alpine root@myserver::
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-load(1)\fP, \fBpodman-save(1)\fP, \fBpodman-remote(1)\fP, \fBpodman-system-connection-add(1)\fP, \fBcontainers.conf(5)\fP, \fBcontainers-transports(5)\fP
+
+.SH "تاریخچه (HISTORY)"
+ژوئیه ۲۰۲۱، در ابتدا توسط Charlie Doern به نشانی cdoern@redhat.com نوشته شد
+\[la]mailto:cdoern@redhat.com\[ra]

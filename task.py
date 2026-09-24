@@ -8,9 +8,11 @@ Parch Man Pages Task Tracker & CLI Tool
 import argparse
 import csv
 import fcntl
+import getpass
 import grp
 import hashlib
 import os
+import pwd
 import sqlite3
 import subprocess
 import sys
@@ -19,6 +21,72 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "progress.db")
 CSV_PATH = os.path.join(BASE_DIR, "progress.csv")
 PORTAL_URL_PREFIX = "https://man.vilix.org/man"
+
+KNOWN_USERS = ["debian", "ahoura", "parviz", "sasiohae", "jobin"]
+ADMIN_USERS = ["root", "debian"]
+
+
+def get_current_system_user():
+    try:
+        return pwd.getpwuid(os.getuid()).pw_name
+    except Exception:
+        try:
+            return getpass.getuser()
+        except Exception:
+            return os.environ.get("USER", "unknown")
+
+
+def resolve_and_verify_user(requested_user=None, action="عملیات روی تسک‌ها", allow_admin=True):
+    current_user = get_current_system_user().lower()
+
+    if not requested_user:
+        if current_user in KNOWN_USERS or current_user in ADMIN_USERS:
+            return current_user
+        print(f"❌ خطای دسترسی: کاربر جاری سیستم '{current_user}' جزو مترجمان تعریف‌شده ({', '.join(KNOWN_USERS)}) نیست! لطفاً با کاربر مجاز اجرا فرمایید.", file=sys.stderr)
+        sys.exit(1)
+
+    target_user = requested_user.lower()
+    if current_user == target_user:
+        return target_user
+
+    if allow_admin and current_user in ADMIN_USERS:
+        return target_user
+
+    print(f"❌ خطای عدم دسترسی: شما با نام کاربری '{current_user}' وارد شده‌اید و مجاز به انجام عملیات ({action}) بر روی تسک‌های کاربر '{target_user}' نیستید!", file=sys.stderr)
+    sys.exit(1)
+
+
+def unlock_task_file(cmd, sec, user):
+    sec_dir = f"man{sec}"
+    rel_path = f"translations/fa/{sec_dir}/{cmd}.{sec}.fa"
+    full_path = os.path.join(BASE_DIR, rel_path)
+
+    if os.path.exists(full_path):
+        try:
+            uid = pwd.getpwnam(user).pw_uid
+            os.chown(full_path, uid, -1)
+        except Exception:
+            pass
+        try:
+            os.chmod(full_path, 0o664)
+            return True
+        except OSError as e:
+            print(f"⚠️ هشدار: خطا در باز کردن دسترسی نوشتن برای {rel_path}: {e}", file=sys.stderr)
+    return False
+
+
+def lock_task_file(cmd, sec):
+    sec_dir = f"man{sec}"
+    rel_path = f"translations/fa/{sec_dir}/{cmd}.{sec}.fa"
+    full_path = os.path.join(BASE_DIR, rel_path)
+
+    if os.path.exists(full_path):
+        try:
+            os.chmod(full_path, 0o444)
+            return True
+        except OSError:
+            pass
+    return False
 
 
 def ensure_db_permissions(path=DB_PATH):
@@ -349,7 +417,7 @@ def cmd_next(args):
     conn = get_db()
     auto_sync(conn)
 
-    user = args.user.lower()
+    user = resolve_and_verify_user(args.user, action="رزرو و دریافت تسک")
     count = args.count if args.count and args.count > 0 else 4
 
     query = """
@@ -381,7 +449,15 @@ def cmd_next(args):
                 keys
             )
         export_db_to_csv(conn)
-        print(f"\n✅ وضعیت {len(selected)} دستور فوق در progress.csv به 'in_progress' تغییر یافت.")
+
+        # Unlock the files specifically for editing by this user
+        unlocked = 0
+        for t in selected:
+            if unlock_task_file(t["command"], t["section"], user):
+                unlocked += 1
+
+        print(f"\n✅ وضعیت {len(selected)} دستور فوق در دیتابیس به 'in_progress' تغییر یافت.")
+        print(f"🔓 دسترسی نوشتن روی {unlocked} فایل مربوطه منحصراً برای کاربر '{user}' باز شد.")
     else:
         print("\n💡 برای رزرو و تغییر وضعیت خودکار آن‌ها به 'in_progress'، از سوییچ --claim استفاده کنید:")
         print(f"   ./task.py next --user {user} --count {count} --claim")
@@ -401,6 +477,13 @@ def cmd_finish(args):
 
     if not row:
         print(f"خطا: دستور {cmd}({sec}) در progress.csv یافت نشد!", file=sys.stderr)
+        sys.exit(1)
+
+    # Check assigned user identity
+    assigned_user = (row["user"] or "").lower()
+    current_user = get_current_system_user().lower()
+    if current_user != assigned_user and current_user not in ADMIN_USERS:
+        print(f"❌ خطای عدم دسترسی: دستور {cmd}({sec}) به کاربر '{assigned_user}' اختصاص دارد، اما شما با کاربر '{current_user}' وارد شده‌اید و مجاز به ثبت آن نیستید!", file=sys.stderr)
         sys.exit(1)
 
     sec_dir = f"man{sec}"
@@ -438,10 +521,14 @@ def cmd_finish(args):
         )
     export_db_to_csv(conn)
 
+    # Lock the file back to read-only 0444
+    lock_task_file(cmd, sec)
+
     portal_url = f"{PORTAL_URL_PREFIX}/{cmd}.{sec}.fa"
     print("\n" + "=" * 65)
     print(f"🎉 دستور {cmd}({sec}) با موفقیت به عنوان 'completed' ثبت شد!")
     print(f"📁 مسیر فایل: {expected_path}")
+    print("🔒 فایل ترجمه به حالت فقط-خواندنی (Read-Only) محافظت شد.")
     print(f"🔗 پیوند رسمی وب‌پرتال: {portal_url}")
     print("=" * 65)
 
@@ -482,7 +569,7 @@ def main():
     p_list.set_defaults(func=cmd_list)
 
     p_next = subparsers.add_parser("next", help="دریافت دستورات بعدی برای ترجمه بر اساس اولویت کاربر")
-    p_next.add_argument("--user", "-u", required=True, help="نام کاربر (debian, ahoura, parviz, sasiohae, jobin)")
+    p_next.add_argument("--user", "-u", required=False, default=None, help="نام کاربر (اختیاری؛ در صورت خالی بودن، کاربر جاری لینوکس خودکار تشخیص داده می‌شود)")
     p_next.add_argument("--count", "-c", type=int, default=4, help="تعداد دستورات مورد نیاز (پیش‌فرض: ۴)")
     p_next.add_argument("--claim", action="store_true", help="رزرو خودکار و تغییر وضعیت به in_progress در CSV")
     p_next.set_defaults(func=cmd_next)

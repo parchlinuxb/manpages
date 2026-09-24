@@ -1,0 +1,216 @@
+'\" t
+.nh
+.TH podman-start 1
+.SH "نام (NAME)"
+podman-start \- Start one or more containers
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman start\fP [\fIoptions\fP] \fIcontainer\fP ...
+
+.PP
+\fBpodman container start\fP [\fIoptions\fP] \fIcontainer\fP ...
+
+.SH "توضیحات (DESCRIPTION)"
+Start one or more containers using container IDs or names as input.  The \fIattach\fP and \fIinteractive\fP
+options cannot be used to override the \fI--tty\fP and \fI--interactive\fP options from when the container
+was created. Starting an already running container with the \fI--attach\fP option, Podman simply
+attaches to the container.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--all\fP
+Start all the containers, default is only running containers.
+
+.SS \fB--attach\fP, \fB-a\fP
+Attach container's STDOUT and STDERR.  The default is false. This option cannot be used when
+starting multiple containers.
+
+.SS \fB--detach-keys\fP=\fIsequence\fP
+Specify the key sequence for detaching a container. Format is a single character \fB[a-Z]\fR or one or more \fBctrl-<value>\fR characters where \fB<value>\fR is one of: \fBa-z\fR, \fB@\fR, \fB^\fR, \fB[\fR, \fB,\fR or \fB_\fR\&. Specifying "" disables this feature. The default is \fIctrl-p,ctrl-q\fP\&.
+
+.PP
+This option can also be set in \fBcontainers.conf\fP(5) file.
+
+.SS \fB--filter\fP, \fB-f\fP=\fIfilter\fP
+Filter what containers start.
+Multiple filters can be given with multiple uses of the --filter flag.
+Filters with the same key work inclusive with the only exception being
+\fBlabel\fR which is exclusive. Filters with different keys always work exclusive.
+
+.PP
+Valid filters are listed below:
+
+.TS
+allbox;
+l l 
+l l .
+\fB\fBFilter\fP\fP	\fB\fBDescription\fP\fP
+id	T{
+[ID] Container's ID (CID prefix match by default; accepts regex)
+T}
+name	T{
+[Name] Container's name (accepts regex)
+T}
+annotation	T{
+[Key] or [Key=Value] Annotation assigned to a container
+T}
+annotation!	T{
+[Key] or [Key=Value] Annotation NOT assigned to a container
+T}
+label	T{
+[Key] or [Key=Value] Label assigned to a container
+T}
+label!	T{
+[Key] or [Key=Value] Label NOT assigned to a container
+T}
+exited	[Int] Container's exit code
+status	T{
+[Status] Container's status: 'created', 'initialized', 'running', 'stopped', 'paused', 'exited', 'removing', 'stopping', 'unknown'
+T}
+ancestor	T{
+[ImageName] Image or descendant used to create container (accepts regex)
+T}
+before	T{
+[ID] or [Name] Containers created before this container
+T}
+since	T{
+[ID] or [Name] Containers created since this container
+T}
+volume	T{
+[VolumeName] or [MountpointDestination] Volume mounted in container
+T}
+health	[Status] healthy or unhealthy
+pod	T{
+[Pod] name or full or partial ID of pod
+T}
+network	T{
+[Network] name or full ID of network
+T}
+restart-policy	T{
+[Policy] Container's restart policy (e.g., 'no', 'on-failure', 'always', 'unless-stopped')
+T}
+until	T{
+[DateTime] Containers created before the given duration or time.
+T}
+command	T{
+[Command] the command the container is executing, only argv[0] is taken
+T}
+should-start-on-boot	T{
+[Bool] Containers that need to be restarted after system reboot. True for containers with restart policy 'always', or 'unless-stopped' that were not explicitly stopped by the user
+T}
+.TE
+
+.SS \fB--interactive\fP, \fB-i\fP
+When set to \fBtrue\fP, make stdin available to the contained process. If \fBfalse\fP, the stdin of the contained process is empty and immediately closed.
+
+.PP
+If attached, stdin is piped to the contained process. If detached, reading stdin will block until later attached.
+
+.PP
+\fBCaveat:\fP Podman will consume input from stdin as soon as it becomes available, even if the contained process doesn't request it.
+
+.SS \fB--latest\fP, \fB-l\fP
+Instead of providing the container name or ID, use the last created container.
+Note: the last started container can be from other users of Podman on the host machine.
+(This option is not available with the remote Podman client, including Mac and Windows
+(excluding WSL2) machines)
+
+.SS \fB--sig-proxy\fP
+Proxy received signals to the container process. SIGCHLD, SIGURG, SIGSTOP, and SIGKILL are not proxied.
+
+.PP
+The default is \fBtrue\fP when attaching, \fBfalse\fP otherwise.
+
+.SH "مثال (EXAMPLE)"
+Start specified container:
+
+.EX
+podman start mywebserver
+.EE
+
+.PP
+Start multiple containers:
+
+.EX
+podman start 860a4b231279 5421ab43b45
+.EE
+
+.PP
+Start specified container in interactive mode with terminal attached:
+
+.EX
+podman start --interactive --attach 860a4b231279
+.EE
+
+.PP
+Start last created container in interactive mode (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines):
+
+.EX
+podman start -i -l
+.EE
+
+.PP
+Start containers by label:
+
+.EX
+$ podman start --filter label=app=frontend
+9351ccb3ef4272532bc0c188bd4f0ddfc2b0de217732cd108259ea126b014647
+.EE
+
+.PP
+Start container by name:
+
+.EX
+$ podman start --filter name=backend-app1
+93308911bd4769cda03b75eb7f56588e862e0ea3568f25e1e3defa4138b9b973
+.EE
+
+.PP
+Start containers by status:
+
+.EX
+$ podman start --filter status=exited
+f8e85f84a749b205fb602895afa6ec8a866045ff27b82f843033712c8b93a2c9
+34f997d354017a0076402c3a79245a5b8bd11b597c84385bec25ae8941fd5238
+47972eb04aa7c77705b597a929957d1e8a392e00b44c0a2a7f88a01f9f860d11
+.EE
+
+.PP
+Start container by name:
+
+.EX
+$ podman start --filter name=backend-app1
+93308911bd4769cda03b75eb7f56588e862e0ea3568f25e1e3defa4138b9b973
+.EE
+
+.PP
+Start containers by volume:
+
+.EX
+$ podman start --filter volume=web-vol
+4a3332649ed8bec1e0d82e113074b9a13d45582007aeac969c005992cc480a73
+.EE
+
+.PP
+Start container by network:
+
+.EX
+$ podman start --filter network=web-net
+4a3332649ed8bec1e0d82e113074b9a13d45582007aeac969c005992cc480a73
+f8e85f84a749b205fb602895afa6ec8a866045ff27b82f843033712c8b93a2c9
+.EE
+
+.PP
+Start container by ancestor:
+
+.EX
+$ podman start --filter ancestor=nginx
+4a3332649ed8bec1e0d82e113074b9a13d45582007aeac969c005992cc480a73
+47972eb04aa7c77705b597a929957d1e8a392e00b44c0a2a7f88a01f9f860d11
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP
+
+.SH "تاریخچه (HISTORY)"
+November 2018, Originally compiled by Brent Baude bbaude@redhat.com
+\[la]mailto:bbaude@redhat.com\[ra]

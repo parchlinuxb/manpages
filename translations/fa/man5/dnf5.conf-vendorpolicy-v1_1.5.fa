@@ -1,0 +1,529 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "DNF5.CONF-VENDORPOLICY-V1_1" "5" "Sep 06, 2026" "" "dnf5"
+.SH "نام (NAME)"
+dnf5.conf-vendorpolicy-v1_1 \- DNF5 Vendor Change Policy File Reference \- v1.1
+.SH "توضیحات (DESCRIPTION)"
+.sp
+This document describes the structure and syntax of the DNF5 Vendor Change Policy
+configuration files using \fBversion 1.1\fP and \fBversion 1.2\fP format.
+.sp
+Version 1.2 is identical to version 1.1 except that it adds support for additional
+negated string comparators (see v1.2 comparators).
+.sp
+For general information about vendor change policy files, see DNF5 Vendor Change Policy File Reference \%<#\:dnf5-vendor-change-policy-label>\&.
+.SH FILE STRUCTURE
+.SS Required Fields
+.INDENT 0.0
+.TP
+.B \fBversion\fP
+String
+.sp
+Configuration file format version.
+.sp
+Must be set to \fB\(dq1.1\(dq\fP or \fB\(dq1.2\(dq\fP\&.
+.sp
+This field is mandatory and must be specified at the top level of the TOML file.
+.sp
+Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+For the configuration file to have any effect on vendor change policy, it must contain
+at least one of the supported lists (see below): \fBoutgoing_vendors\fP, \fBincoming_vendors\fP,
+\fBequivalent_vendors\fP, \fBoutgoing_packages\fP, or \fBincoming_packages\fP\&.
+.sp
+If the file contains no lists, it will be loaded and its version will be validated,
+but it will not define any rules and will not affect vendor manager behavior.
+.UNINDENT
+.UNINDENT
+.SS Vendor Mapping Definition
+.sp
+The following vendor lists can be used to define vendor mappings.
+All lists are optional and can be freely combined. All conditions are evaluated together.
+.INDENT 0.0
+.TP
+.B \fB[[outgoing_vendors]]\fP
+Array of tables
+.sp
+List of vendors from which changes are allowed (outgoing package vendors).
+.TP
+.B \fB[[incoming_vendors]]\fP
+Array of tables
+.sp
+List of vendors to which changes are allowed (incoming package vendors).
+.TP
+.B \fB[[equivalent_vendors]]\fP
+Array of tables
+.sp
+List of vendors that are mutually equivalent. Changes are allowed in both directions
+between all vendors in this list.
+.sp
+\fBNote:\fP
+.INDENT 7.0
+.INDENT 3.5
+\fBequivalent_vendors\fP is actually a shorthand notation. It is equivalent to
+listing the same vendors in both \fBoutgoing_vendors\fP and \fBincoming_vendors\fP\&.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+\fBImportant:\fP
+.INDENT 0.0
+.INDENT 3.5
+A vendor change during package replacement is allowed \fBonly if both conditions
+are met simultaneously\fP:
+.INDENT 0.0
+.IP \(bu 2
+The vendor of the outgoing (installed) package is listed in \fBoutgoing_vendors\fP
+or \fBequivalent_vendors\fP (or both \fBoutgoing_vendors\fP and \fBequivalent_vendors\fP
+are missing, which allows any vendor)
+.IP \(bu 2
+The vendor of the incoming (new) package is listed in \fBincoming_vendors\fP
+or \fBequivalent_vendors\fP (or both \fBincoming_vendors\fP and \fBequivalent_vendors\fP
+are missing, which allows any vendor)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Vendor Entry Fields
+.sp
+Each entry in \fB[[outgoing_vendors]]\fP, \fB[[incoming_vendors]]\fP, or \fB[[equivalent_vendors]]\fP
+can contain the following fields:
+.INDENT 0.0
+.TP
+.B \fBvendor\fP
+String
+.sp
+Required field.
+.sp
+Vendor name or pattern for matching.
+.TP
+.B \fBcomparator\fP
+String
+.sp
+Optional field.
+.sp
+The matching method to use when comparing vendor strings.
+.sp
+Default: \fB\(dqEXACT\(dq\fP
+.sp
+Supported values:
+.INDENT 7.0
+.IP \(bu 2
+\fB\(dqEXACT\(dq\fP \- exact match (case\-sensitive)
+.IP \(bu 2
+\fB\(dqIEXACT\(dq\fP \- exact match (case\-insensitive)
+.IP \(bu 2
+\fB\(dqGLOB\(dq\fP \- glob pattern (case\-sensitive)
+.IP \(bu 2
+\fB\(dqIGLOB\(dq\fP \- glob pattern (case\-insensitive)
+.IP \(bu 2
+\fB\(dqREGEX\(dq\fP \- regular expression (case\-sensitive)
+.IP \(bu 2
+\fB\(dqIREGEX\(dq\fP \- regular expression (case\-insensitive)
+.IP \(bu 2
+\fB\(dqCONTAINS\(dq\fP \- contains string (case\-sensitive)
+.IP \(bu 2
+\fB\(dqICONTAINS\(dq\fP \- contains string (case\-insensitive)
+.IP \(bu 2
+\fB\(dqSTARTSWITH\(dq\fP \- starts with (case\-sensitive)
+.IP \(bu 2
+\fB\(dqISTARTSWITH\(dq\fP \- starts with (case\-insensitive)
+.IP \(bu 2
+\fB\(dqENDSWITH\(dq\fP \- ends with (case\-sensitive)
+.IP \(bu 2
+\fB\(dqIENDSWITH\(dq\fP \- ends with (case\-insensitive)
+.IP \(bu 2
+\fB\(dqNOT_EXACT\(dq\fP, \fB\(dqNOT_IEXACT\(dq\fP, \fB\(dqNOT_GLOB\(dq\fP, \fB\(dqNOT_IGLOB\(dq\fP, \fB\(dqNOT_CONTAINS\(dq\fP, \fB\(dqNOT_ICONTAINS\(dq\fP \- negated variants
+.UNINDENT
+.sp
+Additional negated comparators available in \fBversion 1.2\fP:
+.INDENT 7.0
+.IP \(bu 2
+\fB\(dqNOT_STARTSWITH\(dq\fP \- does not start with (case\-sensitive)
+.IP \(bu 2
+\fB\(dqNOT_ISTARTSWITH\(dq\fP \- does not start with (case\-insensitive)
+.IP \(bu 2
+\fB\(dqNOT_ENDSWITH\(dq\fP \- does not end with (case\-sensitive)
+.IP \(bu 2
+\fB\(dqNOT_IENDSWITH\(dq\fP \- does not end with (case\-insensitive)
+.IP \(bu 2
+\fB\(dqNOT_REGEX\(dq\fP \- does not match regular expression (case\-sensitive)
+.IP \(bu 2
+\fB\(dqNOT_IREGEX\(dq\fP \- does not match regular expression (case\-insensitive)
+.UNINDENT
+.TP
+.B \fBexclude\fP
+Boolean
+.sp
+Optional field.
+.sp
+If \fBtrue\fP, the vendor is excluded from the rule. This is useful for defining
+exceptions to more general rules. Rules (vendor entries) are processed in the order
+they are defined. This means that an exclude rule must appear before the rules
+from which the vendor should be excluded.
+.sp
+Default: \fBfalse\fP
+.UNINDENT
+.SS Package Filtering
+.sp
+Vendor change policies can be further restricted to apply only to specific packages
+using package filters. These are optional and allow fine\-grained control over which
+packages are allowed to change vendors.
+.INDENT 0.0
+.TP
+.B \fB[[outgoing_packages]]\fP
+Array of tables
+.sp
+List of package filters that restrict which outgoing (installed) packages are
+allowed to change vendors. If omitted, all packages are allowed to change from
+their current vendor.
+.TP
+.B \fB[[incoming_packages]]\fP
+Array of tables
+.sp
+List of package filters that restrict which incoming (new) packages are allowed
+to be installed with a vendor change. If omitted, all packages are allowed to
+be installed regardless of vendor.
+.UNINDENT
+.SS Package Filter Entry Fields
+.sp
+Each entry in \fB[[outgoing_packages]]\fP or \fB[[incoming_packages]]\fP can contain:
+.INDENT 0.0
+.TP
+.B \fBfilters\fP
+Array of tables
+.sp
+Required field.
+.sp
+List of filter conditions that must all match for the package to be affected by
+this rule. Each filter is a table with the following fields:
+.INDENT 7.0
+.TP
+.B \fBfilter\fP
+String
+.sp
+Required field.
+.sp
+The package attribute to filter on.
+.sp
+Supported values:
+.INDENT 7.0
+.IP \(bu 2
+\fB\(dqname\(dq\fP \- package name
+.IP \(bu 2
+\fB\(dqsource_name\(dq\fP \- source package name
+.IP \(bu 2
+\fB\(dqevr\(dq\fP \- Epoch\-Version\-Release string
+.IP \(bu 2
+\fB\(dqepoch\(dq\fP \- epoch number
+.IP \(bu 2
+\fB\(dqversion\(dq\fP \- version string
+.IP \(bu 2
+\fB\(dqrelease\(dq\fP \- release string
+.IP \(bu 2
+\fB\(dqarch\(dq\fP \- package architecture
+.IP \(bu 2
+\fB\(dqrepoid\(dq\fP \- repository ID
+.IP \(bu 2
+\fB\(dqcmdline_repo\(dq\fP \- whether the package is from command\-line repository (boolean)
+.UNINDENT
+.TP
+.B \fBvalue\fP
+String
+.sp
+Required field.
+.sp
+The value to match against.
+.INDENT 7.0
+.IP \(bu 2
+For \fBcmdline_repo\fP filter, use \fB\(dqtrue\(dq\fP/\fB\(dq1\(dq\fP or \fB\(dqfalse\(dq\fP/\fB\(dq0\(dq\fP
+.IP \(bu 2
+For \fBepoch\fP filter, use a numeric string (e.g., \fB\(dq0\(dq\fP, \fB\(dq1\(dq\fP)
+.IP \(bu 2
+For other filters, use appropriate string values
+.UNINDENT
+.TP
+.B \fBcomparator\fP
+String
+.sp
+Optional field.
+.sp
+The matching method to use.
+.sp
+Default: \fB\(dqEXACT\(dq\fP
+.sp
+\fBFor string\-based filters\fP (\fBname\fP, \fBsource_name\fP, \fBarch\fP, \fBrepoid\fP):
+.sp
+Same values as for vendor comparator: \fBEXACT\fP, \fBNOT_EXACT\fP, \fBIEXACT\fP,
+\fBNOT_IEXACT\fP, \fBCONTAINS\fP, \fBNOT_CONTAINS\fP, \fBICONTAINS\fP, \fBNOT_ICONTAINS\fP,
+\fBSTARTSWITH\fP, \fBISTARTSWITH\fP, \fBENDSWITH\fP, \fBIENDSWITH\fP, \fBREGEX\fP,
+\fBIREGEX\fP, \fBGLOB\fP, \fBNOT_GLOB\fP, \fBIGLOB\fP, \fBNOT_IGLOB\fP
+.sp
+Version 1.2 additionally supports: \fBNOT_STARTSWITH\fP, \fBNOT_ISTARTSWITH\fP,
+\fBNOT_ENDSWITH\fP, \fBNOT_IENDSWITH\fP, \fBNOT_REGEX\fP, \fBNOT_IREGEX\fP
+.sp
+\fBFor version\-based filters\fP (\fBevr\fP, \fBepoch\fP, \fBversion\fP, \fBrelease\fP):
+.INDENT 7.0
+.IP \(bu 2
+\fB\(dqEXACT\(dq\fP \- equal to
+.IP \(bu 2
+\fB\(dqNOT_EXACT\(dq\fP \- not equal to
+.IP \(bu 2
+\fB\(dqGT\(dq\fP \- greater than
+.IP \(bu 2
+\fB\(dqGTE\(dq\fP \- greater than or equal to
+.IP \(bu 2
+\fB\(dqLT\(dq\fP \- less than
+.IP \(bu 2
+\fB\(dqLTE\(dq\fP \- less than or equal to
+.UNINDENT
+.sp
+\fBNote:\fP
+.INDENT 7.0
+.INDENT 3.5
+Version\-based filters use proper RPM version comparison semantics
+instead of lexical string comparison. This ensures correct version
+ordering (e.g., \(dq1.10\(dq > \(dq1.9\(dq).
+.UNINDENT
+.UNINDENT
+.sp
+\fBNote:\fP
+.INDENT 7.0
+.INDENT 3.5
+The \fBcmdline_repo\fP filter only supports \fB\(dqEXACT\(dq\fP comparator.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.TP
+.B \fBexclude\fP
+Boolean
+.sp
+Optional field.
+.sp
+If \fBtrue\fP, packages matching the filters are excluded from the rule. This is
+useful for defining exceptions. Exclusion rules must appear before the rules
+from which packages should be excluded.
+.sp
+Default: \fBfalse\fP
+.UNINDENT
+.SH "مثال‌ها (EXAMPLES)"
+.SS Example 1: Allow change from \(dqVendorA\(dq to \(dqVendorB\(dq
+.sp
+This example shows the minimal required configuration, allowing a change from
+\(dqVendorA\(dq to \(dqVendorB\(dq, but not the reverse.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+[[outgoing_vendors]]
+vendor = \(aqVendorA\(aq
+
+[[incoming_vendors]]
+vendor = \(aqVendorB\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 2: Allow change from any vendor to \(dqMy Trusted Vendor\(dq
+.sp
+This example shows allowing a change from any vendor to \(dqMy Trusted Vendor\(dq,
+but not the reverse. Missing \fBoutgoing_vendors\fP means any vendor is allowed.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+[[incoming_vendors]]
+vendor = \(aqMy Trusted Vendor\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 3: Equivalent vendors
+.sp
+This example shows vendors that are mutually equivalent, allowing changes
+in both directions.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+# All following vendors are mutually equivalent
+[[equivalent_vendors]]
+vendor = \(aqFedora Project\(aq
+
+[[equivalent_vendors]]
+vendor = \(aqRed Hat\(aq
+comparator = \(aqISTARTSWITH\(aq
+
+[[equivalent_vendors]]
+vendor = \(aqCentOS\(aq
+comparator = \(aqISTARTSWITH\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 4: Equivalent vendors with an exclusion
+.sp
+This example shows a vendor policy for SUSE\-related vendors with an exclusion
+for openSUSE Build Service.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+# All following vendors are mutually equivalent except excluded ones
+[[equivalent_vendors]]
+vendor = \(aqopenSUSE Build Service\(aq
+comparator = \(aqISTARTSWITH\(aq
+exclude = true
+
+[[equivalent_vendors]]
+vendor = \(aqSUSE\(aq
+comparator = \(aqISTARTSWITH\(aq
+
+[[equivalent_vendors]]
+vendor = \(aqopenSUSE\(aq
+comparator = \(aqISTARTSWITH\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 5: Combining equivalent vendors with incoming vendors
+.sp
+This example demonstrates combining \fBequivalent_vendors\fP with \fBincoming_vendors\fP,
+a feature introduced in version \fB\(dq1.1\(dq\fP\&. \(dqFirst Vendor\(dq and \(dqSecond Vendor\(dq are mutually
+equivalent, and both can change to \(dqThird Vendor\(dq.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+[[equivalent_vendors]]
+vendor = \(aqFirst Vendor\(aq
+
+[[equivalent_vendors]]
+vendor = \(aqSecond Vendor\(aq
+
+[[incoming_vendors]]
+vendor = \(aqThird Vendor\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 6: Allow command\-line packages from any vendor
+.sp
+This example allows installing packages from the command\-line repository
+from any vendor, bypassing vendor restrictions.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+[[incoming_packages]]
+filters = [
+  { filter = \(aqcmdline_repo\(aq, value = \(aqtrue\(aq }
+]
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 7: Command\-line packages with exclusion
+.sp
+This example allows installing packages from the command\-line repository
+from any vendor, except for packages whose names start with \(dqmypackage\(dq.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+[[incoming_packages]]
+filters = [
+  { filter = \(aqname\(aq, value = \(aqmypackage\(aq, comparator = \(aqSTARTSWITH\(aq }
+]
+exclude = true
+
+[[incoming_packages]]
+filters = [
+  { filter = \(aqcmdline_repo\(aq, value = \(aqtrue\(aq }
+]
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 8: Allow change from any vendor to specific one with package filtering
+.sp
+This example allows a change from any vendor to \(dqMy Vendor\(dq, but
+only for incoming packages whose source package name is \(dqmypackage\(dq and
+version is greater than or equal to \(dq2.0\(dq.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(aq1.2\(aq
+
+[[incoming_packages]]
+filters = [
+  { filter = \(aqsource_name\(aq, value = \(aqmypackage\(aq },
+  { filter = \(aqversion\(aq, value = \(aq2.0\(aq, comparator = \(aqGTE\(aq }
+]
+
+[[incoming_vendors]]
+vendor = \(aqMy Vendor\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.SH "همچنین ببینید (SEE ALSO)"
+.INDENT 0.0
+.IP \(bu 2
+DNF5 Vendor Change Policy File Reference \%<#\:dnf5-vendor-change-policy-label>
+.IP \(bu 2
+DNF5 Vendor Change Policy File Reference \- v1.0 \%<#\:dnf5-vendor-change-policy-v1-0-label>
+.IP \(bu 2
+\fBdnf5.conf(5)\fP, DNF5 Configuration Reference \%<#\:dnf5-conf-label>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+See AUTHORS.md in dnf5 source distribution.
+.SH "حق نشر (COPYRIGHT)"
+Contributors to the dnf5 project.
+.\" End of generated man page.

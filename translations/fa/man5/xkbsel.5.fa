@@ -1,0 +1,253 @@
+.TH XKBSEL 5 "23 Jul 1999" "xkbsel" ""
+.\" $Id: xkbsel.5,v 1.2 1999/07/23 14:46:32 stano Exp $
+.SH "نام (NAME)"
+xkbsel \- XKB keyboard selection tool files
+
+.SH "توضیحات (DESCRIPTION)"
+.B xkbsel
+is a framework for defining, selecting and
+indicating XKB keyboard mappings. It allows
+to attach additional data to the XKB source
+files and to select (per-system and per-user)
+the subset of the mappings presented to the
+user in a GUI or command-line interface.
+.PP
+This manual page describes the syntax of
+the configuration files and the extensions
+of the XKB syntax used for attaching the
+additional data.
+.SH "فایل‌های پیکربندی (CONFIGURATION FILES)"
+The configuration files are named
+.I xkbsel.conf
+and contain configuration entries divided
+into sections. Section names are enclosed
+in square brackets and the entries can
+be qualified by an optional qualifier.
+An entry can have zero or more values:
+.RS
+.PP
+# comment
+.br
+// comment
+.br
+[section]
+.br
+entry1 = value
+.br
+entry2[qualif] = val1 "special-val2" val3
+.RE
+.PP
+The section names, entry names, qualifiers and
+unquoted values start with letter, slash
+or underscore; the remaining characters
+can include numbers and parentheses.
+Anything other in the value part must be quoted
+(there is no possibility yet to get the double
+quotes in the value itself). The files are generally
+case-sensitive and the ordering of the sections
+matters.
+.PP
+If the user configuration file exist, it is
+used as a whole - no merging with system
+configuration file occurs.
+.PP
+Presently there are two sections:
+.SS shortcut
+Shortcuts define a mapping between short names
+used for convenient naming of maps in command-line
+and GUI tools and full XKB keymap names. The XKB
+keymap name consists of a relative path to a file
+(often there is no directory part) and a name
+of a map in this particular file in parentheses.
+.PP
+An example of a shortcut section defining american,
+german and french keyboards (from the X11 distribution)
+and slovak one (from the
+.B xkbsel
+distribution) is:
+.RS
+.PP
+[shortcut]
+.br
+us = xfree86(us)
+.br
+de = xfree86(de)
+.br
+fr = xfree86(fr)
+.br
+sk = czsk(sk)
+.RE
+.SS mapset
+The shortcuts defined in the previous section are used to build
+an ordered selection list, used by GUI selectors to present
+a menu of choices to the user. There is a possibility
+to define lists according to language part of the locale
+definition (in small letters), territory part (in caps)
+and/or a default list when no specific list matches.
+An example:
+.RS
+.PP
+[mapset]
+.br
+map[sk] = sk us
+.br
+map[de] = de us
+.br
+map[fr] = fr us
+.br
+map = us sk de fr
+.RE
+.SS ADDITIONAL XKB DATA
+It is assumed you know how to create a XKB
+keyboard mapping. This section only explains how to
+add the
+.B xkbsel
+data to the new mappings and to the mappings
+already present in the X distribution.
+.PP
+The
+.B xkbsel
+package mirrors the XKB directory structure (normally
+residing in \fI/usr/X11R6/lib/X11/xkb\fR)
+in the \fBxkbsel\fR's system directory (normally
+\fI/usr/share/xkbsel\fR) and eventually
+user's directory (\fI~/.xkbsel\fR).
+.PP
+The only directory from the original XKB structure
+that matters for \fBxkbsel\fR is the \fIkeymap\fR
+subdirectory.  This is the starting point where
+the package searches for the mappings and passes
+them for compilation and installation to the
+\fBxkbcomp\fR(1).
+.PP
+\fBxkbsel\fR adds another two directories to the
+hierarchy. \fIredef\fR contains files that add
+additional \fBxkbsel\fR data to the mappings
+already defined, without needing to change
+the mappings themselves in any way. \fIpixmap\fR
+contains small icons that can be referenced
+by the GUI tools (this is not yet implemented).
+.PP
+When there are conflicting data, the priority
+from the highest to lowest is:
+.RS
+1. \fIredef\fR directory in the user hierarchy
+.br
+2. files from the user hierarchy
+.br
+3. \fIredef\fR directory in the \fBxkbsel\fR hierarchy
+.br
+4. files from the \fBxkbsel\fR hierarchy
+.br
+5. original X11 distribution
+.RE
+The files from the user's directories other than
+\fIkeymap\fR or \fIredef\fR (e.g. \fIsymbols\fR)
+are only used when the mapping itself is mentioned
+in some file in these two directories - otherwise
+the \fBxkbsel\fR does not know about them.
+.PP
+The data for \fBxkbsel\fR is added to the XKB
+files using specially formatted comments
+in the scope of the particular keymap definition.
+The format of the comment is
+.RS
+\fB%xkb_\fIkeyword\fB%\fR \fB"\fIvalue\fB"\fR
+.RE
+Presently there are two such data entries:
+.TP
+.B description
+defines a description of the keyboard mapping
+in the GUI tools
+.TP
+.B pixmap
+defines a pixmap for the GUI tools (not yet implemented)
+.PP
+An example of such keymap definition is:
+.RS
+xkb_keymap "sk" {
+.br
+    // %xkb_description% "Slovenska klavesnica"
+.br
+    // %xkb_pixmap% "slovak.xpm"
+.br
+    xkb_keycodes       { include "xfree86"      };
+.br
+    xkb_types          { include "default"      };
+.br
+    xkb_compatibility  { include "default"      };
+.br
+    xkb_symbols        { include "czsk_ibm(sk)" };
+.br
+    xkb_geometry       { include "pc"           };
+.br
+};
+.RE
+The descriptions can use characters in a local character
+encoding, but remember that a GUI tool runs in a specific
+locale and won't neccessarily display all selected
+map descriptions correctly.
+.PP
+It is possible to add these data into existing
+mappings. As it is practical to do this only in several
+files instead of matching redefinition files to
+keymap files, there is a possibility to define
+file name for the following definitions. This works
+only for files in \fIredef\fR directories and is
+specified as
+.RS
+\fB%xkb_file% "\fIvalue\fB"\fR
+.RE
+outside of keymap definitions. So you can do something
+like this:
+.RS
+// %xkb_file% "xfree86"
+.br
+xkb_keymap "us"
+.br
+{
+.br
+  // %xkb_description% "US layout"
+.br
+  // %xkb_pixmap% "us.xpm"
+.br
+};
+.br
+
+.br
+// %xkb_file% "sun/xfree86"
+.br
+xkb_keymap "type4_us"
+.br
+{
+.br
+  // %xkb_description% "US layout for Sun"
+.br
+  // %xkb_pixmap% "us.xpm"
+.br
+};
+.RE
+.SH "فایل‌ها (FILES)"
+.TP
+.B /usr/X11R6/lib/X11/xkb
+XKB hierarchy of the X11 distribution
+.TP
+.B /usr/share/xkbsel
+system data directory
+.TP
+.B /etc/xkbsel.conf
+system configuration file
+.TP
+.B ~/.xkbsel
+user data directory
+.TP
+.B ~/.xkbsel/xkbsel.conf
+user\'s configuration file
+.SH "همچنین ببینید (SEE ALSO)"
+.BR xkbseldb (1),
+.BR xkbsel (1),
+.BR xkbsel-aw (1),
+.BR xkbsel (5)
+.SH "نویسنده (AUTHOR)"
+Stanislav Meduna <stano@trillian.eunet.sk>
+

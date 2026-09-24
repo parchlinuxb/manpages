@@ -1,0 +1,566 @@
+'\" t
+.\"     Title: usbguard-rules.conf
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 09/05/2026
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "USBGUARD\-RULES\&.CO" "5" "09/05/2026" "\ \&" "\ \&"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+usbguard-rules.conf \- USBGuard rule set file\&.
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The \fBusbguard\-rules\&.conf\fR file is loaded by the USBGuard daemon after it parses the main configuration file, usbguard\-daemon\&.conf(5)\&. The daemon expects the file to contain rules written in a language which is described in the Rule Language section below\&.
+.SH "RULE LANGUAGE"
+.sp
+The USBGuard daemon decides which USB device to authorize based on a policy defined by a set of rules\&. When a USB device is inserted into the system, the daemon scans the existing rules sequentially\&. If a matching rule is found, it either authorizes (\fBallows\fR), deauthorizes (\fBblocks\fR) or removes (\fBrejects\fR) the device, based on the rule target\&. If no matching rule is found, the decision is based on an implicit default target\&. This implicit default is to block the device until a decision is made by the user\&. The rule language grammar, expressed in a BNF\-like syntax, is the following:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    rule ::= target attributes\&.
+
+    target ::= "allow" | "block" | "reject"\&.
+
+    attributes ::= attributes | attribute\&.
+    attributes ::= \&.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Rule attributes specify which devices to match or what condition have to be met for the rule to be applicable\&. See the Device Specification section for the list of available attributes and Conditions for the list of supported rule rule conditions\&.
+.SS "Targets"
+.sp
+The target of a rule specifies whether the device will be authorized for use or not\&. Three types of target are recognized:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBallow\fR
+\- Authorize the device\&. The device and its interfaces will be allowed to communicate with the system\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBblock\fR
+\- Deauthorize the device\&. The device will remain in a blocked state until it is authorized\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBreject\fR
+\- Deauthorize and Remove the device from the system\&. The device will have to be re\-inserted to become visible to the system again\&.
+.RE
+.SS "Device Specification"
+.sp
+Except the target, all the other fields of a rule are optional\&. A rule where only the target is specified will match any device\&. That allows the policy administrator to write an explicit default target\&. If no rule from the policy is applicable to the device, an implicit target configured in usbguard\-daemon\&.conf(5) will be used\&. However, if one wants to narrow the applicability of a rule to a set of devices or one device only, it\(cqs possible to do so with device attributes and rule conditions\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBDevice Attributes\fR
+.RS 4
+.sp
+Device attributes are specific values read from the USB device after it\(cqs inserted to the system\&. Which attributes are available is defined below\&. Some of the attributes are derived and some are based on attributes read directly from the device\&. All attributes support two forms:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsingle\-valued\fR
+with a syntax:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    name value
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmulti\-valued\fR
+with a syntax:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    name [operator] { value1 value2 \&.\&.\&. }
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+where the optional \fIoperator\fR is one of:
+.PP
+\fBall\-of\fR
+.RS 4
+The device attribute set must contain all of the specified values for the rule to match\&.
+.RE
+.PP
+\fBone\-of\fR
+.RS 4
+The device attribute set must contain at least one of the specified values for the rule to match\&.
+.RE
+.PP
+\fBnone\-of\fR
+.RS 4
+The device attribute set must not contain any of the specified values for the rule to match\&.
+.RE
+.PP
+\fBequals\fR
+.RS 4
+The device attribute set must contain exactly the same set of values for the rule to match\&.
+.RE
+.PP
+\fBequals\-ordered\fR
+.RS 4
+The device attribute set must contain exactly the same set of values in the same order for the rule to match\&.
+.RE
+.PP
+\fBmatch\-all\fR
+.RS 4
+The device attribute set must be a subset of the specified values for the rule to match\&.
+.RE
+.sp
+If the operator is not specified it is set to \fBequals\fR\&.
+.sp
+List of attributes:
+.PP
+\fBid\fR usb\-device\-id
+.RS 4
+Match a USB device ID\&.
+.RE
+.PP
+\fBid\fR [operator] { usb\-device\-id \&... }
+.RS 4
+Match a set of USB device IDs\&.
+.RE
+.PP
+\fBhash\fR "value"
+.RS 4
+Match a hash computed from the device attribute values and the USB descriptor data\&. The hash is computed for every device by USBGuard\&.
+.RE
+.PP
+\fBhash\fR [operator] { "value" \&... }
+.RS 4
+Match a set of device hashes\&.
+.RE
+.PP
+\fBparent\-hash\fR "value"
+.RS 4
+Match a hash of the parent device\&.
+.RE
+.PP
+\fBparent\-hash\fR [operator] { "value" \&... }
+.RS 4
+Match a set of parent device hashes\&.
+.RE
+.PP
+\fBname\fR "device\-name"
+.RS 4
+Match the USB device name attribute\&.
+.RE
+.PP
+\fBname\fR [operator] { "device\-name" \&... }
+.RS 4
+Match a set of USB device names\&.
+.RE
+.PP
+\fBserial\fR "serial\-number"
+.RS 4
+Match the USB iSerial device attribute\&.
+.RE
+.PP
+\fBserial\fR [operator] { "serial\-number" \&... }
+.RS 4
+Match a set of USB iSerial device attributes\&.
+.RE
+.PP
+\fBvia\-port\fR "port\-id"
+.RS 4
+Match the USB port through which the device is connected\&. Note that some systems have unstable port numbering\&. The port might change after the system reboots or when certain kernel modules are reloaded\&. Use the
+\fBparent\-hash\fR
+attribute if you want to ensure that a device is connected via a specific parent device\&.
+.RE
+.PP
+\fBvia\-port\fR [operator] { "port\-id" \&... }
+.RS 4
+Match a set of USB ports\&.
+.RE
+.PP
+\fBwith\-interface\fR interface\-type
+.RS 4
+Match an interface type that the USB device provides\&.
+.RE
+.PP
+\fBwith\-interface\fR [operator] { interface\-type \&... }
+.RS 4
+Match a set of interface types against the set of interfaces that the USB device provides\&.
+.RE
+.PP
+\fBwith\-connect\-type\fR "connect\-type"
+.RS 4
+Match the USB port/connect_type device attribute\&.
+.RE
+.PP
+\fBwith\-connect\-type\fR [operator] { "connect\-type" \&... }
+.RS 4
+Match a set of USB port/connect_type device attributes\&.
+.RE
+.PP
+\fBlabel\fR "label"
+.RS 4
+Associates arbitrary string with a rule\&. Label is useful for storing some contextual information about rule or for filtering rules by label\&. This attribute is not used when testing if a rule applies to a device\&.
+.RE
+.sp
+The \fIusb\-device\-id\fR is a colon delimited pair in the form \fIvendor_id:product_id\fR\&. All USB devices have this ID assigned by the manufacturer and it should uniquely identify a USB product type\&. Both \fIvendor_id\fR and \fIproduct_id\fR are 16\-bit numbers represented in hexadecimal base\&. It\(cqs possible to use an asterisk character to match either any device ID *:* or any product ID from a specific vendor, e\&.g\&. 1234:*\&.
+.sp
+The \fIport\-id\fR value is a platform specific USB port identification\&. On Linux it\(cqs in the form of "usbN" in case of a USB controller (more accurately a "root hub") or "bus\-port[\&.port[\&.port \&...]]" (e\&.g\&. 1\-2, 1\-2\&.1, \&...) in case of a USB device\&.
+.sp
+The \fIinterface\-type\fR represents a USB interface and should be formatted as three 8\-bit numbers in hexadecimal base delimited by a colon character, i\&.e\&. \fIcc:ss:pp\fR\&. The numbers represent the interface class (\fIcc\fR), subclass (\fIss\fR) and protocol (\fIpp\fR) as assigned by the USB\-IF\&. See the list of assigned classes, subclasses and protocols for details\&. Instead of the subclass and protocol number, you may write an asterisk character (*) to match all subclasses or protocols\&. Matching a specific class and a specific protocol is not allowed, i\&.e\&. if you use an asterisk as the subclass number, you have to use an asterisk for the protocol too\&.
+.RE
+.SS "Conditions"
+.sp
+Whether a rule that matches a device will be applied or not can be further restricted using rule conditions\&. If the condition expression is met at the rule evaluation time, then the rule target is applied for the device\&. A condition expression is met if it evaluates to true\&. Otherwise, the rule evaluation continues with the next rule\&. A rule conditions has the following syntax:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+     if [!]condition
+     if [operator] { [!]conditionA [!]conditionB \&.\&.\&. }
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Optionally, an exclamation mark (!) can be used to negate the result of a condition\&.
+.sp
+Interpretation of the set operator:
+.PP
+\fBall\-of\fR
+.RS 4
+Evaluate to true if all of the specified conditions evaluated to true\&.
+.RE
+.PP
+\fBone\-of\fR
+.RS 4
+Evaluate to true if one of the specified conditions evaluated to true\&.
+.RE
+.PP
+\fBnone\-of\fR
+.RS 4
+Evaluate to true if none of the specified conditions evaluated to true\&.
+.RE
+.PP
+\fBequals\fR
+.RS 4
+Same as
+\fBall\-of\fR\&.
+.RE
+.PP
+\fBequals\-ordered\fR
+.RS 4
+Same as
+\fBall\-of\fR\&.
+.RE
+.sp
+List of conditions:
+.PP
+\fBlocaltime(time_range)\fR
+.RS 4
+Evaluates to true if the local time is in the specified time range\&.
+\fItime_range\fR
+can be written either as
+HH:MM[:SS]
+or
+HH:MM[:SS]\-HH:MM[:SS]\&.
+.RE
+.PP
+\fBallowed\-matches(query)\fR
+.RS 4
+Evaluates to true if an allowed device matches the specified
+\fIquery\fR\&. The query uses the rule syntax\&.
+\fBConditions in the query are not evaluated\fR\&.
+.RE
+.PP
+\fBrule\-applied\fR
+.RS 4
+Evaluates to true if the rule currently being evaluated ever matched a device\&.
+.RE
+.PP
+\fBrule\-applied(past_duration)\fR
+.RS 4
+Evaluates to true if the rule currently being evaluated matched a device in the past duration of time specified by the parameter\&.
+\fIpast_duration\fR
+can be written as
+HH:MM:SS,
+HH:MM, or
+SS\&.
+.RE
+.PP
+\fBrule\-evaluated\fR
+.RS 4
+Evaluates to true if the rule currently being evaluated was ever evaluated before\&.
+.RE
+.PP
+\fBrule\-evaluated(past_duration)\fR
+.RS 4
+Evaluates to true if the rule currently being evaluated was evaluated in the pas duration of time specified by the parameter\&.
+\fIpast_duration\fR
+can be written as
+HH:MM:SS,
+HH:MM, or
+SS\&.
+.RE
+.PP
+\fBrandom\fR
+.RS 4
+Evaluates to true/false with a probability of
+p(true)=0\&.5\&.
+.RE
+.PP
+\fBrandom(p_true)\fR
+.RS 4
+Evaluates to true with the specified probability
+p(true)=p_true\&.
+.RE
+.PP
+\fBtrue\fR
+.RS 4
+Evaluates always to true\&.
+.RE
+.PP
+\fBfalse\fR
+.RS 4
+Evaluates always to false\&.
+.RE
+.SS "Partial rule"
+.sp
+Partial rule is a rule without a rule target\&. Partial rules may by used by some commands of \fBusbguard\fR CLI tool\&.
+.SS "Comments"
+.sp
+In order to easily understand the meaning of each rule, comments can be used\&. Everything after the "#" character is ignored by the rule parser\&.
+.SH "INITIAL POLICY"
+.sp
+Using the \fBusbguard\fR CLI tool and its \fBgenerate\-policy\fR subcommand, you can generate an initial policy for your system instead of writing one from scratch\&. The tool generates an \fBallow\fR policy for all devices connected to the system at the time of execution\&. It has several options to tweak the resulting policy, see usbguard(1) for further details\&.
+.sp
+The policy will be printed out on the standard output\&. It\(cqs a good idea to review the generated rules before using them on a system\&. The typical workflow for generating an initial policy could look like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    $ sudo usbguard generate\-policy > rules\&.conf
+    $ vi rules\&.conf
+    (review/modify the rule set)
+    $ sudo install \-m 0600 \-o root \-g root rules\&.conf /etc/usbguard/rules\&.conf
+    $ sudo systemctl restart usbguard
+.fi
+.if n \{\
+.RE
+.\}
+.SH "EXAMPLE POLICIES"
+.sp
+The following examples show what to put into the \fBrules\&.conf\fR file in order to implement the given policy\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+\fBAllow USB mass storage devices (USB flash disks) and block everything else\fR
+.sp
+This policy will block any device that isn\(cqt just a mass storage device\&. Devices with a hidden keyboard interface in a USB flash disk will be blocked\&. Only devices with a single mass storage interface will be allowed to interact with the operating system\&. The policy consists of a single rule:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    allow with\-interface equals { 08:*:* }
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The blocking is implicit in this case because we didn\(cqt write a
+block
+rule\&. Implicit blocking is useful to desktop users\&. A desktop applet listening to USBGuard events can ask the user for a decision if an implicit target was applied\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+\fBAllow a specific Yubikey device to be connected via a specific port (and reject everything else on that port)\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    allow 1050:0011 name "Yubico Yubikey II" serial "0001234567" via\-port "1\-2" hash "044b5e168d40ee0245478416caf3d998"
+    reject via\-port "1\-2"
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+We could use just the hash to match the device\&. However, using the
+name
+and
+serial
+attributes provide an useful hint for later inspection of the policy\&. On the other hand, the hash is the most specific value we can use to identify a device\&. It\(cqs the best attribute to use if you want a rule to match just one device\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+\fBReject devices with suspicious combination of interfaces\fR
+.sp
+A USB flash disk which implements a keyboard or a network interface is very suspicious\&. The following set of rules forms a policy that allows USB flash disks and explicitly rejects devices with an additional and suspicious (as defined before) interface\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    allow with\-interface equals { 08:*:* }
+    reject with\-interface all\-of { 08:*:* 03:00:* }
+    reject with\-interface all\-of { 08:*:* 03:01:* }
+    reject with\-interface all\-of { 08:*:* e0:*:* }
+    reject with\-interface all\-of { 08:*:* 02:*:* }
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The policy rejects all USB flash disk devices with an interface from the HID/Keyboard, Communications and Wireless classes\&. Note that default allow is the wrong approach and you shouldn\(cqt just reject a set of devices and allow the rest\&. The policy above assumes that blocking is the default\&. Rejecting a set of devices considered as "bad" is a good approach how to limit the exposure of the OS to such devices as much as possible\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+\fBAllow a keyboard\-only USB device only if there isn\(cqt already a USB device with a keyboard interface allowed\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    allow with\-interface one\-of { 03:00:01 03:01:01 } if !allowed\-matches(with\-interface one\-of { 03:00:01 03:01:01 })
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 5.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  5." 4.2
+.\}
+\fBPlay "Russian roulette" with USB devices\fR
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    allow if random(0\&.1666)
+    reject
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+usbguard\-daemon(8), usbguard\-daemon\&.conf(5)
+.SH "اشکالات (BUGS)"
+.sp
+If you find a bug in this software or if you\(cqd like to request a feature to be implemented, please file a ticket at https://github\&.com/USBGuard/usbguard/issues/new\&.
+.SH "نویسنده (AUTHOR)"
+.sp
+USBGuard was originally written by Daniel Kopeček\&. Many people have contributed to it\&.
+.SH "RESOURCES"
+.sp
+Main web site: https://usbguard\&.github\&.io/
+.SH "کپی‌رایت و تکثیر (COPYING)"
+.sp
+License GPLv2+: GNU GPL version 2 or later http://gnu\&.org/licenses/gpl\&.html\&. This is free software: you are free to change and redistribute it\&. There is NO WARRANTY, to the extent permitted by law\&.

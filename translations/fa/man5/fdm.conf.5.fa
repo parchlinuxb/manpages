@@ -1,0 +1,1227 @@
+.\" $Id$
+.\"
+.\" Copyright (c) 2006 Nicholas Marriott <nicholas.marriott@gmail.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF MIND, USE, DATA OR PROFITS, WHETHER
+.\" IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+.\" OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd August 21, 2006
+.Dt FDM.CONF 5
+.Os
+.Sh "نام (NAME)"
+.Nm fdm.conf
+.Nd "fdm configuration file"
+.Sh "توضیحات (DESCRIPTION)"
+This manual page describes the
+.Xr fdm 1
+configuration file.
+It defines
+.Em accounts
+from which to fetch mail, a number of possible
+.Em actions
+to take, and
+.Em rules
+connecting a regexp with an action.
+The file is parsed once from top to bottom, so action and account
+definitions must appear before they are referenced in a rule.
+Rules are evaluated from first to last and (unless overridden by the
+.Ic continue
+keyword) evaluation stops at the first match.
+.Pp
+The file has the following format:
+.Pp
+Empty lines and lines beginning with the
+.Sq #
+character are ignored.
+.Pp
+Regexps and strings must be enclosed in double quotes.
+Special characters in regexps and strings (including passwords) must be escaped.
+Note that this may mean double-escaping in regexps.
+.Pp
+Possible commands are covered in the following sections.
+.Sh "گزینه‌ها (OPTIONS)"
+Options are configured using the
+.Ic set
+command.
+It may be followed by the following options, one per command:
+.Bl -tag -width Ds
+.It Ic maximum-size Ar size
+This is used to set the maximum size of a mail.
+Mails larger than this limit are dropped and, if applicable, not deleted from
+the server.
+.Pp
+The size may be specified as a plain number in bytes or with a suffix of
+.Ql K
+for kilobytes,
+.Ql M
+for megabytes or
+.Ql G
+for gigabytes.
+The default is 32 megabytes and the maximum is one gigabyte.
+.It Ic delete-oversized
+If this option is specified,
+.Xr fdm 1
+attempts to delete messages which exceed
+.Ic maximum-size ,
+and continue.
+If it is not specified, oversize messages are a fatal error and cause
+.Xr fdm 1
+to abort.
+.Pp
+Note that
+.Xr fdm 1
+may have a number of messages queued (up to the
+.Ic queue-high
+setting, doubled for
+rewrite, per account), so this setting and the
+.Ic queue-high
+option should be set
+after consideration of the space available in the temporary folder and the
+implications should
+.Xr fdm 1
+abort due to the space becoming full.
+.It Ic queue-high Ar number
+This sets the maximum number of messages
+.Xr fdm 1
+will hold simultaneously.
+.Xr fdm 1
+will attempt to process previously queued messages as the next is being
+fetched.
+Once this limit is reached, no further messages will be fetched until
+the number of messages held drops to the
+.Ic queue-low
+value.
+.It Ic queue-low Ar number
+This is the length to which the message queue must drop before fetching
+continues after the
+.Ic queue-high
+limit has been reached.
+.It Ic ignore-errors
+If set,
+.Nm
+will continue to process mail if a delivery fails rather than aborting.
+.It Ic allow-multiple
+If this option is specified,
+.Xr fdm 1
+does not attempt to create a lock file and allows multiple instances to run
+simultaneously.
+.It Ic lock-file Ar path
+This sets an alternative lock file.
+The default is
+.Pa ~/.fdm.lock
+for non-root users and
+.Pa /var/db/fdm.lock
+for root.
+.It Ic lock-timeout Ar time
+Sets how long
+.Nm
+will try a lock file before giving up.
+.It Ic lock-wait
+If present,
+.Nm
+will wait for
+.Ic lock-file
+for
+.Ic lock-timeout
+rather than exiting immediately with an error.
+.It Ic command-user Ar user
+This specifies the user used to run
+.Ic exec
+and
+.Ic pipe
+actions.
+By default it is the user who invoked fdm.
+.It Ic default-user Ar user
+This sets the default user to change to before delivering mail, if
+.Xr fdm 1
+is running as root and no alternative user is specified as part of the action
+or rule.
+This option may be overridden with the
+.Fl u
+switch on the command line.
+A default user must be given if running as root.
+.It Ic lookup-order Ar location ...
+This specifies the order in which to do user lookup from left to right.
+Possible types are
+.Cm passwd
+to use the
+.Xr passwd 5
+file, or
+.Cm courier
+to use Courier authlib (if support is compiled).
+.It Ic lock-types Ar type Ar ...
+This specifies the locks to be used for mbox locking.
+Possible types are
+.Cm fcntl ,
+.Cm flock ,
+and
+.Cm dotlock .
+The
+.Cm flock
+and
+.Cm fcntl
+types are mutually exclusive.
+The default is
+.Cm flock .
+.It Ic proxy Ar url
+This instructs
+.Xr fdm 1
+to proxy all connections through
+.Ar url .
+HTTP and SOCKS5 proxies are supported at present (URLs of the form
+.Pf http:// Ar host Ns Op : Ns Ar port
+or
+.Pf socks:// Oo Ar user Ns : Ns Ar pass Ns @ Oc Ns host Ns Op : Ns Ar port ) .
+No authentication is supported for HTTP.
+.It Ic unmatched-mail Cm drop | keep
+This option controls what
+.Xr fdm 1
+does with mail that reaches the end of the ruleset (mail that matches no rules
+or matches only rules with the
+.Ic continue
+keyword).
+.Cm drop
+will cause such mail to be discarded, and
+.Cm keep
+will attempt to leave the mail on the server.
+The default is to keep the mail and log a warning that it reached the end of
+the ruleset.
+.It Ic purge-after Ar count
+The
+.Ic purge-after
+option makes
+.Xr fdm 1
+attempt to purge deleted mail from the server (if supported) after
+.Ar count
+mails have been retrieved.
+This is useful on unreliable connections to limit the potential number of mails
+refetched if the connection drops, but note that it can incur a considerable
+speed penalty.
+.It Ic no-received
+If this option is present,
+.Xr fdm 1
+will not insert a
+.Sq Received
+header into each mail.
+.It Ic no-create
+If this option is set,
+.Xr fdm 1
+will not attempt to create maildirs and mboxes or missing elements of their
+paths.
+.It Ic file-umask Ic user | Ar umask
+This specifies the
+.Xr umask 2
+to use when creating files.
+.Ic user
+means to use the umask set when
+.Xr fdm 1
+is started, or
+.Ar umask
+may be specified as a three-digit octal number.
+The default is 077.
+.It Ic file-group Ic user | Ar group
+This option allows the default group ownership of files and directories created
+by
+.Xr fdm 1
+to be specified.
+.Ar group
+may be a group name string or a numeric gid.
+If
+.Ic user
+is used, or this option does not appear in the configuration file,
+.Xr fdm 1
+does not attempt to set the group of new files and directories.
+.It Ic timeout Ar time
+This controls the maximum time to wait for a server to send data before closing
+a connection.
+The default is 900 seconds.
+.It Ic verify-certificates
+Instructs
+.Xr fdm 1
+to verify SSL certificates for all SSL connections.
+.El
+.Sh INCLUDING FILES
+Further configuration files may be including using the
+.Ic include
+command:
+.Bl -tag -width Ds
+.It Ic include Ar path
+.El
+.Pp
+The file to include is searched for first as an absolute path and then relative
+to the directory containing the main configuration file.
+.Sh MACROS
+Macros may be defined using the following syntax:
+.Bl -item
+.It
+.Cm $ Ns Ar name Ic = Ar string
+.It
+.Cm % Ns Ar name Ic = Ar number
+.El
+.Pp
+Macros are prefixed with $ to indicate a string value and % to indicate a
+numeric value.
+Once defined, a macro may be used in any place a string or number is expected.
+Macros may be embedded in strings by surrounding their name (after the $ or %)
+with {}s, like so:
+.Bd -ragged -offset indent
+"abc ${mymacro} %{anothermacro} def"
+.Ed
+.Pp
+The
+.Ic ifdef ,
+.Ic ifndef
+and
+.Ic endif
+keywords may be used to conditionally parse a section of the configuration file
+depending on whether or not the macro given exists or does not exist.
+.Ic ifdef
+and
+.Ic ifndef
+blocks may be nested.
+.Sh SHELL COMMANDS
+The result of a shell command may be used at any point a string or number is
+expected by wrapping it in $() or %().
+If the former is used, the command result is used as a string; if the latter,
+it is converted to an integer.
+Shell commands are executed when the configuration file is parsed.
+.Sh ACCOUNTS
+The
+.Ic account
+command is used to instruct
+.Xr fdm 1
+to fetch mail from an account.
+The syntax is:
+.Bl -tag -width Ds
+.It Xo Ic account Ar name
+.Op Ar users
+.Op Ic disabled
+.Ar type Op Ar args
+.Op Ic keep
+.Xc
+.El
+.Pp
+The
+.Ar name
+argument is a string specifying a name for the account.
+The optional
+.Ar users
+argument has the following form:
+.Bl -tag -width Ds
+.It Xo Ic user Ar user | Ic users
+.Li {
+.Ar user ...
+.Li }
+.Xc
+.El
+.Pp
+The first two options specify a user or list of users as which the mail should
+be delivered when an action is executed.
+If no users are specified, the default user (set with
+.Ic set Ic default-user )
+is used.
+Users specified as part of the account definition may be overridden by similar
+arguments to action definitions or on match rules.
+If
+.Xr fdm 1
+is run as non-root, it will still execute any actions once for each user, but
+will be unable to change to that user so the action will be executed multiple
+times as the current user.
+.Pp
+The
+.Ic disabled
+keyword instructs
+.Xr fdm 1
+to ignore this account unless it is explicitly enabled with a
+.Fl a
+option on the command line.
+If the
+.Ic keep
+keyword is specified, all mail collected from this account is kept (not
+deleted) even if it matches a
+.Ic drop
+action.
+.Pp
+Supported account types and arguments are:
+.Bl -tag -width Ds
+.It Ic stdin
+This account type reads mail from
+.Dv stdin ,
+if it is connected to a pipe.
+This may be used to deliver mail from
+.Xr sendmail 8 ,
+see
+.Xr fdm 1
+for details.
+.It Xo Ic pop3 Ic server Ar host
+.Op Ic port Ar port
+.Op Ic user Ar user
+.Op Ic pass Ar pass
+.Op Ar only
+.Op Ic no-apop
+.Op Ic no-uidl
+.Op Ic starttls
+.Op Ic insecure
+.Xc
+.It Xo Ic pop3s Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Op Ar only
+.Op Ic no-apop
+.Op Ic no-verify
+.Op Ic no-uidl
+.Op Ic insecure
+.Xc
+These statements define a POP3 or POP3S account.
+The
+.Ar userpass
+element has the following form:
+.Bl -tag -width Ds
+.It Xo
+.Op Ic user Ar user
+.Op Ic pass Ar pass
+.Xc
+.El
+.Pp
+The
+.Ar host ,
+.Ar user
+and
+.Ar pass
+arguments must be strings.
+If the user or pass is not provided,
+.Xr fdm 1
+attempts to look it up in the
+.Pa ~/.netrc
+file (see
+.Xr ftp 1
+for details of the file format).
+The port option may be either a string which will be looked up in the
+.Xr services 5
+database, or a number.
+If it is omitted, the default port (110 for POP3, 995 for POP3S) is used.
+.Pp
+The
+.Ar only
+option takes the form:
+.Bl -tag -width Ds
+.It Xo
+.Op Ic new-only | Ic old-only
+.Ic cache Ar path
+.Xc
+.El
+.Pp
+.Ic new-only
+fetches only mail not previously fetched, and
+.Ic old-only
+is the inverse: it fetches only mail that has been fetched before.
+The cache file is used to save the state of the POP3 mailbox.
+The
+.Ic no-apop
+flag forces
+.Xr fdm 1
+not to use the POP3 APOP command for authentication, and the
+.Ic no-verify
+keyword instructs
+.Xr fdm 1
+to skip SSL certificate validation for this account.
+The
+.Ic no-uidl
+keyword makes
+.Xr fdm 1
+not use the UIDL command to retrieve mails.
+This is mainly useful for broken POP3 servers.
+.Pp
+.Ic starttls
+attempts to use
+.Em STARTTLS
+after connection.
+.Pp
+.Ic insecure
+allows the use of insecure protocols, which currently includes SSLv2, SSLv3
+and TLS1.0.
+.It Xo Ic pop3 Ic pipe Ar command
+.Op Ar userpass
+.Op Ar only
+.Op Ic no-apop
+.Xc
+This account type uses the POP3 protocol piped through
+.Ar command ,
+such as
+.Xr ssh 1 .
+If the command produces any output to
+.Dv stderr ,
+it is logged.
+For POP3 over a pipe, providing a user and password is not optional and it may
+not be read from
+.Pa ~/.netrc .
+.It Xo Ic imap Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Op Ic folder Ar name
+.Op Ar only
+.Op Ic no-cram-md5
+.Op Ic no-plain
+.Op Ic no-login
+.Op Ic starttls
+.Op Ic insecure
+.Op Ic oauthbearer
+.Op Ic xoauth2
+.Xc
+.It Xo Ic imap Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Op Ic folders
+.Li {
+.Ar name ...
+.Li }
+.Op Ar only
+.Xc
+.It Xo Ic imaps Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Op Ar folders
+.Op Ar only
+.Op Ic no-verify
+.Op Ic no-cram-md5
+.Op Ic no-plain
+.Op Ic no-login
+.Op Ic insecure
+.Op Ic oauthbearer
+.Op Ic xoauth2
+.Xc
+These define an IMAP or IMAPS account.
+The parameters are as for a POP3 or POP3S account, aside from the additional
+.Ar folders
+option which sets the name of the folder or folders to use (the default is to
+fetch from the inbox). This has the form:
+.Bl -tag -width Ds
+.It Xo Ic folder Ar name | Ic folders
+.Li {
+.Ar name Ar ...
+.Li }
+.Xc
+.El
+.Pp
+The default ports used are 143 for IMAP and 993 for IMAPS.
+For IMAP, the
+.Ar only
+item consists only of one of the keywords
+.Ic new-only
+or
+.Ic old-only
+- a cache file is not required.
+.Pp
+Options
+.Ic no-cram-md5 ,
+.Ic no-plain
+and
+.Ic no-login
+disable the given authentication method.
+The default is to use CRAM-MD5 if it is available, then PLAIN, and LOGIN
+otherwise.
+.Pp
+.Ic starttls
+attempts to use
+.Em STARTTLS
+after connection.
+.Pp
+.Ic insecure
+allows the use of insecure protocols, which currently includes SSLv2, SSLv3
+and TLS1.0.
+.Pp
+.Ic oauthbearer
+attempts to use OAuth 2.0 bearer token as authentication method.
+.It Xo Ic imap Ic pipe Ar command
+.Op Ar userpass
+.Op Ar folders
+.Op Ar only
+.Xc
+As with
+.Ic pop3
+.Ic pipe ,
+this account type uses the IMAP protocol piped through
+.Ar command .
+If the optional IMAP
+.Ar user
+and
+.Ar pass
+are supplied, they will be used if necessary, but if one is provided, both must
+be \(en using
+.Pa ~/.netrc
+is not permitted.
+.Pp
+Mail fetched using the IMAP protocol is tagged with a folder tag containing the
+source folder name.
+.It Ic maildir Ar path
+.It Xo Ic maildirs
+.Li {
+.Ar path ...
+.Li }
+.Xc
+These account types instruct
+.Xr fdm 1
+to fetch mail from the maildir or maildirs specified.
+This allows
+.Xr fdm 1
+to be used to filter mail, fetching from a maildir and deleting (dropping)
+unwanted mail, or delivering mail to another maildir or to an mbox.
+.Pp
+Mail fetched from a maildir is tagged with a maildir tag containing
+the basename of the mail file.
+.It Ic mbox Ar path
+.It Xo Ic mboxes
+.Li {
+.Ar path ...
+.Li }
+.Xc
+These are similar to
+.Ic maildir
+and
+.Ic maildirs ,
+but cause
+.Xr fdm 1
+to fetch mail from an mbox or set of mboxes.
+.Pp
+Mail fetched from a mbox is tagged with a mbox tag containing the
+basename of the mbox file.
+.It Xo Ic nntp Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Ic group Ar group
+.Ic cache Ar cache
+.Xc
+.It Xo Ic nntp Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Ic groups
+.Li {
+.Ar group ...
+.Li }
+.Ic cache Ar cache
+.Xc
+.It Xo Ic nntps Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Ic group Ar group
+.Ic cache Ar cache
+.Xc
+.It Xo Ic nntps Ic server Ar host
+.Op Ic port Ar port
+.Op Ar userpass
+.Ic groups
+.Li {
+.Ar group ...
+.Li }
+.Ic cache Ar cache
+.Xc
+An NNTP account.
+Articles are fetched from the specified group or groups and delivered.
+The index and message-id of the last article fetched in each group is
+saved in the specified cache file.
+When
+.Xr fdm 1
+is run again, fetching begins at the cached article.
+Note that the
+.Ic keep
+option is completely ignored for NNTP accounts \(en all mail is kept, and the
+cache is always updated.
+.El
+.Sh TAGGING
+As mail is processed by
+.Xr fdm 1 ,
+it is tagged with a number of name/value pairs.
+Some tags are added automatically, and mail may also be tagged explicitly by
+the user using the
+.Ic tag
+action.
+Tags may be inserted in most strings in a similar manner to macros, except tags
+are processed at runtime rather than as the configuration file is parsed.
+A tag's value is inserted by wrapping its name in %[], for example:
+.Bl -tag -width Ds
+.It "abc%[account]def"
+.It "%[hour]:%[minute]:%[second]"
+.El
+.Pp
+The default tags also have a single-letter shorthand.
+Including a nonexistent tag in a string is equivalent to including a tag with
+an empty value, so "abc%[nonexistent]def" will be translated to "abcdef".
+.Pp
+The automatically added tags are:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It account (%a)
+The name of the account from which the mail was fetched.
+.It home (%h)
+The delivery user's home directory.
+.It uid (%n)
+The delivery user's uid.
+.It action (%t)
+The name of the last action executed for this mail.
+.It user (%u)
+The delivery user's username.
+.It hour (%H)
+The current hour (00\(en23).
+.It minute (%M)
+The current minute (00\(en59).
+.It second (%S)
+The current second (00\(en59).
+.It day (%d)
+The current day of the month (01\(en31).
+.It month (%m)
+The current month (01\(en12).
+.It year (%y)
+The current year.
+.It year2
+The current year as two digits.
+.It dayofweek (%W)
+The current day of the week (0\(en6, Sunday is 0).
+.It dayofyear (%Y)
+The current day of the year (001\(en366).
+.It quarter (%Q)
+The current quarter (1\(en4).
+.It rfc822date
+The current date in RFC822 format.
+.It mail_hour
+The hour from the mail's date header, if it exists and is valid, otherwise the
+current time.
+.It mail_minute
+The minute from the mail's date header.
+.It mail_second
+The second from the mail's date header.
+.It mail_day
+The day from the mail's date header.
+.It mail_month
+The month from the mail's date header.
+.It mail_year
+The year from the mail's date header.
+.It mail_year2
+The same as two digits.
+.It mail_dayofweek
+The day of the week from the mail's date header.
+.It mail_dayofyear
+The day of the year from the mail's date header.
+.It mail_quarter
+The quarter (1\(en4) from the mail's date header.
+.It mail_rfc822date
+The mail's date in RFC822 format.
+.It lines
+The total number of lines in the message.
+.It body_lines
+The number of lines in the body.
+.It header_lines
+The number of lines in the header.
+.It message_id
+The message id from the mail's header (if present).
+.It hostname
+The local hostname.
+.El
+.Pp
+In addition, the shorthand %% is replaced with a literal %, and %0 to %9 are
+replaced with the result of any bracket expressions in the last regexp.
+.Sh CACHES
+.Xr fdm 1
+can maintain a cache file with a set of user-defined strings.
+In order to use caches,
+.Xr fdm 1
+must have been compiled with them enabled.
+Caches are declared with the
+.Ic cache
+keyword:
+.Bl -tag -width Ds
+.It Xo Ic cache Ar path
+.Op Ic expire Ar age
+.Xc
+.El
+.Pp
+The
+.Ar path
+is the location of the cache file. If the
+.Ic expire
+keyword is specified, items in the cache are removed after they reach the age
+specified.
+.Ar age
+may be given unadorned in seconds, or followed by one of the modifiers:
+.Em seconds ,
+.Em hours ,
+.Em minutes ,
+.Em days ,
+.Em months
+or
+.Em years .
+.Pp
+Caches must be declared before they are used. Items are added to caches using
+the
+.Ic add-to-cache
+action, removed using the
+.Ic remove-from-cache
+action, and searched for using the
+.Ic in-cache
+condition; see below for information on these.
+.Sh ACTIONS
+The
+.Ic action
+command is used to define actions.
+These may be specified by name in rules (see below) to perform some action on a
+mail.
+The syntax is:
+.Bl -tag -width Ds
+.It Xo Ic action Ar name Op Ar users
+.Ar action
+.Xc
+.It Xo Ic action Ar name Op Ar users
+.Li {
+.Ar action ...
+.Li }
+.Xc
+.El
+.Pp
+The
+.Ar name
+is a string defining a name for the action.
+The
+.Ar users
+argument has the same form as for an account definition.
+An action's user setting may be overridden in the matching rule.
+.Pp
+The possible values for
+.Ar action
+are listed below.
+If multiple actions are specified they are executed once in the order specified,
+for each user.
+.Bl -tag -width Ds
+.It Ic drop
+Discard the mail.
+.It Ic keep
+Keep the mail, do not remove it from the account.
+.It Xo Ic tag Ar string
+.Op Ic value Ar value
+.Xc
+This tags mail with
+.Ar string ,
+and optionally
+.Ar value ,
+which may be matched using the
+.Ic tagged
+or
+.Ic string
+conditions.
+.It Xo Ic maildir Ar path
+.Xc
+Save the mail to the maildir specified by
+.Ar path .
+If the maildir or any part of its path does not exist, it is created, unless the
+.Ic no-create
+option is set.
+.Pp
+Mail delivered to a maildir is tagged with a mail_file tag containing the full
+path of the mail file.
+.It Xo Ic mbox Ar path Op Ic compress
+.Xc
+Append the mail to the mbox at
+.Ar path .
+If
+.Ic compress
+is specified,
+.Xr fdm 1
+will add
+.Sq .gz
+to
+.Ar path
+and attempt to write mail using
+.Xr gzip 1
+compression.
+If the mbox or any part of its path does not exist, it is created, unless the
+.Ic no-create
+option is set.
+.Pp
+Mail delivered to an mbox is tagged with a mbox_file tag containing the path of
+the mbox.
+.It Xo Ic exec Ar command
+.Xc
+Execute
+.Ar command .
+.It Xo Ic pipe Ar command
+.Xc
+Pipe the mail to
+.Ar command .
+.Ic exec
+and
+.Ic pipe
+commands are run as the command user.
+.It Xo Ic write Ar path
+.Xc
+Write the mail to
+.Ar path .
+.It Xo Ic append Ar path
+.Xc
+Append the mail to
+.Ar path .
+.It Xo Ic smtp Ic server Ar host
+.Op Ic port Ar port
+.Op Ic from Ar from
+.Op Ic to Ar to
+.Xc
+Connect to an SMTP server and attempt to deliver the mail to it.
+If
+.Ar from
+or
+.Ar to
+is specified, they are passed to the server in the MAIL FROM or RCPT TO
+commands.
+If not, the current user and host names are used.
+.It Xo Ic lmtp Ic server Ar path | Ar host 
+.Op Ic port Ar port
+.Op Ic from Ar from
+.Op Ic to Ar to
+.Xc
+Connect to an LMTP server and attempt to store the mail there.
+If a UNIX socket is to be used,
+.Ar path
+must be the absolute pathname.
+.Pp
+.Ar port
+defaults to 24.
+If
+.Ar from
+or
+.Ar to
+is specified, they are passed to the server in the MAIL FROM or RCPT TO
+commands.
+If not, the current user and host names are used.
+.It Xo Ic rewrite Ar command
+.Xc
+Pipe the entire mail through
+.Ar command
+to generate a new mail and use that mail for any following actions or rules.
+An example of the
+.Ic rewrite
+action is:
+.Bd -literal -offset indent
+action "cat" pipe "cat"
+action "rewrite" rewrite "sed 's/bob/fred/g'"
+# this rule will rewrite the message
+match all action "rewrite" continue
+# this rule will cat the rewritten message
+match all action "cat"
+.Ed
+.It Ic add-header Ar name Ic value Ar value
+Add a header
+.Ar name
+with contents
+.Ar value .
+.It Ic remove-header Ar name
+.It Xo Ic remove-headers
+.Li {
+.Ar name ...
+.Li }
+.Xc
+Remove all occurrences of headers matching the
+.Xr fnmatch 3
+pattern
+.Ar name .
+.It Ic stdout
+Write the mail to
+.Dv stdout .
+.It Ic add-to-cache Ar path Ic key Ar key
+This action adds the string
+.Ar key
+to the cache specified by
+.Ar path .
+If
+.Ar key
+already exists in the cache, it is replaced.
+.It Ic remove-from-cache Ar path Ic key Ar key
+Remove the string
+.Ar key
+from the cache
+.Ar path ,
+if a matching key is present.
+.It Ic action Ar name
+This invokes another named action.
+A maximum of five actions may be called in a sequence.
+.El
+.Sh RULES
+Rules are specified using the
+.Ic match
+keyword.
+It has the following basic form:
+.Bl -tag -width Ds
+.It Xo Ic match
+.Ar condition
+.Op Ic and | Ic or Ar condition ...
+.Op Ar users
+.Ar actions
+.Op Ic continue
+.Xc
+.El
+.Pp
+The
+.Ar condition
+argument may be one of:
+.Bl -tag -width Ds
+.It Ic all
+Matches all mail.
+.It Ic matched
+Matches only mail that has matched a previous rule and been passed on with
+.Ic continue .
+.It Ic unmatched
+The opposite of
+.Ic matched :
+matches only mails which have matched no previous rules.
+.It Xo Ic account Ar name | Ic accounts
+.Li {
+.Ar name ...
+.Li }
+.Xc
+Matches only mail fetched from the named account or accounts.
+The account names may include shell glob wildcards to match multiple accounts,
+as with the
+.Fl a
+and
+.Fl x
+command line options.
+.It Ic tagged Ar string
+Matches mails tagged with
+.Ar string .
+.It Xo Op Ic case
+.Ar regexp
+.Op Ic in Ic headers | Ic in body
+.Xc
+Specifies a regexp against which each mail should be matched.
+The regexp matches may be restricted to either the headers or body of
+the message by specifying either
+.Ic in headers
+or
+.Ic in body .
+The
+.Ic case
+keyword forces the regexp to be matched case-sensitively: the default is
+case-insensitive matching.
+.It Xo Ic exec Ar command
+.Op Ic user Ar user
+.Ic returns
+.Pf ( Ar return code ,
+.Ar stdout regexp )
+.Xc
+.It Xo Ic pipe Ar command
+.Op Ic user Ar user
+.Ic returns
+.Pf ( Ar return code ,
+.Op Ic case
+.Ar stdout regexp )
+.Xc
+These two conditions execute a
+.Ar command
+and test its return value and output.
+The
+.Ar return code
+argument is the numeric return code expected and
+.Ar stdout regexp
+is a regexp to be tested against the output of the command to
+.Dv stdout .
+Either of these two arguments may be omitted: if both are specified,
+both must match for the condition to be true.
+The
+.Ic pipe
+version will pipe the mail to the command's
+.Dv stdin
+when executing it.
+If a user is specified,
+.Xr fdm 1
+will change to that user before executing the command, otherwise the
+current user (or root if started as root) is used.
+.It Xo Ic size
+.Li <
+.Ar number
+.Xc
+.It Xo Ic size
+.Li >
+.Ar number
+.Xc
+Compare the mail size with
+.Ar number .
+.It Xo Ic string Ar string Ic to
+.Op Ic case
+.Ar regexp
+.Xc
+Match
+.Ar string
+against
+.Ar regexp .
+.It Xo Ic age
+.Li <
+.Ar time
+.Xc
+.It Xo Ic age
+.Li >
+.Ar time
+.Xc
+The
+.Ic age
+condition examines the mail's date header to determine its age, and matches if
+the mail is older (>) or newer (<) than the time specified.
+The time may be given as a simple number in seconds, or followed by the word
+.Em seconds ,
+.Em hours ,
+.Em minutes ,
+.Em days ,
+.Em months
+or
+.Em years
+to specify a time in different units.
+.It Ic in-cache Ar path Ic key Ar key
+This condition evaluates to true if the string
+.Ar key
+is in the cache at
+.Ar path .
+.It Xo Ic attachment Ic count
+.Li <
+.Ar number
+.Xc
+.It Xo Ic attachment Ic count
+.Li >
+.Ar number
+.Xc
+.It Xo Ic attachment Ic count
+.Li ==
+.Ar number
+.Xc
+.It Xo Ic attachment Ic count
+.Li !=
+.Ar number
+.Xc
+These conditions match if the mail possesses a number of attachments less
+than, greater than, equal to or not equal to
+.Ar number .
+.It Xo Ic attachment Ic total-size
+.Li <
+.Ar size
+.Xc
+.It Xo Ic attachment Ic total-size
+.Li >
+.Ar size
+.Xc
+Matches if the total size of all attachments is smaller or larger than
+.Ar size .
+.It Xo Ic attachment Ic any-size
+.Li <
+.Ar size
+.Xc
+.It Xo Ic attachment Ic any-size
+.Li >
+.Ar size
+.Xc
+Compare each individual attachment on a mail to
+.Ar size
+and match if any of them are smaller or larger.
+.It Xo Ic attachment Ic any-type
+.Ar string
+.Xc
+.It Xo Ic attachment Ic any-name
+.Ar string
+.Xc
+Match true if any of a mail's attachments possesses a MIME type or filename
+that matches
+.Ar string .
+.Xr fnmatch 3
+wildcards may be used.
+.El
+.Pp
+Multiple conditions may be chained together using the
+.Ic and
+or
+.Ic or
+keywords.
+The conditions are tested from left to right.
+Any condition may be prefixed by the
+.Ic not
+keyword to invert it.
+.Pp
+The optional
+.Ar users
+argument to the first form has the same syntax as for an
+.Ic action
+definition.
+A rule's user list overrides any users given as part of the actions.
+.Pp
+The
+.Ar actions
+list specifies the actions to perform when the rule matches a mail.
+It is either of a similar form:
+.Bl -tag -width Ds
+.It Xo Ic action Ar name | Ic actions
+.Li {
+.Ar name ...
+.Li }
+.Xc
+.El
+.Pp
+Or may specify a number of actions inline (lambda actions):
+.Bl -tag -width Ds
+.It Ic action Ar action
+.It Xo Ic action
+.Li {
+.Ar action ...
+.Li }
+.Xc
+.El
+.Pp
+In the latter case,
+.Ar action
+follows the same form as described in the ACTIONS section.
+The actions are performed from first to last in the order they are specified in
+the rule definition.
+.Pp
+If the
+.Ic continue
+keyword is present, evaluation will not stop if this rule is matched.
+Instead,
+.Xr fdm 1
+will continue to match further rules after performing any actions for this rule.
+.Sh NESTED RULES
+Rules may be nested by specifying further rules in braces:
+.Bl -tag -width Ds
+.It Xo Ic match
+.Ar condition
+.Op Ic and | Ic or Ar condition ...
+.Li {
+.Xc
+.It Ic match Ar ...
+.It Li }
+.El
+.Pp
+The inner rules will not be evaluated unless the outer one matches.
+Rules may be multiply nested.
+Note that the outer rule does not count as a match for the purposes of the
+.Ic matched
+and
+.Ic unmatched
+conditions.
+.Sh "فایل‌ها (FILES)"
+.Bl -tag -width "/var/db/fdm.lockXXX" -compact
+.It Pa ~/.fdm.conf
+default
+.Nm
+configuration file
+.It Pa /etc/fdm.conf
+default system-wide configuration file
+.It Pa ~/.fdm.lock
+default lock file
+.It Pa /var/db/fdm.lock
+lock file for root user
+.El
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr fdm 1 ,
+.Xr re_format 7
+.Sh "نویسندگان (AUTHORS)"
+.An Nicholas Marriott Aq Mt nicholas.marriott@gmail.com

@@ -1,0 +1,202 @@
+.nh
+.TH oci-hooks 5 OCI Hooks Configuration
+W. Trevor King
+MAY 2018
+
+.SH "نام (NAME)"
+oci-hooks \- OCI hooks configuration directories
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fB/usr/share/containers/oci/hooks.d/*.json\fR
+
+
+.SH "توضیحات (DESCRIPTION)"
+Provides a way for users to configure the intended hooks for Open Container Initiative containers so they will only be executed for containers that need their functionality, and then only for the stages where they're needed.
+
+.SH Directories
+Hooks are configured with JSON files (ending with a \fB\&.json\fR extension) in a series of hook directories.
+The default directory is \fB/usr/share/containers/oci/hooks.d\fR, but tools consuming this format may change that default, include additional directories, or provide their callers with ways to adjust the configuration directories.
+
+.PP
+If multiple directories are configured, a JSON filename in a preferred directory masks entries with the same filename in directories with lower precedence.  For example, if a consuming tool watches for hooks in \fB/etc/containers/oci/hooks.d\fR and \fB/usr/share/containers/oci/hooks.d\fR (in order of decreasing precedence), then a hook definition in \fB/etc/containers/oci/hooks.d/01-my-hook.json\fR will mask any definition in \fB/usr/share/containers/oci/hooks.d/01-my-hook.json\fR\&.
+
+.PP
+Tools consuming this format may also opt to monitor the hook directories for changes, in which case they will notice additions, changes, and removals to JSON files without needing to be restarted or otherwise signaled.  When the tool monitors multiple hooks directories, the precedence discussed in the previous paragraph still applies.  For example, if a consuming tool watches for hooks in \fB/etc/containers/oci/hooks.d\fR and \fB/usr/share/containers/oci/hooks.d\fR (in order of decreasing precedence), then writing a new hook definition to \fB/etc/containers/oci/hooks.d/01-my-hook.json\fR will mask the hook previously loaded from \fB/usr/share/containers/oci/hooks.d/01-my-hook.json\fR\&.  Subsequent changes to \fB/usr/share/containers/oci/hooks.d/01-my-hook.json\fR will have no effect on the consuming tool as long as \fB/etc/containers/oci/hooks.d/01-my-hook.json\fR exists.  Removing \fB/etc/containers/oci/hooks.d/01-my-hook.json\fR will reload the hook from \fB/usr/share/containers/oci/hooks.d/01-my-hook.json\fR\&.
+
+.PP
+Hooks are injected in the order obtained by sorting the JSON file names, after converting them to lower case, based on their Unicode code points.
+For example, a matching hook defined in \fB01-my-hook.json\fR would be injected before matching hooks defined in \fB02-another-hook.json\fR and \fB01-UPPERCASE.json\fR\&.
+It is strongly recommended to make the sort order unambiguous depending on an ASCII-only prefix (like the \fB01\fR/\fB02\fR above).
+
+.PP
+Each JSON file should contain an object with one of the following schemas.
+
+.SH 1.0.0 Hook Schema
+\fBversion\fR (required string)
+  Sets the hook-definition version.  For this schema version, the value be \fB1.0.0\fR\&.
+
+.PP
+\fBhook\fR (required object)
+  The hook to inject, with the hook-entry schema defined by the 1.0.2 OCI Runtime Specification.
+
+.PP
+\fBwhen\fR (required object)
+  Conditions under which the hook is injected.  The following properties can be specified, and at least one must be specified:
+.IP \(bu 2
+\fBalways\fR (optional boolean)
+  If set \fBtrue\fR, this condition matches.
+.IP \(bu 2
+\fBannotations\fR (optional object)
+  If all \fBannotations\fR key/value pairs match a key/value pair from the configured annotations, this condition matches.
+  Both keys and values must be POSIX extended regular expressions.
+.IP \(bu 2
+\fBcommands\fR (optional array of strings)
+  If the configured \fBprocess.args[0]\fR matches an entry, this condition matches.
+  Entries must be POSIX extended regular expressions.
+.IP \(bu 2
+\fBhasBindMounts\fR (optional boolean)
+  If \fBhasBindMounts\fR is true and the caller requested host-to-container bind mounts, this condition matches.
+
+.PP
+\fBstages\fR (required array of strings)
+  Stages when the hook must be injected.  Entries must be chosen from the 1.0.2 OCI Runtime Specification hook stages or from extension stages supported by the package consumer.
+
+.PP
+If \fIall\fP of the conditions set in \fBwhen\fR match, then the \fBhook\fR must be injected for the stages set in \fBstages\fR\&.
+
+.SH 0.1.0 Hook Schema
+\fBhook\fR (required string)
+  Sets \fBpath\fR in the injected hook.
+
+.PP
+\fBarguments\fR (optional array of strings)
+  Additional arguments to pass to the hook.  The injected hook's \fBargs\fR is \fBhook\fR with \fBarguments\fR appended.
+
+.PP
+\fBstages\fR (required array of strings)
+  Stages when the hook must be injected.  \fBstage\fR is an allowed synonym for this property, but you must not set both \fBstages\fR and \fBstage\fR\&.  Entries must be chosen from the 1.0.2 OCI Runtime Specification hook stages or from extension stages supported by the package consumer.
+
+.PP
+\fBcmds\fR (optional array of strings)
+  The hook must be injected if the configured \fBprocess.args[0]\fR matches an entry.  \fBcmd\fR is an allowed synonym for this property, but you must not set both \fBcmds\fR and \fBcmd\fR\&.  Entries must be POSIX extended regular expressions.
+
+.PP
+\fBannotations\fR (optional array of strings)
+  The hook must be injected if an \fBannotations\fR entry matches a value from the configured annotations.  \fBannotation\fR is an allowed synonym for this property, but you must not set both \fBannotations\fR and \fBannotation\fR\&.  Entries must be POSIX extended regular expressions.
+
+.PP
+\fBhasbindmounts\fR (optional boolean)
+  The hook must be injected if \fBhasBindMounts\fR is true and the caller requested host-to-container bind mounts.
+
+
+.SH "مثال (EXAMPLE)"
+.SH 1.0.0 Hook Schema
+The following configuration injects \fBoci-systemd-hook\fR in the pre-start and post-stop stages if \fBprocess.args[0]\fR ends with \fB/init\fR or \fB/systemd\fR:
+
+.EX
+$ cat /etc/containers/oci/hooks.d/oci-systemd-hook.json
+{
+  "version": "1.0.0",
+  "hook": {
+    "path": "/usr/libexec/oci/hooks.d/oci-systemd-hook"
+  },
+  "when": {
+    "commands": [".*/init$" , ".*/systemd$"]
+  },
+  "stages": ["prestart", "poststop"]
+}
+.EE
+
+.PP
+The following example injects \fBoci-umount --debug\fR in the pre-start stage if the container is configured to bind-mount host directories into the container.
+
+.EX
+$ cat /etc/containers/oci/hooks.d/oci-umount.json
+{
+  "version": "1.0.0",
+  "hook": {
+    "path": "/usr/libexec/oci/hooks.d/oci-umount",
+    "args": ["oci-umount", "--debug"],
+  },
+  "when": {
+    "hasBindMounts": true
+  },
+  "stages": ["prestart"]
+}
+.EE
+
+.PP
+The following example injects \fBnvidia-container-runtime-hook prestart\fR with particular environment variables in the pre-start stage if the container is configured with an \fBannotations\fR entry whose key matches \fB^com\\.example\\.department$\fR and whose value matches \fB\&.*fluid-dynamics.*\fR\&.
+
+.EX
+$ cat /etc/containers/oci/hooks.d/nvidia.json
+{
+  "version": "1.0.0",
+  "hook": {
+    "path": "/usr/sbin/nvidia-container-runtime-hook",
+    "args": ["nvidia-container-runtime-hook", "prestart"],
+    "env": [
+      "NVIDIA_REQUIRE_CUDA=cuda>=9.1",
+      "NVIDIA_VISIBLE_DEVICES=GPU-fef8089b"
+    ]
+  },
+  "when": {
+    "annotations": {
+      "^com\\\\.example\\\\.department$": ".*fluid-dynamics$"
+    }
+  },
+  "stages": ["prestart"]
+}
+.EE
+
+.SH 0.1.0 Hook Schema
+The following configuration injects \fBoci-systemd-hook\fR in the pre-start and post-stop stages if \fBprocess.args[0]\fR ends with \fB/init\fR or \fB/systemd\fR:
+
+.EX
+$ cat /etc/containers/oci/hooks.d/oci-systemd-hook.json
+{
+  "cmds": [".*/init$" , ".*/systemd$"],
+  "hook": "/usr/libexec/oci/hooks.d/oci-systemd-hook",
+  "stages": ["prestart", "poststop"]
+}
+.EE
+
+.PP
+The following example injects \fBoci-umount --debug\fR in the pre-start stage if the container is configured to bind-mount host directories into the container.
+
+.EX
+$ cat /etc/containers/oci/hooks.d/oci-umount.json
+{
+  "hook": "/usr/libexec/oci/hooks.d/oci-umount",
+  "arguments": ["--debug"],
+  "hasbindmounts": true,
+  "stages": ["prestart"]
+}
+.EE
+
+.PP
+The following example injects \fBnvidia-container-runtime-hook prestart\fR in the pre-start stage if the container is configured with an \fBannotations\fR entry whose value matches \fB\&.*fluid-dynamics.*\fR\&.
+
+.EX
+$ cat /etc/containers/oci/hooks.d/osystemd-hook.json
+{
+  "hook": "/usr/sbin/nvidia-container-runtime-hook",
+  "arguments": ["prestart"],
+  "annotations: [".*fluid-dynamics.*"],
+  "stages": ["prestart"]
+}
+.EE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBoci-systemd-hook(1)\fR, \fBoci-umount(1)\fR, \fBlocale(7)\fR
+.IP \(bu 2
+OCI Runtime Specification, 1.0.2, POSIX-platform hooks
+\[la]https://github.com/opencontainers/runtime\-spec/blob/v1.0.2/config.md#posix\-platform\-hooks\[ra]
+.IP \(bu 2
+OCI Runtime Specification, 1.0.2, process
+\[la]https://github.com/opencontainers/runtime\-spec/blob/v1.0.2/config.md#process\[ra]
+.IP \(bu 2
+POSIX extended regular expressions (EREs)
+\[la]https://pubs.opengroup.org/onlinepubs/9699919799/basedefs/V1_chap09.html#tag_09_04\[ra]

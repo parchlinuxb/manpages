@@ -1,0 +1,1036 @@
+'\" t
+.\"     Title: flatpak metadata
+.\"    Author: Alexander Larsson <alexl@redhat.com>
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 08/27/2026
+.\"    Manual: flatpak metadata
+.\"    Source: flatpak
+.\"  Language: English
+.\"
+.TH "FLATPAK METADATA" "5" "" "flatpak" "flatpak metadata"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+flatpak-metadata \- Information about an application or runtime
+.SH "توضیحات (DESCRIPTION)"
+.PP
+Flatpak uses metadata files to describe applications and runtimes\&. The
+metadata
+file for a deployed application or runtime is placed in the toplevel deploy directory\&. For example, the metadata for the locally installed application org\&.gnome\&.Calculator is in
+~/\&.local/share/flatpak/app/org\&.gnome\&.Calculator/current/active/metadata\&.
+.PP
+Most aspects of the metadata configuration can be overridden when launching applications, either temporarily via options of the flatpak run command, or permanently with the flatpak override command\&.
+.PP
+A metadata file describing the effective configuration is available inside the running sandbox at
+/\&.flatpak\-info\&. For compatibility with older Flatpak versions,
+/run/user/$UID/flatpak\-info
+is a symbolic link to the same file\&.
+.SH "قالب فایل (FILE FORMAT)"
+.PP
+The metadata file is using the same \&.ini file format that is used for systemd unit files or application \&.desktop files\&.
+.SS "[Application] or [Runtime]"
+.PP
+Metadata for applications starts with an [Application] group, metadata for runtimes with a [Runtime] group\&.
+.PP
+The following keys can be present in these groups:
+.PP
+\fBname\fR (string)
+.RS 4
+The name of the application or runtime\&. This key is mandatory\&.
+.RE
+.PP
+\fBruntime\fR (string)
+.RS 4
+The fully qualified name of the runtime that is used by the application\&. This key is mandatory for applications\&.
+.RE
+.PP
+\fBsdk\fR (string)
+.RS 4
+The fully qualified name of the sdk that matches the runtime\&. Available since 0\&.1\&.
+.RE
+.PP
+\fBcommand\fR (string)
+.RS 4
+The command to run\&. Only relevant for applications\&. Available since 0\&.1\&.
+.RE
+.PP
+\fBrequired\-flatpak\fR (string list)
+.RS 4
+The required version of Flatpak to run this application or runtime\&. For applications, this was available since 0\&.8\&.0\&. For runtimes, this was available since 0\&.9\&.1, and backported to 0\&.8\&.3 for the 0\&.8\&.x branch\&.
+.sp
+Flatpak after version 1\&.4\&.3 and 1\&.2\&.5 support multiple versions here\&. This can be useful if you need to support features that are backported to a previous stable series\&. For example if you want to use a feature added in 1\&.6\&.0 that was also backported to 1\&.4\&.4 you would use
+1\&.6\&.0;1\&.4\&.4;\&. Note that older versions of flatpak will just use the first element in the list, so make that the largest version\&.
+.RE
+.PP
+\fBtags\fR (string list)
+.RS 4
+Tags to include in AppStream XML\&. Typical values in use on Flathub include
+\fBbeta\fR,
+\fBstable\fR,
+\fBproprietary\fR
+and
+\fBupstream\-maintained\fR\&. Available since 0\&.4\&.12\&.
+.RE
+.SS "[Context]"
+.PP
+This group determines various system resources that may be shared with the application when it is run in a flatpak sandbox\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBConditional Permissions\fR
+.RS 4
+.PP
+Some permissions (such as
+\fBsockets\fR
+and
+\fBdevices\fR) support conditional grants, where access is only provided when specific runtime conditions are met\&. This allows applications to adapt to different system capabilities and session types\&. Available since 1\&.17\&.
+.PP
+Conditional permissions use the syntax
+if:PERMISSION:CONDITION
+in the metadata file\&. For example,
+if:wayland:has\-wayland
+grants Wayland socket access only when running in a Wayland session\&.
+.PP
+The following conditions are supported:
+.PP
+\fBtrue\fR
+.RS 4
+Always evaluates to true\&.
+.RE
+.PP
+\fBfalse\fR
+.RS 4
+Always evaluates to false\&.
+.RE
+.PP
+\fBhas\-input\-device\fR
+.RS 4
+True if this version of Flatpak supports the
+\fBinput\fR
+device permission\&. This is always true in Flatpak 1\&.15\&.6 and later, and can be used to provide fallback behavior for older Flatpak versions\&.
+.RE
+.PP
+\fBhas\-wayland\fR
+.RS 4
+True if the current desktop session supports Wayland\&.
+.RE
+.PP
+\fBhas\-usb\-device\fR
+.RS 4
+True if this version of Flatpak supports the
+\fBusb\fR
+device permission\&. This is always true in Flatpak 1\&.16\&.0 and later, and can be used to provide fallback behavior for older Flatpak versions\&.
+.RE
+.PP
+\fBhas\-usb\-portal\fR
+.RS 4
+True if the current desktop session supports the USB Portal\&.
+.RE
+.PP
+Conditions can be negated by prefixing with
+!\&. For example,
+if:x11:!has\-wayland
+grants X11 socket access only when NOT running in a Wayland session\&.
+.PP
+Multiple conditional permissions can be specified for the same resource\&. If any condition matches, the permission is granted (OR logic)\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+sockets=wayland;if:x11:!has\-wayland;if:x11:false
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+For backward compatibility with older Flatpak versions, conditional permissions can be combined with unconditional grants:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+sockets=x11;if:x11:!has\-wayland;
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Older Flatpak versions will grant X11 access unconditionally (seeing only
+x11), while newer versions recognize the conditional syntax and grant X11 access only when not in Wayland sessions\&.
+.PP
+To explicitly deny a permission that might be granted at a lower layer (such as from the runtime or a global override), prefix the permission name with
+!:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+sockets=!x11;
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This denial can be combined with conditional grants to remove unconditional access while allowing conditional access:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+sockets=!x11;x11;if:x11:!has\-wayland;
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This denies unconditional X11 access, but allows X11 access conditionally when not running in a Wayland session\&. The seemingly contradictory
+!x11
+and
+x11
+ensures backward compatibility: older Flatpak versions see the final
+x11
+grant, while newer versions understand the conditional logic\&.
+.RE
+.PP
+All keys in this group (and the group itself) are optional\&.
+.PP
+The keys supported in this group are:
+.PP
+\fBshared\fR (list)
+.RS 4
+List of subsystems to share with the host system\&. Possible subsystems: network, ipc\&. Available since 0\&.3\&.
+.sp
+This option supports conditional permissions\&. See
+Conditional Permissions
+for details on how to share subsystem access conditionally based on runtime conditions\&.
+.RE
+.PP
+\fBsockets\fR (list)
+.RS 4
+List of well\-known sockets to make available in the sandbox\&. Possible sockets: x11, wayland, fallback\-x11, pulseaudio, session\-bus, system\-bus, ssh\-auth, pcsc, cups, gpg\-agent, inherit\-wayland\-socket\&. When making a socket available, flatpak also sets well\-known environment variables like DISPLAY or DBUS_SYSTEM_BUS_ADDRESS to let the application find sockets that are not in a fixed location\&. Available since 0\&.3\&.
+.sp
+This option supports conditional permissions\&. See
+Conditional Permissions
+for details on how to grant socket access conditionally based on runtime conditions\&.
+.RE
+.PP
+\fBdevices\fR (list)
+.RS 4
+List of devices to make available in the sandbox\&. This just expose the devices nodes, it doesn\*(Aqt grant any permission that the user doesn\*(Aqt already have\&. Possible values:
+.PP
+\fBdri\fR
+.RS 4
+GPU graphics and compute (/dev/dri), including vendor specific render and compute devices\&. Available since 0\&.3\&.
+.RE
+.PP
+\fBinput\fR
+.RS 4
+Input devices (/dev/input)\&. Available since 1\&.15\&.6\&.
+.RE
+.PP
+\fBusb\fR
+.RS 4
+USB device bus (all device nodes below
+/dev/bus/usb)\&. Available since 1\&.15\&.11\&.
+.RE
+.PP
+\fBkvm\fR
+.RS 4
+Virtualization (/dev/kvm)\&. Available since 0\&.6\&.12\&.
+.RE
+.PP
+\fBall\fR
+.RS 4
+All device nodes in
+/dev, but not /dev/shm (which is separately specified)\&. Available since 0\&.6\&.6\&.
+.RE
+.PP
+\fBshm\fR
+.RS 4
+Access to the host /dev/shm (/dev/shm)\&. Available since 1\&.6\&.1\&.
+.RE
+.sp
+This option supports conditional permissions\&. See
+Conditional Permissions
+for details on how to grant device access conditionally based on runtime conditions\&.
+.RE
+.PP
+\fBfilesystems\fR (list)
+.RS 4
+List of filesystem subsets to make available to the application\&. Possible values:
+.PP
+\fBhome\fR
+.RS 4
+The entire home directory\&. Available since 0\&.3\&.
+.RE
+.PP
+\fBhome/\fR\fB\fIpath\fR\fR
+.RS 4
+Alias for
+~/path
+Available since 1\&.10\&. For better compatibility with older Flatpak versions, prefer to write this as
+~/path\&.
+.RE
+.PP
+\fBhost\fR
+.RS 4
+The entire host file system, except for directories that are handled specially by Flatpak\&. In particular, this shares
+/home,
+/media,
+/opt,
+/run/media
+and
+/srv
+if they exist\&.
+.sp
+/dev
+is not shared: use
+\fBdevices=all;\fR
+instead\&.
+.sp
+Parts of
+/sys
+are always shared\&. This option does not make additional files in /sys available\&.
+.sp
+Additionally, this keyword provides all of the same directories in
+/run/host
+as the
+\fBhost\-os\fR
+and
+\fBhost\-etc\fR
+keywords\&. If this keyword is used in conjunction with one of the
+\fBhost\-\fR
+keywords, whichever access level is higher (more permissive) will be used for the directories in
+/run/host: for example,
+host:rw;host\-os:ro;
+is equivalent to
+host:rw;\&.
+.sp
+These other reserved directories are currently excluded:
+/app,
+/bin,
+/boot,
+/efi,
+/etc,
+/lib,
+/lib32,
+/lib64,
+/proc,
+/root,
+/run,
+/sbin,
+/tmp,
+/usr,
+/var\&.
+.sp
+Available since 0\&.3\&.
+.RE
+.PP
+\fBhost\-os\fR
+.RS 4
+The host operating system\*(Aqs libraries, executables and static data from
+/usr
+and the related directories
+/bin,
+/lib,
+/lib32,
+/lib64,
+/sbin\&. Additionally, this keyword provides access to a subset of
+/etc
+that is associated with packaged libraries and executables, even if the
+\fBhost\-etc\fR
+keyword was not used:
+/etc/ld\&.so\&.cache, (used by the dynamic linker) and
+/etc/alternatives
+(on operating systems that use it, such as Debian)\&.
+.sp
+To avoid conflicting with the Flatpak runtime, these are mounted in the sandbox at
+/run/host/usr,
+/run/host/etc/ld\&.so\&.cache
+and so on\&.
+.sp
+Available since 1\&.7\&.
+.RE
+.PP
+\fBhost\-etc\fR
+.RS 4
+The host operating system\*(Aqs configuration from
+/etc\&.
+.sp
+To avoid conflicting with the Flatpak runtime, this is mounted in the sandbox at
+/run/host/etc\&.
+.sp
+Available since 1\&.7\&.
+.RE
+.PP
+\fBhost\-root\fR
+.RS 4
+The complete host operating system\&.
+.sp
+To avoid conflicting with the Flatpak runtime, this is mounted in the sandbox at
+/run/host/root\&.
+.sp
+This permission is only intended to be used as a last resort when there is no possible alternative with other filesystem permissions for applications that need the entire root filesystem of the host\&.
+.sp
+Please note that following symlinks under
+/run/host/root
+naively will result in a wrong path\&. For example, using
+realpath()
+is wrong\&. Instead, applications will have to implement some way of following symlinks in a way that behaves as if it were chroot\*(Aqd into
+/run/host/root\&.
+.sp
+There are a few ways to do this\&. Modern kernels support the
+\m[blue]\fBopenat2()\fR\m[]\&\s-2\u[1]\d\s+2
+call with
+RESOLVE_IN_ROOT\&. For a more portable solution with support for older kernels, see the implementation from the
+\m[blue]\fBsteam\-runtime\-tools\fR\m[]\&\s-2\u[2]\d\s+2
+as an example\&.
+.sp
+Available since 1\&.17\&.
+.RE
+.PP
+\fBxdg\-desktop\fR, \fBxdg\-documents\fR, \fBxdg\-download\fR, \fBxdg\-music\fR, \fBxdg\-pictures\fR, \fBxdg\-public\-share\fR, \fBxdg\-videos\fR, \fBxdg\-templates\fR
+.RS 4
+\m[blue]\fBfreedesktop\&.org special directories\fR\m[]\&\s-2\u[3]\d\s+2\&. Available since 0\&.3\&.
+.RE
+.PP
+\fBxdg\-desktop/\fR\fB\fIpath\fR\fR, \fBxdg\-documents/\fR\fB\fIpath\fR\fR, etc\&.
+.RS 4
+Subdirectories of freedesktop\&.org special directories\&. Available since 0\&.4\&.13\&.
+.RE
+.PP
+\fBxdg\-cache\fR, \fBxdg\-config\fR, \fBxdg\-data\fR
+.RS 4
+Directories defined by the
+\m[blue]\fBfreedesktop\&.org Base Directory Specification\fR\m[]\&\s-2\u[4]\d\s+2\&. Available since 0\&.6\&.14\&.
+.RE
+.PP
+\fBxdg\-cache/\fR\fB\fIpath\fR\fR, \fBxdg\-config/\fR\fB\fIpath\fR\fR, \fBxdg\-data/\fR\fB\fIpath\fR\fR
+.RS 4
+Subdirectories of directories defined by the freedesktop\&.org Base Directory Specification\&. Available since 0\&.6\&.14\&.
+.RE
+.PP
+\fBxdg\-run/\fR\fB\fIpath\fR\fR
+.RS 4
+Subdirectories of the
+\fBXDG_RUNTIME_DIR\fR
+defined by the freedesktop\&.org Base Directory Specification\&. Note that
+\fBxdg\-run\fR
+on its own is not supported\&. Available since 0\&.4\&.13\&.
+.RE
+.PP
+\fB/\fR\fB\fIpath\fR\fR
+.RS 4
+An arbitrary absolute path\&. Available since 0\&.3\&.
+.RE
+.PP
+\fB~/\fR\fB\fIpath\fR\fR
+.RS 4
+An arbitrary path relative to the home directory\&. Available since 0\&.3\&.
+.RE
+.PP
+\fB~\fR
+.RS 4
+The same as
+\fBhome\fR\&. Available since 1\&.10\&. For better compatibility with older Flatpak versions, prefer to write this as
+\fBhome\fR\&.
+.RE
+.PP
+One of the above followed by \fB:ro\fR
+.RS 4
+Make the given directory available read\-only\&.
+.RE
+.PP
+One of the above followed by \fB:rw\fR
+.RS 4
+Make the given directory available read/write\&. This is the default\&.
+.RE
+.PP
+One of the above followed by \fB:create\fR
+.RS 4
+Make the given directory available read/write, and create it if it does not already exist\&.
+.RE
+.sp
+.RE
+.PP
+\fBpersistent\fR (list)
+.RS 4
+List of homedir\-relative paths to make available at the corresponding path in the per\-application home directory, allowing the locations to be used for persistent data when the application does not have access to the real homedir\&. For instance making "\&.myapp" persistent would make "~/\&.myapp" in the sandbox a bind mount to "~/\&.var/app/org\&.my\&.App/\&.myapp", thus allowing an unmodified application to save data in the per\-application location\&. Available since 0\&.3\&.
+.RE
+.PP
+\fBfeatures\fR (list)
+.RS 4
+List of features available or unavailable to the application, currently from the following list:
+.PP
+\fBdevel\fR
+.RS 4
+Allow system calls used by development\-oriented tools such as
+\fBperf\fR,
+\fBstrace\fR
+and
+\fBgdb\fR\&. Available since 0\&.6\&.10\&.
+.RE
+.PP
+\fBmultiarch\fR
+.RS 4
+Allow running multilib/multiarch binaries, for example
+i386
+binaries in an
+x86_64
+environment\&. Available since 0\&.6\&.12\&.
+.RE
+.PP
+\fBbluetooth\fR
+.RS 4
+Allow the application to use bluetooth (AF_BLUETOOTH) sockets\&. Note, for bluetooth to fully work you must also have network access\&. Available since 0\&.11\&.8\&.
+.RE
+.PP
+\fBcanbus\fR
+.RS 4
+Allow the application to use canbus (AF_CAN) sockets\&. Note, for this work you must also have network access\&. Available since 1\&.0\&.3\&.
+.RE
+.PP
+\fBper\-app\-dev\-shm\fR
+.RS 4
+Share a single instance of
+/dev/shm
+between all instances of this application run by the same user ID, including sub\-sandboxes\&. If the application has the
+\fBshm\fR
+device permission in its
+\fBdevices\fR
+list, then this feature flag is ignored\&. Available since 1\&.12\&.0\&.
+.RE
+.sp
+A feature can be prefixed with
+\fB!\fR
+to indicate the absence of that feature, for example
+\fB!devel\fR
+if development and debugging are not allowed\&.
+.sp
+This option supports conditional permissions\&. See
+Conditional Permissions
+for details on how to allow features based conditionally on runtime conditions\&.
+.RE
+.PP
+\fBunset\-environment\fR (list)
+.RS 4
+A list of names of environment variables to unset\&. Note that environment variables to set to a value (possibly empty) appear in the [Environment] group instead\&.
+.RE
+.SS "[Instance]"
+.PP
+This group only appears in
+/\&.flatpak\-info
+for a running app, and not in the metadata files written by application authors\&. It is filled in by Flatpak itself\&.
+.PP
+\fBinstance\-id\fR (string)
+.RS 4
+The ID of the running instance\&. This number is used as the name of the directory in
+\fBXDG_RUNTIME_DIR\fR/\&.flatpak
+where Flatpak stores information about this instance\&.
+.RE
+.PP
+\fBinstance\-path\fR (string)
+.RS 4
+The absolute path on the host system of the app\*(Aqs persistent storage area in
+$HOME/\&.var\&.
+.RE
+.PP
+\fBapp\-path\fR (string)
+.RS 4
+The absolute path on the host system of the app\*(Aqs app files, as mounted at
+/app
+inside the container\&. Available since 0\&.6\&.10\&.
+.sp
+Since 1\&.12\&.0, if
+\fBflatpak run\fR
+was run with the
+\fB\-\-app\-path\fR
+option, this key gives the absolute path of whatever files were mounted on
+/app, even if that differs from the app\*(Aqs normal app files\&.
+.sp
+If
+\fBflatpak run\fR
+was run with
+\fB\-\-app\-path=\fR
+(resulting in an empty directory being mounted on
+/app), the value is set to the empty string\&.
+.RE
+.PP
+\fBoriginal\-app\-path\fR (string)
+.RS 4
+If
+\fBflatpak run\fR
+was run with the
+\fB\-\-app\-path\fR
+option, this key gives the absolute path of the app\*(Aqs original files, as mounted at
+/run/parent/app
+inside the container\&. Available since 1\&.12\&.0\&.
+.sp
+If this key is missing, the app files are given by
+\fBapp\-path\fR\&.
+.RE
+.PP
+\fBapp\-commit\fR (string)
+.RS 4
+The commit ID of the application that is running\&. The filename of a deployment of this commit can be found in
+\fBoriginal\-app\-path\fR
+if present, or
+\fBapp\-path\fR
+otherwise\&.
+.RE
+.PP
+\fBapp\-extensions\fR (list of strings)
+.RS 4
+A list of app extensions that are mounted into the running instance\&. The format for each list item is
+\fBEXTENSION_ID=COMMIT\fR\&. If
+\fBoriginal\-app\-path\fR
+is present, the extensions are mounted below
+/run/parent/app; otherwise, they are mounted below
+/app\&.
+.RE
+.PP
+\fBbranch\fR (string)
+.RS 4
+The branch of the app, for example
+stable\&. Available since 0\&.6\&.10\&.
+.RE
+.PP
+\fBarch\fR (string)
+.RS 4
+The architecture of the running instance\&.
+.RE
+.PP
+\fBflatpak\-version\fR (string)
+.RS 4
+The version number of the Flatpak version that ran this app\&. Available since 0\&.6\&.11\&.
+.RE
+.PP
+\fBruntime\-path\fR (string)
+.RS 4
+The absolute path on the host system of the app\*(Aqs runtime files, as mounted at
+/usr
+inside the container\&. Available since 0\&.6\&.10\&.
+.sp
+Since 1\&.12\&.0, if
+\fBflatpak run\fR
+was run with the
+\fB\-\-usr\-path\fR
+option, this key gives the absolute path of whatever files were mounted on
+/usr, even if that differs from the app\*(Aqs normal runtime files\&.
+.RE
+.PP
+\fBoriginal\-runtime\-path\fR (string)
+.RS 4
+If
+\fBflatpak run\fR
+was run with the
+\fB\-\-runtime\-path\fR
+option, this key gives the absolute path of the app\*(Aqs original runtime, as mounted at
+/run/parent/usr
+inside the container\&. Available since 1\&.12\&.0\&.
+.sp
+If this key is missing, the runtime files are given by
+\fBruntime\-path\fR\&.
+.RE
+.PP
+\fBruntime\-commit\fR (string)
+.RS 4
+The commit ID of the runtime that is used\&. The filename of a deployment of this commit can be found in
+\fBoriginal\-runtime\-path\fR
+if present, or
+\fBruntime\-path\fR
+otherwise\&.
+.RE
+.PP
+\fBruntime\-extensions\fR (list of strings)
+.RS 4
+A list of runtime extensions that are mounted into the running instance\&. The format for each list item is
+\fBEXTENSION_ID=COMMIT\fR\&. If
+\fBoriginal\-app\-path\fR
+is present, the extensions are mounted below
+/run/parent/usr; otherwise, they are mounted below
+/usr\&.
+.RE
+.PP
+\fBextra\-args\fR (string)
+.RS 4
+Extra arguments that were passed to flatpak run\&.
+.RE
+.PP
+\fBsandbox\fR (boolean)
+.RS 4
+Whether the
+\fB\-\-sandbox\fR
+option was passed to flatpak run\&.
+.RE
+.PP
+\fBbuild\fR (boolean)
+.RS 4
+Whether this instance was created by flatpak build\&.
+.RE
+.PP
+\fBsession\-bus\-proxy\fR (boolean)
+.RS 4
+True if this app cannot access the D\-Bus session bus directly (either it goes via a proxy, or it cannot access the session bus at all)\&. Available since 0\&.8\&.0\&.
+.RE
+.PP
+\fBsystem\-bus\-proxy\fR (boolean)
+.RS 4
+True if this app cannot access the D\-Bus system bus directly (either it goes via a proxy, or it cannot access the system bus at all)\&. Available since 0\&.8\&.0\&.
+.RE
+.SS "[Session Bus Policy]"
+.PP
+If the
+\fBsockets\fR
+key is not allowing full access to the D\-Bus session bus, then flatpak provides filtered access\&.
+.PP
+The default policy for the session bus only allows the application to own its own application ID, its subnames and its own application ID as a subname of
+\fBorg\&.mpris\&.MediaPlayer2\fR\&. For instance if the app is called
+\fBorg\&.my\&.App\fR, it can only own
+\fBorg\&.my\&.App\fR,
+\fBorg\&.my\&.App\&.*\fR
+and
+\fBorg\&.mpris\&.MediaPlayer2\&.org\&.my\&.App\fR\&. It is only allowed to talk to names matching those patterns, plus the bus itself (\fBorg\&.freedesktop\&.DBus\fR) and the portal APIs (bus names of the form
+\fBorg\&.freedesktop\&.portal\&.*\fR)\&.
+.PP
+Additionally the app is always allowed to reply to messages sent to it, and emit broadcast signals (but these will not reach other sandboxed apps unless they are allowed to talk to your app\&.
+.PP
+If the
+\fB[Session Bus Policy]\fR
+group is present, it provides policy for session bus access\&.
+.PP
+Each key in this group has the form of a D\-Bus bus name or prefix thereof, for example
+\fBorg\&.gnome\&.SessionManager\fR
+or
+\fBorg\&.freedesktop\&.portal\&.*\fR\&.
+.PP
+The possible values for an entry are the following, in increasing order of access\&. Each value implies all the access from any lower values:
+.PP
+\fBnone\fR
+.RS 4
+The bus name is invisible to the application\&. Available since 0\&.2\&.
+.RE
+.PP
+\fBsee\fR
+.RS 4
+The bus name can be enumerated by the application\&. Available since 0\&.2\&.
+.RE
+.PP
+\fBtalk\fR
+.RS 4
+The application can send messages to, and receive replies and signals from, the bus name\&. Available since 0\&.2\&.
+.RE
+.PP
+\fBown\fR
+.RS 4
+The application can own the bus name\&. Available since 0\&.2\&.
+.RE
+.SS "[System Bus Policy]"
+.PP
+If the
+\fBsockets\fR
+key is not allowing full access to the D\-Bus system bus, then flatpak does not make the system bus available unless the
+\fB[System Bus Policy]\fR
+group is present and provides a policy for filtered access\&. Available since 0\&.2\&.
+.PP
+Entries in this group have the same form as for the
+\fB[Session Bus Policy]\fR
+group\&. However, the app has no permissions by default\&.
+.SS "[Environment]"
+.PP
+The [Environment] group specifies environment variables to set when running the application\&. Available since 0\&.3\&.
+.PP
+Entries in this group have the form
+\fBVAR=VALUE\fR
+where
+\fBVAR\fR
+is the name of an environment variable to set\&.
+.PP
+Note that environment variables can also be unset (removed from the environment) by listing them in the
+\fBunset\-environment\fR
+entry of the [Context] group\&.
+.SS "[Extension NAME]"
+.PP
+Runtimes and applications can define extension points, which allow optional, additional runtimes to be mounted at a specified location inside the sandbox when they are present on the system\&. Typical uses for extension points include translations for applications, or debuginfo for sdks\&. The name of the extension point is specified as part of the group heading\&. Since 0\&.11\&.4, the name may optionally include a tag in the NAME in the name@tag ref syntax if you wish to use different configurations (eg, versions) of the same extension concurrently\&. The "tag" is effectively ignored, but is necessary in order to allow the same extension name to be specified more than once\&.
+.PP
+\fBdirectory\fR (string)
+.RS 4
+The relative path at which the extension will be mounted in the sandbox\&. If the extension point is for an application, the path is relative to
+/app, otherwise it is relative to
+/usr\&. This key is mandatory\&. Available since 0\&.1\&.
+.RE
+.PP
+\fBversion\fR (string)
+.RS 4
+The branch to use when looking for the extension\&. If this is not specified, it defaults to the branch of the application or runtime that the extension point is for\&. Available since 0\&.4\&.1\&.
+.RE
+.PP
+\fBversions\fR (string)
+.RS 4
+The branches to use when looking for the extension\&. If this is not specified, it defaults to the branch of the application or runtime that the extension point is for\&. Available since 0\&.9\&.1, and backported to the 0\&.8\&.x branch in 0\&.8\&.4\&.
+.RE
+.PP
+\fBadd\-ld\-path\fR (string)
+.RS 4
+A path relative to the extension point directory that will be appended to LD_LIBRARY_PATH\&. Available since 0\&.9\&.1, and backported to the 0\&.8\&.x branch in 0\&.8\&.3\&.
+.RE
+.PP
+\fBmerge\-dirs\fR (string)
+.RS 4
+A list of relative paths of directories below the extension point directory that will be merged\&. Available since 0\&.9\&.1, and backported to the 0\&.8\&.x branch in 0\&.8\&.3\&.
+.RE
+.PP
+\fBdownload\-if\fR (string)
+.RS 4
+A condition that must be true for the extension to be auto\-downloaded\&. As of 1\&.1\&.1 this supports multiple conditions separated by semi\-colons\&.
+.sp
+These are the supported conditions:
+.PP
+\fBactive\-gl\-driver\fR
+.RS 4
+Is true if the name of the active GL driver matches the extension point basename\&. Available since 0\&.9\&.1, and backported to the 0\&.8\&.x branch in 0\&.8\&.3\&.
+.RE
+.PP
+\fBactive\-gtk\-theme\fR
+.RS 4
+Is true if the name of the current GTK theme (via org\&.gnome\&.desktop\&.interface GSetting) matches the extension point basename\&. Added 0\&.10\&.1\&.
+.RE
+.PP
+\fBhave\-intel\-gpu\fR
+.RS 4
+Is true if the i915 kernel module is loaded\&. Added 0\&.10\&.1\&.
+.RE
+.PP
+\fBhave\-kernel\-module\-*\fR
+.RS 4
+Is true if the suffix (case\-sensitive) is found in
+/proc/modules\&. For example
+have\-kernel\-module\-nvidia\&. Added 1\&.13\&.1\&.
+.RE
+.PP
+\fBon\-xdg\-desktop\-*\fR
+.RS 4
+Is true if the suffix (case\-insensitively) is in the
+XDG_CURRENT_DESKTOP
+env var\&. For example
+on\-xdg\-desktop\-GNOME\-classic\&. Added 1\&.1\&.1\&.
+.RE
+.RE
+.PP
+\fBautoprune\-unless\fR (string)
+.RS 4
+A condition that must be false for the extension to be considered unused when pruning\&. For example,
+\fBflatpak uninstall \-\-unused\fR
+and
+\fBflatpak update\fR
+use this information\&. The only currently recognized value is active\-gl\-driver, which is true if the name of the active GL driver matches the extension point basename\&. Available since 0\&.11\&.8\&.
+.RE
+.PP
+\fBenable\-if\fR (string)
+.RS 4
+A condition that must be true for the extension to be enabled\&. As of 1\&.1\&.1 this supports multiple conditions separated by semi\-colons\&. See
+\fBdownload\-if\fR
+for available conditions\&.
+.RE
+.PP
+\fBsubdirectory\-suffix\fR (string)
+.RS 4
+A suffix that gets appended to the directory name\&. This is very useful when the extension point naming scheme is "reversed"\&. For example, an extension point for GTK+ themes would be /usr/share/themes/$NAME/gtk\-3\&.0, which could be achieved using subdirectory\-suffix=gtk\-3\&.0\&. Available since 0\&.9\&.1, and backported to the 0\&.8\&.x branch in 0\&.8\&.3\&.
+.RE
+.PP
+\fBsubdirectories\fR (boolean)
+.RS 4
+If this key is set to true, then flatpak will look for extensions whose name is a prefix of the extension point name, and mount them at the corresponding name below the subdirectory\&. Available since 0\&.1\&.
+.RE
+.PP
+\fBno\-autodownload\fR (boolean)
+.RS 4
+Whether to automatically download extensions matching this extension point when updating or installing a \*(Aqrelated\*(Aq application or runtime\&. Available since 0\&.6\&.7\&.
+.RE
+.PP
+\fBlocale\-subset\fR (boolean)
+.RS 4
+If set, then the extensions are partially downloaded by default, based on the currently configured locales\&. This means that the extension contents should be a set of directories with the language code as name\&. Available since 0\&.9\&.13 (and 0\&.6\&.6 for any extensions called *\&.Locale)
+.RE
+.PP
+\fBautodelete\fR (boolean)
+.RS 4
+Whether to automatically delete extensions matching this extension point when deleting a \*(Aqrelated\*(Aq application or runtime\&. Available since 0\&.6\&.7\&.
+.RE
+.PP
+\fBcollection\-id\fR (string)
+.RS 4
+The ID of the collection that this extension point belongs to\&. If this is unspecified, it defaults to the collection ID of the application or runtime that the extension point is for\&. Currently, extension points must be in the same collection as the application or runtime that they are for\&. Available since 0\&.99\&.1\&.
+.RE
+.SS "[ExtensionOf]"
+.PP
+This optional group may be present if the runtime is an extension\&.
+.PP
+\fBref\fR (string)
+.RS 4
+The ref of the runtime or application that this extension belongs to\&. Available since 0\&.9\&.1\&.
+.RE
+.PP
+\fBruntime\fR (string)
+.RS 4
+The runtime this extension will be inside of\&. If it is an app extension, this is the app\*(Aqs runtime; otherwise, this is identical to ref, without the runtime/ prefix\&. Available since 1\&.5\&.0\&.
+.RE
+.PP
+\fBpriority\fR (integer)
+.RS 4
+The priority to give this extension when looking for the best match\&. Default is 0\&. Available since 0\&.9\&.1, and backported to the 0\&.8\&.x branch in 0\&.8\&.3\&.
+.RE
+.PP
+\fBtag\fR (string)
+.RS 4
+The tag name to use when searching for this extension\*(Aqs mount point in the parent flatpak\&. Available since 0\&.11\&.4\&.
+.RE
+.SS "[Extra Data]"
+.PP
+This optional group may be present if the runtime or application uses extra data that gets downloaded separately\&. The data in this group gets merged into the repository summary, with the xa\&.extra\-data\-sources key\&.
+.PP
+If multiple extra data sources are present, their uri, size and checksum keys are grouped together by using the same suffix\&. If only one extra data source is present, the suffix can be omitted\&.
+.PP
+\fBNoRuntime\fR (boolean)
+.RS 4
+Whether to mount the runtime while running the /app/bin/apply_extra script\&. Defaults to true, i\&.e\&. not mounting the runtime\&. Available since 0\&.9\&.1, and backported to the 0\&.8\&.x branch in 0\&.8\&.4\&.
+.RE
+.PP
+\fBuri\fR\fB\fIX\fR\fR (string)
+.RS 4
+The uri for extra data source
+\fIX\fR\&. The only supported uri schemes are http and https\&. Available since 0\&.6\&.13\&.
+.RE
+.PP
+\fBsize\fR\fB\fIX\fR\fR (integer)
+.RS 4
+The size for extra data source
+\fIX\fR\&. Available since 0\&.6\&.13\&.
+.RE
+.PP
+\fBchecksum\fR\fB\fIX\fR\fR (string)
+.RS 4
+The sha256 sum for extra data source
+\fIX\fR\&. Available since 0\&.6\&.13\&.
+.RE
+.SS "[Policy SUBSYSTEM]"
+.PP
+Subsystems can define their own policies to be placed in a group whose name has this form\&. Their values are treated as lists, in which items can have their meaning negated by prepending ! to the value\&. They are not otherwise parsed by Flatpak\&. Available since 0\&.6\&.13\&.
+.SS "[USB Devices]"
+.PP
+USB devices can be enumerable or hidden by the USB portal as specified by the keys in this group\&. The vendor and product ids are validated by Flatpak, but aren\*(Aqt otherwise used or parsed\&. This merely grant the permission to enumerate USB device for use by the portal\&. This does give access to the devices\&. Available since 1\&.15\&.11\&.
+.PP
+\fBenumerable\-devices\fR (string list)
+.RS 4
+List of enumerable USB devices\&. Each element is the same syntax the arguments to `\-\-usb`\&. Available since 1\&.15\&.11\&.
+.RE
+.PP
+\fBhidden\-devices\fR (string list)
+.RS 4
+List of hidden USB devices, i\&.e\&. to remove the enumerable devices list\&. Each element is the same syntax the arguments to `\-\-nousb`\&. Hidden devices take precedence over enumerable devices\&. Available since 1\&.15\&.11\&.
+.RE
+.SH "مثال (EXAMPLE)"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[Application]
+name=org\&.gnome\&.Calculator
+runtime=org\&.gnome\&.Platform/x86_64/3\&.20
+sdk=org\&.gnome\&.Sdk/x86_64/3\&.20
+command=gnome\-calculator
+
+[Context]
+shared=network;ipc;
+sockets=x11;wayland;
+filesystems=xdg\-run/dconf;~/\&.config/dconf:ro;
+
+[Session Bus Policy]
+ca\&.desrt\&.dconf=talk
+
+[Environment]
+DCONF_USER_CONFIG_DIR=\&.config/dconf
+
+[USB Devices]
+enumerable\-devices=0fd9:*;
+hidden\-devices=0fd9:0063;
+
+[Extension org\&.gnome\&.Calculator\&.Locale]
+directory=share/runtime/locale
+subdirectories=true
+
+[Extension org\&.gnome\&.Calculator\&.Debug]
+directory=lib/debug
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Example using conditional permissions to support fallback from Wayland to X11:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[Application]
+name=org\&.example\&.App
+runtime=org\&.gnome\&.Platform/x86_64/3\&.20
+sdk=org\&.gnome\&.Sdk/x86_64/3\&.20
+
+[Context]
+shared=network;ipc;
+sockets=wayland;x11;if:x11:!has\-wayland;
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+In this example, the application will always have access to the Wayland socket if there the app runs in a Wayland session\&. The X11 socket only is available if the app does not run in a wayland session (\fB!has\-wayland\fR)\&.
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBflatpak\fR(1),
+\fBflatpak-run\fR(1),
+\fBflatpak-override\fR(1)
+.SH "نکات (NOTES)"
+.IP " 1." 4
+openat2()
+.RS 4
+\%https://man7.org/linux/man-pages/man2/openat2.2.html
+.RE
+.IP " 2." 4
+steam-runtime-tools
+.RS 4
+\%https://gitlab.steamos.cloud/steamrt/steam-runtime-tools/-/blob/65adfdd5fc812aeb5f33986755f6ff72c9612afa/steam-runtime-tools/resolve-in-sysroot.c
+.RE
+.IP " 3." 4
+freedesktop.org special directories
+.RS 4
+\%https://www.freedesktop.org/wiki/Software/xdg-user-dirs/
+.RE
+.IP " 4." 4
+freedesktop.org Base Directory Specification
+.RS 4
+\%https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html
+.RE

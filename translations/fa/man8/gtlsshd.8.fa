@@ -1,0 +1,181 @@
+.TH gtlsshd 8 01/02/19  "Server for shell over TLS"
+
+.SH "نام (NAME)"
+gtlsshd \- Server for shell over TLS
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.B gtlsshd [options]
+
+.SH "توضیحات (DESCRIPTION)"
+The
+.BR gtlsshd
+program receives connections from gtlssh, authenticates the
+connections, and connects them to a shell or a program as requested.
+
+.BR gtlsshd
+will listen on both SCTP and TCP sockets unless told otherwise.
+
+.BR gtlsshd
+uses openssl public key certificate authentication both
+directions.  When something connections, it uses standard SSL handling
+to validate itself to the user with the given key and certificate
+files.
+
+On SSL does its job, it then runs an authentication protocol for the
+user on top of the SSL connection.  The user sends the username, and
+gtlsshd will use the $HOME/.gtlssh/allowed_certs directory to
+authenticate a certificate the user presents.  If the user doesn't
+have a certificate that matches the presented certificate,
+.BR gtlsshd
+will attempt a normal password login if that is enabled.
+.SH WINDOWS HACKS
+See "WINDOWS HACKS" in the gtlssh-keygen.1 man page for information
+about special windows configuration.
+.SH TWO-FACTOR AUTHENTICATION
+.BR gtlsshd
+supports two-factor authentication in a number of ways.  The certauth
+gensio supports sending a second authentication token, gtlsshd will
+pick that up and use it if PAM asks for it.  If it's not there but PAM
+asks for it, it will interactively prompt the user for the token
+unless
+.I \-\-nointeractive
+is specified.
+
+This requires, of course, proper PAM setup.  It also direclty supports
+second authentication tokens with certificates.  You can specify a
+different PAM authentication script for logins done with certificates
+using
+.I \-\-pam\-cert\-auth
+to allow a second factor to be added for just certificate
+authentications.
+
+You can request that the other end prompt for a second-factor
+authentication token and send it along with the password by adding the
+.I \-\-do\-2fa
+option.  This will cause the other end to always ask for a second
+factor.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.I \-p|\-\-port port
+Use the given port instead of the default port.
+.TP
+.I \-h|\-\-keyfile file
+Use the given file for the key instead of the default.  Defaults to
+sysconfidr/gtlssh/gtlsshd.key.  On unix sysconfdir is generally /etc.
+On Windows it is one directory up from the executable with /etc appended.
+.TP
+.I \-c|\-\-certfile file
+Set the certificate to use.  Defaults to sysconfdir/gtlssh/gtlsshd.crt.
+On unix sysconfdir is generally /etc.  On Windows it is one directory up
+from the executable with /etc appended.
+.TP
+.I \-\-permit\-root
+Allow root logins.  Otherwise root or uid=0 is denied.
+.TP
+.I \-\-allow\-password
+Allow password logins.  By default only certificate-based logins
+are allowed.  Passwords are much less secure than certificate
+logins, so their use is discouraged.
+.TP
+.I \-\-require\-password
+Require a password in addition to certificate logins.  This is
+primarily for Windows systems that really need a password to be able
+to log in properly.
+
+On Unix system, you generally use PAM for this, but if you set up PAM
+to require passwords even with certificates, you should also set this
+option so the password is transferred as part of the authentication
+protocol and not interactively.
+.TP
+.I \-\-do\-2fa
+Enable 2-factor authentication.  This means that 2-factor
+authentication is enabled in PAM for gtlssh.  This will cause the
+client end to request 2-factor data and transmit it over along with
+the password.  During authentication, it is expected that PAM will
+request two authentication tokens and the first will be the password
+(if certificate failed).  Note that this is not required to do
+2-factor auth, but is useful to allow gtlssh to read the 2-factor data
+and transfer it as part of the login data.
+.TP
+.I \-\-pam\-cert\-auth <name>
+If the connection is authorized with a certificate, still do a PAM
+authentication, but use the given name as the program name for PAM to
+use to find the rules.  This will allow 2-factor auth to be done on a
+certificate login, as the given set of rules can be written to only
+do the second factor authentication part.
+.TP
+.I \-\-pam\-service <name>
+Use the given name for the pam service, instead of using the program's name.
+.TP
+.I \-\-use\-login, \-\-no\-use\-login
+Use or do not use the login program to log the user in.  Some systems
+work better with login, others work fine to directly execute the
+shell.  The default depends on the system and should be best.
+.TP
+.I \-\-oneshot
+Do not fork the program at the beginning or when a connection is
+received.  This allows easier debugging of the program.
+.TP
+.I \-\-nodaemon
+Do not daemonize (double fork) the program.
+.TP
+.I \-\-nointeractive
+Disable interactive logins.  All authentication information must be
+passed in via the protocol.  This is different than gtlssh's view of
+interactive, which affects how I/O is done.  This only affects
+prompting for credentials interactively.
+.TP
+.I \-\-sctp
+Enable SCTP support.
+.TP
+.I \-\-notcp
+Disable TCP support
+.TP
+.I \-\-other_acc <accepter>
+Enable the given accepter to receive connections for gtlsshd.  This
+does not disable TCP or SCTP.
+.TP
+.I \-P|\-\-pidfile file
+Create a standard pidfile using the given filename.
+.TP
+.I \-4
+Do IPv4 only.
+.TP
+.I \-6
+Do IPv6 only.
+.TP
+.I \-m, \-\-enable\-mdns
+Enable MDNS service for this device.  This allows gtlssh to find this with
+"gtlssh -m <name>".
+.TP
+.I \-\-mdns\-name <name>
+Sets the name used for finding this connection with mdns.  The default
+is the first part of the hostname, before the first '.', if any.
+.TP
+.I \-\-startup\-retries
+The number of times gtlsshd will retry creating the accepter.  It
+retries once a second. Generally, if creating the accepter fails, that
+means the nameserver is not yet operational and converting the local
+name to an address fails, so this can help with the resolver not being
+ready when gtlsshd starts.  Default is 30.
+.TP
+.I \-d|\-\-debug
+Generate debugging output.  Specifying more than once increases the output.
+This also causes syslog output to go to standard error.
+.TP
+.I \-\-version
+Print the version number and exit.
+.TP
+.I \-h|\-\-help
+Help output
+
+.SH "همچنین ببینید (SEE ALSO)"
+gensio(5), gtlssh(1), gtlssh-keygen(1)
+
+.SH "KNOWN PROBLEMS"
+None.
+
+.SH "نویسنده (AUTHOR)"
+.PP
+Corey Minyard <minyard@acm.org>

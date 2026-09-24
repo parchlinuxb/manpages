@@ -1,0 +1,207 @@
+.\"
+.\"  ipguard.8
+.\"
+.\" Copyright (c) 2010 SeaD <sead at deep.perm.ru>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"##  $Id: ipguard.8,v 1.15 2010/07/12 03:46:52 sead Exp $
+.\"
+.TH ipguard 8
+
+.SH "نام (NAME)"
+.PP
+ipguard \- tool designed to protect Ethernet LAN IP address space by ARP spoofing.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+.B ipguard
+[\-h] [\-ajgrxziovd]
+[\-f \fIethers\fP]
+[\-l \fIlog\fP]
+[\-p \fIpid\fP]
+[\-m \fImac\fP]
+[\-c \fIfilter\fP]
+[\-u \fIseconds\fP]
+[\-k \fIseconds\fP]
+[\-n \fIfakes\fP]
+[\-t \fImseconds\fP]
+[\-b \fIbuf\fP]
+[\-s \fIuser\fP]
+<\iface>
+
+.SH "توضیحات (DESCRIPTION)"
+.PP
+ipguard listens network for ARP packets. All permitted MAC-IP pairs
+listed in 'ethers' file. If it receives one with MAC-IP pair, which is
+not listed in 'ethers' file, it will send ARP reply with configured
+fake address. This will prevent not permitted host to work properly
+in local ethernet segment.
+
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B \-f | -e " \fIethers\fP"
+Ethers file. Format of `ethers' file described in `ethers.sample' and ethers(5). Default `/etc/ethers'.
+.TP
+.B \-l " \fIlog\fP"
+Log file. Default `/var/log/ipguard_<iface>.log'.
+.TP
+.B \-p " \fIpid\fP"
+Pid file. Default `/var/run/ipguard_<iface>.pid'.
+.TP
+.B \-m " \fImac\fP"
+Fake MAC address. Will be sent in ARP reply as MAC of unlisted computer. Default `de:ad:xx:xx:xx:xx', `x' == random hex number.
+.TP
+.B \-c " \fIfilter\fP"
+PCAP filter expression. Default no filter.
+.TP
+.B \-u " \fIseconds\fP"
+Update ethers interval. Time between checks `ethers' file for changes and rescan if any. Default 0 == no autoupdate.
+.TP
+.B \-k " \fIseconds\fP"
+Periodic regenerate fake MAC address. Default 0 == no regenerate.
+.TP
+.B \-n " \fIfakes\fP"
+Fake replies number. Default 2 replies.
+.TP
+.B \-t " \fImseconds\fP"
+Time between fakes. Default 50 milliseconds.
+.TP
+.B \-b " \fIbuf\fP"
+MAC buffer size. Number of last bad MAC-IP pairs stored in buffer. Default 0 == no buffer.
+.TP
+.B \-s " \fIuser\fP"
+Drop root privileges to user. Default do not drop.
+.TP
+.B \-a
+No address substitution. Like 0.0.0.0 or 00:00:00:00:00:00.
+.TP
+.B \-j
+Disable first MAC-IP pair autodetect from interface.
+.TP
+.B \-g
+Default to grant. Do not block MAC or IP if both not in list.
+.TP
+.B \-r
+Read only. Do not send anything to net. Only listen.
+.TP
+.B \-x
+Duplex mode. Send fake packets not only to pirate but to request for pirate's address too.
+.TP
+.B \-z
+Send broadcast who-has to fix all client ARP tables broked by pirate.
+.TP
+.B \-i
+Hidden mode. Do not block gratuitous ARP packets.
+.TP
+.B \-o
+Promiscuous mode. Enable promiscuous mode. Usually useless.
+.TP
+.B \-v
+Verbose. Some more messages.
+.TP
+.B \-d
+Don't fork. Do not go to background and write all events to STDERR.
+.TP
+.B \-dd
+Debug
+.TP
+.B \-ddd
+Debug more
+.TP
+.B \-h
+Help. Short command line parameters description.
+
+.SH "مثال‌ها (EXAMPLES)"
+.TP
+Normal recommended mode, duplex, broadcast fix, autoupdate /etc/ethers every 5 min:
+.B ipguard -xz -u 300 fxp0
+.TP
+Same but with PCAP filter for only 192.168.1.0/24 network:
+.B ipguard -xz -u 300 -c 'net 192.168.0.0/24' fxp0
+.TP
+Read-only mode and remember last 100 not listed in `ethers' MACs. Useful for initial MAC-IP pairs collection:
+.B ipguard -r -b 100 -f /dev/null rl0
+.TP
+Run ipguard for a while then `killall -USR2 ipguard' and you'll get dump of 100 most recent MAC-IP pairs.
+.TP
+Do not go to background and be more verbose, with test ethers file:
+.B ipguard -vd -f /tmp/ethers my1
+.br
+
+.SH TIPS
+.PP
+First MAC-IP pair in `ethers' always must be self MAC/IP addresses.
+Normally them automatically taken from listening interface.
+But if `-j' option specified then make sure that first pair
+is a source MAC/IP.
+.PP
+If you want to start more than one ipguard on segment for
+redundancy, you must specify same fake MAC address for every
+ipguard and find method to synchronize `ethers' files.
+
+.SH SIGNALS
+.TP
+.B SIGHUP 
+rescan `ethers' and reopen log file
+.TP
+.B SIGUSR1
+dump some tables and statistics
+.TP
+.B SIGUSR2
+dump new MAC-IP table in ethers(5) format
+
+.SH "فایل‌ها (FILES)"
+.TP
+.B /etc/ethers
+MAC-IP pairs list
+.TP
+.B /var/log/ipguard_<iface>.log
+log file
+.TP
+.B /var/run/ipguard_<iface>.pid
+pid file
+
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+RFC 826, ethers(5), tcpdump(1), pcap(3), libnet
+
+.SH "اشکالات (BUGS)"
+.PP
+Do not use wildcard IP 0.0.0.0 in `ethers' with -x option. Legal clients will be banned. Discovered by irix.
+.PP
+Strange bug with libnet_get_hwaddr() isn't working on OpenBSD 4.0 discovered by irix. Use -j option.
+.PP
+ipguard will not prevent changing MAC address along with IP by pirate.
+.PP
+Signals HUP, USR1 or USR2 works only when received new ARP packet. It's not a bug, it's a feature.
+.PP
+When using -s <user> option ipguard will drop root privileges after creating log and pid files. So it will not delete or reopen these files.
+.PP
+Probably too many command line options. Another one or two and i'll put them all into /etc/ethers as comments.
+.PP
+ipguard was written as simple small tool and i haven't any plans for support of external databases SQL/LDAP/Whatever. Use scripts.
+
+.SH "نویسنده (AUTHOR)"
+.PP
+SeaD <sead at deep.perm.ru>

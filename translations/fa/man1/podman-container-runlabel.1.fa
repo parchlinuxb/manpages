@@ -1,0 +1,130 @@
+.nh
+.TH podman-container-runlabel 1
+.SH "نام (NAME)"
+podman-container-runlabel \- Execute a command as described by a container-image label
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman container runlabel\fP [\fIoptions\fP] \fIlabel\fP \fIimage\fP [\fIarg...\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+\fBpodman container runlabel\fP reads the specified \fBlabel\fR of the \fBimage\fR and executes it as command on the host.  If the label does not exist, Podman exits with an error.  Additional arguments are appended to the command.
+
+.PP
+Historically, container images describe the contents (e.g., layers) and how a container runtime (e.g., crun(1) or runc(1)) executes the container.  For instance, an image may set the environment and the command in its configuration.  However, a container image cannot directly specify how a container engine such as Podman executes it.  For instance, an image configuration does not include information about log drivers, namespaces, or which capabilities it needs to run correctly.
+
+.PP
+\fBpodman container runlabel\fR addresses the limitation of container images in a simple yet efficient way.  Podman reads the contents of the label and interpret it as a command that is executed on the host.  This way an image can describe exactly how it is executed by Podman.  For instance, a label with the content \fB/usr/bin/podman run -d --pid=host --privileged \\${IMAGE}\fR instructs the image to be executed in a detached, privileged container that is using the PID namespace of the host.  This lifts the self-description of a container image from "what" to "how".
+
+.PP
+Note that the \fBrunlabel\fR command is intended to be run in trusted environments exclusively.  Using the command on untrusted images is not recommended.
+
+.SH VARIABLES
+The contents of a label may refer to the following variables which is substituted while processing the label.
+
+.PP
+\fBIMAGE\fP
+The name of the image.  When executing \fBpodman container runlabel label fedora\fR the \fBIMAGE\fR variable is replaced with \fBfedora\fR\&.  Valid formats are \fBIMAGE\fR, \fB$IMAGE\fR, \fB${IMAGE}\fR and \fB=IMAGE\fR\&.
+
+.PP
+\fBNAME\fP
+As specified by the \fB--name\fR option.  The format is identical to the one of the IMAGE attribute.
+
+.PP
+\fBPWD\fP
+Will be replaced with the current working directory.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--authfile\fP=\fIpath\fP
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fB--cert-dir\fP=\fIpath\fP
+Use certificates at \fIpath\fP (*\&.crt, *\&.cert, *\&.key) to connect to the registry. (Default: /etc/containers/certs.d)
+For details, see \fBcontainers-certs.d(5)\fP\&.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--creds\fP=\fI[username[:password]]\fP
+The [username[:password]] to use to authenticate with the registry, if required.
+If one or both values are not supplied, a command line prompt appears and the
+value can be entered. The password is entered without echo.
+
+.PP
+Note that the specified credentials are only used to authenticate against
+target registries.  They are not used for mirrors or when the registry gets
+rewritten (see \fBcontainers-registries.conf(5)\fR); to authenticate against those
+consider using a \fBcontainers-auth.json(5)\fR file.
+
+.SS \fB--display\fP
+Display the label's value of the image having populated its environment variables.  The runlabel command is not executed if --display is specified.
+
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement
+
+.SS \fB--name\fP, \fB-n\fP=\fIname\fP
+Use this name for creating content for the container.  If not specified, name defaults to the name of the image.
+
+.SS \fB--quiet\fP, \fB-q\fP
+Suppress output information when pulling images
+
+.SS \fB--replace\fP
+If a container exists with the current name, it is stopped, deleted and a new container is created from this image.
+
+.SS \fB--tls-verify\fP
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SH "مثال‌ها (EXAMPLES)"
+Execute the \fBrun\fR label of an image called foobar.
+
+.EX
+$ podman container runlabel run foobar
+.EE
+
+.PP
+Execute the \fBinstall\fR label of an image called foobar with additional arguments.
+
+.EX
+$ podman container runlabel install foobar apples oranges
+.EE
+
+.PP
+Display the contents of the \fBrun\fR label of image foobar.
+
+.EX
+$ podman container runlabel --display run foobar
+.EE
+
+.PP
+Re-run a container using a label that sets a fixed container name. The --replace flag ensures any existing container is removed first.
+
+.EX
+$ podman ps -a
+CONTAINER ID  IMAGE                             COMMAND               CREATED         STATUS                     PORTS       NAMES
+1254c038d892  docker.io/library/busybox:latest  echo Hello from r...  26 seconds ago  Exited (0) 26 seconds ago              test-runlabel
+
+$ podman container runlabel --replace RUN runlabel-test
+Hello from runlabel
+
+$ podman ps -a
+CONTAINER ID  IMAGE                             COMMAND               CREATED        STATUS                    PORTS       NAMES
+28efd9600d0c  docker.io/library/busybox:latest  echo Hello from r...  4 seconds ago  Exited (0) 4 seconds ago              test-runlabel
+
+.EE
+
+.PP
+This command is useful when the label uses a fixed name (e.g., \fB--name mycontainer\fR) and you want to repeatedly run it without manually removing the previous container.
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBcrun(1)\fP, \fBrunc(8)\fP, \fBcontainers-certs.d(5)\fP, \fBcontainers-auth.json(5)\fP, \fBcontainers-registries.conf(5)\fP
+
+.SH "تاریخچه (HISTORY)"
+August 2021, Refinements by Valentin Rothberg (rothberg at redhat dot com)
+
+.PP
+September 2018, Originally compiled by Brent Baude (bbaude at redhat dot com)

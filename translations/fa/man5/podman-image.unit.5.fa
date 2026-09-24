@@ -1,0 +1,216 @@
+'\" t
+.nh
+.TH podman-image.unit 5
+
+.SH "نام (NAME)"
+podman-image.unit \- systemd unit files for managing container image pulls using Podman Quadlet
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fIname\fP\&.image
+
+
+.SH "توضیحات (DESCRIPTION)"
+Image files are named with a \fB\&.image\fR extension and contain a section \fB[Image]\fR describing the
+container image pull command. The generated service is a one-time command that ensures that the image
+exists on the host, pulling it if needed.
+
+.PP
+Using image units allows containers and volumes to depend on images being automatically pulled. This is
+particularly interesting when using special options to control image pulls.
+
+
+.SH USAGE SUMMARY
+The \fB\&.image\fR file is parsed by the \fBpodman-system-generator\fR at boot or reload, generating a systemd
+\fB\&.service\fR that runs \fBpodman image pull\fR\&.
+
+.PP
+A \fB\&.image\fR file can be referenced in a \fB\&.container\fR file's \fBImage=\fR option.
+
+
+.SH "گزینه‌ها (OPTIONS)"
+Valid options for \fB[Image]\fR are listed below:
+
+.TS
+allbox;
+l l 
+l l .
+\fB\fB[Image] options\fP\fP	\fB\fBpodman image pull equivalent\fP\fP
+AllTags=true	--all-tags
+Arch=aarch64	--arch=aarch64
+AuthFile=/etc/registry/auth\&.json	--authfile=/etc/registry/auth\&.json
+CertDir=/etc/registry/certs	--cert-dir=/etc/registry/certs
+ContainersConfModule=/etc/nvd\&.conf	--module=/etc/nvd\&.conf
+Creds=myname:mypassword	--creds=myname:mypassword
+DecryptionKey=/etc/registry\&.key	--decryption-key=/etc/registry\&.key
+GlobalArgs=--log-level=debug	--log-level=debug
+Image=quay\&.io/centos/centos:latest	T{
+podman image pull quay.io/centos/centos:latest
+T}
+ImageTag=quay\&.io/centos/centos:latest	Use this name when resolving \fB\&.image\fR references
+OS=windows	--os=windows
+PodmanArgs=--os=linux	--os=linux
+Policy=always	--policy=always
+Retry=5	--retry=5
+RetryDelay=10s	--retry-delay=10s
+TLSVerify=false	--tls-verify=false
+Variant=arm/v7	--variant=arm/v7
+.TE
+
+.SS \fBAllTags=true\fR
+All tagged images in the repository are pulled.
+
+.PP
+*IMPORTANT: When using the all-tags flag, Podman does not iterate over the search registries in the \fBcontainers-registries.conf(5)\fP but always uses docker.io for unqualified image names.*
+
+.SS \fBArch=ARCH\fR
+Override the architecture, defaults to the host, of the image to be pulled. For example, \fBarm\fR\&.
+Unless overridden, subsequent lookups of the same image in the local storage matches this architecture, regardless of the host.
+
+.SS \fBAuthFile=path\fR
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fBCertDir=path\fR
+Use certificates at \fIpath\fP (*\&.crt, *\&.cert, *\&.key) to connect to the registry. (Default: /etc/containers/certs.d)
+For details, see \fBcontainers-certs.d(5)\fP\&.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fBContainersConfModule=module\fR
+Load the specified containers.conf(5) module.
+
+.PP
+This option can be listed multiple times.
+
+.SS \fBCreds=[username[:password]]\fR
+The [username[:password]] to use to authenticate with the registry, if required.
+If one or both values are not supplied, a command line prompt appears and the
+value can be entered. The password is entered without echo.
+
+.PP
+Note that the specified credentials are only used to authenticate against
+target registries.  They are not used for mirrors or when the registry gets
+rewritten (see \fBcontainers-registries.conf(5)\fR); to authenticate against those
+consider using a \fBcontainers-auth.json(5)\fR file.
+
+.SS \fBDecryptionKey=key[:passphrase]\fR
+The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption is tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
+
+.SS \fBGlobalArgs=\fR
+This key contains a list of arguments passed directly after the \fBpodman\fR command in the generated
+file. It can be used to access Podman features otherwise unsupported by the generator. Since the
+generator is unaware of what unexpected interactions can be caused by these arguments, it is not
+recommended to use this option.
+
+.PP
+The format of this is a space separated list of arguments, which can optionally be individually
+escaped to allow inclusion of whitespace and other control characters.
+
+.PP
+This key can be listed multiple times.
+
+.SS \fBImage=\fR
+The image to pull.
+It is recommended to use a fully qualified image name rather than a short name, both for
+performance and robustness reasons.
+
+.PP
+The format of the name is the same as when passed to \fBpodman pull\fR\&. It supports using
+\fB:tag\fR or digests to guarantee the specific image version.
+
+.SS \fBImageTag=\fR
+The actual Fully Qualified Image Name (FQIN) of the referenced \fBImage\fR\&.
+Only meaningful when the source is a file or directory archive.
+
+.PP
+For example, an image saved into a \fBdocker-archive\fR with the following Podman command:
+
+.PP
+\fBpodman image save --format docker-archive --output /tmp/archive-file.tar quay.io/podman/stable:latest\fR
+
+.PP
+requires setting
+- \fBImage=docker-archive:/tmp/archive-file.tar\fR
+- \fBImageTag=quay.io/podman/stable:latest\fR
+
+.SS \fBOS=os\fR
+Override the OS, defaults to the host, of the image to be pulled. For example, \fBwindows\fR\&.
+Unless overridden, subsequent lookups of the same image in the local storage matches this OS, regardless of the host.
+
+.SS \fBPodmanArgs=\fR
+This key contains a list of arguments passed directly to the end of the \fBpodman\fR command
+in the generated file. It can be used to access Podman features otherwise unsupported
+by the generator. Since the generator is unaware of what unexpected interactions can be
+caused by these arguments, it is not recommended to use this option.
+
+.PP
+The format of this is a space separated list of arguments, which can optionally be individually
+escaped to allow inclusion of whitespace and other control characters.
+
+.PP
+This key can be listed multiple times.
+
+.SS \fBPolicy=always\fR
+Pull image policy. The default is \fBalways\fP\&.
+.IP \(bu 2
+\fBalways\fR: Always pull the image and throw an error if the pull fails.
+.IP \(bu 2
+\fBmissing\fR: Only pull the image if it could not be found in the local containers storage. Throw an error if no image could be found and the pull fails.
+.IP \(bu 2
+\fBnever\fR: Never pull the image; only use the local version. Throw an error if the image is not present locally.
+.IP \(bu 2
+\fBnewer\fR: Pull if the image on the registry is newer than the one in the local containers storage. An image is considered to be newer when the digests are different. Comparing the time stamps is prone to errors. Pull errors are suppressed if a local image was found.
+
+.SS \fBRetry=attempts\fR
+Number of times to retry pulling or pushing images between the registry and
+local storage in case of failure. Default is \fB3\fP\&.
+
+.SS \fBRetryDelay=duration\fR
+Duration of delay between retry attempts when pulling or pushing images between
+the registry and local storage in case of failure. The default is to start at two seconds and then exponentially back off. The delay is used when this value is set, and no exponential back off occurs.
+
+.SS \fBTLSVerify=\fR
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SS \fBVariant=VARIANT\fR
+Use \fIVARIANT\fP instead of the default architecture variant of the container image. Some images can use multiple variants of the arm architectures, such as arm/v5 and arm/v7.
+
+
+.SH "مثال‌ها (EXAMPLES)"
+Basic image pull:
+
+.EX
+[Image]
+Image=quay.io/centos/centos:latest
+.EE
+
+.PP
+Pull from docker archive:
+
+.EX
+[Image]
+Image=docker-archive:/tmp/centos.tar
+ImageTag=quay.io/centos/centos:latest
+.EE
+
+.PP
+Pull with credentials:
+
+.EX
+[Image]
+Image=quay.io/private/image:latest
+Creds=myuser:mypassword
+.EE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+podman-image-pull(1),
+podman-systemd.unit(5),
+systemd.unit(5)

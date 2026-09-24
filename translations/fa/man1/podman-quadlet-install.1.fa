@@ -1,0 +1,108 @@
+.nh
+.TH podman-quadlet-install 1
+.SH "نام (NAME)"
+podman-quadlet-install \- Install a quadlet file or quadlet application
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman quadlet install\fP [\fIoptions\fP] \fIquadlet-path-or-url\fP [\fIfiles-path-or-url\fP]...
+
+.SH "توضیحات (DESCRIPTION)"
+Install a Quadlet file or an application (which may include multiple Quadlet files) for the current user. You can specify Quadlet files as local files or web URLs.
+
+.PP
+This command allows you to:
+
+.EX
+* Install a single Quadlet file, optionally followed by additional non-Quadlet files.
+
+* Specify a directory containing multiple Quadlet files and other non-Quadlet files for installation (for example a config file for a quadlet container).
+
+* Install multiple Quadlets from a single file with the `.quadlets` extension, where each Quadlet is separated by a `---` delimiter. When using multiple quadlets in a single `.quadlets` file, each quadlet section must include a `# FileName=<name>` comment to specify the name for that quadlet.
+.EE
+
+.PP
+Note: An application is a collection of files, quadlet and non-quadlets, that
+need to live together. As such, removing a quadlet that is part of an
+application will remove the entire application. When a quadlet is installed
+from a directory, all files installed from that directory—including both
+quadlet and non-quadlet files—are considered part of a single application.
+
+.PP
+Note: When multiple quadlets are installed from a single \fB\&.quadlets\fR file,
+they are all considered part of the same application only when an application
+name is provided using the \fB--application\fR option.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--application\fP=\fIstring\fP
+You can specify an application name, all files will be installed under a
+directory with the application name. The application name is required when
+specifying a directory path. An application name can't have a quadlet extension
+as suffix. For example \fBfoo.container\fR isn't a valid application name.
+
+.SS \fB--reload-systemd\fP
+Reload systemd after the operation completes (default true).
+In order to disable it users need to manually set the value
+of this flag to \fBfalse\fR\&.
+
+.SS \fB--replace\fP, \fB-r\fP
+Replace the Quadlet installation even if the generated unit file already exists (default false).
+In order to enable it, users need to manually set the value
+of this flag to \fBtrue\fR\&. This flag is used primarily to update an existing unit.
+
+.SH "مثال‌ها (EXAMPLES)"
+Install quadlet from a file.
+
+.EX
+$ podman quadlet install test-service-quadlet.container
+/home/user/.config/containers/systemd/test-service-quadlet.container
+.EE
+
+.PP
+Install quadlet from a dir.
+
+.EX
+$ podman quadlet install --application=foo /home/user/work/quadlet-app/
+/home/user/.config/containers/systemd/myquadlet1.container
+/home/user/.config/containers/systemd/myquadlet2.container
+/install/path/myquadlet1.container
+/install/path/myquadlet2.container
+.EE
+
+.PP
+Install quadlet from a url
+
+.EX
+$ podman quadlet install https://github.com/containers/podman/blob/main/test/e2e/quadlet/basic.container
+/home/user/.config/containers/systemd/basic.container
+.EE
+
+.PP
+Install multiple quadlets from a single .quadlets file
+
+.EX
+$ cat webapp.quadlets
+# FileName=web-server
+[Container]
+Image=nginx:latest
+ContainerName=web-server
+PublishPort=8080:80
+---
+# FileName=app-storage
+[Volume]
+Label=app=webapp
+---
+# FileName=app-network
+[Network]
+Subnet=10.0.0.0/24
+
+$ podman quadlet install webapp.quadlets
+/home/user/.config/containers/systemd/web-server.container
+/home/user/.config/containers/systemd/app-storage.volume
+/home/user/.config/containers/systemd/app-network.network
+.EE
+
+.PP
+Note: Multi-quadlet functionality requires the \fB\&.quadlets\fR file extension. Files with other extensions will only be processed as single quadlets or asset files.
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-quadlet(1)\fP, \fBpodman-systemd.unit(5)\fP

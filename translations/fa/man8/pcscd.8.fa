@@ -1,0 +1,205 @@
+.TH PCSCD 8 "December 2021" Muscle "PC/SC Lite"
+.SH "نام (NAME)"
+pcscd \- PC/SC Smart Card Daemon
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+.SY pcscd
+.OP \-acfTdeCvHSI
+.OP \-\-apdu
+.OP \-\-config dir
+.OP \-\-foreground
+.OP \-\-color
+.OP \-\-debug
+.OP \-\-info
+.OP \-\-error
+.OP \-\-critical
+.OP \-\-force\-reader\-polling
+.OP \-t number
+.OP \-\-max\-thread number
+.OP \-s number
+.OP \-\-max\-card\-handle\-per\-thread number
+.OP \-r number
+.OP \-\-max\-card\-handle\-per\-reader number
+.OP \-\-version
+.OP \-\-hotplug
+.OP \-\-reader\-name\-no\-serial
+.OP \-\-reader\-name\-no\-interface
+.OP \-\-disable-polkit
+.YS
+.
+.SY pcscd
+.B \-h
+.SY pcscd
+.B \-\-help
+.YS
+.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.BR \-a ", " \-\-apdu
+log APDUs and SW using the debug method (see
+.BR \-\-debug ).
+.TP
+.BR \-c ", " \-\-config " \fIdir\fP"
+Specifies the directory \fIdir\fP as an alternate location for
+.IR /etc/reader.conf.d/ .
+The argument can also be a single configuration file (for backward
+compatibility).
+.TP
+.BR \-f ", " \-\-foreground
+Runs pcscd in the foreground and sends log messages to stderr instead of
+syslog(3).
+.TP
+.BR \-T ", " \-\-color
+force use of colored logs.
+.TP
+.BR \-d ", " \-\-debug
+use the lowest log level. Any log message of this level or above will be
+sent to stderr or syslog(3) depending on the use of
+.BR \-\-foreground .
+.TP
+.B \-\-info
+use info log level. This is the default log level.
+.TP
+.BR \-e ", " \-\-error
+use error log level.
+.TP
+.BR \-C ", " \-\-critical
+use critical log level.
+.PP
+The log levels are ordered as: debug < info < error < critical. Use a
+log level \fIl\fP will log this level and all the levels above it.
+.TP
+.B \-\-force\-reader\-polling
+ignore the IFD_GENERATE_HOTPLUG reader capability
+.TP
+.BR \-t ", " \-\-max\-thread " " \fInumber
+maximum number of threads (default 200).
+
+This is the maximum number of clients (SCardEstablishContext) that pcscd
+can handle.
+.TP
+.BR \-s ", " \-\-max\-card\-handle\-per\-thread " " \fInumber
+maximum number of card handle per thread (default: 200).
+
+This is the maximum number of card handle (SCardConnect) per client
+(SCardEstablishContext).
+.TP
+.BR \-r ", " \-\-max\-card\-handle\-per\-reader " " \fInumber
+maximum number of card handle per reader (default: 200)
+
+This is the maximum number of card handle (SCardConnect) per reader.
+.TP
+.BR \-h ", " \-\-help
+Displays information about the pcscd command line
+.TP
+.BR \-v ", " \-\-version
+Displays the program version number
+.TP
+.BR \-H ", " \-\-hotplug
+Ask pcscd to re-read the
+.I /etc/reader.conf.d/my_reader.conf
+files to detect added or removed non-USB readers (serial or PCMCIA).
+.
+.TP
+.BR \-x ", " \-\-auto\-exit
+pcscd will quit after 60 seconds of inactivity after the release of
+the last PC/SC context. This is used when pcscd
+is started on demand by systemd.
+.TP
+.BR \-S ", " \-\-reader\-name\-no\-serial
+Do not include the USB serial number in the reader name.
+.TP
+.BR \-I ", " \-\-reader\-name\-no\-interface
+Do not include the USB interface name in the reader name.
+.TP
+.BR \-\-disable-polkit
+Ignore polkit rules. All accesses are allowed.
+.SH "توضیحات (DESCRIPTION)"
+pcscd is the daemon program for pcsc-lite. It is a resource manager that
+coordinates communications with smart card readers and smart cards and
+cryptographic tokens that are connected to the system.
+.PP
+It allows applications to access smart cards and readers using the
+WinSCard API but without knowing details of the card or reader.
+.PP
+pcscd coordinates the loading of drivers for card readers.
+.
+.SH "SERIAL SMART CARD READER DRIVERS"
+Smart card reader drivers are placed in the
+.I /usr/lib/pcsc/drivers
+directory. Each driver is simply an
+.I .so
+file.  pcscd locates the driver using the
+.I /etc/reader.conf.d/my_reader.conf
+files.  See the
+.BR reader.conf (5)
+manual page for more information.
+.PP
+Some drivers are available at \fIhttps://muscle.apdu.fr/musclecard.com/drivers.html\fP.
+.
+.SH "USB SMART CARD READER DRIVERS"
+USB smart card reader drivers are located in
+.I /usr/lib/pcsc/drivers
+directory as a bundle. You shall NOT add a USB driver in a
+.I /etc/reader.conf.d/my_reader.conf
+file.
+.
+.SH "CONFIGURATION FILE"
+It is possible to set arguments that will be used by pcscd with the
+configuration file
+.I /etc/default/pcscd
+For example you can increase the debug level using:
+.RS
+.EX
+PCSCD_ARGS=--debug
+.EE
+.RE
+.PP
+Or set environment variables like:
+.RS
+.EX
+PCSCLITE_FILTER_IGNORE_READER_NAMES="Twin"
+PCSCLITE_FILTER_EXTEND_READER_NAMES=" $HOSTNAME"
+.EE
+.RE
+.PP
+See
+.UR https://blog.apdu.fr/posts/2021/08/pcsc-lite-configuration-using/
+.UE
+for more details.
+.SH "UDEV USB READER FILTERING (LINUX ONLY)"
+If udev support is enabled, setting the udev property
+.I PCSCLITE_IGNORE=1
+on a USB device will cause that reader to be ignored. For example
+to ignore any reader attached to USB port 3 of bus 1, add
+the following to a
+.I foobar.rules
+file in the
+.I /etc/udev/rules.d/
+directory:
+.RS
+.EX
+ACTION!="remove|unbind", SUBSYSTEM=="usb", KERNEL=="1-3", ENV{PCSCLITE_IGNORE}="1"
+.EE
+.RE
+.SH "فایل‌ها (FILES)"
+.I /etc/default/pcscd
+: daemon configuration file
+.PP
+.I /etc/reader.conf.d/*
+: Serial reader configuration files
+.PP
+.I /run/pcscd/pcscd.pid
+: process id of the running pcscd
+.PP
+.I /usr/lib/pcsc/drivers/
+: directory containing bundles for USB drivers
+.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR reader.conf (5),
+.BR syslog (3),
+.BR udev (7)
+.
+.SH "نویسندگان (AUTHORS)"
+David Corcoran <corcoran@musclecard.com> and Ludovic Rousseau
+<ludovic.rousseau@free.fr>

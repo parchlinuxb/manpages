@@ -1,0 +1,829 @@
+'\" t
+.nh
+.TH "CONTAINERFILE" "5" "Aug 2021" "" "Container User Manuals"
+
+.SH "نام (NAME)"
+Containerfile(Dockerfile) \- automate the steps of creating a container image
+
+
+.SH INTRODUCTION
+The \fBContainerfile\fP is a configuration file that automates the steps of creating a container image. It is similar to a Makefile. Container engines (Podman, Buildah, Docker) read instructions from the \fBContainerfile\fP to automate the steps otherwise performed manually to create an image. To build an image, create a file called \fBContainerfile\fP\&.
+
+.PP
+The \fBContainerfile\fP describes the steps taken to assemble the image. When the
+\fBContainerfile\fP has been created, call the \fBbuildah build\fR, \fBpodman build\fR, \fBdocker build\fR command,
+using the path of context directory that contains \fBContainerfile\fP as the argument. Podman and Buildah default to \fBContainerfile\fP and will fall back to \fBDockerfile\fP\&. Docker only will search for \fBDockerfile\fP in the context directory.
+
+.PP
+\fBDockerfile\fP is an alternate name for the same object.  \fBContainerfile\fP and \fBDockerfile\fP support the same syntax.
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+INSTRUCTION arguments
+
+.PP
+For example:
+
+.PP
+FROM image
+
+
+.SH "توضیحات (DESCRIPTION)"
+A Containerfile is a file that automates the steps of creating a container image.
+A Containerfile is similar to a Makefile.
+
+
+.SH "نحوه استفاده (USAGE)"
+.EX
+  buildah build .
+  podman build .
+.EE
+
+.PP
+-- Runs the steps and commits them, building a final image.
+  The path to the source repository defines where to find the context of the
+  build.
+
+.EX
+  buildah build -t repository/tag .
+  podman build -t repository/tag .
+.EE
+
+.PP
+-- specifies a repository and tag at which to save the new image if the build
+  succeeds. The container engine runs the steps one-by-one, committing the result
+  to a new image if necessary, before finally outputting the ID of the new
+  image.
+
+.PP
+Container engines reuse intermediate images whenever possible. This significantly
+  accelerates the \fIbuild\fP process.
+
+
+.SH FORMAT
+\fBFROM image [AS <name>]\fR
+
+.PP
+\fBFROM image:tag [AS <name>]\fR
+
+.PP
+\fBFROM image@digest [AS <name>]\fR
+
+.PP
+-- The \fBFROM\fP instruction sets the base image for subsequent instructions. A
+  valid Containerfile must have either \fBARG\fP or \fBFROM\fP as its first instruction.
+  If \fBFROM\fP is not the first instruction in the file, it may only be preceded by
+  one or more ARG instructions, which declare arguments that are used in the next FROM line in the Containerfile.
+  The image can be any valid image. It is easy to start by pulling an image from the public
+  repositories.
+
+.PP
+-- \fBFROM\fP must appear at least once in the Containerfile.
+
+.PP
+-- \fBFROM\fP The first \fBFROM\fP command must come before all other instructions in
+  the Containerfile except \fBARG\fP
+
+.PP
+-- \fBFROM\fP may appear multiple times within a single Containerfile in order to create
+  multiple images. Make a note of the last image ID output by the commit before
+  each new \fBFROM\fP command.
+
+.PP
+-- If no tag is given to the \fBFROM\fP instruction, container engines apply the
+  \fBlatest\fR tag. If the used tag does not exist, an error is returned.
+
+.PP
+-- If no digest is given to the \fBFROM\fP instruction, container engines apply the
+  \fBlatest\fR tag. If the used tag does not exist, an error is returned.
+
+.PP
+-- A name can be assigned to a build stage by adding \fBAS name\fP to the instruction.
+  The name can be referenced later in the Containerfile using the \fBFROM\fP or \fBCOPY --from=\fP instructions.
+
+.PP
+\fBMAINTAINER\fP
+  -- \fBMAINTAINER\fP sets the Author field for the generated images.
+  Useful for providing users with an email or url for support.
+
+.PP
+\fBRUN\fP
+  -- \fBRUN\fP has two forms:
+
+.EX
+  # the command is run in a shell - /bin/sh -c
+  RUN <command>
+
+  # Executable form
+  RUN ["executable", "param1", "param2"]
+.EE
+
+.PP
+\fBRUN mounts\fP
+
+.PP
+\fB--mount\fP=\fItype=TYPE,TYPE-SPECIFIC-OPTION[,...]\fP
+
+.PP
+Attach a filesystem mount to the container
+
+.PP
+Current supported mount TYPES are bind, cache, secret and tmpfs.
+
+.EX
+   e.g.
+
+   mount=type=bind,source=/path/on/host,destination=/path/in/container,relabel=shared
+
+   mount=type=tmpfs,tmpfs-size=512M,destination=/path/in/container
+
+   mount=type=secret,id=mysecret cat /run/secrets/mysecret
+
+   Common Options:
+
+      · src, source: mount source spec for bind and volume. Mandatory for bind. If `from` is specified, `src` is the subpath in the `from` field.
+
+      · dst, destination, target: mount destination spec.
+
+      · ro, read-only: true (default) or false.
+
+   Options specific to bind:
+
+      · bind-propagation: shared, slave, private, rshared, rslave, or rprivate(default). See also mount(2).
+
+      . bind-nonrecursive: do not setup a recursive bind mount.  By default it is recursive.
+
+      · from: stage or image name for the root of the source. Defaults to the build context.
+
+      · relabel=shared, z: Relabels src content with a shared label.
+
+      . relabel=private, Z: Relabels src content with a private label.
+
+      Labeling systems like SELinux require proper labels on the bind mounted content mounted into a container. Without a label, the security system might prevent the processes running in side the container from using the content. By default, container engines do not change the labels set by the OS. The relabel flag tells the engine to relabel file objects on the shared mountz.
+
+      The relabel=shared and z options tell the engine that two or more containers will share the mount content. The engine labels the content with a shared content label.
+
+      The relabel=private and Z options tell the engine to label the content with a private unshared label. Only the current container can use a private mount.
+
+      Relabeling walks the file system under the mount and changes the label on each file, if the mount has thousands of inodes, this process takes a long time, delaying the start of the container.
+
+      · rw, read-write: allows writes on the mount.
+
+   Options specific to tmpfs:
+
+      · tmpfs-size: Size of the tmpfs mount in bytes. Unlimited by default in Linux.
+
+      · tmpfs-mode: File mode of the tmpfs in octal. (e.g. 700 or 0700.) Defaults to 1777 in Linux.
+
+      · tmpcopyup: Path that is shadowed by the tmpfs mount is recursively copied up to the tmpfs itself.
+
+Options specific to cache:
+
+      · id: Create a separate cache directory for a particular id.
+
+      · mode: File mode for new cache directory in octal. Default 0755.
+
+      · ro, readonly: read only cache if set.
+
+      · uid: uid for cache directory.
+
+      · gid: gid for cache directory.
+
+      · from: stage name for the root of the source. Defaults to host cache directory.
+
+      · rw, read-write: allows writes on the mount.
+.EE
+
+.PP
+\fBRUN --network\fP
+
+.PP
+\fBRUN --network\fR allows control over which networking environment the command
+is run in.
+
+.PP
+Syntax: \fB--network=<TYPE>\fR
+
+.PP
+\fBNetwork types\fP
+
+.TS
+allbox;
+l l 
+l l .
+\fBType\fP	\fBDescription\fP
+
+\[la]#run\-\-\-networkdefault\[ra] (default)	Run in the default network.
+
+\[la]#run\-\-\-networknone\[ra]	Run with no network access.
+
+\[la]#run\-\-\-networkhost\[ra]	T{
+Run in the host's network environment.
+T}
+.TE
+
+.SS RUN --network=default
+Equivalent to not supplying a flag at all, the command is run in the default
+network for the build.
+
+.SS RUN --network=none
+The command is run with no network access (\fBlo\fR is still available, but is
+isolated to this process).
+
+.SS Example: isolating external effects
+.EX
+FROM python:3.6
+ADD mypackage.tgz wheels/
+RUN --network=none pip install --find-links wheels mypackage
+.EE
+
+.PP
+\fBpip\fR will only be able to install the packages provided in the tarfile, which
+can be controlled by an earlier build stage.
+
+.SS RUN --network=host
+The command is run in the host's network environment (similar to
+\fBbuildah build --network=host\fR, but on a per-instruction basis)
+
+.PP
+\fBRUN Secrets\fP
+
+.PP
+The RUN command has a feature to allow the passing of secret information into the image build. These secrets files can be used during the RUN command but are not committed to the final image. The \fBRUN\fR command supports the \fB--mount\fR option to identify the secret file. A secret file from the host is mounted into the container while the image is being built.
+
+.PP
+Container engines pass secret the secret file into the build using the \fB--secret\fR flag.
+
+.PP
+\fB--mount\fP=\fItype=secret,TYPE-SPECIFIC-OPTION[,...]\fP
+.IP \(bu 2
+\fBid\fR is the identifier for the secret passed into the \fBbuildah build --secret\fR or \fBpodman build --secret\fR\&. This identifier is associated with the RUN --mount identifier to use in the Containerfile.
+.IP \(bu 2
+\fBdst\fR|\fBtarget\fR|\fBdestination\fR rename the secret file to a specific file in the Containerfile RUN command to use.
+.IP \(bu 2
+\fBtype=secret\fR tells the --mount command that it is mounting in a secret file
+
+.EX
+# shows secret from default secret location:
+RUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret
+.EE
+
+.EX
+# shows secret from custom secret location:
+RUN --mount=type=secret,id=mysecret,dst=/foobar cat /foobar
+.EE
+
+.PP
+The secret needs to be passed to the build using the --secret flag. The final image built does not container the secret file:
+
+.EX
+ buildah build --no-cache --secret id=mysecret,src=mysecret.txt .
+.EE
+
+.PP
+-- The \fBRUN\fP instruction executes any commands in a new layer on top of the current
+  image and commits the results. The committed image is used for the next step in
+  Containerfile.
+
+.PP
+-- Layering \fBRUN\fP instructions and generating commits conforms to the core
+  concepts of container engines where commits are cheap and containers can be created from
+  any point in the history of an image. This is similar to source control.  The
+  exec form makes it possible to avoid shell string munging. The exec form makes
+  it possible to \fBRUN\fP commands using a base image that does not contain \fB/bin/sh\fR\&.
+
+.PP
+Note that the exec form is parsed as a JSON array, which means that you must
+  use double-quotes (") around words, not single-quotes (').
+
+.PP
+\fBCMD\fP
+  -- \fBCMD\fP has three forms:
+
+.EX
+  # Executable form
+  CMD ["executable", "param1", "param2"]`
+
+  # Provide default arguments to ENTRYPOINT
+  CMD ["param1", "param2"]`
+
+  # the command is run in a shell - /bin/sh -c
+  CMD command param1 param2
+.EE
+
+.PP
+-- There should be only one \fBCMD\fP in a Containerfile. If more than one \fBCMD\fP is listed, only
+  the last \fBCMD\fP takes effect.
+  The main purpose of a \fBCMD\fP is to provide defaults for an executing container.
+  These defaults may include an executable, or they can omit the executable. If
+  they omit the executable, an \fBENTRYPOINT\fP must be specified.
+  When used in the shell or exec formats, the \fBCMD\fP instruction sets the command to
+  be executed when running the image.
+  If you use the shell form of the \fBCMD\fP, the \fB<command>\fR executes in \fB/bin/sh -c\fR:
+
+.PP
+Note that the exec form is parsed as a JSON array, which means that you must
+  use double-quotes (") around words, not single-quotes (').
+
+.EX
+  FROM ubuntu
+  CMD echo "This is a test." | wc -
+.EE
+
+.PP
+-- If you run \fBcommand\fP without a shell, then you must express the command as a
+  JSON array and give the full path to the executable. This array form is the
+  preferred form of \fBCMD\fP\&. All additional parameters must be individually expressed
+  as strings in the array:
+
+.EX
+  FROM ubuntu
+  CMD ["/usr/bin/wc","--help"]
+.EE
+
+.PP
+-- To make the container run the same executable every time, use \fBENTRYPOINT\fP in
+  combination with \fBCMD\fP\&.
+  If the user specifies arguments to \fBpodman run\fR or \fBdocker run\fR, the specified commands
+  override the default in \fBCMD\fP\&.
+  Do not confuse \fBRUN\fP with \fBCMD\fP\&. \fBRUN\fP runs a command and commits the result.
+  \fBCMD\fP executes nothing at build time, but specifies the intended command for
+  the image.
+
+.PP
+\fBLABEL\fP
+  -- \fBLABEL <key>=<value> [<key>=<value> ...]\fRor
+
+.EX
+  LABEL <key>[ <value>]
+  LABEL <key>[ <value>]
+  ...
+.EE
+
+.PP
+The \fBLABEL\fP instruction adds metadata to an image. A \fBLABEL\fP is a
+  key-value pair. To specify a \fBLABEL\fP without a value, simply use an empty
+  string. To include spaces within a \fBLABEL\fP value, use quotes and
+  backslashes as you would in command-line parsing.
+
+.EX
+  LABEL com.example.vendor="ACME Incorporated"
+  LABEL com.example.vendor "ACME Incorporated"
+  LABEL com.example.vendor.is-beta ""
+  LABEL com.example.vendor.is-beta=
+  LABEL com.example.vendor.is-beta=""
+.EE
+
+.PP
+An image can have more than one label. To specify multiple labels, separate
+  each key-value pair by a space.
+
+.PP
+Labels are additive including \fBLABEL\fRs in \fBFROM\fR images. As the system
+  encounters and then applies a new label, new \fBkey\fRs override any previous
+  labels with identical keys.
+
+.PP
+To display an image's labels, use the \fBbuildah inspect\fR command.
+
+.PP
+\fBEXPOSE\fP
+  -- \fBEXPOSE <port> [<port>...]\fR
+  The \fBEXPOSE\fP instruction informs the container engine that the container listens on the
+  specified network ports at runtime. The container engine uses this information to
+  interconnect containers using links and to set up port redirection on the host
+  system.
+
+.PP
+\fBENV\fP
+  -- \fBENV <key> <value>\fR
+  The \fBENV\fP instruction sets the environment variable  to
+  the value \fB<value>\fR\&. This value is passed to all future
+  \fBRUN\fP, \fBENTRYPOINT\fP, and \fBCMD\fP instructions. This is
+  functionally equivalent to prefixing the command with \fB<key>=<value>\fR\&.  The
+  environment variables that are set with \fBENV\fP persist when a container is run
+  from the resulting image. Use \fBpodman inspect\fR to inspect these values, and
+  change them using \fBpodman run --env <key>=<value>\fR\&.
+
+.PP
+Note that setting "\fBENV DEBIAN_FRONTEND=noninteractive\fR" may cause
+  unintended consequences, because it will persist when the container is run
+  interactively, as with the following command: \fBpodman run -t -i image bash\fR
+
+.PP
+\fBADD\fP
+  -- \fBADD\fP has two forms:
+
+.EX
+  ADD <src> <dest>
+
+  # Required for paths with whitespace
+  ADD ["<src>",... "<dest>"]
+.EE
+
+.PP
+The \fBADD\fP instruction copies new files, directories
+  or remote file URLs to the filesystem of the container at path \fB<dest>\fR\&.
+  Multiple \fB<src>\fR resources may be specified but if they are files or directories
+  then they must be relative to the source directory that is being built
+  (the context of the build). The \fB<dest>\fR is the absolute path, or path relative
+  to \fBWORKDIR\fP, into which the source is copied inside the target container.
+  If the \fB<src>\fR argument is a local file in a recognized compression format
+  (tar, gzip, bzip2, etc) then it is unpacked at the specified \fB<dest>\fR in the
+  container's filesystem.  Note that only local compressed files will be unpacked,
+  i.e., the URL download and archive unpacking features cannot be used together.
+  All new directories are created with mode 0755 and with the uid and gid of \fB0\fP\&.
+
+.PP
+\fBCOPY\fP
+  -- \fBCOPY\fP has two forms:
+
+.EX
+  COPY [--chown=<user>:<group>] [--chmod=<mode>] <src> <dest>
+
+  # Required for paths with whitespace
+  COPY [--chown=<user>:<group>] [--chmod=<mode>] ["<src>",... "<dest>"]
+.EE
+
+.PP
+The \fBCOPY\fP instruction copies new files from \fB<src>\fR and
+  adds them to the filesystem of the container at path \&. The \fB<src>\fR must be
+  the path to a file or directory relative to the source directory that is
+  being built (the context of the build) or a remote file URL. The \fB<dest>\fR is an
+  absolute path, or a path relative to \fBWORKDIR\fP, into which the source will
+  be copied inside the target container. If you \fBCOPY\fP an archive file it will
+  land in the container exactly as it appears in the build context without any
+  attempt to unpack it.  All new files and directories are created with mode \fB0755\fP
+  and with the uid and gid of \fB0\fP\&.
+
+.PP
+\fB--chown=<user>:<group>\fR changes the ownership of new files and directories.
+  Supports names, if defined in the containers \fB/etc/passwd\fR and \fB/etc/groups\fR files, or using
+  uid and gid integers. The build will fail if a user or group name can't be mapped in the container.
+  Numeric id's are set without looking them up in the container.
+
+.PP
+\fB--chmod=<mode>\fR changes the mode of new files and directories.
+
+.PP
+The optional flag \fB--from=name\fR can be used to copy files from a named previous build stage. It
+  changes the context of \fB<src>\fR from the build context to the named build stage.
+
+.PP
+\fBENTRYPOINT\fP
+  -- \fBENTRYPOINT\fP has two forms:
+
+.EX
+  # executable form
+  ENTRYPOINT ["executable", "param1", "param2"]`
+
+  # run command in a shell - /bin/sh -c
+  ENTRYPOINT command param1 param2
+.EE
+
+.PP
+-- An \fBENTRYPOINT\fP helps you configure a
+  container that can be run as an executable. When you specify an \fBENTRYPOINT\fP,
+  the whole container runs as if it was only that executable.  The \fBENTRYPOINT\fP
+  instruction adds an entry command that is not overwritten when arguments are
+  passed to \fBpodman run\fR\&. This is different from the behavior of \fBCMD\fP\&. This allows
+  arguments to be passed to the entrypoint, for instance \fBpodman run <image> -d\fR
+  passes the -d argument to the \fBENTRYPOINT\fP\&.  Specify parameters either in the
+  \fBENTRYPOINT\fP JSON array (as in the preferred exec form above), or by using a \fBCMD\fP
+  statement.  Parameters in the \fBENTRYPOINT\fP are not overwritten by the \fBpodman run\fR arguments.  Parameters specified via \fBCMD\fP are overwritten by \fBpodman run\fR arguments.  Specify a plain string for the \fBENTRYPOINT\fP, and it will execute in
+  \fB/bin/sh -c\fR, like a \fBCMD\fP instruction:
+
+.EX
+  FROM ubuntu
+  ENTRYPOINT wc -l -
+.EE
+
+.PP
+This means that the Containerfile's image always takes stdin as input (that's
+  what "-" means), and prints the number of lines (that's what "-l" means). To
+  make this optional but default, use a \fBCMD\fP:
+
+.EX
+  FROM ubuntu
+  CMD ["-l", "-"]
+  ENTRYPOINT ["/usr/bin/wc"]
+.EE
+
+.PP
+\fBVOLUME\fP
+  -- \fBVOLUME ["/data"]\fR
+  The \fBVOLUME\fP instruction creates a mount point with the specified name and marks
+  it as holding externally-mounted volumes from the native host or from other
+  containers.
+
+.PP
+\fBUSER\fP
+  -- \fBUSER daemon\fR
+  Sets the username or UID used for running subsequent commands.
+
+.PP
+The \fBUSER\fP instruction can optionally be used to set the group or GID. The
+  following examples are all valid:
+  USER [user | user:group | uid | uid:gid | user:gid | uid:group ]
+
+.PP
+Until the \fBUSER\fP instruction is set, instructions will be run as root. The USER
+  instruction can be used any number of times in a Containerfile, and will only affect
+  subsequent commands.
+
+.PP
+\fBWORKDIR\fP
+  -- \fBWORKDIR /path/to/workdir\fR
+  The \fBWORKDIR\fP instruction sets the working directory for the \fBRUN\fP, \fBCMD\fP,
+  \fBENTRYPOINT\fP, \fBCOPY\fP and \fBADD\fP Containerfile commands that follow it. It can
+  be used multiple times in a single Containerfile. Relative paths are defined
+  relative to the path of the previous \fBWORKDIR\fP instruction. For example:
+
+.EX
+  WORKDIR /a
+  WORKDIR b
+  WORKDIR c
+  RUN pwd
+.EE
+
+.PP
+In the above example, the output of the \fBpwd\fP command is \fBa/b/c\fP\&.
+
+.PP
+\fBARG\fP
+   -- \fBARG <name>[=<default value>]\fR
+
+.PP
+The \fBARG\fR instruction defines a variable that users can pass at build-time to
+  the builder with the \fBpodman build\fR and \fBbuildah build\fR commands using the
+  \fB--build-arg <varname>=<value>\fR flag. If a user specifies a build argument that
+  was not defined in the Containerfile, the build outputs a warning.
+
+.PP
+Note that a second FROM in a Containerfile sets the values associated with an
+  Arg variable to nil and they must be reset if they are to be used later in
+  the Containerfile
+
+.EX
+  [Warning] One or more build-args [foo] were not consumed
+.EE
+
+.PP
+The Containerfile author can define a single variable by specifying \fBARG\fR once or many
+  variables by specifying \fBARG\fR more than once. For example, a valid Containerfile:
+
+.EX
+  FROM busybox
+  ARG user1
+  ARG buildno
+  ...
+.EE
+
+.PP
+A Containerfile author may optionally specify a default value for an \fBARG\fR instruction:
+
+.EX
+  FROM busybox
+  ARG user1=someuser
+  ARG buildno=1
+  ...
+.EE
+
+.PP
+If an \fBARG\fR value has a default and if there is no value passed at build-time, the
+  builder uses the default.
+
+.PP
+An \fBARG\fR variable definition comes into effect from the line on which it is
+  defined in the \fBContainerfile\fR not from the argument's use on the command-line or
+  elsewhere.  For example, consider this Containerfile:
+
+.EX
+  1 FROM busybox
+  2 USER ${user:-some_user}
+  3 ARG user
+  4 USER $user
+  ...
+.EE
+
+.PP
+A user builds this file by calling:
+
+.EX
+  $ podman build --build-arg user=what_user Containerfile
+.EE
+
+.PP
+The \fBUSER\fR at line 2 evaluates to \fBsome_user\fR as the \fBuser\fR variable is defined on the
+  subsequent line 3. The \fBUSER\fR at line 4 evaluates to \fBwhat_user\fR as \fBuser\fR is
+  defined and the \fBwhat_user\fR value was passed on the command line. Prior to its definition by an
+  \fBARG\fR instruction, any use of a variable results in an empty string.
+
+.PP
+.RS
+
+.PP
+\fBWarning:\fP It is not recommended to use build-time variables for
+ passing secrets like github keys, user credentials etc. Build-time variable
+ values are visible to any user of the image with the \fBpodman history\fR command.
+
+.RE
+
+.PP
+You can use an \fBARG\fR or an \fBENV\fR instruction to specify variables that are
+  available to the \fBRUN\fR instruction. Environment variables defined using the
+  \fBENV\fR instruction always override an \fBARG\fR instruction of the same name. Consider
+  this Containerfile with an \fBENV\fR and \fBARG\fR instruction.
+
+.EX
+  1 FROM ubuntu
+  2 ARG CONT_IMG_VER
+  3 ENV CONT_IMG_VER=v1.0.0
+  4 RUN echo $CONT_IMG_VER
+.EE
+
+.PP
+Then, assume this image is built with this command:
+
+.EX
+  $ podman build --build-arg CONT_IMG_VER=v2.0.1 Containerfile
+.EE
+
+.PP
+In this case, the \fBRUN\fR instruction uses \fBv1.0.0\fR instead of the \fBARG\fR setting
+  passed by the user:\fBv2.0.1\fR This behavior is similar to a shell
+  script where a locally scoped variable overrides the variables passed as
+  arguments or inherited from environment, from its point of definition.
+
+.PP
+Using the example above but a different \fBENV\fR specification you can create more
+  useful interactions between \fBARG\fR and \fBENV\fR instructions:
+
+.EX
+  1 FROM ubuntu
+  2 ARG CONT_IMG_VER
+  3 ENV CONT_IMG_VER=${CONT_IMG_VER:-v1.0.0}
+  4 RUN echo $CONT_IMG_VER
+.EE
+
+.PP
+Unlike an \fBARG\fR instruction, \fBENV\fR values are always persisted in the built
+  image. Consider a \fBpodman build\fR without the --build-arg flag:
+
+.EX
+  $ podman build Containerfile
+.EE
+
+.PP
+Using this Containerfile example, \fBCONT_IMG_VER\fR is still persisted in the image but
+  its value would be \fBv1.0.0\fR as it is the default set in line 3 by the \fBENV\fR instruction.
+
+.PP
+The variable expansion technique in this example allows you to pass arguments
+  from the command line and persist them in the final image by leveraging the
+  \fBENV\fR instruction. Variable expansion is only supported for a limited set of
+  Containerfile instructions.
+\[la]#environment\-replacement\[ra]
+
+.PP
+Container engines have a set of predefined \fBARG\fR variables that you can use without a
+  corresponding \fBARG\fR instruction in the Containerfile.
+.IP \(bu 2
+\fBHTTP_PROXY\fR
+.IP \(bu 2
+\fBhttp_proxy\fR
+.IP \(bu 2
+\fBHTTPS_PROXY\fR
+.IP \(bu 2
+\fBhttps_proxy\fR
+.IP \(bu 2
+\fBFTP_PROXY\fR
+.IP \(bu 2
+\fBftp_proxy\fR
+.IP \(bu 2
+\fBNO_PROXY\fR
+.IP \(bu 2
+\fBno_proxy\fR
+.IP \(bu 2
+\fBALL_PROXY\fR
+.IP \(bu 2
+\fBall_proxy\fR
+
+.PP
+To use these, pass them on the command line using \fB--build-arg\fR flag, for
+  example:
+
+.EX
+  $ podman build --build-arg HTTPS_PROXY=https://my-proxy.example.com .
+.EE
+
+.PP
+\fBPlatform/OS/Arch ARG\fP
+   -- \fBARG <name>\fR
+
+.PP
+When building multi-arch manifest-lists or images for a foreign-architecture,
+  it's often helpful to have access to platform details within the \fBContainerfile\fR\&.
+  For example, when using a \fBRUN curl ...\fR command to install OS/Arch specific
+  binary into the image.  Or, if certain \fBRUN\fR operations are known incompatible
+  or non-performant when emulating a specific architecture.
+
+.PP
+There are several named \fBARG\fR variables available. The purpose of each should be
+  self-evident by its name.  \fIHowever\fP, in all cases these ARG values are \fBnot\fP
+  automatically populated.  You must always declare them within each \fBFROM\fR section
+  of the \fBContainerfile\fR\&.
+
+.PP
+The available \fBARG <name>\fR variables are available with two prefixes:
+.IP \(bu 2
+\fBTARGET...\fR variable names represent details about the currently running build
+context (i.e. "inside" the container).  These are often the most useful:
+.RS
+.IP \(bu 2
+\fBTARGETOS\fR: For example \fBlinux\fR
+.IP \(bu 2
+\fBTARGETARCH\fR: For example \fBamd64\fR
+.IP \(bu 2
+\fBTARGETPLATFORM\fR: For example \fBlinux/amd64\fR
+.IP \(bu 2
+\fBTARGETVARIANT\fR: Uncommonly used, specific to \fBTARGETARCH\fR
+.RE
+.IP \(bu 2
+\fBBUILD...\fR variable names signify details about the \fIhost\fP performing the build
+(i.e. "outside" the container):
+.RS
+.IP \(bu 2
+\fBBUILDOS\fR: OS of host performing the build
+.IP \(bu 2
+\fBBUILDARCH\fR: Arch of host performing the build
+.IP \(bu 2
+\fBBUILDPLATFORM\fR: Combined OS/Arch of host performing the build
+.IP \(bu 2
+\fBBUILDVARIANT\fR: Uncommonly used, specific to \fBBUILDARCH\fR
+.RE
+
+.PP
+An example \fBContainerfile\fR that uses \fBTARGETARCH\fR to fetch an arch-specific binary could be:
+
+.EX
+  FROM busybox
+  ARG TARGETARCH
+  RUN curl -sSf -O https://example.com/downloads/bin-${TARGETARCH}.zip
+.EE
+
+.PP
+Assuming the host platform is \fBlinux/amd64\fR and foreign-architecture emulation
+  enabled (e.g. \fBqemu-user-static\fR), then running the command:
+
+.EX
+  $ podman build --platform linux/s390x .
+.EE
+
+.PP
+Would end up running \fBcurl\fR on \fBhttps://example.com/downloads/bin-s390x.zip\fR and producing
+  a container image suited for the the \fBlinux/s390x\fR platform.  \fBNote:\fP Emulation isn't
+  strictly required, these special build-args will also function when building using
+  \fBpodman farm build\fR\&.
+
+.PP
+\fBONBUILD\fP
+  -- \fBONBUILD [INSTRUCTION]\fR
+  The \fBONBUILD\fP instruction adds a trigger instruction to an image. The
+  trigger is executed at a later time, when the image is used as the base for
+  another build. Container engines execute the trigger in the context of the downstream
+  build, as if the trigger existed immediately after the \fBFROM\fP instruction in
+  the downstream Containerfile.
+
+.PP
+You can register any build instruction as a trigger. A trigger is useful if
+  you are defining an image to use as a base for building other images. For
+  example, if you are defining an application build environment or a daemon that
+  is customized with a user-specific configuration.
+
+.PP
+Consider an image intended as a reusable python application builder. It must
+  add application source code to a particular directory, and might need a build
+  script called after that. You can't just call \fBADD\fP and \fBRUN\fP now, because
+  you don't yet have access to the application source code, and it is different
+  for each application build.
+
+.PP
+-- Providing application developers with a boilerplate Containerfile to copy-paste
+  into their application is inefficient, error-prone, and
+  difficult to update because it mixes with application-specific code.
+  The solution is to use \fBONBUILD\fP to register instructions in advance, to
+  run later, during the next build stage.
+
+.SH "همچنین ببینید (SEE ALSO)"
+buildah(1), podman(1), docker(1)
+
+
+.SH "تاریخچه (HISTORY)"
+.EX
+May 2014, Compiled by Zac Dover (zdover at redhat dot com) based on docker.com Dockerfile documentation.
+Feb 2015, updated by Brian Goff (cpuguy83@gmail.com) for readability
+Sept 2015, updated by Sally O'Malley (somalley@redhat.com)
+Oct 2016, updated by Addam Hardy (addam.hardy@gmail.com)
+Aug 2021, converted Dockerfile man page to Containerfile by Dan Walsh (dwalsh@redhat.com)
+.EE

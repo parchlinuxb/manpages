@@ -1,0 +1,186 @@
+'\" t
+.\"     Title: pam_sss_gss
+.\"    Author: The SSSD upstream - https://github.com/SSSD/sssd/
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 06/09/2026
+.\"    Manual: SSSD Manual pages
+.\"    Source: SSSD
+.\"  Language: English
+.\"
+.TH "PAM_SSS_GSS" "8" "06/09/2026" "SSSD" "SSSD Manual pages"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+pam_sss_gss \- PAM module for SSSD GSSAPI authentication
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBpam_sss_gss\&.so\fR\ 'u
+\fBpam_sss_gss\&.so\fR [\fIdebug\fR]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBpam_sss_gss\&.so\fR
+authenticates user over GSSAPI in cooperation with SSSD\&.
+.PP
+This module will try to authenticate the user using the GSSAPI hostbased service name host@hostname which translates to host/hostname@REALM Kerberos principal\&. The
+\fIREALM\fR
+part of the Kerberos principal name is derived by Kerberos internal mechanisms and it can be set explicitly in configuration of [domain_realm] section in /etc/krb5\&.conf\&.
+.PP
+SSSD is used to provide desired service name and to validate the user\*(Aqs credentials using GSSAPI calls\&. If the service ticket is already present in the Kerberos credentials cache or if user\*(Aqs ticket granting ticket can be used to get the correct service ticket then the user will be authenticated\&.
+.PP
+If
+\fBpam_gssapi_check_upn\fR
+is True (default) then SSSD requires that the credentials used to obtain the service tickets can be associated with the user\&. This means that the principal that owns the Kerberos credentials must match with the user principal name as defined in LDAP\&.
+.PP
+To enable GSSAPI authentication in SSSD, set
+\fBpam_gssapi_services\fR
+option in [pam] or domain section of sssd\&.conf\&. The service credentials need to be stored in SSSD\*(Aqs keytab (it is already present if you use ipa or ad provider)\&. The keytab location can be set with
+\fBkrb5_keytab\fR
+option\&. See
+\fBsssd.conf\fR(5)
+and
+\fBsssd-krb5\fR(5)
+for more details on these options\&.
+.PP
+Some Kerberos deployments allow to associate authentication indicators with a particular pre\-authentication method used to obtain the ticket granting ticket by the user\&.
+\fBpam_sss_gss\&.so\fR
+allows to enforce presence of authentication indicators in the service tickets before a particular PAM service can be accessed\&.
+.PP
+If
+\fBpam_gssapi_indicators_map\fR
+is set in the [pam] or domain section of sssd\&.conf, then SSSD will perform a check of the presence of any configured indicators in the service ticket\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\fBdebug\fR
+.RS 4
+Print debugging information\&.
+.RE
+.SH "MODULE TYPES PROVIDED"
+.PP
+Only the
+\fBauth\fR
+module type is provided\&.
+.SH "RETURN VALUES"
+.PP
+PAM_SUCCESS
+.RS 4
+The PAM operation finished successfully\&.
+.RE
+.PP
+PAM_USER_UNKNOWN
+.RS 4
+The user is not known to the authentication service or the GSSAPI authentication is not supported\&.
+.RE
+.PP
+PAM_AUTH_ERR
+.RS 4
+Authentication failure\&.
+.RE
+.PP
+PAM_AUTHINFO_UNAVAIL
+.RS 4
+Unable to access the authentication information\&. This might be due to a network or hardware failure\&.
+.RE
+.PP
+PAM_SYSTEM_ERR
+.RS 4
+A system error occurred\&. The SSSD log files may contain additional information about the error\&.
+.RE
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+The main use case is to provide password\-less authentication in sudo but without the need to disable authentication completely\&. To achieve this, first enable GSSAPI authentication for sudo in sssd\&.conf:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[domain/MYDOMAIN]
+pam_gssapi_services = sudo, sudo\-i
+        
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+And then enable the module in desired PAM stack (e\&.g\&. /etc/pam\&.d/sudo and /etc/pam\&.d/sudo\-i)\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\&.\&.\&.
+auth sufficient pam_sss_gss\&.so
+\&.\&.\&.
+        
+.fi
+.if n \{\
+.RE
+.\}
+.SH "TROUBLESHOOTING"
+.PP
+SSSD logs, pam_sss_gss debug output and syslog may contain helpful information about the error\&. Here are some common issues:
+.PP
+1\&. I have KRB5CCNAME environment variable set and the authentication does not work: Depending on your sudo version, it is possible that sudo does not pass this variable to the PAM environment\&. Try adding KRB5CCNAME to
+\fBenv_keep\fR
+in /etc/sudoers or in your LDAP sudo rules default options\&.
+.PP
+2\&. Authentication does not work and syslog contains "Server not found in Kerberos database": Kerberos is probably not able to resolve correct realm for the service ticket based on the hostname\&. Try adding the hostname directly to
+\fB[domain_realm]\fR
+in /etc/krb5\&.conf like so:
+.PP
+3\&. Authentication does not work and syslog contains "No Kerberos credentials available": You don\*(Aqt have any credentials that can be used to obtain the required service ticket\&. Use kinit or authenticate over SSSD to acquire those credentials\&.
+.PP
+4\&. Authentication does not work and SSSD sssd\-pam log contains "User with UPN [$UPN] was not found\&." or "UPN [$UPN] does not match target user [$username]\&.": You are using credentials that can not be mapped to the user that is being authenticated\&. Try to use kswitch to select different principal, make sure you authenticated with SSSD or consider disabling
+\fBpam_gssapi_check_upn\fR\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[domain_realm]
+\&.myhostname = MYREALM
+        
+.fi
+.if n \{\
+.RE
+.\}
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsssd\fR(8),
+\fBsssd.conf\fR(5),
+\fBsssd-ldap\fR(5),
+\fBsssd-ldap-attributes\fR(5),
+\fBsssd-krb5\fR(5),
+\fBsssd-simple\fR(5),
+\fBsssd-ipa\fR(5),
+\fBsssd-ad\fR(5),
+\fBsssd-idp\fR(5),
+\fBsssd-sudo\fR(5),
+\fBsssd-session-recording\fR(5),
+\fBsss_cache\fR(8),
+\fBsss_debuglevel\fR(8),
+\fBsss_obfuscate\fR(8),
+\fBsss_seed\fR(8),
+\fBsssd_krb5_locator_plugin\fR(8),
+\fBsss_ssh_authorizedkeys\fR(1), \fBsss_ssh_knownhosts\fR(1),
+\fBsssd-ifp\fR(5),
+\fBpam_sss\fR(8)\&.
+\fBsss_rpcidmapd\fR(5)
+.SH "نویسندگان (AUTHORS)"
+.PP
+\fBThe SSSD upstream \- https://github\&.com/SSSD/sssd/\fR

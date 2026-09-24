@@ -1,0 +1,90 @@
+.nh
+.TH runc-spec "8"
+
+.SH "نام (NAME)"
+\fBrunc-spec\fP \- create a new specification file
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBrunc spec\fP [\fIoption\fP ...]
+
+
+.SH "توضیحات (DESCRIPTION)"
+The \fBspec\fP command creates the new specification file named \fIconfig.json\fP for
+the bundle.
+
+.PP
+The spec generated is just a starter file. Editing of the spec is required to
+achieve desired results. For example, the newly generated spec includes an
+\fBargs\fP parameter that is initially set to call the \fBsh\fP command when the
+container is started. Calling \fBsh\fP may work for an ubuntu container or busybox,
+but will not work for containers that do not include the \fBsh\fP binary.
+
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB--bundle\fP|\fB-b\fP \fIpath\fP
+Set \fIpath\fP to the root of the bundle directory.
+
+.TP
+\fB--rootless\fP
+Generate a configuration for a rootless container. Note this option
+is entirely different from the global \fB--rootless\fP option.
+
+
+.SH "مثال‌ها (EXAMPLES)"
+To run a simple "hello-world" container, one needs to set the \fBargs\fP
+parameter in the spec to call hello. This can be done using \fBsed\fP(1),
+\fBjq\fP(1), or a text editor.
+
+.PP
+The following commands will:
+ - create a bundle for hello-world;
+ - change the command to run in a container to \fB/hello\fP using \fBjq\fP(1);
+ - run the \fBhello\fP command in a new hello-world container named \fBcontainer1\fP\&.
+
+.EX
+mkdir hello
+cd hello
+docker pull hello-world
+docker export $(docker create hello-world) > hello-world.tar
+mkdir rootfs
+tar -C rootfs -xf hello-world.tar
+runc spec
+jq '.process.args |= ["/hello"]' < config.json > new.json
+mv -f new.json config.json
+runc run container1
+.EE
+
+.PP
+In the \fBrun\fP command above, \fBcontainer1\fP is the name for the instance of the
+container that you are starting. The name you provide for the container instance
+must be unique on your host.
+
+.PP
+An alternative for generating a customized spec config is to use
+\fBoci-runtime-tool\fP; its sub-command \fBoci-runtime-tool generate\fP has lots of
+options that can be used to do any customizations as you want. See
+runtime-tools
+\[la]https://github.com/opencontainers/runtime\-tools\[ra] to get more
+information.
+
+.PP
+When starting a container through \fBrunc\fP, the latter usually needs root
+privileges. If not already running as root, you can use \fBsudo\fP(8), for
+example:
+
+.EX
+sudo runc start container1
+.EE
+
+.PP
+Alternatively, you can start a rootless container, which has the ability to run
+without root privileges.  For this to work, the specification file needs to be
+adjusted accordingly.  You can pass the \fB--rootless\fP option to this command
+to generate a proper rootless spec file.
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBrunc-run\fP(8),
+\fBrunc\fP(8).

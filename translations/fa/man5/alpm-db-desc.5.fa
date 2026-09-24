@@ -1,0 +1,292 @@
+.\" -*- mode: troff; coding: utf-8 -*-
+.TH "" "5" ""
+.SH "نام (NAME)"
+.LP
+alpm-db-desc \- File format for the representation of metadata of ALPM based packages (version 2).
+.SH "توضیحات (DESCRIPTION)"
+.LP
+The \fBalpm-db-desc\fR format is a textual format that represents the metadata of a single package.
+Each file describes various properties of a package, including its name, version, dependencies, size, licensing information, and more.
+For a full list of properties refer to \fBsections\fR.
+.PP
+An operating system relying on \fBA\fRrch \fBL\fRinux \fBP\fRackage \fBM\fRanagement maintains a local \fBlibalpm\fR database with one \fBalpm-db-desc\fR file per package, each named \fIdesc\fR and located in a unique, per-package directory.
+.PP
+The accumulation of all \fBalpm-db-desc\fR files in a \fBlibalpm\fR database describe the current state of the system (i.e. which packages have been installed when, under what circumstances).
+More specifically, package management software such as \fBpacman\fR and related tools use this file format e.g. to resolve dependencies and to display package information.
+.PP
+The data in an \fBalpm-db-desc\fR file is derived from an \fBalpm-package\fR.
+Here, most of the metadata originates from the package\(cqs \fBPKGINFO\fR data.
+.PP
+The \fBalpm-db-desc\fR file format must not be confused with the \fBalpm-repo-desc\fR file format, which is used in the context of an \fBalpm-repo-db\fR and carries a different set of metadata, but is usually also named \fIdesc\fR.
+.PP
+The \fBalpm-db-desc\fR format exists in multiple versions.
+The information in this document is for version 2, which is the current version and has been introduced with the release of pacman 6.1.0 on 2024-03-04.
+.SS
+General Format
+.LP
+An \fBalpm-db-desc\fR file is a UTF-8 encoded, newline-delimited file consisting of a series of \fBsections\fR.
+.PP
+Each section starts with a unique \fIsection header line\fR.
+The section header line is followed by one or more lines with a \fIsection-specific value\fR each.
+All \fIsection-specific values\fR must consist of \fBprintable ASCII characters\fR[1] unless stated otherwise.
+A section ends when another section header line is encountered or the end of the file is reached.
+.PP
+Empty lines between sections are ignored.
+.SS
+Changes since the last version
+.LP
+The new keyword \fBxdata\fR has been added to track extra data for a package.
+.SS
+Sections
+.LP
+Each \fIsection header line\fR contains the \fIsection name\fR in all capital letters, surrounded by percent signs (e.g. \f(CR%NAME%\fR).
+\fISection names\fR serve as key for each \fIsection-specific value\fR.
+.PP
+Each section allows for a single \fIsection-specific value\fR, following the \fIsection header line\fR.
+As exemption to this rule the \f(CR%LICENSE%\fR, \f(CR%GROUPS%\fR, \f(CR%DEPENDS%\fR, \f(CR%OPTDEPENDS%\fR, \f(CR%REPLACES%\fR, \f(CR%CONFLICTS%\fR, \f(CR%PROVIDES%\fR and \f(CR%XDATA%\fR sections may have more than one \fIsection-specific value\fR.
+.SS
+%NAME%
+.LP
+An \fBalpm-package-name\fR, which represents the name of a package (e.g. \f(CRexample\fR).
+.SS
+%VERSION%
+.LP
+An \fBalpm-package-version\fR (\fIfull\fR or \fIfull with epoch\fR) which represents the version of a package (e.g. \f(CR1.0-1\fR).
+.SS
+%BASE%
+.LP
+An \fBalpm-package-base\fR which represents the package base from which a package originates.
+The value may be the same as that of the \f(CR%NAME%\fR section.
+.SS
+%DESC%
+.LP
+The description of the package.
+The value is a UTF-8 string, zero or more characters long (e.g. \f(CRA project used for something\fR).
+.SS
+%URL%
+.LP
+The URL for the project of the package.
+The value is a valid URL or an empty string (e.g. \f(CRhttps://example.org\fR).
+.SS
+%ARCH%
+.LP
+The architecture of the package (see \fBalpm-architecture\fR for further information).
+The value must be covered by the set of alphanumeric characters and \(oq_\(oq (e.g. \f(CRx86_64\fR or \f(CRany\fR).
+.SS
+%BUILDDATE%
+.LP
+The date at which the build of the package started.
+The value must be numeric and represent the seconds since the Epoch, aka. \(oqUnix time\(cq (e.g. \f(CR1729181726\fR).
+.SS
+%INSTALLDATE%
+.LP
+The date at which the package has been installed on the system.
+The value must be numeric and represent the seconds since the Epoch, aka. \(oqUnix time\(cq (e.g. \f(CR1729181726\fR).
+.SS
+%PACKAGER%
+.LP
+The User ID of the entity, that built the package.
+The value is meant to be used for identity lookups and represents an \fBOpenPGP User ID\fR[2].
+As such, the value is a UTF-8-encoded string, that is conventionally composed of a name and an e-mail address, which aligns with the format described in \fBRFC 2822\fR\c
+.UR e.g.%20%60John%20Doe%20%3Cjohn@example.org%3E%60
+3
+.UE \c
+\&.
+.SS
+%SIZE%
+.LP
+The optional size of the (uncompressed and unpacked) package contents in bytes.
+The value is a non-negative integer representing the absolute size of the contents of the package, with multiple hardlinked files counted only once (e.g. \f(CR181849963\fR).
+If the package has no size (e.g. because it is an \fBalpm-meta-package\fR) the section is omitted.
+.SS
+%GROUPS%
+.LP
+An \fBalpm-package-group\fR that denotes a distribution-wide group the package is in.
+Values may be present one or more times.
+If the package is not in a group, the section is omitted.
+.PP
+The value is represented by a UTF-8 string.
+Although it is possible to use a UTF-8 string, it is highly recommended to rely on the \fBalpm-package-name\fR format for the value instead, as package managers may use a package group to install an entire group of packages.
+.SS
+%REASON%
+.LP
+An optional value representing the reason why the package is installed.
+The value must be a non-negative integer:
+.IP "\(bu" 3
+\f(CR0\fR: Explicitly installed
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.IP "\(bu" 3
+\f(CR1\fR: Installed as a dependency
+.LP
+If the package is explicitly installed (value \f(CR0\fR), the section is omitted.
+.SS
+%LICENSE%
+.LP
+An optional set of license identifiers that apply for the package.
+Values may be present one or more times.
+If there is no license identifier, the section is omitted.
+.PP
+Each value represents a license identifier, which is a string of non-zero length (e.g. \f(CRGPL\fR).
+Although no specific restrictions are enforced for the value aside from its length, it is highly recommended to rely on SPDX license expressions (e.g. \f(CRGPL-3.0-or-later\fR or \f(CRApache-2.0 OR MIT\fR).
+See \fBSPDX License List\fR[4] for further information.
+.SS
+%VALIDATION%
+.LP
+The validation methods used during installation of the package ensuring its authenticity.
+Values may be present one or more times.
+Only the following values are understood:
+.IP "\(bu" 3
+\f(CRnone\fR: The package integrity and authenticity is not validated.
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.IP "\(bu" 3
+\f(CRmd5\fR: The package is validated against an accompanying MD-5 hash digest in an \fBalpm-repo-db\fR that belongs to the repository from which the package is installed.
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.IP "\(bu" 3
+\f(CRsha256\fR: The package is validated against an accompanying SHA-256 hash digest in the \fBalpm-repo-db\fR that belongs to the repository from which the package is installed.
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.IP "\(bu" 3
+\f(CRpgp\fR: The package\(cqs authenticity and integrity is validated using a detached \fBOpenPGP signature\fR[5] and a system-wide collection of \fBOpenPGP certificates\fR[6].
+The digital signature may either be present in the \f(CR%PGPSIG%\fR field of an \fBalpm-repo-db\fR or as a separate file, alongside the package file.
+.LP
+The \f(CRmd5\fR \f(CRsha256\fR and \f(CRpgp\fR values can be used in combination to indicate that all of them apply (e.g. a package file may be validated with both a SHA-256 hash digest and a detached \fBOpenPGP signature\fR[5]).
+However, if no validation is performed, only \f(CRnone\fR is allowed as value.
+.SS
+%REPLACES%
+.LP
+Another \fIvirtual component\fR or \fIpackage\fR, that the package replaces upon installation.
+Values may be present one or more times.
+If the package does not replace anything, the section is omitted.
+The value is an \fBalpm-package-relation\fR of type \fBreplacement\fR (e.g. \f(CRexample\fR or \f(CRexample=1.0.0\fR).
+.SS
+%DEPENDS%
+.LP
+A run-time dependency of the package (\fIvirtual component\fR or \fIpackage\fR).
+Values may be present one or more times.
+If the package has no run-time dependency, the section is omitted.
+The value is an \fBalpm-package-relation\fR of type \fBrun-time dependency\fR (e.g. \f(CRexample\fR or \f(CRexample=1.0.0\fR).
+.SS
+%OPTDEPENDS%
+.LP
+An optional dependency of the package (\f(CRvirtual component\fR or \f(CRpackage\fR).
+Values may be present one or more times.
+If the package has no optional dependency, the section is omitted.
+The value is an \fBalpm-package-relation\fR of type \fBoptional dependency\fR (e.g. \f(CRexample\fR or \f(CRexample: this is a description\fR).
+.SS
+%CONFLICTS%
+.LP
+Another \fIvirtual component\fR or \fIpackage\fR, that the package conflicts with.
+Values may be present one or more times.
+If the package does not conflict with anything, the section is omitted.
+The value is an \fBalpm-package-relation\fR of type \fBconflict\fR (e.g. \f(CRexample\fR or \f(CRexample=1.0.0\fR).
+.SS
+%PROVIDES%
+.LP
+Another \fIvirtual component\fR or \fIpackage\fR, that the package provides.
+Values may be present one or more times.
+If the package does not provide anything, the section is omitted.
+The value is an \fBalpm-package-relation\fR of type \fBprovision\fR (e.g. \f(CRexample\fR or \f(CRexample=1.0.0\fR).
+.SS
+%XDATA%
+.LP
+The e\fIx\fRtra \fIdata\fR associated with the package.
+One value must be assigned to define a specific value, but otherwise several values may be present as well to provide further extra data.
+The value is a UTF-8-encoded string, that represents a key-value pair, delimited by a \(oq=\(cq sign (e.g. \f(CRkey=value\fR).
+.PP
+This section of the \fBalpm-db-desc\fR file format must contain a value that defines a \fBpkgtype\fR assignment (e.g. \f(CRpkgtype=pkg\fR).
+The valid \fBpkgtype\fR values are \f(CRdebug\fR (for debug packages), \f(CRpkg\fR (for single packages), \f(CRsrc\fR (for source packages) and \f(CRsplit\fR (for split packages).
+.PP
+Additional values may be provided following the aforementioned general rules around formatting.
+.SH "مثال‌ها (EXAMPLES)"
+.LP
+An example \fBalpm-db-desc\fR file for a package named \f(CRexample\fR in version \f(CR1.0.0-1\fR:
+.LP
+.EX
+%NAME%
+example
+
+%VERSION%
+1.0.0-1
+
+%BASE%
+example
+
+%DESC%
+An example package
+
+%URL%
+https://example.org
+
+%ARCH%
+x86_64
+
+%BUILDDATE%
+1733737242
+
+%INSTALLDATE%
+1733737243
+
+%PACKAGER%
+Foobar McFooface <foobar@mcfooface.org>
+
+%SIZE%
+4
+
+%LICENSE%
+MIT
+Apache-2.0
+
+%VALIDATION%
+pgp
+
+%DEPENDS%
+gcc-libs
+
+%XDATA%
+pkgtype=pkg
+.EE
+.SH "همچنین ببینید (SEE ALSO)"
+.LP
+\fBlibalpm\fR(3), \fBBUILDINFO\fR(5), \fBPKGBUILD\fR(5), \fBPKGINFO\fR(5), \fBalpm-repo-desc\fR(5), \fBalpm-architecture\fR(7), \fBalpm-package\fR(7), \fBalpm-package-file-name\fR(7), \fBalpm-package-name\fR(7), \fBalpm-package-relation\fR(7), \fBalpm-package-version\fR(7), \fBalpm-repo-db\fR(7), \fBalpm-split-package\fR(7), \fBpacman\fR(8)
+.SH "نکات (NOTES)"
+.IP "1." 3
+printable ASCII characters
+.IP
+.UR https://en.wikipedia.org/wiki/ASCII#Printable_characters
+.UE
+.IP "2." 3
+OpenPGP User ID
+.IP
+.UR https://openpgp.dev/book/certificates.html#user-ids
+.UE
+.IP "3." 3
+RFC 2822
+.IP
+.UR https://www.rfc-editor.org/rfc/rfc2822
+.UE
+.IP "4." 3
+SPDX License List
+.IP
+.UR https://spdx.org/licenses/
+.UE
+.IP "5." 3
+OpenPGP signature
+.IP
+.UR https://openpgp.dev/book/signing_data.html#detached-signatures
+.UE
+.IP "6." 3
+OpenPGP certificates
+.IP
+.UR https://openpgp.dev/book/certificates.html
+.UE

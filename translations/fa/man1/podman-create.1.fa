@@ -1,0 +1,2915 @@
+'\" t
+.nh
+.TH podman-create 1
+.SH "نام (NAME)"
+podman-create \- Create a new container
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman create\fP [\fIoptions\fP] \fIimage\fP [\fIcommand\fP [\fIarg\fP ...]]
+
+.PP
+\fBpodman container create\fP [\fIoptions\fP] \fIimage\fP [\fIcommand\fP [\fIarg\fP ...]]
+
+.SH "توضیحات (DESCRIPTION)"
+Creates a writable container layer over the specified image and prepares it for
+running the specified command. The container ID is then printed to STDOUT. This
+is similar to \fBpodman run -d\fP except the container is never started. Use the
+\fBpodman start\fP \fIcontainer\fP command to start the container at any point.
+
+.PP
+The initial status of the container created with \fBpodman create\fP is 'created'.
+
+.PP
+Default settings for flags are defined in \fBcontainers.conf\fR\&. Most settings for
+remote connections use the server's containers.conf, except when documented in
+man pages.
+
+.SH IMAGE
+The image is specified using transport:path format. If no transport is specified, the \fBdocker\fR (container registry)
+transport is used by default. For remote Podman, including Mac and Windows (excluding WSL2) machines, \fBdocker\fR is the only allowed transport.
+
+.PP
+\fBdir:\fP\fIpath\fP
+  An existing local directory \fIpath\fP storing the manifest, layer tarballs and signatures as individual files. This
+is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
+
+.EX
+$ podman save --format docker-dir fedora -o /tmp/fedora
+$ podman create dir:/tmp/fedora echo hello
+.EE
+
+.PP
+\fBdocker://\fP\fIdocker-reference\fP (Default)
+  An image reference stored in  a remote container image registry. Example: "quay.io/podman/stable:latest".
+The reference can include a path to a specific registry; if it does not, the
+registries listed in registries.conf is queried to find a matching image.
+By default, credentials from \fBpodman login\fR (stored at
+$XDG_RUNTIME_DIR/containers/auth.json by default) is used to authenticate;
+otherwise it falls back to using credentials in $HOME/.docker/config.json.
+
+.EX
+$ podman create registry.fedoraproject.org/fedora:latest echo hello
+.EE
+
+.PP
+\fBdocker-archive:\fP\fIpath\fP[\fB:\fP\fIdocker-reference\fP]
+An image stored in the \fBdocker save\fR formatted file. \fIdocker-reference\fP is only used when creating such a
+file, and it must not contain a digest.
+
+.EX
+$ podman save --format docker-archive fedora -o /tmp/fedora
+$ podman create docker-archive:/tmp/fedora echo hello
+.EE
+
+.PP
+Note: On remote clients, including Mac and Windows (excluding WSL2) machines, this transport is not supported.
+
+.PP
+\fBdocker-daemon:\fP\fIdocker-reference\fP
+  An image in \fIdocker-reference\fP format stored in the docker daemon internal storage. The \fIdocker-reference\fP can also be an image ID (docker-daemon:algo:digest).
+
+.EX
+$ sudo docker pull fedora
+$ sudo podman create docker-daemon:docker.io/library/fedora echo hello
+.EE
+
+.PP
+Note: On remote clients, including Mac and Windows (excluding WSL2) machines, this transport is not supported.
+
+.PP
+\fBoci-archive:\fP\fIpath\fP\fB:\fP\fItag\fP
+  An image in a directory compliant with the "Open Container Image Layout Specification" at the specified \fIpath\fP
+and specified with a \fItag\fP\&.
+
+.EX
+$ podman save --format oci-archive fedora -o /tmp/fedora
+$ podman create oci-archive:/tmp/fedora echo hello
+.EE
+
+.PP
+Note: On remote clients, including Mac and Windows (excluding WSL2) machines, this transport is not supported.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--add-host\fP=\fIhostname[;hostname[;...]]\fP:\fIip\fP
+Add a custom host-to-IP mapping to the container's \fB/etc/hosts\fR file.
+
+.PP
+The option takes one or multiple semicolon-separated hostnames to be mapped to
+a single IPv4 or IPv6 address, separated by a colon. It can also be used to
+overwrite the IP addresses of hostnames Podman adds to \fB/etc/hosts\fR by default
+(also see the \fB--name\fP and \fB--hostname\fP options). This option can be
+specified multiple times to add additional mappings to \fB/etc/hosts\fR\&. It
+conflicts with the \fB--no-hosts\fP option and conflicts with \fIno_hosts=true\fP in
+\fBcontainers.conf\fR\&.
+
+.PP
+Instead of an IP address, the special flag \fIhost-gateway\fP can be given. This
+resolves to an IP address the container can use to connect to the host. The
+IP address chosen depends on your network setup, thus there's no guarantee that
+Podman can determine the \fIhost-gateway\fP address automatically, which will then
+cause Podman to fail with an error message. You can overwrite this IP address
+using the \fIhost_containers_internal_ip\fP option in \fIcontainers.conf\fP\&.
+
+.PP
+The \fIhost-gateway\fP address is also used by Podman to automatically add the
+\fBhost.containers.internal\fR and \fBhost.docker.internal\fR hostnames to \fB/etc/hosts\fR\&.
+You can prevent that by either giving the \fB--no-hosts\fP option, or by setting
+\fIhost_containers_internal_ip="none"\fP in \fIcontainers.conf\fP\&. If no \fIhost-gateway\fP
+address was configured manually and Podman fails to determine the IP address
+automatically, Podman will silently skip adding these internal hostnames to
+\fB/etc/hosts\fR\&. If Podman is running in a virtual machine using \fBpodman machine\fR
+(this includes Mac and Windows hosts), Podman will silently skip adding the
+internal hostnames to \fB/etc/hosts\fR, unless an IP address was configured
+manually; the internal hostnames are resolved by the gvproxy DNS resolver
+instead.
+
+.PP
+Podman will use the \fB/etc/hosts\fR file of the host as a basis by default, i.e.
+any hostname present in this file will also be present in the \fB/etc/hosts\fR file
+of the container. A different base file can be configured using the
+\fIbase_hosts_file\fP config in \fBcontainers.conf\fR\&.
+
+.SS \fB--annotation\fP=\fIkey=value\fP
+Add an annotation to the container. This option can be set multiple times.
+
+.SS \fB--arch\fP=\fIARCH\fP
+Override the architecture, defaults to the host, of the image to be pulled. For example, \fBarm\fR\&.
+Unless overridden, subsequent lookups of the same image in the local storage matches this architecture, regardless of the host.
+
+.SS \fB--attach\fP, \fB-a\fP=\fIstdin\fP | \fIstdout\fP | \fIstderr\fP
+Attach to STDIN, STDOUT or STDERR.
+
+.PP
+In foreground mode (the default when \fB-d\fP
+is not specified), \fBpodman run\fP can start the process in the container
+and attach the console to the process's standard input, output, and
+error. It can even pretend to be a TTY (this is what most command-line
+executables expect) and pass along signals. The \fB-a\fP option can be set for
+each of \fBstdin\fP, \fBstdout\fP, and \fBstderr\fP\&.
+
+.SS \fB--authfile\fP=\fIpath\fP
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fB--blkio-weight\fP=\fIweight\fP
+Block IO relative weight. The \fIweight\fP is a value between \fB10\fP and \fB1000\fP\&.
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--blkio-weight-device\fP=\fIdevice:weight\fP
+Block IO relative device weight.
+
+.SS \fB--cap-add\fP=\fIcapability\fP
+Add Linux capabilities.
+
+.PP
+Granting additional capabilities increases the privileges of the
+processes running inside the container and potentially allow it to
+break out of confinement.  Capabilities like \fBCAP_SYS_ADMIN\fR,
+\fBCAP_SYS_PTRACE\fR, \fBCAP_MKNOD\fR and \fBCAP_SYS_MODULE\fR are particularly
+dangerous when they are not used within a user namespace.  Please
+refer to \fBuser_namespaces(7)\fP for a more detailed explanation of the
+interaction between user namespaces and capabilities.
+
+.PP
+Before adding any capability, review its security implications and
+ensure it is really necessary for the container’s functionality.  See
+\fBcapabilities(7)\fP for more information.
+
+.SS \fB--cap-drop\fP=\fIcapability\fP
+Drop these capabilities from the default podman capability set, or \fBall\fR to drop all capabilities.
+
+.PP
+This is a space separated list of capabilities.
+
+.SS \fB--cert-dir\fP=\fIpath\fP
+Use certificates at \fIpath\fP (*\&.crt, *\&.cert, *\&.key) to connect to the registry. (Default: /etc/containers/certs.d)
+For details, see \fBcontainers-certs.d(5)\fP\&.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--cgroup-conf\fP=\fIKEY=VALUE\fP
+When running on cgroup v2, specify the cgroup file to write to and its value. For example \fB--cgroup-conf=memory.high=1073741824\fP sets the memory.high limit to 1GB.
+
+.SS \fB--cgroup-parent\fP=\fIpath\fP
+Path to cgroups under which the cgroup for the container is created. If the
+path is not absolute, the path is considered to be relative to the cgroups path
+of the init process. Cgroups are created if they do not already exist.
+
+.SS \fB--cgroupns\fP=\fImode\fP
+Set the cgroup namespace mode for the container.
+.IP \(bu 2
+\fBhost\fP: use the host's cgroup namespace inside the container.
+.IP \(bu 2
+\fBcontainer:\fP\fIid\fP: join the namespace of the specified container.
+.IP \(bu 2
+\fBprivate\fP: create a new cgroup namespace.
+.IP \(bu 2
+\fBns:\fP\fIpath\fP: join the namespace at the specified path.
+
+.PP
+If the host uses cgroups v1, the default is set to \fBhost\fP\&. On cgroups v2, the default is \fBprivate\fP\&.
+
+.SS \fB--cgroups\fP=\fIhow\fP
+Determines whether the container creates cgroups.
+
+.PP
+Default is \fBenabled\fP\&.
+
+.PP
+The \fBenabled\fP option creates a new cgroup under the cgroup-parent.
+The \fBdisabled\fP option forces the container to not create cgroups, and thus conflicts with cgroup options (\fB--cgroupns\fP and \fB--cgroup-parent\fP).
+The \fBno-conmon\fP option disables a new cgroup only for the \fBconmon\fP process.
+The \fBsplit\fP option splits the current cgroup in two sub-cgroups: one for conmon and one for the container payload. It is not possible to set \fB--cgroup-parent\fP with \fBsplit\fP\&.
+
+.SS \fB--chrootdirs\fP=\fIpath\fP
+Path to a directory inside the container that is treated as a \fBchroot\fR directory.
+Any Podman managed file (e.g., /etc/resolv.conf, /etc/hosts, /etc/hostname) that is mounted into the root directory is mounted into that location as well.
+Multiple directories are separated with a comma.
+
+.SS \fB--cidfile\fP=\fIfile\fP
+Write the container ID to \fIfile\fP\&.  The file is removed along with the container, except
+when used with podman --remote run on detached containers.
+
+.SS \fB--conmon-pidfile\fP=\fIfile\fP
+Write the pid of the \fBconmon\fP process to a file. As \fBconmon\fP runs in a separate process than Podman, this is necessary when using systemd to restart Podman containers.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--cpu-period\fP=\fIlimit\fP
+Set the CPU period for the Completely Fair Scheduler (CFS), which is a
+duration in microseconds. Once the container's CPU quota is used up, it will not
+be scheduled to run until the current period ends. Defaults to 100000
+microseconds.
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpu-quota\fP=\fIlimit\fP
+Limit the CPU Completely Fair Scheduler (CFS) quota.
+
+.PP
+Limit the container's CPU usage. By default, containers run with the full
+CPU resource. The limit is a number in microseconds. If a number is provided,
+the container is allowed to use that much CPU time until the CPU period
+ends (controllable via \fB--cpu-period\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpu-rt-period\fP=\fImicroseconds\fP
+Limit the CPU real-time period in microseconds.
+
+.PP
+Limit the container's Real Time CPU usage. This option tells the kernel to restrict the container's Real Time CPU usage to the period specified.
+
+.PP
+This option is only supported on cgroups V1 rootful systems.
+
+.SS \fB--cpu-rt-runtime\fP=\fImicroseconds\fP
+Limit the CPU real-time runtime in microseconds.
+
+.PP
+Limit the containers Real Time CPU usage. This option tells the kernel to limit the amount of time in a given CPU period Real Time tasks may consume. Ex:
+Period of 1,000,000us and Runtime of 950,000us means that this container can consume 95% of available CPU and leave the remaining 5% to normal priority tasks.
+
+.PP
+The sum of all runtimes across containers cannot exceed the amount allotted to the parent cgroup.
+
+.PP
+This option is only supported on cgroups V1 rootful systems.
+
+.SS \fB--cpu-shares\fP, \fB-c\fP=\fIshares\fP
+CPU shares (relative weight).
+
+.PP
+By default, all containers get the same proportion of CPU cycles. This
+proportion can be modified by changing the container's CPU share weighting
+relative to the combined weight of all the running containers.
+Default weight is \fB1024\fP\&.
+
+.PP
+The proportion only applies when CPU-intensive processes are running.
+When tasks in one container are idle, other containers can use the
+left-over CPU time. The actual amount of CPU time varies depending on
+the number of containers running on the system.
+
+.PP
+For example, consider three containers, one has a cpu-share of 1024 and
+two others have a cpu-share setting of 512. When processes in all three
+containers attempt to use 100% of CPU, the first container receives
+50% of the total CPU time. If a fourth container is added with a cpu-share
+of 1024, the first container only gets 33% of the CPU. The remaining containers
+receive 16.5%, 16.5% and 33% of the CPU.
+
+.PP
+On a multi-core system, the shares of CPU time are distributed over all CPU
+cores. Even if a container is limited to less than 100% of CPU time, it can
+use 100% of each individual CPU core.
+
+.PP
+For example, consider a system with more than three cores.
+If the container \fIC0\fP is started with \fB--cpu-shares=512\fP running one process,
+and another container \fIC1\fP with \fB--cpu-shares=1024\fP running two processes,
+this can result in the following division of CPU shares:
+
+.TS
+allbox;
+l l l l 
+l l l l .
+\fBPID\fP	\fBcontainer\fP	\fBCPU\fP	\fBCPU share\fP
+100	C0	0	100% of CPU0
+101	C1	1	100% of CPU1
+102	C1	2	100% of CPU2
+.TE
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpus\fP=\fInumber\fP
+Number of CPUs. The default is \fI0.0\fP which means no limit. This is shorthand
+for \fB--cpu-period\fP and \fB--cpu-quota\fP, therefore the option cannot be specified with
+\fB--cpu-period\fP or \fB--cpu-quota\fP\&.
+
+.PP
+On some systems, changing the CPU limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpuset-cpus\fP=\fInumber\fP
+CPUs in which to allow execution. Can be specified as a comma-separated list
+(e.g. \fB0,1\fP), as a range (e.g. \fB0-3\fP), or any combination thereof
+(e.g. \fB0-3,7,11-15\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpuset-mems\fP=\fInodes\fP
+Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on
+NUMA systems.
+
+.PP
+If there are four memory nodes on the system (0-3), use \fB--cpuset-mems=0,1\fP
+then processes in the container only uses memory from the first
+two memory nodes.
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--creds\fP=\fI[username[:password]]\fP
+The [username[:password]] to use to authenticate with the registry, if required.
+If one or both values are not supplied, a command line prompt appears and the
+value can be entered. The password is entered without echo.
+
+.PP
+Note that the specified credentials are only used to authenticate against
+target registries.  They are not used for mirrors or when the registry gets
+rewritten (see \fBcontainers-registries.conf(5)\fR); to authenticate against those
+consider using a \fBcontainers-auth.json(5)\fR file.
+
+.SS \fB--decryption-key\fP=\fIkey[:passphrase]\fP
+The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption is tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
+
+.SS \fB--device\fP=\fIhost-device[:container-device][:permissions]\fP
+Add a host device to the container. The format of this is
+\fBHOST-DEVICE[:CONTAINER-DEVICE][:PERMISSIONS]\fR, where \fBHOST-DEVICE\fR is the path of
+the device node on the host, \fBCONTAINER-DEVICE\fR is the path of the device node in
+the container, and \fBPERMISSIONS\fR is a list of permissions combining 'r' for read,
+\&'w' for write, and 'm' for mknod(2).
+
+.PP
+Example: \fB--device=/dev/sdc:/dev/xvdc:rwm\fP\&.
+
+.PP
+Note: if \fIhost-device\fP is a symbolic link then it is resolved first.
+The container only stores the major and minor numbers of the host device.
+
+.PP
+Podman may load kernel modules required for using the specified
+device. The devices that Podman loads modules for when necessary are:
+/dev/fuse.
+
+.PP
+In rootless mode, the new device is bind mounted in the container from the host
+rather than Podman creating it within the container space. Because the bind
+mount retains its SELinux label on SELinux systems, the container can get
+permission denied when accessing the mounted device. Modify SELinux settings to
+allow containers to use all device labels via the following command:
+
+.PP
+$ sudo setsebool -P  container_use_devices=true
+
+.PP
+Note: if the user only has access rights via a group, accessing the device
+from inside a rootless container fails. Use the \fB--group-add keep-groups\fR
+flag to pass the user's supplementary group access into the container.
+
+.SS \fB--device-cgroup-rule\fP=\fI"type major:minor mode"\fP
+Add a rule to the cgroup allowed devices list. The rule is expected to be
+in the format specified in the Linux kernel documentation
+admin-guide/cgroup-v1/devices:
+- \fItype\fP: \fBa\fR (all), \fBc\fR (char), or \fBb\fR (block);
+- \fImajor\fP and \fIminor\fP: either a number, or \fB*\fR for all;
+- \fImode\fP: a composition of \fBr\fR (read), \fBw\fR (write), and \fBm\fR (mknod(2)).
+
+.SS \fB--device-read-bps\fP=\fIpath:rate\fP
+Limit read rate (in bytes per second) from a device (e.g. \fB--device-read-bps=/dev/sda:1mb\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--device-read-iops\fP=\fIpath:rate\fP
+Limit read rate (in IO operations per second) from a device (e.g. \fB--device-read-iops=/dev/sda:1000\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--device-write-bps\fP=\fIpath:rate\fP
+Limit write rate (in bytes per second) to a device (e.g. \fB--device-write-bps=/dev/sda:1mb\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--device-write-iops\fP=\fIpath:rate\fP
+Limit write rate (in IO operations per second) to a device (e.g. \fB--device-write-iops=/dev/sda:1000\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--disable-content-trust\fP
+This is a Docker-specific option to disable image verification to a container
+registry and is not supported by Podman. This option is a NOOP and provided
+solely for scripting compatibility.
+
+.SS \fB--dns\fP=\fIipaddr\fP
+Set custom DNS servers.
+
+.PP
+This option can be used to override the DNS
+configuration passed to the container. Typically this is necessary when the
+host DNS configuration is invalid for the container (e.g., \fB127.0.0.1\fP). When this
+is the case, the \fB--dns\fP flag is necessary for every run.
+
+.PP
+The special value \fBnone\fP can be specified to disable creation of \fI/etc/resolv.conf\fP in the container by Podman.
+The \fI/etc/resolv.conf\fP file in the image is then used without changes.
+
+.PP
+Note that \fBipaddr\fP may be added directly to the container's \fI/etc/resolv.conf\fP\&.
+This is not guaranteed though.  For example, passing a custom network whose \fIdns_enabled\fP is set to \fItrue\fP to \fB--network\fP will result in \fI/etc/resolv.conf\fP only referring to the aardvark-dns server.  aardvark-dns then forwards to the supplied \fBipaddr\fP for all non-container name queries.
+
+.PP
+This option cannot be combined with \fB--network\fP that is set to \fBnone\fP or \fBcontainer:\fP\fIid\fP\&.
+
+.SS \fB--dns-option\fP=\fIoption\fP
+Set custom DNS options. Invalid if using \fB--dns-option\fP
+with \fB--network\fP that is set to \fBnone\fP or \fBcontainer:\fP\fIid\fP\&.
+
+.SS \fB--dns-search\fP=\fIdomain\fP
+Set custom DNS search domains. Invalid if using \fB--dns-search\fP
+with \fB--network\fP that is set to \fBnone\fP or \fBcontainer:\fP\fIid\fP\&.
+Use \fB--dns-search=.\fP to remove the search domain.
+
+.SS \fB--entrypoint\fP=\fI"command"\fP | \fI\&'["command", "arg1", ...]'\fP
+Override the default ENTRYPOINT from the image.
+
+.PP
+The ENTRYPOINT of an image is similar to a COMMAND
+because it specifies what executable to run when the container starts, but it is
+(purposely) more difficult to override. The ENTRYPOINT gives a container its
+default nature or behavior. When the ENTRYPOINT is set, the
+container runs as if it were that binary, complete with default options. More options can be
+passed in via the COMMAND. But, if a user wants to run
+something else inside the container, the \fB--entrypoint=\fP option allows a new
+ENTRYPOINT to be specified.
+
+.PP
+Specify multi option commands in the form of a JSON string.
+
+.SS \fB--env\fP, \fB-e\fP=\fIenv\fP
+Set environment variables.
+
+.PP
+This option allows arbitrary environment variables that are available for the process to be launched inside of the container. If an environment variable is specified without a value, Podman checks the host environment for a value and set the variable only if it is set on the host. As a special case, if an environment variable ending in \fB*\fP is specified without a value, Podman searches the host environment for variables starting with the prefix and adds those variables to the container.
+
+.PP
+See 
+\[la]#environment\[ra] note below for precedence and examples.
+
+.SS \fB--env-file\fP=\fIfile\fP
+Read in a line-delimited file of environment variables.
+
+.PP
+See 
+\[la]#environment\[ra] note below for precedence and examples.
+
+.SS \fB--env-host\fP
+Use host environment inside of the container. See \fBEnvironment\fP note below for precedence. (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--env-merge\fP=\fIenv\fP
+Preprocess default environment variables for the containers. For example
+if image contains environment variable \fBhello=world\fR user can preprocess
+it using \fB--env-merge hello=${hello}-some\fR so new value is \fBhello=world-some\fR\&.
+
+.PP
+Please note that if the environment variable \fBhello\fR is not present in the image,
+then it'll be replaced by an empty string and so using \fB--env-merge hello=${hello}-some\fR
+would result in the new value of \fBhello=-some\fR, notice the leading \fB-\fR delimiter.
+
+.SS \fB--expose\fP=\fIport[/protocol]\fP
+Expose a port or a range of ports (e.g. \fB--expose=3300-3310\fP).
+The protocol can be \fBtcp\fR, \fBudp\fR or \fBsctp\fR and if not given \fBtcp\fR is assumed.
+This option matches the EXPOSE instruction for image builds and has no effect on
+the actual networking rules unless \fB-P/--publish-all\fP is used to forward to all
+exposed ports from random host ports. To forward specific ports from the host
+into the container use the \fB-p/--publish\fP option instead.
+
+.SS \fB--gidmap\fP=\fI[flags]container_gid:from_gid[:amount]\fP
+Run the container in a new user namespace using the supplied GID mapping. This
+option conflicts with the \fB--userns\fP and
+\fB--subgidname\fP options. This
+option provides a way to map host GIDs to container GIDs in the same way as
+\fB--uidmap\fP maps host UIDs to container UIDs. For details see \fB--uidmap\fP\&.
+
+.PP
+Note: the \fB--gidmap\fP option cannot be
+called in conjunction with the \fB--pod\fP option as
+a gidmap cannot be set on the container level when in a pod.
+
+.SS \fB--gpus\fP=\fIENTRY\fP
+Start the container with GPU support. Where \fBENTRY\fR can be \fBall\fR to request all GPUs, or a vendor-specific identifier. Currently, NVIDIA and AMD devices are supported. If both NVIDIA and AMD devices are present, the NVIDIA devices will be preferred, and a CDI device name must be specified using the \fB--device\fR flag to request a set of GPUs from a \fIspecific\fP vendor.
+
+.SS \fB--group-add\fP=\fIgroup\fP | \fIkeep-groups\fP
+Assign additional groups to the primary user running within the container process.
+.IP \(bu 2
+\fBkeep-groups\fR is a special flag that tells Podman to keep the supplementary group access.
+
+.PP
+Allows container to use the user's supplementary group access. If file systems or
+devices are only accessible by the rootless user's group, this flag tells the OCI
+runtime to pass the group access into the container. Currently only available
+with the \fBcrun\fR OCI runtime. Note: \fBkeep-groups\fR is exclusive, other groups cannot be specified
+with this flag. (Not available for remote commands, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--group-entry\fP=\fIENTRY\fP
+Customize the entry that is written to the \fB/etc/group\fR file within the container when \fB--user\fR is used.
+
+.PP
+The variables $GROUPNAME, $GID, and $USERLIST are automatically replaced with their value at runtime if present.
+
+.SS \fB--health-cmd\fP=\fI"command"\fP | \fI\&'["command", "arg1", ...]'\fP
+Set or alter a healthcheck command for a container. The command is a command to be executed inside the
+container that determines the container health. The command is required for other healthcheck options
+to be applied. A value of \fBnone\fP disables existing healthchecks.
+
+.PP
+Multiple options can be passed in the form of a JSON array; otherwise, the command is interpreted
+as an argument to \fB/bin/sh -c\fP\&.
+
+.PP
+Note: The default values are used even if healthcheck is configured in the image.
+
+.SS \fB--health-interval\fP=\fIinterval\fP
+Set an interval for the healthchecks. An \fIinterval\fP of \fBdisable\fP results in no automatic timer setup. The default is \fB30s\fP\&.
+
+.PP
+Note: This parameter will overwrite related healthcheck configuration from the image.
+
+.SS \fB--health-log-destination\fP=\fIdirectory_path\fP
+Set the destination of the HealthCheck log. Directory path, local or events_logger (local use container state file) (Default: local)
+.IP \(bu 2
+\fBlocal\fR: (default) HealthCheck logs are stored in overlay containers. (For example: \fB$runroot/healthcheck.log\fR)
+.IP \(bu 2
+\fBdirectory\fR: creates a log file named \fB<container-ID>-healthcheck.log\fR with HealthCheck logs in the specified directory.
+.IP \(bu 2
+\fBevents_logger\fR: The log will be written with logging mechanism set by events_logger. It also saves the log to a default directory, for performance on a system with a large number of logs.
+
+.SS \fB--health-max-log-count\fP=\fInumber of stored logs\fP
+Set maximum number of attempts in the HealthCheck log file. ('0' value means an infinite number of attempts in the log file) (Default: 5 attempts)
+
+.SS \fB--health-max-log-size\fP=\fIsize of stored logs\fP
+Set maximum length in characters of stored HealthCheck log. ("0" value means an infinite log length) (Default: 500 characters)
+
+.SS \fB--health-on-failure\fP=\fIaction\fP
+Action to take once the container transitions to an unhealthy state.  The default is \fBnone\fP\&.
+.IP \(bu 2
+\fBnone\fP: Take no action.
+.IP \(bu 2
+\fBkill\fP: Kill the container.
+.IP \(bu 2
+\fBrestart\fP: Restart the container.  Do not combine the \fBrestart\fR action with the \fB--restart\fR flag.  When running inside of a systemd unit, consider using the \fBkill\fR or \fBstop\fR action instead to make use of systemd's restart policy.
+.IP \(bu 2
+\fBstop\fP: Stop the container.
+
+.SS \fB--health-retries\fP=\fIretries\fP
+The number of retries allowed before a healthcheck is considered to be unhealthy. The default value is \fB3\fP\&.
+
+.PP
+Note: This parameter can overwrite the healthcheck configuration from the image.
+
+.SS \fB--health-start-period\fP=\fIperiod\fP
+The initialization time needed for a container to bootstrap. The value can be expressed in time format like
+\fB2m3s\fP\&. The default value is \fB0s\fP\&.
+
+.PP
+Note: The health check command is executed as soon as a container is started, if the health check is successful
+the container's health state will be updated to \fBhealthy\fR\&. However, if the health check fails, the health state will
+stay as \fBstarting\fR until either the health check is successful or until
+the \fB--health-start-period\fR time is over. If the
+health check command fails after the \fB--health-start-period\fR
+time is over, the health state will be updated to \fBunhealthy\fR\&.
+The health check command is executed periodically based on the value of
+\fB--health-interval\fR\&.
+
+.PP
+Note: This parameter will overwrite related healthcheck configuration from the image.
+
+.SS \fB--health-startup-cmd\fP=\fI"command"\fP | \fI\&'["command", "arg1", ...]'\fP
+Set a startup healthcheck command for a container. This command is executed inside the container and is used to gate the regular
+healthcheck. When the startup command succeeds, the regular healthcheck begins and the startup healthcheck ceases. Optionally,
+if the command fails a set number of times, the container is restarted. A startup healthcheck can be used to ensure that
+containers with an extended startup period are not marked as unhealthy until they are fully started. Startup healthchecks can only be
+used when a regular healthcheck (from the container's image or the
+\fB--health-cmd\fR option) is also set.
+
+.SS \fB--health-startup-interval\fP=\fIinterval\fP
+Set an interval for the startup healthcheck. An \fIinterval\fP of \fBdisable\fP results in no automatic timer setup. The default is \fB30s\fP\&.
+
+.SS \fB--health-startup-retries\fP=\fIretries\fP
+The number of attempts allowed before the startup healthcheck restarts the container. If set to \fB0\fP, the container is never restarted. The default is \fB0\fP\&.
+
+.SS \fB--health-startup-success\fP=\fIretries\fP
+The number of successful runs required before the startup healthcheck succeeds and the regular healthcheck begins. A value
+of \fB0\fP means that any success begins the regular healthcheck. The default is \fB0\fP\&.
+
+.SS \fB--health-startup-timeout\fP=\fItimeout\fP
+The maximum time a startup healthcheck command has to complete before it is marked as failed. The value can be expressed in a time
+format like \fB2m3s\fP\&. The default value is \fB30s\fP\&.
+
+.SS \fB--health-timeout\fP=\fItimeout\fP
+The maximum time allowed to complete the healthcheck before an interval is considered failed. Like start-period, the
+value can be expressed in a time format such as \fB1m22s\fP\&. The default value is \fB30s\fP\&.
+
+.PP
+Note: A timeout marks the healthcheck as failed. If the healthcheck command itself runs longer than the specified \fItimeout\fP,
+it will be sent a \fBSIGKILL\fR signal.
+
+.PP
+Note: This parameter will overwrite related healthcheck configuration from the image.
+
+.SS \fB--help\fP
+Print usage statement
+
+.SS \fB--hostname\fP, \fB-h\fP=\fIname\fP
+Set the container's hostname inside the container.
+
+.PP
+This option can only be used with a private UTS namespace \fB--uts=private\fR
+(default). If \fB--pod\fR is given and the pod shares the same UTS namespace
+(default), the pod's hostname is used. The given hostname is also added to the
+\fB/etc/hosts\fR file using the container's primary IP address (also see the
+\fB--add-host\fP option).
+
+.PP
+When \fB--hostname\fP is not used and the container uses a private UTS namespace (default), Podman sets the hostname to the first 12 characters of the container ID. The container name assigned with \fB--name\fP is not used unless \fIcontainer_name_as_hostname=true\fP is set in \fBcontainers.conf\fR\&.
+
+.PP
+Podman network DNS registers the container name, the short container ID (first 12 characters), and any explicitly set \fB--hostname\fP as DNS names. The default hostname matches the short ID alias. See \fBpodman-network(1)\fP\&.
+
+.SS \fB--hosts-file\fP=\fIpath\fP | \fInone\fP | \fIimage\fP
+Base file to create the \fB/etc/hosts\fR file inside the container. This must either
+be an absolute path to a file on the host system, or one of the following
+special flags:
+  ""      Follow the \fBbase_hosts_file\fR configuration in \fIcontainers.conf\fP (the default)
+  \fBnone\fR  Do not use a base file (i.e. start with an empty file)
+  \fBimage\fR Use the container image's \fB/etc/hosts\fR file as base file
+
+.SS \fB--hostuser\fP=\fIname\fP
+Add a user account to /etc/passwd from the host to the container. The Username
+or UID must exist on the host system.
+
+.SS \fB--http-proxy\fP
+By default proxy environment variables are passed into the container if set
+for the Podman process. This can be disabled by setting the value to \fBfalse\fP\&.
+The environment variables passed in include \fBhttp_proxy\fP,
+\fBhttps_proxy\fP, \fBftp_proxy\fP, \fBno_proxy\fP, and also the upper case versions of
+those. This option is only needed when the host system must use a proxy but
+the container does not use any proxy. Proxy environment variables specified
+for the container in any other way overrides the values that have
+been passed through from the host. (Other ways to specify the proxy for the
+container include passing the values with the \fB--env\fP flag, or hard coding the
+proxy environment at container build time.)
+When used with the remote client it uses the proxy environment variables
+that are set on the server process.
+
+.PP
+Defaults to \fBtrue\fP\&.
+
+.SS \fB--image-volume\fP=\fBbind\fP | \fItmpfs\fP | \fIignore\fP
+Tells Podman how to handle the builtin image volumes. Default is \fBbind\fP\&.
+.IP \(bu 2
+\fBbind\fP: An anonymous named volume is created and mounted into the container.
+.IP \(bu 2
+\fBtmpfs\fP: The volume is mounted onto the container as a tmpfs, which allows the users to create
+content that disappears when the container is stopped.
+.IP \(bu 2
+\fBignore\fP: All volumes are just ignored and no action is taken.
+
+.SS \fB--init\fP
+Run an init inside the container that forwards signals and reaps processes.
+The container-init binary is mounted at \fB/run/podman-init\fR\&.
+Mounting over \fB/run\fR breaks container execution.
+
+.SS \fB--init-ctr\fP=\fItype\fP
+(Pods only).
+When using pods, create an init style container, which is run after the infra container is started
+but before regular pod containers are started.  Init containers are useful for running
+setup operations for the pod's applications.
+
+.PP
+Valid values for \fBinit-ctr\fR type are \fIalways\fP or \fIonce\fP\&.  The \fIalways\fP value
+means the container runs with each and every \fBpod start\fR, whereas the \fIonce\fP
+value means the container only runs once when the pod is started and then the container is removed.
+
+.PP
+Init containers are only run on pod \fBstart\fR\&.  Restarting a pod does not execute
+any init containers.  Furthermore, init containers can only be created in a
+pod when that pod is not running.
+
+.SS \fB--init-path\fP=\fIpath\fP
+Path to the container-init binary.
+
+.SS \fB--interactive\fP, \fB-i\fP
+When set to \fBtrue\fP, make stdin available to the contained process. If \fBfalse\fP, the stdin of the contained process is empty and immediately closed.
+
+.PP
+If attached, stdin is piped to the contained process. If detached, reading stdin will block until later attached.
+
+.PP
+\fBCaveat:\fP Podman will consume input from stdin as soon as it becomes available, even if the contained process doesn't request it.
+
+.SS \fB--ip\fP=\fIIPv4\fP
+Specify a static IPv4 address for the container, for example \fB10.88.64.128\fP\&.
+This option can only be used if the container is joined to only a single network - i.e.,
+\fB--network=network-name\fP is used at most once -
+and if the container is not joining another container's network namespace via
+\fB--network=container:\fIid\fP\fP\&.
+The address must be within the network's IP address pool (default \fB10.88.0.0/16\fP).
+
+.PP
+To specify multiple static IP addresses per container, use the \fB--network\fP option with multiple comma-separated \fBip\fR values:
+
+.EX
+--network mynet:ip=10.88.0.10,ip=10.88.0.11,ip=10.88.0.12
+.EE
+
+.PP
+This assigns multiple static IPv4 addresses (\fB10.88.0.10\fP, \fB10.88.0.11\fP, \fB10.88.0.12\fP) to the same network interface.
+
+.PP
+\fBMulti-Subnet Networks:\fP When a network has multiple subnets, you can assign IPs from different subnets to the same container. The IPs will be applied to a single network interface, with the first IP as primary and additional IPs as secondary addresses.
+
+.PP
+\fBIP Assignment Order:\fP For multi-subnet networks, IPs are grouped and ordered by their corresponding subnet, following the order in which subnets were defined during network creation (via \fB--subnet\fR flags). The order you specify IPs in the command does not affect the final assignment order. For example:
+
+.EX
+podman network create --subnet 10.89.0.0/24 --subnet 10.90.0.0/24 mynet
+podman run --network mynet:ip=10.90.0.20,ip=10.89.0.10,ip=10.89.0.11 alpine
+.EE
+
+.PP
+Results in IPs ordered by subnet: \fB10.89.0.10\fP (primary), \fB10.89.0.11\fP (secondary), \fB10.90.0.20\fP (secondary), since \fB10.89.0.0/24\fP was defined first.
+
+.PP
+\fBDynamic Allocation:\fP If fewer IPs are specified than available subnets, the remaining subnets will receive dynamically allocated IPs. Dynamic IPs are assigned in subnet order after all static IPs are applied.
+
+.PP
+Example with multi-subnet network:
+
+.EX
+podman network create --subnet 10.89.0.0/24 --subnet 10.90.0.0/24 mynet
+podman run --network mynet:ip=10.89.0.10,ip=10.90.0.20 alpine
+.EE
+
+.PP
+This configures \fBeth0\fP with \fB10.89.0.10\fP (primary) and \fB10.90.0.20\fP (secondary).
+
+.SS \fB--ip6\fP=\fIIPv6\fP
+Specify a static IPv6 address for the container, for example \fBfd46:db93:aa76:ac37::10\fP\&.
+This option can only be used if the container is joined to only a single network - i.e.,
+\fB--network=network-name\fP is used at most once -
+and if the container is not joining another container's network namespace via
+\fB--network=container:\fIid\fP\fP\&.
+The address must be within the network's IPv6 address pool.
+
+.PP
+To specify multiple static IPv6 addresses per container, set multiple networks using the
+**--network option with a static IPv6 address
+specified for each using the \fBip6\fR mode for that option.
+
+.SS \fB--ipc\fP=\fIipc\fP
+Set the IPC namespace mode for a container. The default is to create
+a private IPC namespace.
+.IP \(bu 2
+"": Use Podman's default, defined in containers.conf.
+.IP \(bu 2
+\fBcontainer:\fP\fIid\fP: reuses another container's shared memory, semaphores, and message queues
+.IP \(bu 2
+\fBhost\fP: use the host's shared memory, semaphores, and message queues inside the container. Note: the host mode gives the container full access to local shared memory and is therefore considered insecure.
+.IP \(bu 2
+\fBnone\fP:  private IPC namespace, with /dev/shm not mounted.
+.IP \(bu 2
+\fBns:\fP\fIpath\fP: path to an IPC namespace to join.
+.IP \(bu 2
+\fBprivate\fP: private IPC namespace.
+.IP \(bu 2
+\fBshareable\fP: private IPC namespace with a possibility to share it with other containers.
+
+.SS \fB--label\fP, \fB-l\fP=\fIkey=value\fP
+Add metadata to a container.
+
+.SS \fB--label-file\fP=\fIfile\fP
+Read in a line-delimited file of labels.
+
+.SS \fB--link-local-ip\fP=\fIip\fP
+Not implemented.
+
+.SS \fB--log-driver\fP=\fIdriver\fP
+Logging driver for the container. Currently available options are \fBk8s-file\fP, \fBjournald\fP, \fBnone\fP, \fBpassthrough\fP and \fBpassthrough-tty\fP, with \fBjson-file\fP aliased to \fBk8s-file\fP for scripting compatibility. (Default \fBjournald\fP).
+
+.PP
+The podman info command below displays the default log-driver for the system.
+
+.EX
+$ podman info --format '{{ .Host.LogDriver }}'
+journald
+.EE
+
+.PP
+The \fBpassthrough\fP driver passes down the standard streams (stdin, stdout, stderr) to the
+container.  It is not allowed with the remote Podman client, including Mac and Windows (excluding WSL2) machines, and on a tty, since it is
+vulnerable to attacks via TIOCSTI.
+
+.PP
+The \fBpassthrough-tty\fP driver is the same as \fBpassthrough\fP except that it also allows it to be used on a TTY if the user really wants it.
+
+.SS \fB--log-opt\fP=\fIname=value\fP
+Logging driver specific options.
+
+.PP
+Set custom logging configuration. The following *name*s are supported:
+
+.PP
+\fBpath\fP: specify a path to the log file
+    (e.g. \fB--log-opt path=/var/log/container/mycontainer.json\fP);
+
+.PP
+\fBmax-size\fP: specify a max size of the log file
+    (e.g. \fB--log-opt max-size=10mb\fP);
+
+.PP
+\fBtag\fP: specify a custom log tag for the container
+    (e.g. \fB--log-opt tag="{{.ImageName}}"\fP\&.
+It supports the same keys as \fBpodman inspect --format\fP\&.
+This option is currently supported only by the \fBjournald\fP log driver.
+
+.PP
+\fBlabel\fP: specify a custom log label for the container
+    (e.g. \fB--log-opt label="CONTAINER_IMAGE={{.ImageName}}"\fP\&.
+It supports the same keys as \fBpodman inspect --format\fP\&.
+This option can be repeated multiple times.
+This option is currently supported only by the \fBjournald\fP log driver.
+
+.SS \fB--mac-address\fP=\fIaddress\fP
+Container network interface MAC address (e.g. 92:d0:c6:0a:29:33)
+This option can only be used if the container is joined to only a single network - i.e., \fB--network=\fInetwork-name\fP\fP is used at most once -
+and if the container is not joining another container's network namespace via \fB--network=container:\fIid\fP\fP\&.
+
+.PP
+Remember that the MAC address in an Ethernet network must be unique.
+The IPv6 link-local address is based on the device's MAC address
+according to RFC4862.
+
+.PP
+To specify multiple static MAC addresses per container, set multiple networks using the \fB--network\fP option with a static MAC address specified for each using the \fBmac\fR mode for that option.
+
+.SS \fB--memory\fP, \fB-m\fP=\fInumber[unit]\fP
+Memory limit. A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+
+.PP
+Allows the memory available to a container to be constrained. If the host
+supports swap memory, then the \fB--memory\fP memory setting can be larger than physical
+RAM. If a limit of 0 is specified (not using \fB--memory\fP), the container's memory is
+not limited. The actual limit may be rounded up to a multiple of the operating
+system's page size (the value is very large, that's millions of trillions).
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--memory-reservation\fP=\fInumber[unit]\fP
+Memory soft limit. A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+
+.PP
+After setting memory reservation, when the system detects memory contention
+or low memory, containers are forced to restrict their consumption to their
+reservation. So always set the value below \fB--memory\fP, otherwise the
+hard limit takes precedence. By default, memory reservation is the same
+as memory limit.
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--memory-swap\fP=\fInumber[unit]\fP
+A limit value equal to memory plus swap.
+A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+
+.PP
+Must be used with the \fB-m\fP (\fB--memory\fP) flag.
+The argument value must be larger than that of
+ \fB-m\fP (\fB--memory\fP) By default, it is set to double
+the value of \fB--memory\fP\&.
+
+.PP
+Set \fInumber\fP to \fB-1\fP to enable unlimited swap.
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--memory-swappiness\fP=\fInumber\fP
+Tune a container's memory swappiness behavior. Accepts an integer between \fI0\fP and \fI100\fP\&.
+
+.PP
+This flag is only supported on cgroups V1 rootful systems.
+
+.SS \fB--mount\fP=\fItype=TYPE,TYPE-SPECIFIC-OPTION[,...]\fP
+Attach a filesystem mount to the container.
+
+.PP
+Current supported mount TYPEs are \fBartifact\fP, \fBbind\fP, \fBdevpts\fP, \fBglob\fP, \fBimage\fP, \fBramfs\fP, \fBtmpfs\fP and \fBvolume\fP\&.
+
+.PP
+Options common to all mount types:
+.IP \(bu 2
+\fIsrc\fP, \fIsource\fP: mount source spec for \fBbind\fP, \fBglob\fP, and \fBvolume\fP\&.
+Mandatory for \fBartifact\fP, \fBbind\fP, \fBglob\fP, and \fBimage\fP\&.
+Optional for \fBvolume\fP; if omitted, an anonymous volume is created.
+.IP \(bu 2
+\fIdst\fP, \fIdest\fP, \fIdestination\fP, \fItarget\fP: mount destination spec.
+
+.PP
+When source globs are specified without the destination directory,
+the files and directories are mounted with their complete path
+within the container. When the destination is specified, the
+files and directories matching the glob on the base file name
+on the destination directory are mounted. The option
+\fBtype=glob,src=/foo*,destination=/tmp/bar\fR tells container engines
+to mount host files matching /foo* to the /tmp/bar/
+directory in the container.
+
+.PP
+Options specific to type=\fBartifact\fP:
+.IP \(bu 2
+\fIdigest\fP: If the artifact source contains multiple blobs a digest can be
+specified to only mount the one specific blob with the digest.
+.IP \(bu 2
+\fItitle\fP: If the artifact source contains multiple blobs a title can be set
+which is compared against \fBorg.opencontainers.image.title\fR annotation.
+.IP \(bu 2
+\fIname\fP: This can be used to overwrite the filename we use inside the container
+for mounting. On a single blob artifact the name is used as is if \fIdst\fP is a
+directory and otherwise ignored. With a multi blob artifact the name will be
+used with an index suffix \fB<name>-x\fR where x is the layer index in the artifact
+starting with 0.
+
+.PP
+The \fIsrc\fP argument contains the name of the artifact, which must already exist locally.
+The \fIdst\fP argument contains the target path, if the path in the container is a
+directory the blob title (\fBorg.opencontainers.image.title\fR annotation) will be used as
+filename and joined to the path. If the annotation does not exist the digest will be
+used as filename instead. This results in all blobs of the artifact mounted into the
+container at the given path.
+
+.PP
+However, if the \fIdst\fP path is an existing file in the container, then the blob will be
+mounted directly on it. This only works when the artifact contains a single blob
+or when either \fIdigest\fP or \fItitle\fP are specified.
+
+.PP
+If the \fIdst\fP path does not already exist in the container then if the artifact contains
+a single blob it behaves like existing file case and mounts directly to that path.
+If the artifact has more than one blob it works like the existing directory case and
+mounts each blob as file within the \fIdst\fP path.
+
+.PP
+Options specific to type=\fBvolume\fP:
+.IP \(bu 2
+\fIro\fP, \fIreadonly\fP: \fItrue\fP or \fIfalse\fP (default if unspecified: \fIfalse\fP).
+.IP \(bu 2
+\fIU\fP, \fIchown\fP: \fItrue\fP or \fIfalse\fP (default if unspecified: \fIfalse\fP). Recursively change the owner and group of the source volume based on the UID and GID of the container.
+.IP \(bu 2
+\fIsubpath\fP: Mount only a specific subpath within the volume, instead of the whole volume.
+.IP \(bu 2
+\fIrelabel\fP: \fIshared\fP, \fIprivate\fP\&. Recursively walk the mount and set the security system (e.g. SELinux) label on each file to grant access permissions from the container context.
+\fIshared\fP applies a label that grants permissions to all containers, while \fIprivate\fP applies a label that grants permissions to this specific container.
+.IP \(bu 2
+\fIz\fP, \fIZ\fP: shorthand for \fIrelabel=shared\fP and \fIrelabel=private\fP, respectively.
+.IP \(bu 2
+\fIidmap\fP: If specified, create an idmapped mount to the target user namespace in the container.
+The idmap option is only supported by Podman in rootful mode. The Linux kernel does not allow the use of idmapped file systems for unprivileged users.
+The idmap option supports a custom mapping that can be different from the user namespace used by the container.
+The mapping can be specified after the idmap option like: \fBidmap=uids=0-1-10#10-11-10;gids=0-100-10\fR\&.  For each triplet, the first value is the
+start of the backing file system IDs that are mapped to the second value on the host.  The length of this mapping is given in the third value.
+Multiple ranges are separated with #.  If the specified mapping is prepended with a '@', then the mapping is considered relative to the container
+user namespace. The host ID for the mapping is changed to account for the relative position of the container user in the container user namespace.
+
+.PP
+Options specific to type=\fBimage\fP:
+.IP \(bu 2
+\fIrw\fP, \fIreadwrite\fP: \fItrue\fP or \fIfalse\fP (default if unspecified: \fIfalse\fP).
+.IP \(bu 2
+\fIsubpath\fP: Mount only a specific path within the image, instead of the whole image.
+
+.PP
+Options specific to \fBbind\fP and \fBglob\fP:
+.IP \(bu 2
+\fIro\fP, \fIreadonly\fP: \fItrue\fP or \fIfalse\fP (default if unspecified: \fIfalse\fP).
+.IP \(bu 2
+\fIbind-propagation\fP: \fIshared\fP, \fIslave\fP, \fIprivate\fP, \fIunbindable\fP, \fIrshared\fP, \fIrslave\fP, \fIrunbindable\fP, or \fBrprivate\fP (default).[1]
+\[la]#Footnote1\[ra] See also mount(2).
+.IP \(bu 2
+\fIbind-nonrecursive\fP: do not set up a recursive bind mount. By default it is recursive.
+.IP \(bu 2
+\fIrelabel\fP: \fIshared\fP, \fIprivate\fP\&. Recursively walk the mount and set the security system (e.g. SELinux) label on each file to grant access permissions from the container context.
+\fIshared\fP applies a label that grants permissions to all containers, while \fIprivate\fP applies a label that grants permissions to this specific container.
+.IP \(bu 2
+\fIz\fP, \fIZ\fP: shorthand for \fIrelabel=shared\fP and \fIrelabel=private\fP, respectively.
+.IP \(bu 2
+\fIidmap\fP: If specified, create an idmapped mount to the target user namespace in the container.
+The idmap option is only supported by Podman in rootful mode. The Linux kernel does not allow the use of idmapped file systems for unprivileged users.
+The idmap option supports a custom mapping that can be different from the user namespace used by the container.
+The mapping can be specified after the idmap option like: \fBidmap=uids=0-1-10#10-11-10;gids=0-100-10\fR\&.  For each triplet, the first value is the
+start of the backing file system IDs that are mapped to the second value on the host.  The length of this mapping is given in the third value.
+Multiple ranges are separated with #.  If the specified mapping is prepended with a '@', then the mapping is considered relative to the container
+user namespace. The host ID for the mapping is changed to account for the relative position of the container user in the container user namespace.
+.IP \(bu 2
+\fIU\fP, \fIchown\fP: \fItrue\fP or \fIfalse\fP (default if unspecified: \fIfalse\fP). Recursively change the owner and group of the source volume based on the UID and GID of the container.
+.IP \(bu 2
+\fIno-dereference\fP: do not dereference symlinks but copy the link source into the mount destination.
+
+.PP
+Options specific to type=\fBtmpfs\fP and \fBramfs\fP:
+.IP \(bu 2
+\fIro\fP, \fIreadonly\fP: \fItrue\fP or \fIfalse\fP (default if unspecified: \fIfalse\fP).
+.IP \(bu 2
+\fItmpfs-size\fP: Size of the tmpfs/ramfs mount, in bytes. Unlimited by default in Linux.
+.IP \(bu 2
+\fItmpfs-mode\fP: Octal file mode of the tmpfs/ramfs (e.g. 700 or 0700.).
+.IP \(bu 2
+\fItmpcopyup\fP: Enable copyup from the image directory at the same location to the tmpfs/ramfs. Used by default.
+
+.PP
+When the tmpfs destination is inside a volume or bind mount, files from the parent mount are also copied into the tmpfs, so the parent content remains visible. Use \fBnotmpcopyup\fP to mount an empty tmpfs that shadows the parent mount's subtree.
+.IP \(bu 2
+\fInoatime\fP: Disable updating file access times when the file is read.
+.IP \(bu 2
+\fInotmpcopyup\fP: Disable copying files from the image to the tmpfs/ramfs.
+
+.PP
+Use this option when mounting a tmpfs inside a volume or bind mount to ensure the tmpfs properly shadows the parent mount's subtree.
+.IP \(bu 2
+\fIU\fP, \fIchown\fP: \fItrue\fP or \fIfalse\fP (default if unspecified: \fIfalse\fP). Set the uid and gid options for the tmpfs filesystem based on the UID and GID of the container. This is \fBnot\fP recursive.
+
+.PP
+Options specific to type=\fBdevpts\fP:
+.IP \(bu 2
+\fIuid\fP: numeric UID of the file owner (default: 0).
+.IP \(bu 2
+\fIgid\fP: numeric GID of the file owner (default: 0).
+.IP \(bu 2
+\fImode\fP: octal permission mask for the file (default: 600).
+.IP \(bu 2
+\fImax\fP: maximum number of PTYs (default: 1048576).
+
+.PP
+Examples:
+.IP \(bu 2
+\fBtype=bind,source=/path/on/host,destination=/path/in/container\fR
+.IP \(bu 2
+\fBtype=bind,src=/path/on/host,dst=/path/in/container,relabel=shared\fR
+.IP \(bu 2
+\fBtype=bind,src=/path/on/host,dst=/path/in/container,relabel=shared,U=true\fR
+.IP \(bu 2
+\fBtype=bind,src=/path/on/host,dst=/path/in/container,idmap\fR
+.IP \(bu 2
+\fBtype=bind,src=/path/on/host,dst=/path/in/container,idmap=uids=0-1-10;gids=0-100-10\fR
+.IP \(bu 2
+\fBtype=devpts,destination=/dev/pts\fR
+.IP \(bu 2
+\fBtype=glob,src=/usr/lib/libfoo*,destination=/usr/lib,ro=true\fR
+.IP \(bu 2
+\fBtype=image,source=fedora,destination=/fedora-image,rw=true\fR
+.IP \(bu 2
+\fBtype=ramfs,tmpfs-size=512M,destination=/path/in/container\fR
+.IP \(bu 2
+\fBtype=tmpfs,tmpfs-size=512M,destination=/path/in/container\fR
+.IP \(bu 2
+\fBtype=tmpfs,destination=/path/in/container,noswap\fR
+.IP \(bu 2
+\fBtype=artifact,src=quay.io/libpod/testartifact:20250206-single,dst=/data\fR
+.IP \(bu 2
+\fBtype=artifact,src=quay.io/libpod/testartifact:20250206-multi,dst=/data,title=test1\fR
+.IP \(bu 2
+\fBtype=volume,destination=/path/in/container\fR
+.IP \(bu 2
+\fBtype=volume,src=test_vol,dst=/data,subpath=/code/docs\fR
+
+.SS \fB--name\fP=\fIname\fP
+Assign a name to the container.
+
+.PP
+The operator can identify a container in three ways:
+.IP \(bu 2
+UUID long identifier (“f78375b1c487e03c9438c729345e54db9d20cfa2ac1fc3494b6eb60872e74778”);
+.IP \(bu 2
+UUID short identifier (“f78375b1c487”);
+.IP \(bu 2
+Name (“jonah”).
+
+.PP
+Podman generates a UUID for each container, and if no name is assigned to the
+container using \fB--name\fP,
+Podman generates a random string name such as \fBexciting_chebyshev\fR (\fBadjective_noun\fR,
+compatible with Docker). Container names are not required to be valid hostnames or
+domain names. Underscores and other characters allowed by naming rules are
+permitted. On Podman networks with DNS enabled, container-to-container name
+resolution still uses the name as given, for example \fBexciting_chebyshev\fR\&. The
+name can be useful as a more human-friendly way to identify containers.
+This works for both background and foreground containers.
+The container's name is also added to the \fB/etc/hosts\fR file using the
+container's primary IP address (also see the
+\fB--add-host\fP option).
+
+.PP
+The name is not the hostname inside the container; see
+\fB--hostname\fP\&. See
+\fBpodman-network(1)\fP for more on network DNS.
+
+.SS \fB--network\fP=\fImode\fP, \fB--net\fP
+Set the network mode for the container.
+
+.PP
+Valid \fImode\fP values are:
+.IP \(bu 2
+\fBbridge[:OPTIONS,...]\fP: Create a network stack on the default bridge. This is the default for rootful containers. It is possible to specify these additional options:
+.RS
+.IP \(bu 2
+\fBalias=\fP\fIname\fP: Add network-scoped alias for the container.
+.IP \(bu 2
+\fBip=\fP\fIIPv4\fP: Specify a static IPv4 address for this container.
+.IP \(bu 2
+\fBip6=\fP\fIIPv6\fP: Specify a static IPv6 address for this container.
+.IP \(bu 2
+\fBmac=\fP\fIMAC\fP: Specify a static MAC address for this container.
+.IP \(bu 2
+\fBinterface_name=\fP\fIname\fP: Specify a name for the created network interface inside the container.
+.IP \(bu 2
+\fBhost_interface_name=\fP\fIname\fP: Specify a name for the created network interface outside the container.
+.RE
+.IP
+Any other options will be passed through to netavark without validation. This can be useful to pass arguments to netavark plugins.
+
+For rootless bridge networks, port forwarding uses \fBrootlessport\fR by default. Setting \fBrootless_port_forwarder="pasta"\fR in the \fB[network]\fR section of \fBcontainers.conf(5)\fP switches to pasta's kernel-level forwarding (via \fBpesto\fR), which preserves the original client source IP address inside the container. This option is experimental and its behavior is subject to change.
+
+For example, to set a static IPv4 address and a static mac address, use \fB--network bridge:ip=10.88.0.10,mac=44:33:22:11:00:99\fR\&.
+.IP \(bu 2
+\fI<network name or ID>\fP\fB[:OPTIONS,...]\fP: Connect to a user-defined network; this is the network name or ID from a network created by \fBpodman network create\fP\&. It is possible to specify the same options described under the bridge mode above. Use the \fB--network\fP option multiple times to specify additional networks.
+.br
+For backwards compatibility it is also possible to specify comma-separated networks on the first \fB--network\fP argument, however this prevents you from using the options described under the bridge section above.
+.IP \(bu 2
+\fBnone\fP: Create a network namespace for the container but do not configure network interfaces for it, thus the container has no network connectivity.
+.IP \(bu 2
+\fBcontainer:\fP\fIid\fP: Reuse another container's network stack.
+.IP \(bu 2
+\fBhost\fP: Use the host's network namespace for the container instead of creating an isolated namespace. Warning: This gives the container full access to abstract Unix domain sockets and to TCP/UDP sockets bound to localhost. Since these mechanisms are often used to prevent access to sensitive system services, isolating them from access by external entities, use of this option may be considered a security vulnerability.
+.IP \(bu 2
+\fBns:\fP\fIpath\fP: Path to a network namespace to join.
+.IP \(bu 2
+\fBprivate\fP: Create a new namespace for the container. This uses the \fBbridge\fP mode for rootful containers and \fBpasta\fP for rootless ones.
+.IP \(bu 2
+\fBpasta[:OPTIONS,...]\fP: use \fBpasta\fP(1) to create a user-mode networking
+stack.
+.br
+This is the default for rootless containers and only supported in rootless mode.
+.br
+By default, IPv4 and IPv6 addresses and routes, as well as the pod interface
+name, are copied from the host. Port forwarding preserves the original
+source IP address. Options described in pasta(1) can be specified as
+comma-separated arguments.
+.br
+In terms of pasta(1) options, \fB--config-net\fP is given by default, in
+order to configure networking when the container is started, and
+\fB--no-map-gw\fP is also assumed by default, to avoid direct access from
+container to host using the gateway address. The latter can be overridden
+by passing \fB--map-gw\fP in the pasta-specific options (despite not being an
+actual pasta(1) option).
+.br
+For better integration with DNS handling, \fB--dns-forward 169.254.1.1\fP is passed by default,
+and this address is added to resolv.conf(5) as first resolver. It is possible to pass
+\fB--dns-forward\fP explicitly in case a different IP address should be used.
+.br
+To make the \fBhost.containers.internal\fR /etc/hosts entry work and allow connections
+to the host, \fB--map-guest-addr 169.254.1.2\fP is passed by default. Again, it can be set
+explicitly to choose a different IP address.
+.br
+Also, \fB-t none\fP and \fB-u none\fP are passed if, respectively, no TCP or
+UDP port forwarding from host to container is configured (via Podman's
+\fB--publish\fP or by passing the pasta \fB-t\fP/\fB-u\fP options directly),
+to disable automatic port forwarding based on bound ports. Similarly, \fB-T none\fP
+and \fB-U none\fP are given to disable the same functionality from container to
+host.
+.br
+All options can also be set in \fBcontainers.conf(5)\fP;
+see the \fBpasta_options\fR key under the network section in that file.
+.br
+Some examples:
+.RS
+.IP \(bu 2
+\fBpasta:--map-gw\fP: Allow the container to directly reach the host using the
+gateway address.
+.IP \(bu 2
+\fBpasta:--mtu,1500\fP: Specify a 1500 bytes MTU for the \fItap\fP interface in
+the container.
+.IP \(bu 2
+\fBpasta:--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,-m,1500,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+disable IPv6, assign \fB10.0.2.0/24\fR to the \fBtap0\fR interface in the container,
+with gateway \fB10.0.2.3\fR, enable DNS forwarder reachable at \fB10.0.2.3\fR,
+set MTU to 1500 bytes, disable NDP, DHCPv6 and DHCP support.
+.IP \(bu 2
+\fBpasta:-I,tap0,--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+same as above, but leave the MTU to 65520 bytes
+.IP \(bu 2
+\fBpasta:-t,auto,-u,auto,-T,auto,-U,auto\fP: enable automatic port forwarding
+based on observed bound ports from both host and container sides
+.IP \(bu 2
+\fBpasta:-T,5201\fP: enable forwarding of TCP port 5201 from container to
+host, using the loopback interface instead of the tap interface for improved
+performance
+.RE
+
+.PP
+Invalid if using \fB--dns\fP, \fB--dns-option\fP, or \fB--dns-search\fP with \fB--network\fP set to \fBnone\fP or \fBcontainer:\fP\fIid\fP\&.
+
+.PP
+If used together with \fB--pod\fP, the container does not join the pod's network namespace.
+
+.SS \fB--network-alias\fP=\fIalias\fP
+Add a network-scoped alias for the container, setting the alias for all networks that the container joins. To set a
+name only for a specific network, use the alias option as described under the \fB--network\fP option.
+If the network has DNS enabled (\fBpodman network inspect -f {{.DNSEnabled}} <name>\fR),
+these aliases can be used for name resolution on the given network. This option can be specified multiple times.
+
+.SS \fB--no-healthcheck\fP
+Disable any defined healthchecks for container.
+
+.SS \fB--no-hostname\fP
+Do not create the \fI/etc/hostname\fP file in the containers.
+
+.PP
+By default, Podman manages the \fI/etc/hostname\fP file, adding the container's own hostname.  When the \fB--no-hostname\fP option is set, the image's \fI/etc/hostname\fP will be preserved unmodified if it exists.
+
+.SS \fB--no-hosts\fP
+Do not modify the \fB/etc/hosts\fR file in the container.
+
+.PP
+Podman assumes control over the container's \fB/etc/hosts\fR file by
+default and adds entries for the container's name (see \fB--name\fP option) and
+hostname (see \fB--hostname\fP option), the internal \fBhost.containers.internal\fR
+and \fBhost.docker.internal\fR hosts, as well as any hostname added using the
+\fB--add-host\fP option. Refer to the \fB--add-host\fP option for details. Passing
+\fB--no-hosts\fP disables this, so that the image's \fB/etc/hosts\fR file is kept
+unmodified. The same can be achieved globally by setting \fIno_hosts=true\fP in
+\fBcontainers.conf\fR\&.
+
+.PP
+This option conflicts with \fB--add-host\fP\&.
+
+.SS \fB--oom-kill-disable\fP
+Whether to disable OOM Killer for the container or not.
+
+.PP
+This flag is not supported on cgroups V2 systems.
+
+.SS \fB--oom-score-adj\fP=\fInum\fP
+Tune the host's OOM preferences for containers (accepts values from \fB-1000\fP to \fB1000\fP).
+
+.PP
+When running in rootless mode, the specified value can't be lower than
+the oom_score_adj for the current process. In this case, the
+oom-score-adj is clamped to the current process value.
+
+.SS \fB--os\fP=\fIOS\fP
+Override the OS, defaults to the host, of the image to be pulled. For example, \fBwindows\fR\&.
+Unless overridden, subsequent lookups of the same image in the local storage matches this OS, regardless of the host.
+
+.SS \fB--passwd-entry\fP=\fIENTRY\fP
+Customize the entry that is written to the \fB/etc/passwd\fR file within the container when \fB--passwd\fR is used.
+
+.PP
+The variables $USERNAME, $UID, $GID, $NAME, $HOME are automatically replaced with their value at runtime.
+
+.SS \fB--personality\fP=\fIpersona\fP
+Personality sets the execution domain via Linux personality(2).
+
+.SS \fB--pid\fP=\fImode\fP
+Set the PID namespace mode for the container.
+The default is to create a private PID namespace for the container.
+.IP \(bu 2
+\fBcontainer:\fP\fIid\fP: join another container's PID namespace;
+.IP \(bu 2
+\fBhost\fP: use the host's PID namespace for the container. Note the host mode gives the container full access to local PID and is therefore considered insecure;
+.IP \(bu 2
+\fBns:\fP\fIpath\fP: join the specified PID namespace;
+.IP \(bu 2
+\fBprivate\fP: create a new namespace for the container (default).
+
+.SS \fB--pidfile\fP=\fIpath\fP
+When the pidfile location is specified, the container process' PID is written to the pidfile. (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+If the pidfile option is not specified, the container process' PID is written to /run/containers/storage/${storage-driver}-containers/$CID/userdata/pidfile.
+
+.PP
+After the container is started, the location for the pidfile can be discovered with the following \fBpodman inspect\fR command:
+
+.EX
+$ podman inspect --format '{{ .PidFile }}' $CID
+/run/containers/storage/${storage-driver}-containers/$CID/userdata/pidfile
+.EE
+
+.SS \fB--pids-limit\fP=\fIlimit\fP
+Tune the container's pids limit. Set to \fB-1\fP to have unlimited pids for the container. The default is \fB2048\fP on systems that support "pids" cgroup controller.
+
+.SS \fB--platform\fP=\fIOS/ARCH\fP
+Specify the platform for selecting the image.  (Conflicts with --arch and --os)
+The \fB--platform\fR option can be used to override the current architecture and operating system.
+Unless overridden, subsequent lookups of the same image in the local storage matches this platform, regardless of the host.
+
+.SS \fB--pod\fP=\fIname\fP
+Run container in an existing pod. Podman makes the pod automatically if the pod name is prefixed with \fBnew:\fP\&.
+To make a pod with more granular options, use the \fBpodman pod create\fP command before creating a container.
+When a container is run with a pod with an infra-container, the infra-container is started first.
+
+.SS \fB--pod-id-file\fP=\fIfile\fP
+Run container in an existing pod and read the pod's ID from the specified \fIfile\fP\&.
+When a container is run within a pod which has an infra-container, the infra-container starts first.
+
+.SS \fB--privileged\fP
+Give extended privileges to this container. The default is \fBfalse\fP\&.
+
+.PP
+By default, Podman containers are unprivileged (\fB=false\fP) and cannot, for
+example, modify parts of the operating system. This is because by default a
+container is only allowed limited access to devices. A "privileged" container
+is given the same access to devices as the user launching the container, with
+the exception of virtual consoles (\fI/dev/tty\\d+\fP) when running in systemd
+mode (\fB--systemd=always\fP).
+
+.PP
+A privileged container turns off the security features that isolate the
+container from the host. Dropped Capabilities, limited devices, read-only mount
+points, Apparmor/SELinux separation, and Seccomp filters are all disabled.
+Due to the disabled security features, the privileged field should almost never
+be set as containers can easily break out of confinement.
+
+.PP
+Containers running in a user namespace (e.g., rootless containers) cannot have
+more privileges than the user that launched them.
+
+.SS \fB--publish\fP, \fB-p\fP=\fI[[hostIP:][hostPort]:]containerPort[/protocol]\fP
+Publish a container's port, or range of ports, to the host.
+
+.PP
+Both \fIhostPort\fP and \fIcontainerPort\fP can be specified as a range of ports.
+When specifying ranges for both, the number of container ports in the
+range must match the number of host ports in the range.
+
+.PP
+If \fIhostIP\fP is \fB0.0.0.0\fR, only IPv4 addresses will be bound, if set to \fB[::]\fR only
+IPv6 addresses are bound. In all other cases the exact IP address as given will be bound.
+If \fIhostIP\fP is not set at all, the port is bound on all IP addresses on the host,
+both v4 and v6 (if possible).
+
+.PP
+The default \fIhostIP\fP can be configured in \fBcontainers.conf(5)\fP
+using the \fBdefault_host_ips\fR option under the \fB[network]\fR section.
+This option accepts an array to be able to set multiple bind IP addresses.
+For example setting \fBdefault_host_ips = ["127.0.0.1", "::1"]\fR will make the
+port be published on the ipv4 and ipv6 localhost address respectively.
+An explicit \fIhostIP\fP set on the command will always override the config option.
+
+.PP
+By default, Podman publishes TCP ports. To publish a UDP port instead, give
+\fBudp\fR as protocol. To publish both TCP and UDP ports, set \fB--publish\fR twice,
+with \fBtcp\fR, and \fBudp\fR as protocols respectively. Rootful containers can also
+publish ports using the \fBsctp\fR protocol.
+
+.PP
+Host port does not have to be specified (e.g. \fBpodman run -p 127.0.0.1::80\fR).
+If it is not, the container port is randomly assigned a port on the host.
+
+.PP
+Use \fBpodman port\fP to see the actual mapping: \fBpodman port $CONTAINER $CONTAINERPORT\fR\&.
+
+.PP
+Port publishing is only supported for containers utilizing their own network namespace
+through \fBbridge\fR networks, or the \fBpasta\fR network mode.
+
+.PP
+For rootless bridge networks, port forwarding uses \fBrootlessport\fR by default, which
+is a userspace proxy that does not preserve client source IPs. Setting
+\fBrootless_port_forwarder="pasta"\fR in the \fB[network]\fR section of
+\fBcontainers.conf(5)\fP
+switches to pasta's kernel-level forwarding via \fBpesto\fR, preserving the original
+client IP address inside the container. This option is experimental and its
+behavior is subject to change.
+
+.PP
+\fBNote:\fP If a container runs within a pod, it is not necessary to publish the port for
+the containers in the pod. The port must only be published by the pod itself. Pod network
+stacks act like the network stack on the host - when there are a variety of containers in the pod,
+and programs in the container, all sharing a single interface and IP address, and
+associated ports. If one container binds to a port, no other container can use that port
+within the pod while it is in use. Containers in the pod can also communicate over localhost
+by having one container bind to localhost in the pod, and another connect to that port.
+
+.SS \fB--publish-all\fP, \fB-P\fP
+Publish all exposed ports to random ports on the host interfaces. The default is \fBfalse\fP\&.
+
+.PP
+When set to \fBtrue\fP, publish all exposed ports to the host interfaces.
+If the operator uses \fB-P\fP (or \fB-p\fP) then Podman makes the
+exposed port accessible on the host and the ports are available to any
+client that can reach the host.
+
+.PP
+When using this option, Podman binds any exposed port to a random port on the host
+within an ephemeral port range defined by \fI/proc/sys/net/ipv4/ip_local_port_range\fP\&.
+To find the mapping between the host ports and the exposed ports, use \fBpodman port\fP\&.
+
+.SS \fB--pull\fP=\fIpolicy\fP
+Pull image policy. The default is \fBmissing\fP\&.
+.IP \(bu 2
+\fBalways\fP: Always pull the image and throw an error if the pull fails.
+.IP \(bu 2
+\fBmissing\fP: Pull the image only when the image is not in the local containers storage.  Throw an error if no image is found and the pull fails.
+.IP \(bu 2
+\fBnever\fP: Never pull the image but use the one from the local containers storage.  Throw an error if no image is found.
+.IP \(bu 2
+\fBnewer\fP: Pull if the image on the registry is newer than the one in the local containers storage.  An image is considered to be newer when the digests are different.  Comparing the time stamps is prone to errors.  Pull errors are suppressed if a local image was found.
+
+.SS \fB--quiet\fP, \fB-q\fP
+Suppress output information when pulling images
+
+.SS \fB--rdt-class\fP=\fIintel-rdt-class-of-service\fP
+Rdt-class sets the class of service (CLOS or COS) for the container to run in. Based on the Cache Allocation Technology (CAT) feature that is part of Intel's Resource Director Technology (RDT) feature set, all container processes will run within the pre-configured COS, representing a part of the cache. The COS has to be created and configured using a pseudo file system (usually mounted at \fB/sys/fs/resctrl\fR) that the resctrl kernel driver provides. Assigning the container to a COS requires root privileges and thus doesn't work in a rootless environment. Currently, the feature is only supported using \fBrunc\fR as a runtime. See 
+\[la]https://docs.kernel.org/arch/x86/resctrl.html\[ra] for more details on creating a COS before a container can be assigned to it.
+
+.SS \fB--read-only\fP
+Mount the container's root filesystem as read-only.
+
+.PP
+By default, container root filesystems are writable, allowing processes
+to write files anywhere. By specifying the \fB--read-only\fP flag,
+the container's root filesystem is mounted read-only prohibiting any writes.
+
+.SS \fB--read-only-tmpfs\fP
+When running --read-only containers, mount a read-write tmpfs on \fI/dev\fP, \fI/dev/shm\fP, \fI/run\fP, \fI/tmp\fP, and \fI/var/tmp\fP\&. The default is \fBtrue\fP\&.
+
+.TS
+allbox;
+l l l l 
+l l l l .
+\fB--read-only\fP	\fB--read-only-tmpfs\fP	\fB/\fP	\fB/run, /tmp, /var/tmp\fP
+true	true	r/o	r/w
+true	false	r/o	r/o
+false	false	r/w	r/w
+false	true	r/w	r/w
+.TE
+
+.PP
+When \fB--read-only=true\fP and
+\fB--read-only-tmpfs=true\fP additional tmpfs are mounted on
+the /tmp, /run, and /var/tmp directories.
+
+.PP
+When \fB--read-only=true\fP and
+\fB--read-only-tmpfs=false\fP /dev and /dev/shm are marked
+Read/Only and no tmpfs are mounted on /tmp, /run and /var/tmp. The directories
+are exposed from the underlying image, meaning they are read-only by default.
+This makes the container totally read-only. No writable directories exist within
+the container. In this mode writable directories need to be added via external
+volumes or mounts.
+
+.PP
+By default, when \fB--read-only=false\fP , the /dev and /dev/shm are read/write, and the /tmp, /run, and /var/tmp are read/write directories from the container image.
+
+.SS \fB--replace\fP
+If another container with the same name already exists, replace and remove it. The default is \fBfalse\fP\&.
+
+.SS \fB--requires\fP=\fIcontainer\fP
+Specify one or more requirements.
+A requirement is a dependency container that is started before this container.
+Containers can be specified by name or ID, with multiple containers being separated by commas.
+
+.SS \fB--restart\fP=\fIpolicy\fP
+Restart policy to follow when containers exit.
+Restart policy does not take effect if a container is stopped via the \fBpodman kill\fP or \fBpodman stop\fP commands.
+
+.PP
+Valid \fIpolicy\fP values are:
+.IP \(bu 2
+\fBno\fR                       : Do not restart containers on exit
+.IP \(bu 2
+\fBnever\fR                    : Synonym for \fBno\fP; do not restart containers on exit
+.IP \(bu 2
+\fBon-failure[:max_retries]\fR : Restart containers when they exit with a non-zero exit code, retrying indefinitely or until the optional \fImax_retries\fP count is hit
+.IP \(bu 2
+\fBalways\fR                   : Restart containers when they exit, regardless of status, retrying indefinitely
+.IP \(bu 2
+\fBunless-stopped\fR           : Restart containers when they exit, unless the container was explicitly stopped by the user. After a system reboot, containers with this policy will be restarted by podman-restart.service only if they were not explicitly stopped by the user before the reboot. This differs from \fBalways\fP, which restarts containers after a system reboot regardless of whether they were user-stopped
+
+.PP
+Podman provides a systemd unit file, podman-restart.service, which restarts containers after a system reboot.
+
+.PP
+When running containers in systemd services, use the restart functionality provided by systemd.
+In other words, do not use this option in a container unit, instead set the \fBRestart=\fR systemd directive in the \fB[Service]\fR section.
+See \fBpodman-systemd.unit\fP(5) and \fBsystemd.service\fP(5).
+
+.SS \fB--retry\fP=\fIattempts\fP
+Number of times to retry pulling or pushing images between the registry and
+local storage in case of failure. Default is \fB3\fP\&.
+
+.SS \fB--retry-delay\fP=\fIduration\fP
+Duration of delay between retry attempts when pulling or pushing images between
+the registry and local storage in case of failure. The default is to start at two seconds and then exponentially back off. The delay is used when this value is set, and no exponential back off occurs.
+
+.SS \fB--rm\fP
+Automatically remove the container and any anonymous unnamed volume associated with
+the container when it exits. The default is \fBfalse\fP\&.
+
+.SS \fB--rootfs\fP
+If specified, the first argument refers to an exploded container on the file system.
+
+.PP
+This is useful to run a container without requiring any image management, the rootfs
+of the container is assumed to be managed externally.
+
+.PP
+\fBOverlay Rootfs Mounts\fR
+
+.PP
+The \fB:O\fR flag tells Podman to mount the directory from the rootfs path as
+storage using the \fBoverlay file system\fR\&. The container processes
+can modify content within the mount point which is stored in the
+container storage in a separate directory. In overlay terms, the source
+directory is the lower, and the container storage directory is the
+upper. Modifications to the mount point are destroyed when the container
+finishes executing, similar to a tmpfs mount point being unmounted.
+
+.PP
+Note: On \fBSELinux\fP systems, the rootfs needs the correct label, which is by default
+\fBunconfined_u:object_r:container_file_t:s0\fP\&.
+
+.PP
+\fBidmap\fR
+
+.PP
+If \fBidmap\fR is specified, create an idmapped mount to the target user
+namespace in the container.
+The idmap option supports a custom mapping that can be different than the user
+namespace used by the container.  The mapping can be specified after the idmap
+option like: \fBidmap=uids=0-1-10#10-11-10;gids=0-100-10\fR\&.  For each triplet, the
+first value is the start of the backing file system IDs that are mapped to the
+second value on the host.  The length of this mapping is given in the third value.
+Multiple ranges are separated with #.
+
+.SS \fB--sdnotify\fP=\fBcontainer\fP | \fIconmon\fP | \fIhealthy\fP | \fIignore\fP
+Determines how to use the NOTIFY_SOCKET, as passed with systemd and Type=notify.
+
+.PP
+Default is \fBcontainer\fP, which means allow the OCI runtime to proxy the socket into the
+container to receive ready notification. Podman sets the MAINPID to conmon's pid.
+The \fBconmon\fP option sets MAINPID to conmon's pid, and sends READY when the container
+has started. The socket is never passed to the runtime or the container.
+The \fBhealthy\fP option sets MAINPID to conmon's pid, and sends READY when the container
+has turned healthy; requires a healthcheck to be set. The socket is never passed to the runtime or the container.
+The \fBignore\fP option removes NOTIFY_SOCKET from the environment for itself and child processes,
+for the case where some other process above Podman uses NOTIFY_SOCKET and Podman does not use it.
+
+.SS \fB--seccomp-policy\fP=\fIpolicy\fP
+Specify the policy to select the seccomp profile. If set to \fIimage\fP, Podman looks for a "io.containers.seccomp.profile" label in the container-image config and use its value as a seccomp profile. Otherwise, Podman follows the \fIdefault\fP policy by applying the default profile unless specified otherwise via \fI--security-opt seccomp\fP as described below.
+
+.PP
+Note that this feature is experimental and may change in the future.
+
+.SS \fB--secret\fP=\fIsecret[,opt=opt ...]\fP
+Give the container access to a secret. Can be specified multiple times.
+
+.PP
+A secret is a blob of sensitive data which a container needs at runtime but
+is not stored in the image or in source control, such as usernames and passwords,
+TLS certificates and keys, SSH keys or other important generic strings or binary content (up to 512 kB in size).
+
+.PP
+When secrets are specified as type \fBmount\fR, the secrets are copied and mounted into the container when a container is created.
+When secrets are specified as type \fBenv\fR, the secret is set as an environment variable within the container.
+Secrets are written in the container at the time of container creation, and modifying the secret using \fBpodman secret\fR commands
+after the container is created affects the secret inside the container.
+
+.PP
+Secrets and its storage are managed using the \fBpodman secret\fR command.
+
+.PP
+Secret Options
+.IP \(bu 2
+\fBtype=mount|env\fR    : How the secret is exposed to the container.
+                    \fBmount\fR mounts the secret into the container as a file.
+                    \fBenv\fR exposes the secret as an environment variable.
+                    Defaults to \fBmount\fR\&.
+.IP \(bu 2
+\fBtarget=target\fR     : Target of secret.
+                    For mounted secrets, this is the path to the secret inside the container.
+                    If a fully qualified path is provided, the secret is mounted at that location.
+                    Otherwise, the secret is mounted to
+                    \fB/run/secrets/target\fR for Linux containers or
+                    \fB/var/run/secrets/target\fR for FreeBSD containers.
+                    If the target is not set, the secret is mounted to \fB/run/secrets/secretname\fR by default.
+                    For env secrets, this is the environment variable key. Defaults to \fBsecretname\fR\&.
+.IP \(bu 2
+\fBuid=0\fR             : UID of secret. Defaults to 0. Mount secret type only.
+.IP \(bu 2
+\fBgid=0\fR             : GID of secret. Defaults to 0. Mount secret type only.
+.IP \(bu 2
+\fBmode=0\fR            : Mode of secret. Defaults to 0444. Mount secret type only.
+
+.PP
+Examples
+
+.PP
+Mount at \fB/my/location/mysecret\fR with UID 1:
+
+.EX
+--secret mysecret,target=/my/location/mysecret,uid=1
+.EE
+
+.PP
+Mount at \fB/run/secrets/customtarget\fR with mode 0777:
+
+.EX
+--secret mysecret,target=customtarget,mode=0777
+.EE
+
+.PP
+Create a secret environment variable called \fBENVSEC\fR:
+
+.EX
+--secret mysecret,type=env,target=ENVSEC
+.EE
+
+.SS \fB--security-opt\fP=\fIoption\fP
+Security Options
+.IP \(bu 2
+\fBapparmor=unconfined\fP : Turn off apparmor confinement for the container
+.IP \(bu 2
+\fBapparmor\fP=\fIalternate-profile\fP : Set the apparmor confinement profile for the container
+.IP \(bu 2
+\fBlabel=user:\fP\fIUSER\fP: Set the label user for the container processes
+.IP \(bu 2
+\fBlabel=role:\fP\fIROLE\fP: Set the label role for the container processes
+.IP \(bu 2
+\fBlabel=type:\fP\fITYPE\fP: Set the label process type for the container processes
+.IP \(bu 2
+\fBlabel=level:\fP\fILEVEL\fP: Set the label level for the container processes
+.IP \(bu 2
+\fBlabel=filetype:\fP\fITYPE\fP: Set the label file type for the container files
+.IP \(bu 2
+\fBlabel=disable\fP: Turn off label separation for the container
+
+.PP
+Note: Labeling can be disabled for all containers by setting label=false in the \fBcontainers.conf\fP (\fB/etc/containers/containers.conf\fR or \fB$HOME/.config/containers/containers.conf\fR) file.
+.IP \(bu 2
+\fBlabel=nested\fP: Allows SELinux modifications within the container. Containers are allowed to modify SELinux labels on files and processes, as long as SELinux policy allows. Without \fBnested\fP, containers view SELinux as disabled, even when it is enabled on the host. Containers are prevented from setting any labels.
+.IP \(bu 2
+\fBmask\fP=\fI/path/1:/path/2\fP: The paths to mask separated by a colon. A masked path cannot be accessed inside the container.
+.IP \(bu 2
+\fBno-new-privileges\fP: Disable container processes from gaining additional privileges through the \fBexecve(2)\fR system call (e.g. via setuid or setgid bits, or via file capabilities). Programs that rely on setuid/setgid bits set on their executable to change user id or group id are no longer able to do so, and any file capabilities added to the executable (e.g. via \fBsetcap\fR) are not added to the permitted capability set. For more details, see: https://docs.kernel.org/userspace-api/no_new_privs.html.
+.IP \(bu 2
+\fBseccomp=unconfined\fP: Turn off seccomp confinement for the container.
+.IP \(bu 2
+\fBseccomp=profile.json\fP: JSON file to be used as a seccomp filter. Note that the \fBio.podman.annotations.seccomp\fR annotation is set with the specified value as shown in \fBpodman inspect\fR\&.
+.IP \(bu 2
+\fBproc-opts\fP=\fIOPTIONS\fP : Comma-separated list of options to use for the /proc mount. More details
+for the possible mount options are specified in the \fBproc(5)\fP man page.
+.IP \(bu 2
+\fBunmask\fP=\fIALL\fP or \fI/path/1:/path/2\fP, or shell expanded paths (/proc/*): Paths to unmask separated by a colon. If set to \fBALL\fP, it unmasks all the paths that are masked or made read-only by default.
+The default masked paths are \fB/proc/acpi, /proc/kcore, /proc/keys, /proc/latency_stats, /proc/sched_debug, /proc/scsi, /proc/timer_list, /proc/timer_stats, /sys/firmware, and /sys/fs/selinux\fP, \fB/sys/devices/virtual/powercap\fP\&.  The default paths that are read-only are \fB/proc/asound\fP, \fB/proc/bus\fP, \fB/proc/fs\fP, \fB/proc/irq\fP, \fB/proc/sys\fP, \fB/proc/sysrq-trigger\fP, \fB/sys/fs/cgroup\fP\&.
+
+.PP
+Note: Labeling can be disabled for all containers by setting \fBlabel=false\fP in the \fBcontainers.conf\fP(5) file.
+
+.SS \fB--shm-size\fP=\fInumber[unit]\fP
+Size of \fI/dev/shm\fP\&. A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+If the unit is omitted, the system uses bytes. If the size is omitted, the default is \fB64m\fP\&.
+When \fIsize\fP is \fB0\fP, there is no limit on the amount of memory used for IPC by the container.
+This option conflicts with \fB--ipc=host\fP\&.
+
+.SS \fB--shm-size-systemd\fP=\fInumber[unit]\fP
+Size of systemd-specific tmpfs mounts such as /run, /run/lock, /var/log/journal and /tmp.
+A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+If the unit is omitted, the system uses bytes. If the size is omitted, the default is \fB64m\fP\&.
+When \fIsize\fP is \fB0\fP, the usage is limited to 50% of the host's available memory.
+
+.SS \fB--stop-signal\fP=\fIsignal\fP
+Signal to stop a container. Default is \fBSIGTERM\fP\&.
+
+.SS \fB--stop-timeout\fP=\fIseconds\fP
+Timeout to stop a container. Default is \fB10\fP\&.
+Remote connections use local containers.conf for defaults.
+
+.SS \fB--subgidname\fP=\fIname\fP
+Run the container in a new user namespace using the map with \fIname\fP in the \fI/etc/subgid\fP file.
+When running rootless, the user needs the necessary permissions to use the mapping. See \fBsubgid\fP(5).
+This flag conflicts with \fB--userns\fP and \fB--gidmap\fP\&.
+Together with \fB--gidmap\fP it acts as if \fB--gidmap\fP was passed with all mappings of the \fIname\fP group in \fI/etc/subgid\fP\&.
+
+.SS \fB--subuidname\fP=\fIname\fP
+Run the container in a new user namespace using the map with \fIname\fP in the \fI/etc/subuid\fP file.
+When running rootless, the user needs the necessary permissions to use the mapping. See \fBsubuid\fP(5).
+This flag conflicts with \fB--userns\fP and \fB--uidmap\fP\&.
+Together with \fB--uidmap\fP it acts as if \fB--uidmap\fP was passed with all mappings of the \fIname\fP user in \fI/etc/subuid\fP\&.
+
+.SS \fB--sysctl\fP=\fIname=value\fP
+Configure namespaced kernel parameters at runtime.
+
+.PP
+For the IPC namespace, the following sysctls are allowed:
+.IP \(bu 2
+kernel.msgmax
+.IP \(bu 2
+kernel.msgmnb
+.IP \(bu 2
+kernel.msgmni
+.IP \(bu 2
+kernel.sem
+.IP \(bu 2
+kernel.shmall
+.IP \(bu 2
+kernel.shmmax
+.IP \(bu 2
+kernel.shmmni
+.IP \(bu 2
+kernel.shm_rmid_forced
+.IP \(bu 2
+Sysctls beginning with fs.mqueue.*
+
+.PP
+Note: if using the \fB--ipc=host\fP option, the above sysctls are not allowed.
+
+.PP
+For the network namespace, only sysctls beginning with net.* are allowed.
+
+.PP
+Note: if using the \fB--network=host\fP option, the above sysctls are not allowed.
+
+.SS \fB--systemd\fP=\fItrue\fP | \fIfalse\fP | \fIalways\fP
+Run container in systemd mode. The default is \fBtrue\fP\&.
+.IP \(bu 2
+\fBtrue\fP enables systemd mode only when the command executed inside the container is \fIsystemd\fP, \fI/usr/sbin/init\fP,
+\fI/sbin/init\fP or \fI/usr/local/sbin/init\fP\&.
+.IP \(bu 2
+\fBfalse\fP disables systemd mode.
+.IP \(bu 2
+\fBalways\fP enforces the systemd mode to be enabled.
+
+.PP
+Running the container in systemd mode causes the following changes:
+.IP \(bu 2
+Podman mounts tmpfs file systems on the following directories
+.RS
+.IP \(bu 2
+\fI/run\fP
+.IP \(bu 2
+\fI/run/lock\fP
+.IP \(bu 2
+\fI/tmp\fP
+.IP \(bu 2
+\fI/sys/fs/cgroup/systemd\fP (on a cgroup v1 system)
+.IP \(bu 2
+\fI/var/lib/journal\fP
+.RE
+.IP \(bu 2
+Podman sets the default stop signal to \fBSIGRTMIN+3\fP\&.
+.IP \(bu 2
+Podman sets \fBcontainer_uuid\fP environment variable in the container to the
+first 32 characters of the container ID.
+.IP \(bu 2
+Podman does not mount virtual consoles (\fI/dev/tty\\d+\fP) when running with \fB--privileged\fP\&.
+.IP \(bu 2
+On cgroup v2, \fI/sys/fs/cgroup\fP is mounted writable.
+
+.PP
+This allows systemd to run in a confined container without any modifications.
+
+.PP
+Note that on \fBSELinux\fP systems, systemd attempts to write to the cgroup
+file system. Containers writing to the cgroup file system are denied by default.
+The \fBcontainer_manage_cgroup\fP boolean must be enabled for this to be allowed on an SELinux separated system.
+
+.EX
+setsebool -P container_manage_cgroup true
+.EE
+
+.SS \fB--timeout\fP=\fIseconds\fP
+Maximum time a container is allowed to run before conmon sends it the kill
+signal.  By default containers run until they exit or are stopped by
+\fBpodman stop\fR\&.
+
+.SS \fB--tls-verify\fP
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SS \fB--tmpfs\fP=\fIfs\fP
+Create a tmpfs mount.
+
+.PP
+Mount a temporary filesystem (\fBtmpfs\fP) mount into a container, for example:
+
+.EX
+$ podman create -d --tmpfs /tmp:rw,size=787448k,mode=1777 my_image
+.EE
+
+.PP
+This command mounts a \fBtmpfs\fP at \fI/tmp\fP within the container. The supported mount
+options are the same as the Linux default mount flags. If no options are specified,
+the system uses the following options:
+\fBrw,noexec,nosuid,nodev\fP\&.
+
+.PP
+By default, Podman enables \fBtmpcopyup\fP on tmpfs mounts, which copies the contents
+of the underlying image directory into the tmpfs before mounting it. This also
+applies when the tmpfs destination is inside a volume or bind mount: files from
+the parent mount are copied into the tmpfs, so the parent content remains visible.
+To mount an empty tmpfs that shadows a parent mount's subtree, use the
+\fBnotmpcopyup\fP option:
+
+.EX
+$ podman create --volume myvolume:/data --tmpfs /data/sub:notmpcopyup my_image
+.EE
+
+.SS \fB--tty\fP, \fB-t\fP
+Allocate a pseudo-TTY. The default is \fBfalse\fP\&.
+
+.PP
+When set to \fBtrue\fP, Podman allocates a pseudo-tty and attach to the standard
+input of the container. This can be used, for example, to run a throwaway
+interactive shell.
+
+.PP
+\fBNOTE\fP: The --tty flag prevents redirection of standard output.  It combines STDOUT and STDERR, it can insert control characters, and it can hang pipes. This option is only used when run interactively in a terminal. When feeding input to Podman, use -i only, not -it.
+
+.SS \fB--tz\fP=\fItimezone\fP
+Set timezone in container. This flag takes area-based timezones, GMT time, as well as \fBlocal\fR, which sets the timezone in the container to match the host machine. See \fB/usr/share/zoneinfo/\fR for valid timezones.
+Remote connections use local containers.conf for defaults
+
+.SS \fB--uidmap\fP=\fI[flags]container_uid:from_uid[:amount]\fP
+Run the container in a new user namespace using the supplied UID mapping. This
+option conflicts with the \fB--userns\fP and \fB--subuidname\fP options. This
+option provides a way to map host UIDs to container UIDs. It can be passed
+several times to map different ranges.
+
+.PP
+The possible values of the optional \fIflags\fP are discussed further down on this page.
+The \fIamount\fP value is optional and assumed to be \fB1\fP if not given.
+
+.PP
+The \fIfrom_uid\fP value is based upon the user running the command, either rootful or rootless users.
+.IP \(bu 2
+rootful user:  [\fIflags\fP]\fIcontainer_uid\fP:\fIhost_uid\fP[:\fIamount\fP]
+.IP \(bu 2
+rootless user: [\fIflags\fP]\fIcontainer_uid\fP:\fIintermediate_uid\fP[:\fIamount\fP]
+
+.PP
+\fBRootful mappings\fR
+
+.PP
+When \fBpodman create\fP is called by a privileged user, the option \fB--uidmap\fP
+works as a direct mapping between host UIDs and container UIDs.
+
+.PP
+host UID -> container UID
+
+.PP
+The \fIamount\fP specifies the number of consecutive UIDs that is mapped.
+If for example \fIamount\fP is \fB4\fP the mapping looks like:
+
+.TS
+allbox;
+l l 
+l l .
+\fBhost UID\fP	\fBcontainer UID\fP
+\fIfrom_uid\fP	\fIcontainer_uid\fP
+\fIfrom_uid\fP + 1	\fIcontainer_uid\fP + 1
+\fIfrom_uid\fP + 2	\fIcontainer_uid\fP + 2
+\fIfrom_uid\fP + 3	\fIcontainer_uid\fP + 3
+.TE
+
+.PP
+\fBRootless mappings\fR
+
+.PP
+When \fBpodman create\fP is called by an unprivileged user (i.e. running rootless),
+the value \fIfrom_uid\fP is interpreted as an "intermediate UID". In the rootless
+case, host UIDs are not mapped directly to container UIDs. Instead the mapping
+happens over two mapping steps:
+
+.PP
+host UID -> intermediate UID -> container UID
+
+.PP
+The \fB--uidmap\fP option only influences the second mapping step.
+
+.PP
+The first mapping step is derived by Podman from the contents of the file
+\fI/etc/subuid\fP and the UID of the user calling Podman.
+
+.PP
+First mapping step:
+
+.TS
+allbox;
+l l 
+l l .
+\fBhost UID\fP	\fBintermediate UID\fP
+UID for Podman user	0
+1st subordinate UID	1
+2nd subordinate UID	2
+3rd subordinate UID	3
+nth subordinate UID	n
+.TE
+
+.PP
+To be able to use intermediate UIDs greater than zero, the user needs to have
+subordinate UIDs configured in \fI/etc/subuid\fP\&. See \fBsubuid\fP(5).
+
+.PP
+The second mapping step is configured with \fB--uidmap\fP\&.
+
+.PP
+If for example \fIamount\fP is \fB5\fP the second mapping step looks like:
+
+.TS
+allbox;
+l l 
+l l .
+\fBintermediate UID\fP	\fBcontainer UID\fP
+\fIfrom_uid\fP	\fIcontainer_uid\fP
+\fIfrom_uid\fP + 1	\fIcontainer_uid\fP + 1
+\fIfrom_uid\fP + 2	\fIcontainer_uid\fP + 2
+\fIfrom_uid\fP + 3	\fIcontainer_uid\fP + 3
+\fIfrom_uid\fP + 4	\fIcontainer_uid\fP + 4
+.TE
+
+.PP
+When running as rootless, Podman uses all the ranges configured in the \fI/etc/subuid\fP file.
+
+.PP
+The current user ID is mapped to UID=0 in the rootless user namespace.
+Every additional range is added sequentially afterward:
+
+.TS
+allbox;
+l l l 
+l l l .
+\fBhost\fP	\fBrootless user namespace\fP	\fBlength\fP
+$UID	0	1
+1	$FIRST_RANGE_ID	$FIRST_RANGE_LENGTH
+1+$FIRST_RANGE_LENGTH	$SECOND_RANGE_ID	$SECOND_RANGE_LENGTH
+.TE
+
+.PP
+\fBReferencing a host ID from the parent namespace\fR
+
+.PP
+As a rootless user, the given host ID in \fB--uidmap\fP or \fB--gidmap\fP
+is mapped from the \fIintermediate namespace\fP generated by Podman. Sometimes
+it is desirable to refer directly to the \fIhost namespace\fP\&. It is possible
+to manually do so, by running \fBpodman unshare cat /proc/self/gid_map\fR,
+finding the desired host id at the second column of the output, and getting
+the corresponding intermediate id from the first column.
+
+.PP
+Podman can perform all that by preceding the host id in the mapping
+with the \fB@\fR symbol. For instance, by specifying \fB--gidmap 100000:@2000:1\fR,
+podman will look up the intermediate id corresponding to host id \fB2000\fR and
+it will map the found intermediate id to the container id \fB100000\fR\&. The
+given host id must have been subordinated (otherwise it would not be mapped
+into the intermediate space in the first place).
+
+.PP
+If the length is greater than one, for instance with \fB--gidmap 100000:@2000:2\fR,
+Podman will map host ids \fB2000\fR and \fB2001\fR to \fB100000\fR and \fB100001\fR, respectively,
+regardless of how the intermediate mapping is defined.
+
+.PP
+\fBExtending previous mappings\fR
+
+.PP
+Some mapping modifications may be cumbersome. For instance, a user
+starts with a mapping such as \fB--gidmap="0:0:65000"\fR, that needs to be
+changed such as the parent id \fB1\fR is mapped to container id \fB100000\fR
+instead, leaving container id \fB1\fR unassigned. The corresponding \fB--gidmap\fR
+becomes \fB--gidmap="0:0:1" --gidmap="2:2:65534" --gidmap="100000:1:1"\fR\&.
+
+.PP
+This notation can be simplified using the \fB+\fR flag, that takes care of
+breaking previous mappings removing any conflicting assignment with
+the given mapping. The flag is given before the container id
+as follows: \fB--gidmap="0:0:65000" --gidmap="+100000:1:1"\fR
+
+.TS
+allbox;
+l l l 
+l l l .
+\fBFlag\fP	\fBExample\fP	\fBDescription\fP
+\fB+\fR	\fB+100000:1:1\fR	Extend the previous mapping
+.TE
+
+.PP
+This notation leads to gaps in the assignment, so it may be convenient to
+fill those gaps afterwards: \fB--gidmap="0:0:65000" --gidmap="+100000:1:1" --gidmap="1:65001:1"\fR
+
+.PP
+One specific use case for this flag is in the context of rootless
+users. A rootless user may specify mappings with the \fB+\fR flag as
+in \fB--gidmap="+100000:1:1"\fR\&. Podman will then "fill the gaps" starting
+from zero with all the remaining intermediate ids. This is convenient when
+a user wants to map a specific intermediate id to a container id, leaving
+the rest of subordinate ids to be mapped by Podman at will.
+
+.PP
+\fBPassing only one of --uidmap or --gidmap\fR
+
+.PP
+Usually, subordinated user and group ids are assigned simultaneously, and
+for any user the subordinated user ids match the subordinated group ids.
+For convenience, if only one of \fB--uidmap\fP or \fB--gidmap\fP is given,
+podman assumes the mapping refers to both UIDs and GIDs and applies the
+given mapping to both. If only one value of the two needs to be changed,
+the mappings should include the \fBu\fR or the \fBg\fR flags to specify that
+they only apply to UIDs or GIDs and should not be copied over.
+
+.TS
+allbox;
+l l l 
+l l l .
+\fBflag\fP	\fBExample\fP	\fBDescription\fP
+\fBu\fR	\fBu20000:2000:1\fR	T{
+The mapping only applies to UIDs
+T}
+\fBg\fR	\fBg10000:1000:1\fR	T{
+The mapping only applies to GIDs
+T}
+.TE
+
+.PP
+For instance given the command
+
+.EX
+podman create --gidmap "0:0:1000" --gidmap "g2000:2000:1"
+.EE
+
+.PP
+Since no \fB--uidmap\fP is given, the \fB--gidmap\fP is copied to \fB--uidmap\fP,
+giving a command equivalent to
+
+.EX
+podman create --gidmap "0:0:1000" --gidmap "2000:2000:1" --uidmap "0:0:1000"
+.EE
+
+.PP
+The \fB--gidmap "g2000:2000:1"\fR used the \fBg\fR flag and therefore it was
+not copied to \fB--uidmap\fP\&.
+
+.PP
+\fBRootless mapping of additional host GIDs\fR
+
+.PP
+A rootless user may desire to map a specific host group that has already been
+subordinated within \fI/etc/subgid\fP without specifying the rest of the mapping.
+
+.PP
+This can be done with \fB--gidmap "+g\fIcontainer_gid\fP:@\fIhost_gid\fP"\fP
+
+.PP
+Where:
+.IP \(bu 2
+The host GID is given through the \fB@\fR symbol
+.IP \(bu 2
+The mapping of this GID is not copied over to \fB--usermap\fP thanks to the \fBg\fR flag.
+.IP \(bu 2
+The rest of the container IDs will be mapped starting from 0 to n,
+with all the remaining subordinated GIDs, thanks to the \fB+\fR flag.
+
+.PP
+For instance, if a user belongs to the group \fB2000\fR and that group is
+subordinated to that user (with \fBusermod --add-subgids 2000-2000 $USER\fR),
+the user can map the group into the container with: \fB--gidmap=+g100000:@2000\fP\&.
+
+.PP
+If this mapping is combined with the option, \fB--group-add=keep-groups\fP, the
+process in the container will belong to group \fB100000\fR, and files belonging
+to group \fB2000\fR in the host will appear as being owned by group \fB100000\fR
+inside the container.
+
+.EX
+podman run --group-add=keep-groups --gidmap="+g100000:@2000" ...
+.EE
+
+.PP
+\fBNo subordinate UIDs\fR
+
+.PP
+Even if a user does not have any subordinate UIDs in  \fI/etc/subuid\fP,
+\fB--uidmap\fP can be used to map the normal UID of the user to a
+container UID by running \fBpodman create --uidmap $container_uid:0:1 --user $container_uid ...\fR\&.
+
+.PP
+\fBPods\fR
+
+.PP
+The \fB--uidmap\fP option cannot be called in conjunction with the \fB--pod\fP option as a uidmap cannot be set on the container level when in a pod.
+
+.SS \fB--ulimit\fP=\fIoption\fP
+Ulimit options. Sets the ulimits values inside of the container.
+
+.PP
+--ulimit with a soft and hard limit in the format =[:]. For example:
+
+.PP
+$ podman run --ulimit nofile=1024:1024 --rm ubi9 ulimit -n
+1024
+
+.PP
+Set -1 for the soft or hard limit to set the limit to the maximum limit of the current
+process. In rootful mode this is often unlimited.
+
+.PP
+If nofile and nproc are unset, a default value of 1048576 will be used, unless overridden
+in containers.conf(5).  However, if the default value exceeds the hard limit for the current
+rootless user, the current hard limit will be applied instead.
+
+.PP
+Use \fBhost\fP to copy the current configuration from the host.
+
+.PP
+Don't use nproc with the ulimit flag as Linux uses nproc to set the
+maximum number of processes available to a user, not to a container.
+
+.PP
+Use the --pids-limit option to modify the cgroup control to limit the number
+of processes within a container.
+
+.SS \fB--umask\fP=\fIumask\fP
+Set the umask inside the container. Defaults to \fB0022\fR\&.
+Remote connections use the local \fBcontainers.conf\fR for defaults.
+
+.SS \fB--unsetenv\fP=\fIenv\fP
+Unset default environment variables for the container. Default environment
+variables include variables provided natively by Podman, environment variables
+configured by the image, and environment variables from containers.conf.
+
+.SS \fB--unsetenv-all\fP
+Unset all default environment variables for the container. Default environment
+variables include variables provided natively by Podman, environment variables
+configured by the image, and environment variables from containers.conf.
+
+.SS \fB--user\fP, \fB-u\fP=\fIuser[:group]\fP
+Sets the username or UID used and, optionally, the groupname or GID for the specified command. Both \fIuser\fP and \fIgroup\fP may be symbolic or numeric.
+
+.PP
+Without this argument, the command runs as the user specified in the container image. Unless overridden by a \fBUSER\fR command in the Containerfile or by a value passed to this option, this user generally defaults to root.
+
+.PP
+When a user namespace is not in use, the UID and GID used within the container and on the host match. When user namespaces are in use, however, the UID and GID in the container may correspond to another UID and GID on the host. In rootless containers, for example, a user namespace is always used, and root in the container by default corresponds to the UID and GID of the user invoking Podman.
+
+.SS \fB--userns\fP=\fImode\fP
+Set the user namespace mode for the container.
+
+.PP
+If \fB--userns\fR is not set, the default value is determined as follows.
+- If \fB--pod\fR is set, \fB--userns\fR is ignored and the user namespace of the pod is used.
+- If the environment variable \fBPODMAN_USERNS\fP is set its value is used.
+- If \fBuserns\fR is specified in \fBcontainers.conf\fR this value is used.
+- Otherwise, \fB--userns=host\fR is assumed.
+
+.PP
+\fB--userns=""\fR (i.e., an empty string) is an alias for \fB--userns=host\fR\&.
+
+.PP
+This option is incompatible with \fB--gidmap\fP, \fB--uidmap\fP, \fB--subuidname\fP and \fB--subgidname\fP\&.
+
+.PP
+Rootless user --userns=Key mappings:
+
+.TS
+allbox;
+l l l 
+l l l .
+\fBKey\fP	\fBHost User\fP	\fBContainer User\fP
+auto	$UID	T{
+nil (Host User UID is not mapped into container.)
+T}
+host	$UID	T{
+0 (Default User account mapped to root user in container.)
+T}
+keep-id	$UID	T{
+$UID (Map user account to same UID within container.)
+T}
+keep-id:uid=200,gid=210	$UID	T{
+200:210 (Map user account to specified UID, GID value within container.)
+T}
+nomap	$UID	T{
+nil (Host User UID is not mapped into container.)
+T}
+.TE
+
+.PP
+Valid \fImode\fP values are:
+
+.PP
+\fBauto\fP[:\fIOPTIONS,...\fP]: automatically create a unique user namespace.
+.IP \(bu 2
+\fBrootful mode\fR: The \fB--userns=auto\fR flag requires that the user name \fBcontainers\fP be specified in the /etc/subuid and /etc/subgid files, with an unused range of subordinate user IDs that Podman containers are allowed to allocate.  Example: \fBcontainers:2147483647:2147483648\fR\&.
+.IP \(bu 2
+\fBrootless mode\fR: The users range from the /etc/subuid and /etc/subgid files will be used. Note running a single container without using --userns=auto will use the entire range of UIDs and not allow further subdividing. See subuid(5).
+
+.PP
+Podman allocates unique ranges of UIDs and GIDs from the \fBcontainers\fR subordinate user IDs. The size of the ranges is based on the number of UIDs required in the image. The number of UIDs and GIDs can be overridden with the \fBsize\fR option.
+
+.PP
+The option \fB--userns=keep-id\fR uses all the subuids and subgids of the user.
+The option \fB--userns=nomap\fR uses all the subuids and subgids of the user except the user's own ID.
+Using \fB--userns=auto\fR when starting new containers does not work as long as any containers exist that were started with \fB--userns=nomap\fR or \fB--userns=keep-id\fR without limiting the user namespace size.
+
+.PP
+Valid \fBauto\fR options:
+.IP \(bu 2
+\fIgidmapping\fP=\fICONTAINER_GID:HOST_GID:SIZE\fP: to force a GID mapping to be present in the user namespace.
+.IP \(bu 2
+\fIsize\fP=\fISIZE\fP: to specify an explicit size for the automatic user namespace. e.g. \fB--userns=auto:size=8192\fR\&. If \fBsize\fR is not specified, \fBauto\fR estimates a size for the user namespace.
+.IP \(bu 2
+\fIuidmapping\fP=\fICONTAINER_UID:HOST_UID:SIZE\fP: to force a UID mapping to be present in the user namespace.
+
+.PP
+The host UID and GID in \fIgidmapping\fP and \fIuidmapping\fP can optionally be prefixed with the \fB@\fR symbol.
+In this case, podman will look up the intermediate ID corresponding to host ID and it will map the found intermediate ID to the container id.
+For details see \fB--uidmap\fP\&.
+
+.PP
+\fBcontainer:\fP\fIid\fP: join the user namespace of the specified container.
+
+.PP
+\fBhost\fP or \fB""\fP (empty string): run in the user namespace of the caller. The processes running in the container have the same privileges on the host as any other process launched by the calling user.
+
+.PP
+\fBkeep-id\fP: creates a user namespace where the current user's UID:GID are mapped to the same values in the container. For containers created by root, the current mapping is created into a new user namespace.
+
+.PP
+In addition, the init process within the container will run under the current user's UID. This behavior overrides the image's \fBUSER\fR instruction unless you explicitly set \fB--user\fR\&.
+
+.PP
+Valid \fBkeep-id\fR options:
+.IP \(bu 2
+\fIuid\fP=UID: override the UID inside the container that is used to map the current user to.
+.IP \(bu 2
+\fIgid\fP=GID: override the GID inside the container that is used to map the current user to.
+.IP \(bu 2
+\fIsize\fP=SIZE: override the size of the configured user namespace.  It is useful to not saturate all the available IDs.  Not supported when running as root.
+
+.PP
+\fBnomap\fP: creates a user namespace where the current rootless user's UID:GID are not mapped into the container. This option is not allowed for containers created by the root user.
+
+.PP
+\fBns:\fP\fInamespace\fP: run the container in the given existing user namespace.
+
+.SS \fB--uts\fP=\fImode\fP
+Set the UTS namespace mode for the container. The following values are supported:
+.IP \(bu 2
+\fBhost\fP: use the host's UTS namespace inside the container.
+.IP \(bu 2
+\fBprivate\fP: create a new namespace for the container (default).
+.IP \(bu 2
+\fBns:[path]\fP: run the container in the given existing UTS namespace.
+.IP \(bu 2
+\fBcontainer:[container]\fP: join the UTS namespace of the specified container.
+
+.SS \fB--variant\fP=\fIVARIANT\fP
+Use \fIVARIANT\fP instead of the default architecture variant of the container image. Some images can use multiple variants of the arm architectures, such as arm/v5 and arm/v7.
+
+.SS \fB--volume\fP, \fB-v\fP=\fI[[SOURCE-VOLUME|HOST-DIR:]CONTAINER-DIR[:OPTIONS]]\fP
+Create a bind mount. If \fB-v /HOST-DIR:/CONTAINER-DIR\fR is specified, Podman
+bind mounts \fB/HOST-DIR\fR from the host into \fB/CONTAINER-DIR\fR in the Podman
+container. Similarly, \fB-v SOURCE-VOLUME:/CONTAINER-DIR\fR mounts the named
+volume from the host into the container. If no such named volume exists,
+Podman creates one. The \fBnocreate\fP option can be used to disable this
+behavior and require the volume to already exist. If no source is given,
+the volume is created as an anonymously named volume with a randomly
+generated name, and is removed when the container is removed via
+the \fB--rm\fR flag or the \fBpodman rm --volumes\fR command.
+
+.PP
+(Note when using the remote client, including Mac and Windows (excluding WSL2) machines, the volumes are mounted from the remote server, not necessarily the client machine.)
+
+.PP
+The \fIOPTIONS\fP is a comma-separated list and can be one or more of:
+.IP \(bu 2
+\fBrw\fP|\fBro\fP
+.IP \(bu 2
+\fBz\fP|\fBZ\fP
+.IP \(bu 2
+[\fBO\fP]
+.IP \(bu 2
+[\fBU\fP]
+.IP \(bu 2
+[\fBno\fP]\fBcopy\fP
+.IP \(bu 2
+[\fBno\fP]\fBdev\fP
+.IP \(bu 2
+[\fBno\fP]\fBexec\fP
+.IP \(bu 2
+[\fBno\fP]\fBsuid\fP
+.IP \(bu 2
+[\fBr\fP]\fBbind\fP
+.IP \(bu 2
+[\fBr\fP]\fBshared\fP|[\fBr\fP]\fBslave\fP|[\fBr\fP]\fBprivate\fP[\fBr\fP]\fBunbindable\fP [1]
+\[la]#Footnote1\[ra]
+.IP \(bu 2
+\fBidmap\fP[=\fBoptions\fP]
+.IP \(bu 2
+\fBnocreate\fP
+
+.PP
+The \fBCONTAINER-DIR\fR must be an absolute path such as \fB/src/docs\fR\&. The volume
+is mounted into the container at this directory.
+
+.PP
+If a volume source is specified, it must be a path on the host or the name of a
+named volume. Host paths are allowed to be absolute or relative; relative paths
+are resolved relative to the directory Podman is run in. If the source does not
+exist, Podman returns an error. Users must pre-create the source files or
+directories.
+
+.PP
+Any source that does not begin with a \fB\&.\fR or \fB/\fR is treated as the name of
+a named volume. If a volume with that name does not exist, it is created.
+Volumes created with names are not anonymous, and they are not removed by the \fB--rm\fR
+option and the \fBpodman rm --volumes\fR command.
+
+.PP
+The \fBnocreate\fP option can be specified for named volumes to prevent automatic
+volume creation. If \fBnocreate\fP is set and the volume does not exist, Podman
+returns an error instead of creating the volume. This is useful when you want
+to ensure that a volume was explicitly created before use.
+
+.EX
+$ podman create -v myvolume:/data:nocreate alpine
+.EE
+
+.PP
+Specify multiple \fB-v\fP options to mount one or more volumes into a
+container.
+
+.PP
+\fBWrite Protected Volume Mounts\fR
+
+.PP
+Add \fB:ro\fP or \fB:rw\fP option to mount a volume in read-only or
+read-write mode, respectively. By default, the volumes are mounted read-write.
+See examples.
+
+.PP
+\fBChowning Volume Mounts\fR
+
+.PP
+When a named volume is first mounted to a container, Podman
+automatically adjusts the ownership of the volume's mount point during
+container initialization. This chown operation occurs under the
+following conditions:
+.IP \(bu 2
+The volume was not used yet (has \fBNeedsChown\fR set to true)
+.IP \(bu 2
+The volume is empty or has not been copied up yet
+.IP \(bu 2
+The volume is not managed by an external volume driver
+.IP \(bu 2
+The volume driver is not "image"
+
+.PP
+For volumes with idmapped mounts (using the \fBidmap\fR option), the
+ownership change takes into account the container's user namespace
+mappings, but the idmapped volume retains proper UID/GID mapping. For
+volumes without idmapping, the mount point is chowned to match the
+container's process user and group, mapped to the host user namespace
+if user namespace remapping is enabled.
+
+.PP
+If a container is created in a new user namespace, the UID and
+GID in the container may correspond to another UID and GID on the host.
+
+.PP
+The \fB:U\fR suffix tells Podman to use the correct host UID and GID based on the
+UID and GID within the container, to change recursively the owner and
+group of the source volume. Chowning walks the file system under the volume and
+changes the UID/GID on each file. If the volume has thousands of inodes, this
+process takes a long time, delaying the start of the container.
+
+.PP
+\fBWarning\fP use with caution since this modifies the host filesystem.
+
+.PP
+\fBLabeling Volume Mounts\fR
+
+.PP
+Labeling systems like SELinux require that proper labels are placed on volume
+content mounted into a container. Without a label, the security system
+might prevent the processes running inside the container from using the
+content. By default, Podman does not change the labels set by the OS.
+
+.PP
+To change a label in the container context, add either of two suffixes
+\fB:z\fP or \fB:Z\fP to the volume mount. These suffixes tell Podman to relabel file
+objects on the shared volumes. The \fBz\fP option tells Podman that two or more
+containers share the volume content. As a result, Podman labels the
+content with a shared content label. Shared volume labels allow all containers
+to read/write content. The \fBZ\fP option tells Podman to label the content with
+a private unshared label. Only the current container can use a private
+volume.
+
+.PP
+Note: all containers within a \fBpod\fR share the same SELinux label. This
+means all containers within said pod can read/write volumes shared into the
+container created with the \fB:Z\fR on any one of the containers. Relabeling walks
+the file system under the volume and changes the label on each file; if the
+volume has thousands of inodes, this process takes a long time, delaying the
+start of the container. If the volume was previously relabeled with the
+\fBz\fR option, Podman is optimized to not relabel a second time. If files are
+moved into the volume, then the labels can be manually changed with the
+\fBchcon -Rt container_file_t PATH\fR command.
+
+.PP
+Note: Do not relabel system files and directories. Relabeling system content
+might cause other confined services on the machine to fail.  For these types
+of containers we recommend disabling SELinux separation.  The option
+\fB--security-opt label=disable\fP disables SELinux separation for the container.
+For example if a user wanted to volume mount their entire home directory into a
+container, they need to disable SELinux separation.
+
+.EX
+$ podman create --security-opt label=disable -v $HOME:/home/user fedora touch /home/user/file
+.EE
+
+.PP
+\fBOverlay Volume Mounts\fR
+
+.PP
+The \fB:O\fR flag tells Podman to mount the directory from the host as a
+temporary storage using the \fBoverlay file system\fR\&. The container processes
+can modify content within the mountpoint which is stored in the
+container storage in a separate directory. In overlay terms, the source
+directory is the lower, and the container storage directory is the
+upper. Modifications to the mount point are destroyed when the container
+finishes executing, similar to a tmpfs mount point being unmounted.
+
+.PP
+For advanced users, the \fBoverlay\fP option also supports custom non-volatile
+\fBupperdir\fP and \fBworkdir\fP for the overlay mount. Custom \fBupperdir\fP and
+\fBworkdir\fP can be fully managed by the users themselves, and Podman does not
+remove it on lifecycle completion.
+Example \fB:O,upperdir=/some/upper,workdir=/some/work\fP
+
+.PP
+Subsequent executions of the container sees the original source directory
+content, any changes from previous container executions no longer exist.
+
+.PP
+One use case of the overlay mount is sharing the package cache from the
+host into the container to allow speeding up builds.
+
+.PP
+Note: The \fBO\fR flag conflicts with other options listed above.
+
+.PP
+Content mounted into the container is labeled with the private label.
+On SELinux systems, labels in the source directory must be readable
+by the  container label. Usually containers can read/execute \fBcontainer_share_t\fR
+and can read/write \fBcontainer_file_t\fR\&. If unable to change the labels on a
+source volume, SELinux container separation must be disabled for the  container
+to work.
+
+.PP
+Do not modify the source directory mounted into the container with an overlay mount,
+it can cause unexpected failures. Only modify the directory after the container finishes running.
+
+.PP
+\fBMounts propagation\fR
+
+.PP
+By default, bind-mounted volumes are \fBprivate\fR\&. That means any mounts done
+inside the container are not visible on the host and vice versa.
+One can change this behavior by specifying a volume mount propagation property.
+When a volume is \fBshared\fR, mounts done under that volume inside the container
+are visible on host and vice versa. Making a volume \fBslave\fP[1]
+\[la]#Footnote1\[ra]
+enables only one-way mount propagation: mounts done on the host under that volume
+are visible inside the container but not the other way around.
+
+.PP
+To control mount propagation property of a volume one can use the [\fBr\fP]\fBshared\fP,
+[\fBr\fP]\fBslave\fP, [\fBr\fP]\fBprivate\fP or the [\fBr\fP]\fBunbindable\fP propagation flag.
+Propagation property can be specified only for bind mounted volumes and not for
+internal volumes or named volumes. For mount propagation to work the source mount
+point (the mount point where source dir is mounted on) has to have the right propagation
+properties. For shared volumes, the source mount point has to be shared. And for
+slave volumes, the source mount point has to be either shared or slave.
+[1]
+\[la]#Footnote1\[ra]
+
+.PP
+To recursively mount a volume and all of its submounts into a
+container, use the \fBrbind\fP option. By default the bind option is
+used, and submounts of the source directory is not mounted into the
+container.
+
+.PP
+Mounting the volume with a \fBcopy\fP option tells podman to copy content from
+the underlying destination directory onto newly created internal volumes. The
+\fBcopy\fP only happens on the initial creation of the volume. Content is not
+copied up when the volume is subsequently used on different containers. The
+\fBcopy\fP option is ignored on bind mounts and has no effect.
+
+.PP
+Mounting volumes with the \fBnosuid\fP options means that SUID executables on the
+volume can not be used by applications to change their privilege. By default
+volumes are mounted with \fBnosuid\fP\&.
+
+.PP
+Mounting the volume with the \fBnoexec\fP option means that no executables on the
+volume can be executed within the container.
+
+.PP
+Mounting the volume with the \fBnodev\fP option means that no devices on the volume
+can be used by processes within the container. By default volumes
+are mounted with \fBnodev\fP\&.
+
+.PP
+If the \fIHOST-DIR\fP is a mount point, then \fBdev\fP, \fBsuid\fP, and \fBexec\fP options are
+ignored by the kernel.
+
+.PP
+Use \fBdf HOST-DIR\fP to figure out the source mount, then use
+\fBfindmnt -o TARGET,PROPAGATION \fIsource-mount-dir\fP\fP to figure out propagation
+properties of source mount. If \fBfindmnt\fP(1) utility is not available, then one
+can look at the mount entry for the source mount point in \fI/proc/self/mountinfo\fP\&. Look
+at the "optional fields" and see if any propagation properties are specified.
+In there, \fBshared:N\fP means the mount is shared, \fBmaster:N\fP means mount
+is slave, and if nothing is there, the mount is private. [1]
+\[la]#Footnote1\[ra]
+
+.PP
+To change propagation properties of a mount point, use \fBmount\fP(8) command. For
+example, if one wants to bind mount source directory \fI/foo\fP, one can do
+\fBmount --bind /foo /foo\fP and \fBmount --make-private --make-shared /foo\fP\&. This
+converts /foo into a shared mount point. Alternatively, one can directly
+change propagation properties of source mount. Say \fI/\fP is source mount for
+\fI/foo\fP, then use \fBmount --make-shared /\fP to convert \fI/\fP into a shared mount.
+
+.PP
+Note: if the user only has access rights via a group, accessing the volume
+from inside a rootless container fails.
+
+.PP
+\fBIdmapped mount\fR
+
+.PP
+If \fBidmap\fR is specified, create an idmapped mount to the target user
+namespace in the container. The idmap option supports a custom mapping
+that can be different than the user namespace used by the
+container. The mapping can be specified after the idmap option like:
+\fBidmap=uids=0-1-10#10-11-10;gids=0-100-10\fR\&.
+For each triplet, the first value is the start of the backing file
+system IDs that are mapped to the second value on the host.  The
+length of this mapping is given in the third value.
+Multiple ranges are separated with #.
+
+.PP
+Use the \fB--group-add keep-groups\fP option to pass the user's supplementary group access into the container.
+
+.SS \fB--volumes-from\fP=\fICONTAINER[:OPTIONS]\fP
+Mount volumes from the specified container(s). Used to share volumes between
+containers. The \fIoptions\fP is a comma-separated list with the following available elements:
+.IP \(bu 2
+\fBrw\fP|\fBro\fP
+.IP \(bu 2
+\fBz\fP
+
+.PP
+Mounts already mounted volumes from a source container onto another
+container. \fICONTAINER\fP may be a name or ID.
+To share a volume, use the --volumes-from option when running
+the target container. Volumes can be shared even if the source container
+is not running.
+
+.PP
+By default, Podman mounts the volumes in the same mode (read-write or
+read-only) as it is mounted in the source container.
+This can be changed by adding a \fBro\fR or \fBrw\fR \fIoption\fP\&.
+
+.PP
+Labeling systems like SELinux require that proper labels are placed on volume
+content mounted into a container. Without a label, the security system might
+prevent the processes running inside the container from using the content. By
+default, Podman does not change the labels set by the OS.
+
+.PP
+To change a label in the container context, add \fBz\fR to the volume mount.
+This suffix tells Podman to relabel file objects on the shared volumes. The \fBz\fR
+option tells Podman that two entities share the volume content. As a result,
+Podman labels the content with a shared content label. Shared volume labels allow
+all containers to read/write content.
+
+.PP
+If the location of the volume from the source container overlaps with
+data residing on a target container, then the volume hides
+that data on the target.
+
+.SS \fB--workdir\fP, \fB-w\fP=\fIdir\fP
+Working directory inside the container.
+
+.PP
+The default working directory for running binaries within a container is the root directory (\fB/\fP).
+The image developer can set a different default with the WORKDIR instruction. The operator
+can override the working directory by using the \fB-w\fP option.
+
+.SH "مثال‌ها (EXAMPLES)"
+Create a container using a local image:
+
+.EX
+$ podman create alpine ls
+.EE
+
+.PP
+Create a container using a local image and annotate it:
+
+.EX
+$ podman create --annotation HELLO=WORLD alpine ls
+.EE
+
+.PP
+Create a container using a local image, allocating a pseudo-TTY, keeping stdin open and name it myctr:
+
+.EX
+  podman create -t -i --name myctr alpine ls
+.EE
+
+.PP
+Running a container in a new user namespace requires a mapping of
+the UIDs and GIDs from the host:
+
+.EX
+$ podman create --uidmap 0:30000:7000 --gidmap 0:30000:7000 fedora echo hello
+.EE
+
+.PP
+Setting automatic user-namespace separated containers:
+
+.EX
+# podman create --userns=auto:size=65536 ubi8-init
+.EE
+
+.PP
+Configure the timezone in a container:
+
+.EX
+$ podman create --tz=local alpine date
+$ podman create --tz=Asia/Shanghai alpine date
+$ podman create --tz=US/Eastern alpine date
+.EE
+
+.PP
+Ensure the first container (container1) is running before the second container (container2) is started:
+
+.EX
+$ podman create --name container1 -t -i fedora bash
+$ podman create --name container2 --requires container1 -t -i fedora bash
+$ podman start --attach container2
+.EE
+
+.PP
+Create a container which requires multiple containers:
+
+.EX
+$ podman create --name container1 -t -i fedora bash
+$ podman create --name container2 -t -i fedora bash
+$ podman create --name container3 --requires container1,container2 -t -i fedora bash
+$ podman start --attach container3
+.EE
+
+.PP
+Expose shared libraries inside of container as read-only using a glob:
+
+.EX
+$ podman create --mount type=glob,src=/usr/lib64/libnvidia\\*,ro -i -t fedora /bin/bash
+.EE
+
+.PP
+Create a container allowing supplemental groups to have access to the volume:
+
+.EX
+$ podman create -v /var/lib/design:/var/lib/design --group-add keep-groups ubi8
+.EE
+
+.PP
+Configure execution domain for containers using the personality option:
+
+.EX
+$ podman create --name container1 --personality=LINUX32 fedora bash
+.EE
+
+.PP
+Create a container with external rootfs mounted as an overlay:
+
+.EX
+$ podman create --name container1 --rootfs /path/to/rootfs:O bash
+.EE
+
+.PP
+Create a container connected to two networks (called net1 and net2) with a static ip:
+
+.EX
+$ podman create --network net1:ip=10.89.1.5 --network net2:ip=10.89.10.10 alpine ip addr
+.EE
+
+.SS Define a healthcheck at run time and verify it
+.EX
+$ podman create -d --name healthcheck-example -p 8080:80   
+  --health-cmd '["CMD-SHELL","wget -q --spider http://127.0.0.1:80 || exit 1"]'   
+  --health-interval 30s --health-timeout 5s --health-retries 3   
+  docker.io/library/nginx:alpine
+
+$ podman inspect --format '{{.State.Health}}' healthcheck-example
+.EE
+
+.SS Rootless Containers
+Podman runs as a non-root user on most systems. This feature requires that a new enough version of shadow-utils
+be installed. The shadow-utils package must include the newuidmap and newgidmap executables.
+
+.PP
+In order for users to run rootless, there must be an entry for their username in /etc/subuid and /etc/subgid which lists the UIDs for their user namespace.
+
+.PP
+Rootless Podman works better if the fuse-overlayfs package is installed.
+The fuse-overlayfs package provides a userspace overlay storage driver, otherwise users need to use
+the vfs storage driver, which can be disk space expensive and less performant
+than other drivers.
+
+.PP
+To enable VPN on the container, pasta networking is used by default;
+otherwise, containers need to be run with the --network=host flag.
+
+.SH "محیط (ENVIRONMENT)"
+Environment variables within containers can be set using multiple different options:  This section describes the precedence.
+
+.PP
+Precedence order (later entries override earlier entries):
+.IP \(bu 2
+\fB--env-host\fP : Host environment of the process executing Podman is added.
+.IP \(bu 2
+\fB--http-proxy\fP: By default, several environment variables are passed in from the host, such as \fBhttp_proxy\fP and \fBno_proxy\fP\&. See \fB--http-proxy\fP for details.
+.IP \(bu 2
+Container image : Any environment variables specified in the container image.
+.IP \(bu 2
+\fB--env-file\fP : Any environment variables specified via env-files. If multiple files specified, then they override each other in order of entry.
+.IP \(bu 2
+\fB--env\fP : Any environment variables specified overrides previous settings.
+
+.PP
+Create containers and set the environment ending with a \fB*\fP\&.
+The trailing \fB*\fP glob functionality is only active when no value is specified:
+
+.EX
+$ export ENV1=a
+$ podman create --name ctr1 --env 'ENV*' alpine env
+$ podman start --attach ctr1 | grep ENV
+ENV1=a
+$ podman create --name ctr2 --env 'ENV*=b' alpine env
+$ podman start --attach ctr2 | grep ENV
+ENV*=b
+.EE
+
+.SH CONMON
+When Podman starts a container it actually executes the conmon program, which
+then executes the OCI Runtime.  Conmon is the container monitor.  It is a small
+program whose job is to watch the primary process of the container, and if the
+container dies, save the exit code.  It also holds open the tty of the
+container, so that it can be attached to later. This is what allows Podman to
+run in detached mode (backgrounded), so Podman can exit but conmon continues to
+run.  Each container has their own instance of conmon. Conmon waits for the
+container to exit, gathers and saves the exit code, and then launches a Podman
+process to complete the container cleanup, by shutting down the network and
+storage.   For more information about conmon, see the conmon(8) man
+page.
+
+.SH "فایل‌ها (FILES)"
+\fB/etc/subuid\fP
+\fB/etc/subgid\fP
+
+.PP
+NOTE: Use the environment variable \fBTMPDIR\fR to change the temporary storage location of downloaded container images. Podman defaults to use \fB/var/tmp\fR\&.
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-save(1)\fP, \fBpodman-ps(1)\fP, \fBpodman-attach(1)\fP, \fBpodman-pod-create(1)\fP, \fBpodman-port(1)\fP, \fBpodman-start(1)\fP, \fBpodman-kill(1)\fP, \fBpodman-stop(1)\fP, \fBpodman-generate-systemd(1)\fP, \fBpodman-rm(1)\fP, \fBsubgid(5)\fP, \fBsubuid(5)\fP, \fBcontainers.conf(5)\fP, \fBpodman-systemd.unit(5)\fP, \fBsetsebool(8)\fP, \fBpasta(1)\fP, \fBfuse-overlayfs(1)\fP, \fBproc(5)\fP, \fBconmon(8)\fP, \fBpersonality(2)\fP
+
+.SS Troubleshooting
+See podman-troubleshooting(7)
+for solutions to common issues.
+
+.PP
+See podman-rootless(7)
+for rootless issues.
+
+.SH "تاریخچه (HISTORY)"
+October 2017, converted from Docker documentation to Podman by Dan Walsh for Podman \fB<dwalsh@redhat.com>\fR
+
+.PP
+November 2014, updated by Sven Dowideit \fB<SvenDowideit@home.org.au>\fR
+
+.PP
+September 2014, updated by Sven Dowideit \fB<SvenDowideit@home.org.au>\fR
+
+.PP
+August 2014, updated by Sven Dowideit \fB<SvenDowideit@home.org.au>\fR
+
+.SH FOOTNOTES
+1: The Podman project is committed to inclusivity, a core value of open source. The \fBmaster\fR and \fBslave\fR mount propagation terminology used here is problematic and divisive, and needs to be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Podman will follow suit immediately.

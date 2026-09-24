@@ -1,0 +1,303 @@
+'\" t
+.nh
+.TH podman-network.unit 5
+
+.SH "نام (NAME)"
+podman-network.unit \- systemd unit files for managing Podman networks using Quadlet
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fIname\fP\&.network
+
+
+.SH "توضیحات (DESCRIPTION)"
+Network files are named with a \fB\&.network\fR extension and contain a section \fB[Network]\fR describing the
+named Podman network. The generated service is a one-time command that ensures that the network
+exists on the host, creating it if needed.
+
+.PP
+By default, the Podman network has the same name as the unit, but with a \fBsystemd-\fR prefix, i.e. for
+a network file named \fB$NAME.network\fR, the generated Podman network is called \fBsystemd-$NAME\fR, and
+the generated service file is \fB$NAME-network.service\fR\&. The \fBNetworkName\fR option allows for
+overriding this default name with a user-provided one.
+
+.PP
+Please note that stopping the corresponding service will not remove the Podman network by default -
+this can be overridden by the \fBNetworkDeleteOnStop=true\fR option.
+
+.PP
+In addition, updating an existing network is not supported.
+In order to update the network parameters, you must first manually remove the Podman network and then restart the service.
+
+.PP
+Using network units allows containers to depend on networks being automatically pre-created. This is
+particularly interesting when using special options to control network creation, as Podman otherwise creates networks with the default options.
+
+
+.SH USAGE SUMMARY
+The \fB\&.network\fR file is parsed by the \fBpodman-system-generator\fR at boot or reload, generating a systemd
+\fB\&.service\fR that runs \fBpodman network create\fR\&.
+
+
+.SH "گزینه‌ها (OPTIONS)"
+Valid options for \fB[Network]\fR are listed below:
+
+.TS
+allbox;
+l l 
+l l .
+\fB\fB[Network] options\fP\fP	\fB\fBpodman network create equivalent\fP\fP
+ContainersConfModule=/etc/nvd\&.conf	--module=/etc/nvd\&.conf
+DisableDNS=true	--disable-dns
+DNS=192.168.55.1	--dns=192.168.55.1
+Driver=bridge	--driver bridge
+Gateway=192.168.55.3	--gateway 192.168.55.3
+GlobalArgs=--log-level=debug	--log-level=debug
+InterfaceName=enp1	--interface-name enp1
+Internal=true	--internal
+IPAMDriver=dhcp	--ipam-driver dhcp
+IPRange=192.168.55.128/25	--ip-range 192.168.55.128/25
+IPv6=true	--ipv6
+Label="XYZ"	--label "XYZ"
+NetworkDeleteOnStop=true	T{
+Add ExecStopPost to delete the network when the unit is stopped
+T}
+NetworkName=foo	podman network create foo
+Options=isolate=true	--opt isolate=true
+PodmanArgs=--dns=192.168.55.1	--dns=192.168.55.1
+Subnet=192.5.0.0/16	--subnet 192.5.0.0/16
+.TE
+
+.SS \fBContainersConfModule=module\fR
+Load the specified containers.conf(5) module.
+
+.PP
+This option can be listed multiple times.
+
+.SS \fBDisableDNS=true\fR
+Disables the DNS plugin for this network which if enabled, can perform container to container name
+resolution. It is only supported with the \fBbridge\fR driver, for other drivers it is always disabled.
+
+.SS \fBDNS=ipaddr\fR
+Set custom DNS servers.
+
+.PP
+This option can be used to override the DNS
+configuration passed to the container. Typically this is necessary when the
+host DNS configuration is invalid for the container (e.g., \fB127.0.0.1\fP). When this
+is the case, the \fBDNS=.\fP flag is necessary for every run.
+
+.PP
+The special value \fBnone\fP can be specified to disable creation of \fI/etc/resolv.conf\fP in the container by Podman.
+The \fI/etc/resolv.conf\fP file in the image is then used without changes.
+
+.PP
+Note that \fBipaddr\fP may be added directly to the container's \fI/etc/resolv.conf\fP\&.
+This is not guaranteed though.  For example, passing a custom network whose \fIdns_enabled\fP is set to \fItrue\fP to \fB--network\fP will result in \fI/etc/resolv.conf\fP only referring to the aardvark-dns server.  aardvark-dns then forwards to the supplied \fBipaddr\fP for all non-container name queries.
+
+.SS \fBDriver=driver\fR
+Driver to manage the network. Currently \fBbridge\fR, \fBmacvlan\fR and \fBipvlan\fR are supported. Defaults to \fBbridge\fR\&.
+When running rootless, the \fBmacvlan\fR and \fBipvlan\fR drivers have no access to the host network interfaces because rootless networking requires a separate network namespace.
+
+.PP
+The netavark backend allows the use of so called \fInetavark plugins\fP, see the
+plugin-API.md
+documentation in netavark. The binary must be placed in a specified directory
+so Podman can discover it, this list is set in \fBnetavark_plugin_dirs\fR in
+\fBcontainers.conf(5)\fP
+under the \fB[network]\fR section.
+
+.PP
+The name of the plugin can then be used as driver to create a network for your plugin.
+The list of all supported drivers and plugins can be seen with \fBpodman info --format {{.Plugins.Network}}\fR\&.
+
+.PP
+Note that the \fBmacvlan\fR and \fBipvlan\fR drivers do not support port forwarding. Support for port forwarding
+with a plugin depends on the implementation of the plugin.
+
+.SS \fBGateway=ip\fR
+Define a gateway for the subnet. To provide a gateway address, a
+\fIsubnet\fP option is required. Can be specified multiple times.
+
+.SS \fBGlobalArgs=\fR
+This key contains a list of arguments passed directly after the \fBpodman\fR command in the generated
+file. It can be used to access Podman features otherwise unsupported by the generator. Since the
+generator is unaware of what unexpected interactions can be caused by these arguments, it is not
+recommended to use this option.
+
+.PP
+The format of this is a space separated list of arguments, which can optionally be individually
+escaped to allow inclusion of whitespace and other control characters.
+
+.PP
+This key can be listed multiple times.
+
+.SS \fBInterfaceName=name\fR
+This option maps the \fInetwork_interface\fP option in the network config, see \fBpodman network inspect\fP\&.
+Depending on the driver, this can have different effects; for \fBbridge\fR, it uses the bridge interface name.
+For \fBmacvlan\fR and \fBipvlan\fR, it is the parent device on the host. It is the same as \fB--opt parent=...\fR\&.
+
+.SS \fBInternal=true\fR
+Restrict external access of this network when using a \fBbridge\fR network. Note when using the CNI backend
+DNS will be automatically disabled, see \fB--disable-dns\fP\&.
+
+.PP
+When using the \fBmacvlan\fR or \fBipvlan\fR driver with this option, no default route will be added to the container.
+Because it bypasses the host network stack, no additional restrictions can be set by Podman, and if a
+privileged container is run, the container can set a default route itself. If this is a concern, then the
+container connections should be blocked on the actual network gateway.
+
+.PP
+Using the \fBbridge\fR driver with this option has the following effects:
+ - Global IP forwarding sysctls will not be changed in the host network namespace.
+ - IP forwarding is disabled on the bridge interface instead of setting up a firewall.
+ - No default route will be added to the container.
+
+.PP
+In all cases, aardvark-dns will only resolve container names with this option enabled.
+Other queries will be answered with \fBNXDOMAIN\fR\&.
+
+.SS \fBIPAMDriver=driver\fR
+Set the ipam driver (IP Address Management Driver) for the network. When unset, Podman chooses an
+ipam driver automatically based on the network driver.
+
+.PP
+Valid values are:
+.IP \(bu 2
+\fBdhcp\fR: IP addresses are assigned from a DHCP server on the network. When using the netavark backend
+the \fBnetavark-dhcp-proxy.socket\fR must be enabled in order to start the DHCP proxy when a container is
+started, for CNI use the \fBcni-dhcp.socket\fR unit instead.
+.IP \(bu 2
+\fBhost-local\fR: IP addresses are assigned locally.
+.IP \(bu 2
+\fBnone\fR: No ip addresses are assigned to the interfaces.
+
+.PP
+View the driver in the \fBpodman network inspect\fP output under the \fBipam_options\fR field.
+
+.SS \fBIPRange=ip\fR
+Allocate container IP from a range. The range must be either a complete subnet in CIDR notation or be in
+the \fB<startIP>-<endIP>\fR syntax which allows for a more flexible range compared to the CIDR subnet.
+The \fIip-range\fP option must be used with a \fIsubnet\fP option. Can be specified multiple times.
+
+.SS \fBIPv6=true\fR
+Enable IPv6 (Dual Stack) networking. If no subnets are given, it allocates an IPv4 and an IPv6 subnet.
+
+.SS \fBLabel=key=value [key=value ...]\fR
+Set one or more OCI labels on the network.
+
+.SS \fBNetworkDeleteOnStop=true\fR (defaults to \fBfalse\fR)
+When set to \fBtrue\fR, the network is deleted when the service is stopped.
+
+.SS \fBNetworkName=foo\fR
+The (optional) name of the Podman network.
+If this is not specified, the default value is the same name as the unit, but with a \fBsystemd-\fR prefix,
+i.e. a \fB$name.network\fR file creates a \fBsystemd-$name\fR Podman network to avoid
+conflicts with user-managed networks.
+
+.SS \fBOptions=option\fR
+Set driver specific options.
+
+.PP
+All drivers accept the \fBmtu\fR, \fBmetric\fR, \fBno_default_route\fR and options.
+.IP \(bu 2
+\fBmtu\fR: Sets the Maximum Transmission Unit (MTU) and takes an integer value.
+.IP \(bu 2
+\fBmetric\fR Sets the Route Metric for the default route created in every container joined to this network. Accepts a positive integer value. Can only be used with the Netavark network backend.
+.IP \(bu 2
+\fBno_default_route\fR: If set to \fBtrue\fR, Podman will not automatically add a default route to subnets. Routes can still be added
+manually by creating a custom route using \fB--route\fR\&.
+
+.PP
+Additionally the \fBbridge\fR driver supports the following options:
+.IP \(bu 2
+\fBvlan\fR: This option assigns a VLAN tag and enables vlan_filtering. Defaults to none.
+.IP \(bu 2
+\fBisolate\fR: This option isolates bridge networks from other bridge networks. Must be set as \fBisolate=<value>\fR (a value is required; bare \fBisolate\fR is invalid). Defaults to \fBstrict\fR\&. Supported values:
+.RS
+.IP \(bu 2
+\fBstrict\fR: Block traffic to and from all other bridge networks. This is the default when the option is omitted.
+.IP \(bu 2
+\fBtrue\fR: Block traffic only between networks that also have isolation enabled (\fBtrue\fR or \fBstrict\fR).
+.IP \(bu 2
+\fBfalse\fR: Do not isolate the network; allow traffic to other bridge networks. Use this to restore the pre-Podman 6 / Netavark 2 behavior.
+.RE
+.IP \(bu 2
+\fBcom.docker.network.bridge.name\fR: This option assigns the given name to the created Linux Bridge
+.IP \(bu 2
+\fBcom.docker.network.driver.mtu\fR: Sets the Maximum Transmission Unit (MTU) and takes an integer value.
+.IP \(bu 2
+\fBvrf\fR: This option assigns a Virtual Routing and Forwarding (VRF) routing table to the bridge interface. It accepts the VRF name and defaults to none. Can only be used with the Netavark network backend.
+.IP \(bu 2
+\fBmode\fR: This option sets the specified bridge mode on the interface. Defaults to \fBmanaged\fR\&. Supported values:
+.RS
+.IP \(bu 2
+\fBmanaged\fR: Podman creates and deletes the bridge and changes sysctls of it. It adds firewall rules to masquerade outgoing traffic, as well as setup port forwarding for incoming traffic using DNAT.
+.IP \(bu 2
+\fBunmanaged\fR: Podman uses an existing bridge. It must exist by the time you want to start a container which uses the network. There will be no NAT or port forwarding, even if such options were passed while creating the container.
+.RE
+
+.PP
+The \fBmacvlan\fR and \fBipvlan\fR driver support the following options:
+.IP \(bu 2
+\fBparent\fR: The host device which is used for the macvlan interface. Defaults to the default route interface.
+.IP \(bu 2
+\fBmode\fR: This option sets the specified ip/macvlan mode on the interface.
+.RS
+.IP \(bu 2
+Supported values for \fBmacvlan\fR are \fBbridge\fR, \fBprivate\fR, \fBvepa\fR, \fBpassthru\fR\&. Defaults to \fBbridge\fR\&.
+.IP \(bu 2
+Supported values for \fBipvlan\fR are \fBl2\fR, \fBl3\fR, \fBl3s\fR\&. Defaults to \fBl2\fR\&.
+.RE
+
+.PP
+Additionally the \fBmacvlan\fR driver supports the \fBbclim\fR option:
+.IP \(bu 2
+\fBbclim\fR: Set the threshold for broadcast queueing. Must be a 32 bit integer. Setting this value to \fB-1\fR disables broadcast queueing altogether.
+
+.SS \fBPodmanArgs=\fR
+This key contains a list of arguments passed directly to the end of the \fBpodman\fR command
+in the generated file. It can be used to access Podman features otherwise unsupported
+by the generator. Since the generator is unaware of what unexpected interactions can be
+caused by these arguments, it is not recommended to use this option.
+
+.PP
+The format of this is a space separated list of arguments, which can optionally be individually
+escaped to allow inclusion of whitespace and other control characters.
+
+.PP
+This key can be listed multiple times.
+
+.SS \fBSubnet=subnet\fR
+The subnet in CIDR notation. Can be specified multiple times to allocate more than one subnet for this network.
+
+.PP
+This is useful to set a static IPv4 and IPv6 subnet.
+
+
+.SH "مثال‌ها (EXAMPLES)"
+Basic bridge network:
+
+.EX
+[Network]
+NetworkName=private0
+Subnet=10.10.0.0/16
+Gateway=10.10.0.1
+.EE
+
+.PP
+Enable IPv6 with IPAM driver:
+
+.EX
+[Network]
+NetworkName=v6net
+Subnet=fd00:dead:beef::/64
+IPv6=true
+IPAMDriver=host-local
+.EE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+podman-network-create(1),
+podman-systemd.unit(5),
+systemd.unit(5)

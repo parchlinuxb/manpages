@@ -1,0 +1,118 @@
+.TH CDEMU-DAEMON 8 "Nov 19, 2025"
+.SH "نام (NAME)"
+cdemud \- The CDEmu daemon
+.SH "خلاصه دستور (SYNOPSIS)"
+.B cdemu-daemon
+[options]
+.SH "توضیحات (DESCRIPTION)"
+This is CDEmu daemon, the userspace part of the cdemu suite, a
+free, GPL CD/DVD-ROM device emulator for linux.
+
+It receives SCSI commands from kernel module and processes them, passing the
+requested data back to the kernel. Daemon implements the actual virtual device;
+one instance per each device registered by kernel module. It uses libMirage, an
+image access library that is part of the cdemu suite, for the image access
+(e.g. sector reading).
+
+The daemon registers itself on D-BUS' system or session bus (depending on the
+options passed to it) where it exposes an interface that can be used by clients
+to control it.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B --config-file=filename
+Configuration file to load. See \fBConfiguration file\fR section for details.
+.TP
+.B -n --num-devices=N
+Number of devices. Specifies the number of virtual devices the daemon instance should
+register with kernel module and control. By default, 1 virtual device is created.
+.TP
+.B -c --ctl-device=path
+Control device. Specifies the control device path. Control device is a character device
+provided by kernel module; it is used for communication between kernel and userspace
+part of CDEmu suite. By default, /dev/vhba_ctl is used.
+.TP
+.B -a --audio-driver=driver
+Audio driver. Specifies audio driver to be used by virtual devices' audio play.
+Since libao is used for audio playback, any valid libao driver can be specified.
+If \fBdefault\fR is used as a driver, then libao's default driver is used. Few
+examples of valid libao drivers are \fBalsa\fR, \fBoss\fR, \fBpulse\fR or \fBnull\fR.
+For all drivers, default device is used. By default, if audio driver is not explicitly
+specified via this option, \fBnull\fR is used.
+.TP
+.B -b --bus=bus_type
+Bus type. Valid options are \fBsystem\fR or \fBsession\fR. By default, session bus is used.
+(Please note that the running of CDEmu daemon on system bus is considered
+deprecated and is discouraged for security reasons).
+.TP
+.B -l --logfile=logfile
+Log file to write logging output into. By default, use of log file is disabled and messages
+are written to stdout.
+.TP
+.B --default-cdemu-debug-mask=mask
+Default debug mask for CDEmu devices (at CDEmu daemon implementation level).
+Default value is 0.
+.TP
+.B --default-mirage-debug-mask=mask
+Default debug mask for CDEmu devices (at libMirage implementation level).
+Default value is 0.
+.TP
+.B --system-sleep-handler=0|1
+Enable or disable systemd-logind system sleep handler. When enabled,
+the daemon attempts to obtain delaying sleep inhibitor lock from the
+\fIorg.freedesktop.login1.Manager\fR systemd-logind interface at
+\fI/org/freedesktop/login1\fR on the system bus, and registers handler
+for the \fIprepare-for-sleep\fR signal. When system is about to enter
+suspend/hibernation (as indicated by received signal), the virtual devices
+are stopped, and inhibitor lock is released. After system resumes (as
+indicated by received signal), the inhibitor lock is re-acquired, and
+virtual devices are restarted. This mechanism attempts to mitigate issues
+with active virtual devices preventing the system from properly
+suspending/hibernating. Default value is 1 (the handler is enabled). If
+sleep handler functionality is disabled at build time, this option has
+no effect.
+.TP
+.B -? --help
+Display the help message.
+.SH "مثال‌ها (EXAMPLES)"
+.TP
+.B Running daemon on default bus with PulseAudio audio driver and 4 virtual devices:
+cdemu-daemon --num-devices=4 --audio-driver=pulse
+.TP
+.B Running daemon on system bus with 2 virtual devices and logging redirected to a file:
+cdemu-daemon --num-devices=2 --bus=system --logfile=/tmp/cdemu-daemon.log
+.SH CONFIGURATION FILE
+The daemon's settings can be collected in a configuration file, which
+is passed to the daemon via \fB--config-file\fR option. Configuration
+file contains \fBkey=value\fR pairs that are contained in a single
+\fB[settings]\fR section. The keys in configuration file correspond to
+the long names of command-line switches.
+
+If an option is specified in both configuration file and on command-line,
+the latter takes precedence.
+
+If the specified configuration file does not exist, it is silently ignored.
+If the specified configuration file is invalid (e.g., has invalid syntax,
+or does not contain a section), an error is raised.
+
+.B Example
+
+Saving the following configuration to a file and passing it to the daemon
+via \fB--config-file\fR is equivalent to passing \fB--num-devices=2
+--audio-driver=pulse\fR directly to the daemon:
+
+.RS\fB
+[settings]
+.br
+num-devices=2
+.br
+audio-driver=pulse
+\fR
+.RE
+
+.SH "نویسندگان (AUTHORS)"
+.PP
+Rok Mandeljc <rok.mandeljc@gmail.com>
+.PP
+CDEmu project's web page: http://cdemu.sourceforge.net
+.PP
+CDEmu project's mailing list: cdemu-devel@lists.sourceforge.net

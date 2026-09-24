@@ -1,0 +1,1917 @@
+'\" t
+.nh
+.TH podman-build 1
+.SH "نام (NAME)"
+podman-build \- Build a container image using a Containerfile
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman build\fP [\fIoptions\fP] [\fIcontext\fP]
+
+.PP
+\fBpodman image build\fP [\fIoptions\fP] [\fIcontext\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+\fBpodman build\fP Builds an image using instructions from one or more
+Containerfiles or Dockerfiles and a specified build context directory. A
+Containerfile uses the same syntax as a Dockerfile internally. For this
+document, a file referred to as a Containerfile can be a file named
+either 'Containerfile' or 'Dockerfile' exclusively. Any file that has additional
+extension attached will not be recognized by \fBpodman build .\fR unless a \fB-f\fR flag is
+used to specify the file.
+
+.PP
+The build context directory can be specified as the http(s) URL of an archive,
+git repository or Containerfile.
+
+.PP
+When invoked with \fB-f\fR and a path to a Containerfile, with no explicit CONTEXT
+directory, Podman uses the Containerfile's parent directory as its build context.
+
+.PP
+Containerfiles ending with a ".in" suffix are preprocessed via CPP(1).  This
+can be useful to decompose Containerfiles into several reusable parts that can
+be used via CPP's \fB#include\fP directive. Containerfiles ending in .in are
+restricted to no comment lines unless they are CPP commands.
+Note, a Containerfile.in file can still be used by other tools when manually
+preprocessing them via \fBcpp -E\fR\&.
+
+.PP
+When the URL is an archive, the contents of the URL is downloaded to a temporary
+location and extracted before execution.
+
+.PP
+When the URL is a Containerfile, the Containerfile is downloaded to a temporary
+location.
+
+.PP
+When a Git repository is set as the URL, the repository is cloned locally and
+then set as the context.  A URL is treated as a Git repository if it
+has a \fBgit://\fR prefix or a \fB\&.git\fR suffix.
+
+.PP
+NOTE: \fBpodman build\fR uses code sourced from the \fBBuildah\fR project to build
+container images.  This \fBBuildah\fR code creates \fBBuildah\fR containers for the
+\fBRUN\fR options in container storage. In certain situations, when the
+\fBpodman build\fR crashes or users kill the \fBpodman build\fR process, these external
+containers can be left in container storage. Use the \fBpodman ps --all --external\fR
+command to see these containers.
+
+.PP
+\fBpodman buildx build\fR command is an alias of \fBpodman build\fR\&.  Not all \fBbuildx build\fR features are available in Podman. The \fBbuildx build\fR option is provided for scripting compatibility.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--add-host\fP=\fIhostname[;hostname[;...]]\fP:\fIip\fP
+Add a custom host-to-IP mapping to the container's \fB/etc/hosts\fR file.
+
+.PP
+The option takes one or multiple semicolon-separated hostnames to be mapped to
+a single IPv4 or IPv6 address, separated by a colon. It can also be used to
+overwrite the IP addresses of hostnames Podman adds to \fB/etc/hosts\fR by default
+(also see the \fB--name\fP and \fB--hostname\fP options). This option can be
+specified multiple times to add additional mappings to \fB/etc/hosts\fR\&. It
+conflicts with the \fB--no-hosts\fP option and conflicts with \fIno_hosts=true\fP in
+\fBcontainers.conf\fR\&.
+
+.PP
+Instead of an IP address, the special flag \fIhost-gateway\fP can be given. This
+resolves to an IP address the container can use to connect to the host. The
+IP address chosen depends on your network setup, thus there's no guarantee that
+Podman can determine the \fIhost-gateway\fP address automatically, which will then
+cause Podman to fail with an error message. You can overwrite this IP address
+using the \fIhost_containers_internal_ip\fP option in \fIcontainers.conf\fP\&.
+
+.PP
+The \fIhost-gateway\fP address is also used by Podman to automatically add the
+\fBhost.containers.internal\fR and \fBhost.docker.internal\fR hostnames to \fB/etc/hosts\fR\&.
+You can prevent that by either giving the \fB--no-hosts\fP option, or by setting
+\fIhost_containers_internal_ip="none"\fP in \fIcontainers.conf\fP\&. If no \fIhost-gateway\fP
+address was configured manually and Podman fails to determine the IP address
+automatically, Podman will silently skip adding these internal hostnames to
+\fB/etc/hosts\fR\&. If Podman is running in a virtual machine using \fBpodman machine\fR
+(this includes Mac and Windows hosts), Podman will silently skip adding the
+internal hostnames to \fB/etc/hosts\fR, unless an IP address was configured
+manually; the internal hostnames are resolved by the gvproxy DNS resolver
+instead.
+
+.PP
+Podman will use the \fB/etc/hosts\fR file of the host as a basis by default, i.e.
+any hostname present in this file will also be present in the \fB/etc/hosts\fR file
+of the container. A different base file can be configured using the
+\fIbase_hosts_file\fP config in \fBcontainers.conf\fR\&.
+
+.SS \fB--all-platforms\fP
+Instead of building for a set of platforms specified using the \fB--platform\fP option, inspect the build's base images, and build for all of the platforms for which they are all available.  Stages that use \fIscratch\fP as a starting point can not be inspected, so at least one non-\fIscratch\fP stage must be present for detection to work usefully.
+
+.SS \fB--annotation\fP=\fIannotation=value\fP
+Add an image \fIannotation\fP (e.g. annotation=\fIvalue\fP) to the image metadata. Can
+be used multiple times.
+
+.PP
+Note: this information is not present in Docker image formats, so it is
+discarded when writing images in Docker formats.
+
+.SS \fB--arch\fP=\fIarch\fP
+Set the architecture of the image to be built, and that of the base image to be
+pulled, if the build uses one, to the provided value instead of using the
+architecture of the build host. Unless overridden, subsequent lookups of the
+same image in the local storage matches this architecture, regardless of the
+host. (Examples: arm, arm64, 386, amd64, ppc64le, s390x)
+
+.SS \fB--authfile\fP=\fIpath\fP
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fB--build-arg\fP=\fIarg=value\fP
+Specifies a build argument and its value, which is interpolated in
+instructions read from the Containerfiles in the same way that environment variables are, but which are not added to environment variable list in the resulting image's configuration.
+
+.SS \fB--build-arg-file\fP=\fIpath\fP
+Specifies a file containing lines of build arguments of the form \fBarg=value\fR\&.
+The suggested file name is \fBargfile.conf\fR\&.
+
+.PP
+Comment lines beginning with \fB#\fR are ignored, along with blank lines.
+All others must be of the \fBarg=value\fR format passed to \fB--build-arg\fR\&.
+
+.PP
+If several arguments are provided via the \fB--build-arg-file\fR
+and \fB--build-arg\fR options, the build arguments are merged across all
+of the provided files and command line arguments.
+
+.PP
+Any file provided in a \fB--build-arg-file\fR option is read before
+the arguments supplied via the \fB--build-arg\fR option.
+
+.PP
+When a given argument name is specified several times, the last instance
+is the one that is passed to the resulting builds. This means \fB--build-arg\fR
+values always override those in a \fB--build-arg-file\fR\&.
+
+.SS \fB--build-context\fP=\fIname=value\fP
+Specify an additional build context using its short name and its location.
+Additional build contexts can be referenced in the same manner as we access
+different stages in COPY instruction.
+
+.PP
+Valid values are:
+.IP \(bu 2
+Local directory – e.g. --build-context project2=../path/to/project2/src
+.IP \(bu 2
+HTTP URL to a tarball – e.g. --build-context src=https://example.org/releases/src.tar
+.IP \(bu 2
+Container image – specified with a container-image:// prefix, e.g. --build-context alpine=container-image://alpine:3.15, (also accepts docker://, docker-image://)
+
+.PP
+On the Containerfile side, reference the build context on all
+commands that accept the “from” parameter. Here’s how that might look:
+
+.EX
+FROM [name]
+COPY --from=[name] ...
+RUN --mount=from=[name] …
+.EE
+
+.PP
+The value of [name] is matched with the following priority order:
+.IP \(bu 2
+Named build context defined with --build-context [name]=..
+.IP \(bu 2
+Stage defined with AS [name] inside Containerfile
+.IP \(bu 2
+Image [name], either local or in a remote registry
+
+.SS \fB--cache-from\fP=\fIimage\fP
+Repository to utilize as a potential cache source. When specified, Buildah tries to look for
+cache images in the specified repository and attempts to pull cache images instead of actually
+executing the build steps locally. Buildah only attempts to pull previously cached images if they
+are considered as valid cache hits.
+
+.PP
+Use the \fB--cache-to\fR option to populate a remote repository with cache content.
+
+.PP
+Example
+
+.EX
+# populate a cache and also consult it
+buildah build -t test --layers --cache-to registry/myrepo/cache --cache-from registry/myrepo/cache .
+.EE
+
+.PP
+Note: \fB--cache-from\fR option is ignored unless \fB--layers\fR is specified.
+
+.SS \fB--cache-to\fP=\fIimage\fP
+Set this flag to specify a remote repository that is used to store cache images. Buildah attempts to
+push newly built cache image to the remote repository.
+
+.PP
+Note: Use the \fB--cache-from\fR option in order to use cache content in a remote repository.
+
+.PP
+Example
+
+.EX
+# populate a cache and also consult it
+buildah build -t test --layers --cache-to registry/myrepo/cache --cache-from registry/myrepo/cache .
+.EE
+
+.PP
+Note: \fB--cache-to\fR option is ignored unless \fB--layers\fR is specified.
+
+.SS \fB--cache-ttl\fP
+Limit the use of cached images to only consider images with created timestamps less than \fIduration\fP ago.
+For example if \fB--cache-ttl=1h\fR is specified, Buildah considers intermediate cache images which are created
+under the duration of one hour, and intermediate cache images outside this duration is ignored.
+
+.PP
+Note: Setting \fB--cache-ttl=0\fR manually is equivalent to using \fB--no-cache\fR in the
+implementation since this means that the user does not want to use cache at all.
+
+.SS \fB--cap-add\fP=\fICAP_xxx\fP
+When executing RUN instructions, run the command specified in the instruction
+with the specified capability added to its capability set.
+Certain capabilities are granted by default; this option can be used to add
+more.
+
+.SS \fB--cap-drop\fP=\fICAP_xxx\fP
+When executing RUN instructions, run the command specified in the instruction
+with the specified capability removed from its capability set.
+The CAP_CHOWN, CAP_DAC_OVERRIDE, CAP_FOWNER,
+CAP_FSETID, CAP_KILL, CAP_NET_BIND_SERVICE, CAP_SETFCAP,
+CAP_SETGID, CAP_SETPCAP, and CAP_SETUID capabilities are
+granted by default; this option can be used to remove them.
+
+.PP
+If a capability is specified to both the \fB--cap-add\fP and \fB--cap-drop\fP
+options, it is dropped, regardless of the order in which the options were
+given.
+
+.SS \fB--cert-dir\fP=\fIpath\fP
+Use certificates at \fIpath\fP (*\&.crt, *\&.cert, *\&.key) to connect to the registry. (Default: /etc/containers/certs.d)
+For details, see \fBcontainers-certs.d(5)\fP\&.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--cgroup-parent\fP=\fIpath\fP
+Path to cgroups under which the cgroup for the container is created. If the
+path is not absolute, the path is considered to be relative to the cgroups path
+of the init process. Cgroups are created if they do not already exist.
+
+.SS \fB--cgroupns\fP=\fIhow\fP
+Sets the configuration for cgroup namespaces when handling \fBRUN\fR instructions.
+The configured value can be "" (the empty string) or "private" to indicate
+that a new cgroup namespace is created, or it can be "host" to indicate
+that the cgroup namespace in which \fBbuildah\fR itself is being run is reused.
+
+.SS \fB--compat-volumes\fP
+Handle directories marked using the VOLUME instruction (both in this build, and
+those inherited from base images) such that their contents can only be modified
+by ADD and COPY instructions. Any changes made in those locations by RUN
+instructions will be reverted. Before the introduction of this option, this
+behavior was the default, but it is now disabled by default.
+
+.SS \fB--compress\fP
+This option is added to be aligned with other containers CLIs.
+Podman doesn't communicate with a daemon or a remote server.
+Thus, compressing the data before sending it is irrelevant to Podman. (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--compression-format\fP=\fBgzip\fP | \fIzstd\fP | \fIzstd:chunked\fP
+Specifies the compression format to use.  Supported values are: \fBgzip\fR, \fBzstd\fR and \fBzstd:chunked\fR\&.  The default is \fBgzip\fR unless overridden in the containers.conf file.
+\fBzstd:chunked\fR is incompatible with encrypting images, and will be treated as \fBzstd\fR with a warning in that case.
+
+.SS \fB--compression-level\fP=\fIlevel\fP
+Specifies the compression level to use.  The value is specific to the compression algorithm used, e.g. for zstd the accepted values are in the range 1-20 (inclusive) with a default of 3, while for gzip it is 1-9 (inclusive) and has a default of 5.
+
+.SS \fB--cpp-flag\fP=\fIflags\fP
+Set additional flags to pass to the C Preprocessor cpp(1). Containerfiles ending with a ".in" suffix is preprocessed via cpp(1). This option can be used to pass additional flags to cpp.Note: You can also set default CPPFLAGS by setting the BUILDAH_CPPFLAGS environment variable (e.g., export BUILDAH_CPPFLAGS="-DDEBUG").
+
+.SS \fB--cpu-period\fP=\fIlimit\fP
+Set the CPU period for the Completely Fair Scheduler (CFS), which is a
+duration in microseconds. Once the container's CPU quota is used up, it will not
+be scheduled to run until the current period ends. Defaults to 100000
+microseconds.
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpu-quota\fP=\fIlimit\fP
+Limit the CPU Completely Fair Scheduler (CFS) quota.
+
+.PP
+Limit the container's CPU usage. By default, containers run with the full
+CPU resource. The limit is a number in microseconds. If a number is provided,
+the container is allowed to use that much CPU time until the CPU period
+ends (controllable via \fB--cpu-period\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpu-shares\fP, \fB-c\fP=\fIshares\fP
+CPU shares (relative weight).
+
+.PP
+By default, all containers get the same proportion of CPU cycles. This
+proportion can be modified by changing the container's CPU share weighting
+relative to the combined weight of all the running containers.
+Default weight is \fB1024\fP\&.
+
+.PP
+The proportion only applies when CPU-intensive processes are running.
+When tasks in one container are idle, other containers can use the
+left-over CPU time. The actual amount of CPU time varies depending on
+the number of containers running on the system.
+
+.PP
+For example, consider three containers, one has a cpu-share of 1024 and
+two others have a cpu-share setting of 512. When processes in all three
+containers attempt to use 100% of CPU, the first container receives
+50% of the total CPU time. If a fourth container is added with a cpu-share
+of 1024, the first container only gets 33% of the CPU. The remaining containers
+receive 16.5%, 16.5% and 33% of the CPU.
+
+.PP
+On a multi-core system, the shares of CPU time are distributed over all CPU
+cores. Even if a container is limited to less than 100% of CPU time, it can
+use 100% of each individual CPU core.
+
+.PP
+For example, consider a system with more than three cores.
+If the container \fIC0\fP is started with \fB--cpu-shares=512\fP running one process,
+and another container \fIC1\fP with \fB--cpu-shares=1024\fP running two processes,
+this can result in the following division of CPU shares:
+
+.TS
+allbox;
+l l l l 
+l l l l .
+\fBPID\fP	\fBcontainer\fP	\fBCPU\fP	\fBCPU share\fP
+100	C0	0	100% of CPU0
+101	C1	1	100% of CPU1
+102	C1	2	100% of CPU2
+.TE
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpuset-cpus\fP=\fInumber\fP
+CPUs in which to allow execution. Can be specified as a comma-separated list
+(e.g. \fB0,1\fP), as a range (e.g. \fB0-3\fP), or any combination thereof
+(e.g. \fB0-3,7,11-15\fP).
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--cpuset-mems\fP=\fInodes\fP
+Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on
+NUMA systems.
+
+.PP
+If there are four memory nodes on the system (0-3), use \fB--cpuset-mems=0,1\fP
+then processes in the container only uses memory from the first
+two memory nodes.
+
+.PP
+On some systems, changing the resource limits may not be allowed for non-root
+users. For more details, see
+https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--created-annotation\fP
+Add an image \fIannotation\fP (see also \fB--annotation\fP) to the image metadata
+setting "org.opencontainers.image.created" to the current time, or to the
+datestamp specified to the \fB--source-date-epoch\fP or \fB--timestamp\fP flag,
+if either was used.  If \fIfalse\fP, no such annotation will be present in the
+written image.
+
+.PP
+Note: this information is not present in Docker image formats, so it is discarded when writing images in Docker formats.
+
+.SS \fB--creds\fP=\fI[username[:password]]\fP
+The [username[:password]] to use to authenticate with the registry, if required.
+If one or both values are not supplied, a command line prompt appears and the
+value can be entered. The password is entered without echo.
+
+.PP
+Note that the specified credentials are only used to authenticate against
+target registries.  They are not used for mirrors or when the registry gets
+rewritten (see \fBcontainers-registries.conf(5)\fR); to authenticate against those
+consider using a \fBcontainers-auth.json(5)\fR file.
+
+.SS \fB--cw\fP=\fIoptions\fP
+Produce an image suitable for use as a confidential workload running in a
+trusted execution environment (TEE) using krun (i.e., \fIcrun\fP built with the
+libkrun feature enabled and invoked as \fIkrun\fP).  Instead of the conventional
+contents, the root filesystem of the image will contain an encrypted disk image
+and configuration information for krun.
+
+.PP
+The value for \fIoptions\fP is a comma-separated list of key=value pairs, supplying
+configuration information which is needed for producing the additional data
+which will be included in the container image.
+
+.PP
+Recognized \fIkeys\fP are:
+
+.PP
+\fIattestation_url\fP: The location of a key broker / attestation server.
+If a value is specified, the new image's workload ID, along with the passphrase
+used to encrypt the disk image, will be registered with the server, and the
+server's location will be stored in the container image.
+At run-time, krun is expected to contact the server to retrieve the passphrase
+using the workload ID, which is also stored in the container image.
+If no value is specified, a \fIpassphrase\fP value \fImust\fP be specified.
+
+.PP
+\fIcpus\fP: The number of virtual CPUs which the image expects to be run with at
+run-time.  If not specified, a default value will be supplied.
+
+.PP
+\fIfirmware_library\fP: The location of the libkrunfw-sev shared library.  If not
+specified, \fBbuildah\fR checks for its presence in a number of hard-coded
+locations.
+
+.PP
+\fImemory\fP: The amount of memory which the image expects to be run with at
+run-time, as a number of megabytes.  If not specified, a default value will be
+supplied.
+
+.PP
+\fIpassphrase\fP: The passphrase to use to encrypt the disk image which will be
+included in the container image.
+If no value is specified, but an \fIattestation_url\fP value is specified, a
+randomly-generated passphrase will be used.
+The authors recommend setting an \fIattestation_url\fP but not a \fIpassphrase\fP\&.
+
+.PP
+\fIslop\fP: Extra space to allocate for the disk image compared to the size of the
+container image's contents, expressed either as a percentage (..%) or a size
+value (bytes, or larger units if suffixes like KB or MB are present), or a sum
+of two or more such specifications.  If not specified, \fBbuildah\fR guesses that
+25% more space than the contents will be enough, but this option is provided in
+case its guess is wrong.
+
+.PP
+\fItype\fP: The type of trusted execution environment (TEE) which the image should
+be marked for use with.  Accepted values are "SEV" (AMD Secure Encrypted
+Virtualization - Encrypted State) and "SNP" (AMD Secure Encrypted
+Virtualization - Secure Nested Paging).  If not specified, defaults to "SNP".
+
+.PP
+\fIworkload_id\fP: A workload identifier which will be recorded in the container
+image, to be used at run-time for retrieving the passphrase which was used to
+encrypt the disk image.  If not specified, a semi-random value will be derived
+from the base image's image ID.
+
+.PP
+This option is not supported on the remote client, including Mac and Windows
+(excluding WSL2) machines.
+
+.SS \fB--decryption-key\fP=\fIkey[:passphrase]\fP
+The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption is tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
+
+.SS \fB--device\fP=\fIhost-device[:container-device][:permissions]\fP
+Add a host device to the container. The format of this is
+\fBHOST-DEVICE[:CONTAINER-DEVICE][:PERMISSIONS]\fR, where \fBHOST-DEVICE\fR is the path of
+the device node on the host, \fBCONTAINER-DEVICE\fR is the path of the device node in
+the container, and \fBPERMISSIONS\fR is a list of permissions combining 'r' for read,
+\&'w' for write, and 'm' for mknod(2).
+
+.PP
+Example: \fB--device=/dev/sdc:/dev/xvdc:rwm\fP\&.
+
+.PP
+Note: if \fIhost-device\fP is a symbolic link then it is resolved first.
+The container only stores the major and minor numbers of the host device.
+
+.PP
+Podman may load kernel modules required for using the specified
+device. The devices that Podman loads modules for when necessary are:
+/dev/fuse.
+
+.PP
+In rootless mode, the new device is bind mounted in the container from the host
+rather than Podman creating it within the container space. Because the bind
+mount retains its SELinux label on SELinux systems, the container can get
+permission denied when accessing the mounted device. Modify SELinux settings to
+allow containers to use all device labels via the following command:
+
+.PP
+$ sudo setsebool -P  container_use_devices=true
+
+.PP
+Note: if the user only has access rights via a group, accessing the device
+from inside a rootless container fails. The \fBcrun(1)\fP runtime offers a
+workaround for this by adding the option
+\fB--annotation run.oci.keep_original_groups=1\fP\&.
+
+.SS \fB--disable-compression\fP, \fB-D\fP
+Don't compress filesystem layers when building the image unless it is required
+by the location where the image is being written.  This is the default setting,
+because image layers are compressed automatically when they are pushed to
+registries, and images being written to local storage only need to be
+decompressed again to be stored.  Compression can be forced in all cases by
+specifying \fB--disable-compression=false\fP\&.
+
+.SS \fB--disable-content-trust\fP
+This is a Docker-specific option to disable image verification to a container
+registry and is not supported by Podman. This option is a NOOP and provided
+solely for scripting compatibility.
+
+.SS \fB--dns\fP=\fIipaddr\fP
+Set custom DNS servers.
+
+.PP
+This option can be used to override the DNS
+configuration passed to the container. Typically this is necessary when the
+host DNS configuration is invalid for the container (e.g., \fB127.0.0.1\fP). When this
+is the case, the \fB--dns\fP flag is necessary for every run.
+
+.PP
+The special value \fBnone\fP can be specified to disable creation of \fI/etc/resolv.conf\fP in the container by Podman.
+The \fI/etc/resolv.conf\fP file in the image is then used without changes.
+
+.PP
+Note that \fBipaddr\fP may be added directly to the container's \fI/etc/resolv.conf\fP\&.
+This is not guaranteed though.  For example, passing a custom network whose \fIdns_enabled\fP is set to \fItrue\fP to \fB--network\fP will result in \fI/etc/resolv.conf\fP only referring to the aardvark-dns server.  aardvark-dns then forwards to the supplied \fBipaddr\fP for all non-container name queries.
+
+.PP
+This option cannot be combined with \fB--network\fP that is set to \fBnone\fP\&.
+
+.PP
+Note: this option takes effect only during \fIRUN\fP instructions in the build.
+It does not affect \fI/etc/resolv.conf\fP in the final image.
+
+.SS \fB--dns-option\fP=\fIoption\fP
+Set custom DNS options to be used during the build.
+
+.SS \fB--dns-search\fP=\fIdomain\fP
+Set custom DNS search domains to be used during the build.
+
+.SS \fB--env\fP=\fIenv[=value]\fP
+Add a value (e.g. env=\fIvalue\fP) to the built image.  Can be used multiple times.
+If neither \fB=\fR nor a \fIvalue\fP are specified, but \fIenv\fP is set in the current
+environment, the value from the current environment is added to the image.
+
+.PP
+To remove an environment variable from the built image, use the \fB--unsetenv\fR
+option.
+
+.SS \fB--file\fP, \fB-f\fP=\fIContainerfile\fP
+Specifies a Containerfile which contains instructions for building the image,
+either a local file or an \fBhttp\fP or \fBhttps\fP URL.  If more than one
+Containerfile is specified, \fIFROM\fP instructions are only accepted from the
+last specified file.
+
+.PP
+If a build context is not specified, and at least one Containerfile is a
+local file, the directory in which it resides is used as the build
+context.
+
+.PP
+Specifying the option \fB-f -\fR causes
+the Containerfile contents to be read from stdin.
+
+.SS \fB--force-compression\fP
+If set, push uses the specified compression algorithm even if the destination contains a differently-compressed variant already.
+Defaults to \fBtrue\fR if \fB--compression-format\fR is explicitly specified on the command-line, \fBfalse\fR otherwise.
+
+.SS \fB--force-rm\fP
+Always remove intermediate containers after a build, even if the build fails (default true).
+
+.SS \fB--format\fP
+Control the format for the built image's manifest and configuration data.
+Recognized formats include \fIoci\fP (OCI image-spec v1.0, the default) and
+\fIdocker\fP (version 2, using schema format 2 for the manifest).
+
+.PP
+Note: You can also override the default format by setting the BUILDAH_FORMAT
+environment variable.  \fBexport BUILDAH_FORMAT=docker\fR
+
+.SS \fB--from\fP
+Overrides the first \fBFROM\fR instruction within the Containerfile.  If there are multiple
+FROM instructions in a Containerfile, only the first is changed.
+
+.PP
+With the remote podman client, not all container transports work as
+expected. For example, oci-archive:/x.tar references /x.tar on the remote
+machine instead of on the client. When using podman remote clients it is
+best to restrict use to \fIcontainers-storage\fP, and \fIdocker:// transports\fP\&.
+
+.SS \fB--group-add\fP=\fIgroup\fP | \fIkeep-groups\fP
+Assign additional groups to the primary user running within the container process.
+.IP \(bu 2
+\fBkeep-groups\fR is a special flag that tells Podman to keep the supplementary group access.
+
+.PP
+Allows container to use the user's supplementary group access. If file systems or
+devices are only accessible by the rootless user's group, this flag tells the OCI
+runtime to pass the group access into the container. Currently only available
+with the \fBcrun\fR OCI runtime. Note: \fBkeep-groups\fR is exclusive, other groups cannot be specified
+with this flag. (Not available for remote commands, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement
+
+.SS \fB--hooks-dir\fP=\fIpath\fP
+Each *.json file in the path configures a hook for buildah build containers. For more details on the syntax of the JSON files and the semantics of hook injection. Buildah currently support both the 1.0.0 and 0.1.0 hook schemas, although the 0.1.0 schema is deprecated.
+
+.PP
+This option may be set multiple times; paths from later options have higher precedence.
+
+.PP
+For the annotation conditions, buildah uses any annotations set in the generated OCI configuration.
+
+.PP
+For the bind-mount conditions, only mounts explicitly requested by the caller via --volume are considered. Bind mounts that buildah inserts by default (e.g. /dev/shm) are not considered.
+
+.PP
+If --hooks-dir is unset for root callers, Buildah currently defaults to /usr/share/containers/oci/hooks.d and /etc/containers/oci/hooks.d in order of increasing precedence. Using these defaults is deprecated. Migrate to explicitly setting --hooks-dir.
+
+.SS \fB--http-proxy\fP
+By default proxy environment variables are passed into the container if set
+for the Podman process. This can be disabled by setting the value to \fBfalse\fP\&.
+The environment variables passed in include \fBhttp_proxy\fP,
+\fBhttps_proxy\fP, \fBftp_proxy\fP, \fBno_proxy\fP, and also the upper case versions of
+those. This option is only needed when the host system must use a proxy but
+the container does not use any proxy. Proxy environment variables specified
+for the container in any other way overrides the values that have
+been passed through from the host. (Other ways to specify the proxy for the
+container include passing the values with the \fB--env\fP flag, or hard coding the
+proxy environment at container build time.)
+When used with the remote client it uses the proxy environment variables
+that are set on the server process.
+
+.PP
+Defaults to \fBtrue\fP\&.
+
+.SS \fB--identity-label\fP
+Adds default identity label \fBio.buildah.version\fR if set. (default true).
+
+.SS \fB--ignorefile\fP
+Path to an alternative .containerignore file.
+
+.SS \fB--iidfile\fP=\fIImageIDfile\fP
+Write the built image's ID to the file.  When \fB--platform\fR is specified more than once, attempting to use this option triggers an error.
+
+.SS \fB--iidfile-raw\fP=\fIImageIDfile\fP
+Write the built image's ID to the file without the algorithm prefix (e.g., \fBsha256:\fR). When \fB--platform\fR is specified more than once, attempting to use this option triggers an error.
+
+.SS \fB--inherit-annotations\fP=\fIbool-value\fP
+Inherit the annotations from the base image or base stages. (default true).
+Use cases which set this flag to \fIfalse\fP may need to do the same for the
+\fB--created-annotation\fP flag.
+
+.SS \fB--inherit-labels\fP
+Inherit the labels from the base image or base stages. (default true).
+
+.SS \fB--ipc\fP=\fIhow\fP
+Sets the configuration for IPC namespaces when handling \fBRUN\fR instructions.
+The configured value can be "" (the empty string) or "container" to indicate
+that a new IPC namespace is created, or it can be "host" to indicate
+that the IPC namespace in which \fBpodman\fR itself is being run is reused,
+or it can be the path to an IPC namespace which is already in use by
+another process.
+
+.SS \fB--isolation\fP=\fItype\fP
+Controls what type of isolation is used for running processes as part of \fBRUN\fR
+instructions.  Recognized types include \fIoci\fP (OCI-compatible runtime, the
+default), \fIrootless\fP (OCI-compatible runtime invoked using a modified
+configuration and its --rootless option enabled, with \fI--no-new-keyring
+--no-pivot\fP added to its \fIcreate\fP invocation, with network and UTS namespaces
+disabled, and IPC, PID, and user namespaces enabled; the default for
+unprivileged users), and \fIchroot\fP (an internal wrapper that leans more toward
+chroot(1) than container technology).
+
+.PP
+Note: You can also override the default isolation type by setting the
+BUILDAH_ISOLATION environment variable.  \fBexport BUILDAH_ISOLATION=oci\fR
+
+.SS \fB--jobs\fP=\fInumber\fP
+Run up to N concurrent stages in parallel.  If the number of jobs is greater
+than 1, stdin is read from /dev/null.  If 0 is specified, then there is
+no limit in the number of jobs that run in parallel.
+
+.SS \fB--label\fP=\fIlabel\fP
+Add an image \fIlabel\fP (e.g. label=\fIvalue\fP) to the image metadata. Can be used
+multiple times.
+
+.PP
+Users can set a special LABEL \fBio.containers.capabilities=CAP1,CAP2,CAP3\fP in
+a Containerfile that specifies the list of Linux capabilities required for the
+container to run properly. This label specified in a container image tells
+Podman to run the container with just these capabilities. Podman launches the
+container with just the specified capabilities, as long as this list of
+capabilities is a subset of the default list.
+
+.PP
+If the specified capabilities are not in the default set, Podman prints an error
+message and runs the container with the default capabilities.
+
+.SS \fB--layer-label\fP=\fIlabel[=value]\fP
+Add an intermediate image \fIlabel\fP (e.g. label=\fIvalue\fP) to the intermediate
+image metadata. It can be used multiple times.
+
+.PP
+If \fIlabel\fP is named, but neither \fB=\fR nor a \fBvalue\fR is provided, then
+the \fIlabel\fP is set to an empty value.
+
+.SS \fB--layers\fP
+Cache intermediate images during the build process (Default is \fBtrue\fR).
+
+.PP
+Note: You can also override the default value of layers by setting the
+BUILDAH_LAYERS environment variable. \fBexport BUILDAH_LAYERS=true\fR
+
+.SS \fB--logfile\fP=\fIfilename\fP
+Log output which is sent to standard output and standard error to the
+specified file instead of to standard output and standard error.
+This option is not supported on the remote client, including Mac and Windows (excluding WSL2) machines.
+
+.SS \fB--logsplit\fP=\fIbool-value\fP
+If \fB--logfile\fR and \fB--platform\fR are specified, the \fB--logsplit\fR option allows
+end-users to split the log file for each platform into different files in the
+following format: \fB${logfile}_${platform-os}_${platform-arch}\fR\&.
+This option is not supported on the remote client, including Mac and Windows
+(excluding WSL2) machines.
+
+.SS \fB--manifest\fP=\fImanifest\fP
+Name of the manifest list to which the image is added. Creates the manifest list if it does not exist. This option is useful for building multi architecture images.
+
+.SS \fB--memory\fP, \fB-m\fP=\fInumber[unit]\fP
+Memory limit. A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+
+.PP
+Allows the memory available to a container to be constrained. If the host
+supports swap memory, then the \fB--memory\fP memory setting can be larger than physical
+RAM. If a limit of 0 is specified (not using \fB--memory\fP), the container's memory is
+not limited. The actual limit may be rounded up to a multiple of the operating
+system's page size (the value is very large, that's millions of trillions).
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--memory-swap\fP=\fInumber[unit]\fP
+A limit value equal to memory plus swap.
+A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+
+.PP
+Must be used with the \fB-m\fP (\fB--memory\fP) flag.
+The argument value must be larger than that of
+ \fB-m\fP (\fB--memory\fP) By default, it is set to double
+the value of \fB--memory\fP\&.
+
+.PP
+Set \fInumber\fP to \fB-1\fP to enable unlimited swap.
+
+.PP
+This option is not supported on cgroups V1 rootless systems.
+
+.SS \fB--metadata-file\fP=\fIMetadataFile\fP
+Write information about the built image to the named file. When \fB--platform\fR is specified more than once, attempting to use this option triggers an error.
+
+.PP
+Note: This option is not supported in remote mode.
+
+.SS \fB--mount\fP=\fImount-specification\fP
+Adds this mount to each \fBRUN\fR command in a Containerfile before executing.  For example:
+
+.PP
+\fBpodman build --mount=type=secret,id=mysecret …\fR
+
+.PP
+and a Containerfile entry of:
+
+.PP
+\fBRUN cat /run/secrets/mysecret\fR
+
+.PP
+Has the same effect as:
+
+.PP
+\fBRUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret\fR
+
+.SS \fB--network\fP=\fImode\fP, \fB--net\fP
+Sets the configuration for network namespaces when handling \fBRUN\fR instructions.
+
+.PP
+Valid \fImode\fP values are:
+.IP \(bu 2
+\fBnone\fP: no networking.
+.IP \(bu 2
+\fBhost\fP: use the Podman host network stack. Note: the host mode gives the
+container full access to local system services such as D-bus and is therefore
+considered insecure.
+.IP \(bu 2
+\fBns:\fP\fIpath\fP: path to a network namespace to join.
+.IP \(bu 2
+\fBprivate\fP: create a new namespace for the container (default)
+.IP \(bu 2
+\fB<network name|ID>\fP: Join the network with the given name or ID, e.g. use \fB--network mynet\fR to join the network with the name mynet. Only supported for rootful users.
+.IP \(bu 2
+\fBpasta[:OPTIONS,...]\fP: use \fBpasta\fP(1) to create a user-mode networking
+stack.
+.br
+This is the default for rootless containers and only supported in rootless mode.
+.br
+By default, IPv4 and IPv6 addresses and routes, as well as the pod interface
+name, are copied from the host. If port forwarding isn't configured, ports
+are forwarded dynamically as services are bound on either side (init
+namespace or container namespace). Port forwarding preserves the original
+source IP address. Options described in pasta(1) can be specified as
+comma-separated arguments.
+.br
+In terms of pasta(1) options, \fB--config-net\fP is given by default, in
+order to configure networking when the container is started, and
+\fB--no-map-gw\fP is also assumed by default, to avoid direct access from
+container to host using the gateway address. The latter can be overridden
+by passing \fB--map-gw\fP in the pasta-specific options (despite not being an
+actual pasta(1) option).
+.br
+Also, \fB-t none\fP and \fB-u none\fP are passed to disable
+automatic port forwarding based on bound ports. Similarly, \fB-T none\fP and
+\fB-U none\fP are given to disable the same functionality from container to
+host.
+.br
+Some examples:
+.RS
+.IP \(bu 2
+\fBpasta:--map-gw\fP: Allow the container to directly reach the host using the
+gateway address.
+.IP \(bu 2
+\fBpasta:--mtu,1500\fP: Specify a 1500 bytes MTU for the \fItap\fP interface in
+the container.
+.IP \(bu 2
+\fBpasta:--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,-m,1500,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+disable IPv6, assign \fB10.0.2.0/24\fR to the \fBtap0\fR interface in the container,
+with gateway \fB10.0.2.3\fR, enable DNS forwarder reachable at \fB10.0.2.3\fR,
+set MTU to 1500 bytes, disable NDP, DHCPv6 and DHCP support.
+.IP \(bu 2
+\fBpasta:-I,tap0,--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+same as above, but leave the MTU to 65520 bytes
+.IP \(bu 2
+\fBpasta:-t,auto,-u,auto,-T,auto,-U,auto\fP: enable automatic port forwarding
+based on observed bound ports from both host and container sides
+.IP \(bu 2
+\fBpasta:-T,5201\fP: enable forwarding of TCP port 5201 from container to
+host, using the loopback interface instead of the tap interface for improved
+performance
+.RE
+
+.SS \fB--no-cache\fP
+Do not use existing cached images for the container build. Build from the start with a new set of cached layers.
+
+.SS \fB--no-hostname\fP
+Do not create the \fI/etc/hostname\fP file in the containers.
+
+.PP
+By default, Podman manages the \fI/etc/hostname\fP file, adding the container's own hostname.  When the \fB--no-hostname\fP option is set, the image's \fI/etc/hostname\fP will be preserved unmodified if it exists.
+
+.SS \fB--no-hosts\fP
+Do not modify the \fB/etc/hosts\fR file in the container.
+
+.PP
+Podman assumes control over the container's \fB/etc/hosts\fR file by
+default and adds entries for the container's name (see \fB--name\fP option) and
+hostname (see \fB--hostname\fP option), the internal \fBhost.containers.internal\fR
+and \fBhost.docker.internal\fR hosts, as well as any hostname added using the
+\fB--add-host\fP option. Refer to the \fB--add-host\fP option for details. Passing
+\fB--no-hosts\fP disables this, so that the image's \fB/etc/hosts\fR file is kept
+unmodified. The same can be achieved globally by setting \fIno_hosts=true\fP in
+\fBcontainers.conf\fR\&.
+
+.PP
+This option conflicts with \fB--add-host\fP\&.
+
+.SS \fB--omit-history\fP
+Omit build history information in the built image. (default false).
+
+.PP
+This option is useful for the cases where end users explicitly
+want to set \fB--omit-history\fR to omit the optional \fBHistory\fR from
+built images or when working with images built using build tools that
+do not include \fBHistory\fR information in their images.
+
+.SS \fB--os\fP=\fIstring\fP
+Set the OS of the image to be built, and that of the base image to be pulled, if the build uses one, instead of using the current operating system of the build host. Unless overridden, subsequent lookups of the same image in the local storage matches this OS, regardless of the host.
+
+.SS \fB--os-feature\fP=\fIfeature\fP
+Set the name of a required operating system \fIfeature\fP for the image which is built.  By default, if the image is not based on \fIscratch\fP, the base image's required OS feature list is kept, if the base image specified any.  This option is typically only meaningful when the image's OS is Windows.
+
+.PP
+If \fIfeature\fP has a trailing \fB-\fR, then the \fIfeature\fP is removed from the set of required features which is listed in the image.
+
+.SS \fB--os-version\fP=\fIversion\fP
+Set the exact required operating system \fIversion\fP for the image which is built.  By default, if the image is not based on \fIscratch\fP, the base image's required OS version is kept, if the base image specified one.  This option is typically only meaningful when the image's OS is Windows, and is typically set in Windows base images, so using this option is usually unnecessary.
+
+.SS \fB--output\fP, \fB-o\fP=\fIoutput-opts\fP
+Output destination (format: type=local,dest=path)
+
+.PP
+The --output (or -o) option extends the default behavior of building a container image by allowing users to export the contents of the image as files on the local filesystem, which can be useful for generating local binaries, code generation, etc. (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.PP
+The value for --output is a comma-separated sequence of key=value pairs, defining the output type and options.
+
+.PP
+Supported \fIkeys\fP are:
+- \fBdest\fP: Destination path for exported output. Valid value is absolute or relative path, \fB-\fR means the standard output.
+- \fBtype\fP: Defines the type of output to be used. Valid values is documented below.
+
+.PP
+Valid \fItype\fP values are:
+- \fBlocal\fP: write the resulting build files to a directory on the client-side.
+- \fBtar\fP: write the resulting files as a single tarball (.tar).
+
+.PP
+If no type is specified, the value defaults to \fBlocal\fP\&.
+Alternatively, instead of a comma-separated sequence, the value of \fB--output\fP can be just a destination (in the \fBdest\fP format) (e.g. \fB--output some-path\fR, \fB--output -\fR) where \fB--output some-path\fR is treated as if \fBtype=local\fP and \fB--output -\fR is treated as if \fBtype=tar\fP\&.
+
+.SS \fB--pid\fP=\fIpid\fP
+Sets the configuration for PID namespaces when handling \fBRUN\fR instructions.
+The configured value can be "" (the empty string) or "container" to indicate that a new PID namespace is created, or it can be "host" to indicate that the PID namespace in which \fBpodman\fR itself is being run is reused, or it can be the path to a PID namespace which is already in use by another
+process.
+
+.SS \fB--platform\fP=\fIos/arch[/variant][,...]\fP
+Set the \fIos/arch\fP of the built image (and its base image, when using one)
+to the provided value instead of using the current operating system and
+architecture of the host (for example \fBlinux/arm\fR).  Unless overridden,
+subsequent lookups of the same image in the local storage matches this
+platform, regardless of the host.
+
+.PP
+If \fB--platform\fR is set, then the values of the \fB--arch\fR, \fB--os\fR, and
+\fB--variant\fR options is overridden.
+
+.PP
+The \fB--platform\fR option can be specified more than once, or given a
+comma-separated list of values as its argument.  When more than one platform is
+specified, the \fB--manifest\fR option is used instead of the \fB--tag\fR
+option.
+
+.PP
+Os/arch pairs are those used by the Go Programming Language.  In several cases
+the \fIarch\fP value for a platform differs from one produced by other tools such as
+the \fBarch\fR command.  Valid OS and architecture name combinations are listed as
+values for $GOOS and $GOARCH at https://golang.org/doc/install/source#environment,
+and can also be found by running \fBgo tool dist list\fR\&.
+
+.PP
+While \fBpodman build\fR is happy to use base images and build images for any
+platform that exists, \fBRUN\fR instructions are unable to succeed without
+the help of emulation provided by packages like \fBqemu-user-static\fR\&.
+
+.SS \fB--pull\fP=\fIpolicy\fP
+Pull image policy. The default is \fBmissing\fP\&.
+.IP \(bu 2
+\fBalways\fP: Always pull the image and throw an error if the pull fails.
+.IP \(bu 2
+\fBmissing\fP: Only pull the image when it does not exist in the local containers storage.  Throw an error if no image is found and the pull fails.
+.IP \(bu 2
+\fBnever\fP: Never pull the image but use the one from the local containers storage.  Throw an error when no image is found.
+.IP \(bu 2
+\fBnewer\fP: Pull if the image on the registry is newer than the one in the local containers storage.  An image is considered to be newer when the digests are different.  Comparing the time stamps is prone to errors.  Pull errors are suppressed if a local image was found.
+
+.SS \fB--quiet\fP, \fB-q\fP
+Suppress informational output messages (which indicate which instruction is being processed, and the progress of the instruction).  Print only the final error message or successful completion information, such as the image or container ID.
+
+.SS \fB--retry\fP=\fIattempts\fP
+Number of times to retry pulling or pushing images between the registry and
+local storage in case of failure. Default is \fB3\fP\&.
+
+.SS \fB--retry-delay\fP=\fIduration\fP
+Duration of delay between retry attempts when pulling or pushing images between
+the registry and local storage in case of failure. The default is to start at two seconds and then exponentially back off. The delay is used when this value is set, and no exponential back off occurs.
+
+.SS \fB--rewrite-timestamp\fP
+When generating new layers for the image, ensure that no newly added content
+bears a timestamp later than the value used by the \fB--source-date-epoch\fP
+flag, if one was provided, by replacing any timestamps which are later than
+that value, with that value.
+
+.SS \fB--rm\fP
+Remove intermediate containers after a successful build (default true).
+
+.SS \fB--runtime\fP=\fIpath\fP
+The \fIpath\fP to an alternate OCI-compatible runtime, which is used to run
+commands specified by the \fBRUN\fP instruction.
+
+.PP
+Note: You can also override the default runtime by setting the BUILDAH_RUNTIME environment variable.  \fBexport BUILDAH_RUNTIME=/usr/local/bin/runc\fR
+
+.SS \fB--runtime-flag\fP=\fIflag\fP
+Adds global flags for the container runtime. To list the supported flags, please consult the manpages of the selected container runtime.
+
+.PP
+Default runtime flags can be added in containers.conf.
+
+.PP
+Note: Do not pass the leading -- to the flag. To pass the runc flag --log-format json to buildah build, the option given is --runtime-flag log-format=json.
+
+.SS \fB--save-stages\fP
+Preserve intermediate stage images instead of removing them after the build completes (Default is \fBfalse\fR). By default, Buildah removes intermediate stage images to save space.
+This option keeps those images, which can be useful for debugging multi-stage builds or for reusing intermediate stages in subsequent builds.
+
+.PP
+\fB--save-stages\fR can be used with \fB--layers\fR and subsequent builds with \fB--layers\fR can use the preserved intermediate layers as cache.
+
+.PP
+When combined with \fB--stage-labels\fR, all stage images (including the final image) will include metadata labels for easier identification and management.
+
+.SS \fB--sbom\fP=\fIpreset\fP
+Generate SBOMs (Software Bills Of Materials) for the output image by scanning
+the working container and build contexts using the named combination of scanner
+image, scanner commands, and merge strategy.  Must be specified with one or
+more of \fB--sbom-image-output\fP, \fB--sbom-image-purl-output\fP, \fB--sbom-output\fP,
+and \fB--sbom-purl-output\fP\&.  Recognized presets, and the set of options which
+they equate to:
+.IP \(bu 2
+"syft", "syft-cyclonedx":
+ --sbom-scanner-image=ghcr.io/anchore/syft
+ --sbom-scanner-command="/syft scan -q dir:{ROOTFS} --output cyclonedx-json={OUTPUT}"
+ --sbom-scanner-command="/syft scan -q dir:{CONTEXT} --output cyclonedx-json={OUTPUT}"
+ --sbom-merge-strategy=merge-cyclonedx-by-component-name-and-version
+.IP \(bu 2
+"syft-spdx":
+ --sbom-scanner-image=ghcr.io/anchore/syft
+ --sbom-scanner-command="/syft scan -q dir:{ROOTFS} --output spdx-json={OUTPUT}"
+ --sbom-scanner-command="/syft scan -q dir:{CONTEXT} --output spdx-json={OUTPUT}"
+ --sbom-merge-strategy=merge-spdx-by-package-name-and-versioninfo
+.IP \(bu 2
+"trivy", "trivy-cyclonedx":
+ --sbom-scanner-image=ghcr.io/aquasecurity/trivy
+ --sbom-scanner-command="trivy filesystem -q {ROOTFS} --format cyclonedx --output {OUTPUT}"
+ --sbom-scanner-command="trivy filesystem -q {CONTEXT} --format cyclonedx --output {OUTPUT}"
+ --sbom-merge-strategy=merge-cyclonedx-by-component-name-and-version
+.IP \(bu 2
+"trivy-spdx":
+ --sbom-scanner-image=ghcr.io/aquasecurity/trivy
+ --sbom-scanner-command="trivy filesystem -q {ROOTFS} --format spdx-json --output {OUTPUT}"
+ --sbom-scanner-command="trivy filesystem -q {CONTEXT} --format spdx-json --output {OUTPUT}"
+ --sbom-merge-strategy=merge-spdx-by-package-name-and-versioninfo
+
+.SS \fB--sbom-image-output\fP=\fIpath\fP
+When generating SBOMs, store the generated SBOM in the specified path in the
+output image.  There is no default.
+
+.SS \fB--sbom-image-purl-output\fP=\fIpath\fP
+When generating SBOMs, scan them for PURL (package
+URL
+\[la]https://github.com/package\-url/purl\-spec/blob/master/PURL\-SPECIFICATION.rst\[ra])
+information, and save a list of found PURLs to the specified path in the output
+image.  There is no default.
+
+.SS \fB--sbom-merge-strategy\fP=\fImethod\fP
+If more than one \fB--sbom-scanner-command\fP value is being used, use the
+specified method to merge the output from later commands with output from
+earlier commands.  Recognized values include:
+.IP \(bu 2
+cat
+ Concatenate the files.
+.IP \(bu 2
+merge-cyclonedx-by-component-name-and-version
+ Merge the "component" fields of JSON documents, ignoring values from
+ documents when the combination of their "name" and "version" values is
+ already present.  Documents are processed in the order in which they are
+ generated, which is the order in which the commands that generate them
+ were specified.
+.IP \(bu 2
+merge-spdx-by-package-name-and-versioninfo
+ Merge the "package" fields of JSON documents, ignoring values from
+ documents when the combination of their "name" and "versionInfo" values is
+ already present.  Documents are processed in the order in which they are
+ generated, which is the order in which the commands that generate them
+ were specified.
+
+.SS \fB--sbom-output\fP=\fIfile\fP
+When generating SBOMs, store the generated SBOM in the named file on the local
+filesystem.  There is no default.
+
+.SS \fB--sbom-purl-output\fP=\fIfile\fP
+When generating SBOMs, scan them for PURL (package
+URL
+\[la]https://github.com/package\-url/purl\-spec/blob/master/PURL\-SPECIFICATION.rst\[ra])
+information, and save a list of found PURLs to the named file in the local
+filesystem.  There is no default.
+
+.SS \fB--sbom-scanner-command\fP=\fIimage\fP
+Generate SBOMs by running the specified command from the scanner image.  If
+multiple commands are specified, they are run in the order in which they are
+specified.  These text substitutions are performed:
+  - {ROOTFS}
+      The root of the built image's filesystem, bind mounted.
+  - {CONTEXT}
+      The build context and additional build contexts, bind mounted.
+  - {OUTPUT}
+      The name of a temporary output file, to be read and merged with others or copied elsewhere.
+
+.SS \fB--sbom-scanner-image\fP=\fIimage\fP
+Generate SBOMs using the specified scanner image.
+
+.SS \fB--secret\fP=\fBid=id[,src=\fIenvOrFile\fP][,env=\fIENV\fP][,type=\fIfile\fP | \fIenv\fP]\fP
+Pass secret information to be used in the Containerfile for building images
+in a safe way that will not end up stored in the final image, or be seen in other stages.
+The value of the secret will be read from an environment variable or file named
+by the "id" option, or named by the "src" option if it is specified, or from an
+environment variable specified by the "env" option. See EXAMPLES
+\[la]#examples\[ra]\&.
+The secret will be mounted in the container at \fB/run/secrets/id\fR by default.
+
+.PP
+To later use the secret, use the --mount flag in a \fBRUN\fR instruction within a \fBContainerfile\fR:
+
+.PP
+\fBRUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret\fR
+
+.PP
+The location of the secret in the container can be overridden using the
+"target", "dst", or "destination" option of the \fBRUN --mount\fR flag.
+
+.PP
+\fBRUN --mount=type=secret,id=mysecret,target=/run/secrets/myothersecret cat /run/secrets/myothersecret\fR
+
+.PP
+Note: changing the contents of secret files will not trigger a rebuild of layers that use said secrets.
+
+.SS \fB--security-opt\fP=\fIoption\fP
+Security Options
+.IP \(bu 2
+\fBapparmor=unconfined\fR : Turn off apparmor confinement for the container
+.IP \(bu 2
+\fBapparmor=alternate-profile\fR : Set the apparmor confinement profile for the
+container
+.IP \(bu 2
+\fBlabel=user:USER\fR     : Set the label user for the container processes
+.IP \(bu 2
+\fBlabel=role:ROLE\fR     : Set the label role for the container processes
+.IP \(bu 2
+\fBlabel=type:TYPE\fR     : Set the label process type for the container processes
+.IP \(bu 2
+\fBlabel=level:LEVEL\fR   : Set the label level for the container processes
+.IP \(bu 2
+\fBlabel=filetype:TYPE\fR : Set the label file type for the container files
+.IP \(bu 2
+\fBlabel=disable\fR       : Turn off label separation for the container
+.IP \(bu 2
+\fBno-new-privileges\fR   : Disable container processes from gaining additional privileges
+.IP \(bu 2
+\fBseccomp=unconfined\fR : Turn off seccomp confinement for the container
+.IP \(bu 2
+\fBseccomp=profile.json\fR :  JSON file to be used as the seccomp filter for the container.
+
+.SS \fB--shm-size\fP=\fInumber[unit]\fP
+Size of \fI/dev/shm\fP\&. A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+If the unit is omitted, the system uses bytes. If the size is omitted, the default is \fB64m\fP\&.
+When \fIsize\fP is \fB0\fP, there is no limit on the amount of memory used for IPC by the container.
+This option conflicts with \fB--ipc=host\fP\&.
+
+.SS \fB--sign-by\fP=\fIfingerprint\fP
+Sign the image using a GPG key with the specified FINGERPRINT. (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines,)
+
+.SS \fB--skip-unused-stages\fP
+Skip stages in multi-stage builds which don't affect the target stage. (Default: \fBtrue\fP).
+
+.SS \fB--source-date-epoch\fP=\fIseconds\fP
+Set the "created" timestamp for the built image to this number of seconds since
+the epoch (Unix time 0, i.e., 00:00:00 UTC on 1 January 1970) (default is to
+use the value set in the \fBSOURCE_DATE_EPOCH\fR environment variable, or the
+current time if it is not set).
+
+.PP
+The "created" timestamp is written into the image's configuration and manifest
+when the image is committed, so running the same build two different times
+will ordinarily produce images with different sha256 hashes, even if no other
+changes were made to the Containerfile and build context.
+
+.PP
+When this flag is set, a \fBSOURCE_DATE_EPOCH\fR build arg will provide its value
+for a stage in which it is declared.
+
+.PP
+When this flag is set, the image configuration's "created" timestamp is always
+set to the time specified, which should allow for identical images to be built
+at different times using the same set of inputs.
+
+.PP
+When this flag is set, output written as specified to the \fB--output\fP flag
+will bear exactly the specified timestamp.
+
+.PP
+Conflicts with the similar \fB--timestamp\fP flag, which also sets its specified
+time on the contents of new layers.
+
+.SS \fB--source-policy-file\fP=\fIpathname\fP
+Specifies the path to a BuildKit-compatible source policy JSON file.  When
+specified, source references (e.g., base images in FROM instructions) are
+evaluated against the policy rules before being used.
+
+.PP
+Source policies allow controlling which images can be used as base images and
+optionally converting image references (e.g., pinning tags to specific digests)
+without modifying Containerfiles.  This is useful for enforcing organizational
+policies and ensuring build reproducibility.
+
+.PP
+The policy file is a JSON document containing an array of rules.  Each rule has:
+- \fBaction\fP: The action to take when the rule matches.  Valid actions are:
+  - \fBALLOW\fP: Explicitly allow the source (no transformation).
+  - \fBDENY\fP: Block the source and fail the build.
+  - \fBCONVERT\fP: Transform the source to a different reference specified in \fBupdates\fR\&.
+- \fBselector\fP: Specifies which sources the rule applies to.
+  - \fBidentifier\fP: The source identifier to match (e.g., \fBdocker-image://docker.io/library/alpine:latest\fR).
+  - \fBmatchType\fP: How to match the identifier.  Valid types are \fBEXACT\fR and \fBWILDCARD\fR (supports \fB*\fR and \fB?\fR glob patterns).  Defaults to \fBWILDCARD\fR if not specified.
+- \fBupdates\fP: For \fBCONVERT\fR actions, specifies the replacement identifier.
+
+.PP
+Rules are evaluated in order; the first matching rule wins.  If no rule matches,
+the source is allowed by default.
+
+.PP
+Note: Source policy CONVERT rules are processed after \fB--build-context\fP substitutions
+but before any substitutions specified in \fBcontainers-registries.conf(5)\fP\&.  This provides
+multiple ways to override which base image is used for a particular stage, in order of
+precedence: \fB--build-context\fR, then source policy, then registries.conf.
+
+.PP
+Example policy file that pins alpine:latest to a specific digest:
+
+.EX
+{
+  "rules": [
+    {
+      "action": "CONVERT",
+      "selector": {
+        "identifier": "docker-image://docker.io/library/alpine:latest"
+      },
+      "updates": {
+        "identifier": "docker-image://docker.io/library/alpine@sha256:..."
+      }
+    }
+  ]
+}
+.EE
+
+.PP
+Example policy file that denies all ubuntu images:
+
+.EX
+{
+  "rules": [
+    {
+      "action": "DENY",
+      "selector": {
+        "identifier": "docker-image://docker.io/library/ubuntu:*",
+        "matchType": "WILDCARD"
+      }
+    }
+  ]
+}
+.EE
+
+.SS \fB--squash\fP
+Squash all of the image's new layers into a single new layer; any preexisting layers are not squashed.
+
+.SS \fB--squash-all\fP
+Squash all of the new image's layers (including those inherited from a base image) into a single new layer.
+
+.SS \fB--ssh\fP=\fIdefault\fP | \fIid[=socket>\fP
+SSH agent socket or keys to expose to the build.
+The socket path can be left empty to use the value of \fBdefault=$SSH_AUTH_SOCK\fR
+
+.PP
+To later use the ssh agent, use the --mount option in a \fBRUN\fR instruction within a \fBContainerfile\fR:
+
+.PP
+\fBRUN --mount=type=ssh,id=id mycmd\fR
+
+.SS \fB--stage-labels\fP
+Add metadata labels to all intermediate stage images of the multistage build,
+including the final image (Default is \fBfalse\fR).
+This option requires \fB--save-stages\fR to be enabled.
+
+.PP
+When enabled, all intermediate stage images and final image will be labeled with:
+  - \fBio.buildah.stage.name\fR: The stage alias (from \fBFROM ... AS alias\fR), or stage position
+    if no alias is specified
+  - \fBio.buildah.stage.base\fR: The base image used by this stage (pullspec or image ID
+    when stage uses another stage as base)
+
+.PP
+These labels make it easier to identify, query, and manage images from multi-stage builds.
+
+.SS \fB--stdin\fP
+Pass stdin into the RUN containers. Sometime commands being RUN within a Containerfile
+want to request information from the user. For example apt asking for a confirmation for install.
+Use --stdin to be able to interact from the terminal during the build.
+
+.SS \fB--tag\fP, \fB-t\fP=\fIimageName\fP
+Specifies the name which is assigned to the resulting image if the build process completes successfully.
+If \fIimageName\fP does not include a registry name, the registry name \fIlocalhost\fP is prepended to the image name.
+
+.SS \fB--target\fP=\fIstageName\fP
+Set the target build stage to build.  When building a Containerfile with multiple build stages, --target can be used to specify an intermediate build stage by name as the final stage for the resulting image. Commands after the target stage is skipped.
+
+.SS \fB--timestamp\fP=\fIseconds\fP
+Set the create timestamp to seconds since epoch to allow for deterministic builds (defaults to current time). By default, the created timestamp is changed and written into the image manifest with every commit, causing the image's sha256 hash to be different even if the sources are exactly the same otherwise.
+When --timestamp is set, the created timestamp is always set to the time specified and therefore not changed, allowing the image's sha256 hash to remain the same. All files committed to the layers of the image is created with the timestamp.
+
+.PP
+If the only instruction in a Containerfile is \fBFROM\fR, this flag has no effect.
+
+.SS \fB--tls-verify\fP
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SS \fB--ulimit\fP=\fItype=soft-limit[:hard-limit]\fP
+Specifies resource limits to apply to processes launched when processing \fBRUN\fR instructions. This option can be specified multiple times.  Recognized resource types include:
+  "core": maximum core dump size (ulimit -c)
+  "cpu": maximum CPU time (ulimit -t)
+  "data": maximum size of a process's data segment (ulimit -d)
+  "fsize": maximum size of new files (ulimit -f)
+  "locks": maximum number of file locks (ulimit -x)
+  "memlock": maximum amount of locked memory (ulimit -l)
+  "msgqueue": maximum amount of data in message queues (ulimit -q)
+  "nice": niceness adjustment (nice -n, ulimit -e)
+  "nofile": maximum number of open files (ulimit -n)
+  "nproc": maximum number of processes (ulimit -u)
+  "rss": maximum size of a process's (ulimit -m)
+  "rtprio": maximum real-time scheduling priority (ulimit -r)
+  "rttime": maximum amount of real-time execution between blocking syscalls
+  "sigpending": maximum number of pending signals (ulimit -i)
+  "stack": maximum stack size (ulimit -s)
+
+.SS \fB--unsetannotation\fP=\fIannotation\fP
+Unset the image annotation, causing the annotation not to be inherited from the base image.
+
+.SS \fB--unsetenv\fP=\fIenv\fP
+Unset environment variables from the final image.
+
+.SS \fB--unsetlabel\fP=\fIlabel\fP
+Unset the image label, causing the label not to be inherited from the base image.
+
+.SS \fB--userns\fP=\fIhow\fP
+Sets the configuration for user namespaces when handling \fBRUN\fR instructions.
+The configured value can be "" (the empty string) or "container" to indicate that a new user namespace is created, it can be "host" to indicate that the user namespace in which \fBpodman\fR itself is being run is reused, or it can be the path to a user namespace which is already in use by another process.
+
+.SS \fB--userns-gid-map\fP=\fImapping\fP
+Directly specifies a GID mapping to be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling \fBRUN\fR instructions defaults to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+.PP
+Entries in this map take the form of one or more triples of a starting
+in-container GID, a corresponding starting host-level GID, and the number of consecutive IDs which the map entry represents.
+
+.PP
+This option overrides the \fIremap-gids\fP setting in the \fIoptions\fP section of /etc/containers/storage.conf.
+
+.PP
+If this option is not specified, but a global --userns-gid-map setting is supplied, settings from the global option is used.
+
+.PP
+If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-gid-map are specified, but --userns-uid-map is specified, the GID map is set to use the same numeric values as the UID map.
+
+.SS \fB--userns-gid-map-group\fP=\fIgroup\fP
+Specifies that a GID mapping to be used to set ownership, at the
+filesystem level, on the working container's contents, can be found in entries in the \fB/etc/subgid\fR file which correspond to the specified group.
+Commands run when handling \fBRUN\fR instructions defaults to being run in
+their own user namespaces, configured using the UID and GID maps.
+If --userns-uid-map-user is specified, but --userns-gid-map-group is not specified, \fBpodman\fR assumes that the specified user name is also a
+suitable group name to use as the default setting for this option.
+
+.PP
+\fBNOTE:\fP When this option is specified by a rootless user, the specified mappings are relative to the rootless user namespace in the container, rather than being relative to the host as it is when run rootful.
+
+.SS \fB--userns-uid-map\fP=\fImapping\fP
+Directly specifies a UID mapping to be used to set ownership, at the
+filesystem level, on the working container's contents.
+Commands run when handling \fBRUN\fR instructions default to being run in
+their own user namespaces, configured using the UID and GID maps.
+
+.PP
+Entries in this map take the form of one or more triples of a starting
+in-container UID, a corresponding starting host-level UID, and the number of consecutive IDs which the map entry represents.
+
+.PP
+This option overrides the \fIremap-uids\fP setting in the \fIoptions\fP section of /etc/containers/storage.conf.
+
+.PP
+If this option is not specified, but a global --userns-uid-map setting is supplied, settings from the global option is used.
+
+.PP
+If none of --userns-uid-map-user, --userns-gid-map-group, or --userns-uid-map are specified, but --userns-gid-map is specified, the UID map is set to use the same numeric values as the GID map.
+
+.SS \fB--userns-uid-map-user\fP=\fIuser\fP
+Specifies that a UID mapping to be used to set ownership, at the
+filesystem level, on the working container's contents, can be found in entries in the \fB/etc/subuid\fR file which correspond to the specified user.
+Commands run when handling \fBRUN\fR instructions defaults to being run in
+their own user namespaces, configured using the UID and GID maps.
+If --userns-gid-map-group is specified, but --userns-uid-map-user is not specified, \fBpodman\fR assumes that the specified group name is also a
+suitable user name to use as the default setting for this option.
+
+.PP
+\fBNOTE:\fP When this option is specified by a rootless user, the specified mappings are relative to the rootless user namespace in the container, rather than being relative to the host as it is when run rootful.
+
+.SS \fB--uts\fP=\fIhow\fP
+Sets the configuration for UTS namespaces when handling \fBRUN\fR instructions.
+The configured value can be "" (the empty string) or "container" to indicate that a new UTS namespace to be created, or it can be "host" to indicate that the UTS namespace in which \fBpodman\fR itself is being run is reused, or it can be the path to a UTS namespace which is already in use by another process.
+
+.SS \fB--variant\fP=\fIVARIANT\fP
+Set the architecture variant of the image to be built, and that of the base
+image to be pulled, if the build uses one, to the provided value instead of
+using the architecture variant of the build host.
+
+.SS \fB--volume\fP, \fB-v\fP=\fI[HOST-DIR:CONTAINER-DIR[:OPTIONS]]\fP
+Mount a host directory into containers when executing RUN instructions during
+the build.
+
+.PP
+The \fBOPTIONS\fR are a comma-separated list and can be one or more of:
+.IP \(bu 2
+[rw|ro]
+.IP \(bu 2
+[z|Z|O]
+.IP \(bu 2
+[U]
+.IP \(bu 2
+[\fB[r]shared\fR|\fB[r]slave\fR|\fB[r]private\fR][1]
+\[la]#Footnote1\[ra]
+
+.PP
+The \fBCONTAINER-DIR\fR must be an absolute path such as \fB/src/docs\fR\&. The \fBHOST-DIR\fR
+must be an absolute path as well. Podman bind-mounts the \fBHOST-DIR\fR to the
+specified path when processing RUN instructions.
+
+.PP
+You can specify multiple  \fB-v\fP options to mount one or more mounts.
+
+.PP
+You can add the \fB:ro\fR or \fB:rw\fR suffix to a volume to mount it read-only or
+read-write mode, respectively. By default, the volumes are mounted read-write.
+See examples.
+
+.PP
+\fBChowning Volume Mounts\fR
+
+.PP
+By default, Podman does not change the owner and group of source volume
+directories mounted. When running using user namespaces, the UID and GID inside
+the namespace may correspond to another UID and GID on the host.
+
+.PP
+The \fB:U\fR suffix tells Podman to use the correct host UID and GID based on the
+UID and GID within the namespace, to change recursively the owner and group of
+the source volume.
+
+.PP
+\fBWarning\fP use with caution since this modifies the host filesystem.
+
+.PP
+\fBLabeling Volume Mounts\fR
+
+.PP
+Labeling systems like SELinux require that proper labels are placed on volume
+content mounted into a container. Without a label, the security system might
+prevent the processes running inside the container from using the content. By
+default, Podman does not change the labels set by the OS.
+
+.PP
+To change a label in the container context, add one of these two suffixes
+\fB:z\fR or \fB:Z\fR to the volume mount. These suffixes tell Podman to relabel file
+objects on the shared volumes. The \fBz\fR option tells Podman that two containers
+share the volume content. As a result, Podman labels the content with a shared
+content label. Shared volume labels allow all containers to read/write content.
+The \fBZ\fR option tells Podman to label the content with a private unshared label.
+Only the current container can use a private volume.
+
+.PP
+Note: Do not relabel system files and directories. Relabeling system content
+might cause other confined services on the host machine to fail.  For these types
+of containers, disabling SELinux separation is recommended.  The option
+\fB--security-opt label=disable\fR disables SELinux separation for the container.
+For example, if a user wanted to volume mount their entire home directory into the build containers, they need to disable SELinux separation.
+
+.EX
+$ podman build --security-opt label=disable -v $HOME:/home/user .
+.EE
+
+.PP
+\fBOverlay Volume Mounts\fR
+
+.PP
+The \fB:O\fR flag tells Podman to mount the directory from the host as a
+temporary storage using the Overlay file system. The \fBRUN\fR command containers
+are allowed to modify contents within the mountpoint and are stored in the
+container storage in a separate directory.  In Overlay FS terms the source
+directory is the lower, and the container storage directory is the
+upper. Modifications to the mount point are destroyed when the \fBRUN\fR command
+finishes executing, similar to a tmpfs mount point.
+
+.PP
+Any subsequent execution of \fBRUN\fR commands sees the original source directory
+content, any changes from previous RUN commands no longer exists.
+
+.PP
+One use case of the \fBoverlay\fR mount is sharing the package cache from the
+host into the container to allow speeding up builds.
+
+.PP
+Note:
+.IP \(bu 2
+Overlay mounts are not currently supported in rootless mode.
+.IP \(bu 2
+The \fBO\fR flag is not allowed to be specified with the \fBZ\fR or \fBz\fR flags.
+Content mounted into the container is labeled with the private label.
+On SELinux systems, labels in the source directory needs to be readable
+by the container label. If not, SELinux container separation must be disabled
+for the container to work.
+.IP \(bu 2
+Modification of the directory volume mounted into the container with an
+overlay mount can cause unexpected failures. Do not modify the directory until
+the container finishes running.
+
+.PP
+By default bind mounted volumes are \fBprivate\fR\&. That means any mounts done
+inside containers are not be visible on the host and vice versa. This behavior
+can be changed by specifying a volume mount propagation property.
+
+.PP
+When the mount propagation policy is set to \fBshared\fR, any mounts completed
+inside the container on that volume is visible to both the host and
+container. When the mount propagation policy is set to \fBslave\fR, one way mount
+propagation is enabled and any mounts completed on the host for that volume is
+visible only inside of the container. To control the mount propagation
+property of volume use the \fB:[r]shared\fR, \fB:[r]slave\fR or \fB:[r]private\fR
+propagation flag. For mount propagation to work on the source mount point (mount
+point where source dir is mounted on) has to have the right propagation properties.
+For shared volumes, the source mount point has to be shared. And for slave volumes,
+the source mount has to be either shared or slave. [1]
+\[la]#Footnote1\[ra]
+
+.PP
+Use \fBdf <source-dir>\fR to determine the source mount and then use
+\fBfindmnt -o TARGET,PROPAGATION <source-mount-dir>\fR to determine propagation
+properties of source mount, if \fBfindmnt\fR utility is not available, the source
+mount point can be determined by looking at the mount entry in
+\fB/proc/self/mountinfo\fR\&. Look at \fBoptional fields\fR and see if any propagation
+properties are specified.
+\fBshared:X\fR means the mount is \fBshared\fR, \fBmaster:X\fR means the mount is \fBslave\fR
+and if nothing is there that means the mount is \fBprivate\fR\&. [1]
+\[la]#Footnote1\[ra]
+
+.PP
+To change propagation properties of a mount point use the \fBmount\fR command. For
+example, to bind mount the source directory \fB/foo\fR do
+\fBmount --bind /foo /foo\fR and \fBmount --make-private --make-shared /foo\fR\&. This
+converts /foo into a \fBshared\fR mount point.  The propagation properties of
+the source mount can be changed directly. For instance if \fB/\fR is the source
+mount for \fB/foo\fR, then use \fBmount --make-shared /\fR to convert \fB/\fR into a
+\fBshared\fR mount.
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS Build an image using local Containerfiles
+Build image using Containerfile with content from current directory:
+
+.EX
+$ podman build .
+.EE
+
+.PP
+Build image using specified Containerfile with content from current directory:
+
+.EX
+$ podman build -f Containerfile.simple .
+.EE
+
+.PP
+Build image using Containerfile from stdin with content from current directory:
+
+.EX
+$ cat $HOME/Containerfile | podman build -f - .
+.EE
+
+.PP
+Build image using multiple Containerfiles with content from current directory:
+
+.EX
+$ podman build -f Containerfile.simple -f Containerfile.notsosimple .
+.EE
+
+.PP
+Build image with specified Containerfile with content from $HOME directory. Note \fBcpp\fR is applied to Containerfile.in before processing as Containerfile:
+
+.EX
+$ podman build -f Containerfile.in $HOME
+.EE
+
+.PP
+Build image with the specified tag with Containerfile and content from current directory:
+
+.EX
+$ podman build -t imageName .
+.EE
+
+.PP
+Build image ignoring registry verification for any images pulled via the Containerfile:
+
+.EX
+$ podman build --tls-verify=false -t imageName .
+.EE
+
+.PP
+Build image with the specified logging format:
+
+.EX
+$ podman build --runtime-flag log-format=json .
+.EE
+
+.PP
+Build image using debug mode for logging:
+
+.EX
+$ podman build --runtime-flag debug .
+.EE
+
+.PP
+Build image using specified registry attributes when pulling images from the selected Containerfile:
+
+.EX
+$ podman build --authfile /tmp/auths/myauths.json --cert-dir $HOME/auth --tls-verify=true --creds=username:password -t imageName -f Containerfile.simple .
+.EE
+
+.PP
+Build image using specified resource controls when running containers during the build:
+
+.EX
+$ podman build --memory 40m --cpu-period 10000 --cpu-quota 50000 --ulimit nofile=1024:1028 -t imageName .
+.EE
+
+.PP
+Build image using specified SELinux labels and cgroup config running containers during the build:
+
+.EX
+$ podman build --security-opt label=level:s0:c100,c200 --cgroup-parent /path/to/cgroup/parent -t imageName .
+.EE
+
+.PP
+Build image with read-only and SELinux relabeled volume mounted from the host into running containers during the build:
+
+.EX
+$ podman build --volume /home/test:/myvol:ro,Z -t imageName .
+.EE
+
+.PP
+Build image with overlay volume mounted from the host into running containers during the build:
+
+.EX
+$ podman build -v /var/lib/yum:/var/lib/yum:O -t imageName .
+.EE
+
+.PP
+Build image using layers and then removing intermediate containers even if the build fails.
+
+.EX
+$ podman build --layers --force-rm -t imageName .
+.EE
+
+.PP
+Build image ignoring cache and not removing intermediate containers even if the build succeeds:
+
+.EX
+$ podman build --no-cache --rm=false -t imageName .
+.EE
+
+.PP
+Build image using the specified network when running containers during the build:
+
+.EX
+$ podman build --network mynet .
+.EE
+
+.PP
+Build an image using a secret stored in an environment variable or file named \fBmysecret\fR to be used with the instruction \fBRUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret\fR:
+
+.EX
+$ podman build --secret=id=mysecret .
+.EE
+
+.PP
+Build an image using a secret stored in an environment variable named \fBMYSECRET\fR to be used with the instruction \fBRUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret\fR:
+
+.EX
+$ podman build --secret=id=mysecret,env=MYSECRET .
+$ podman build --secret=id=mysecret,src=MYSECRET,type=env .
+.EE
+
+.PP
+Build an image using a secret stored in a file named \fB\&.mysecret\fR to be used with the instruction \fBRUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret\fR:
+
+.EX
+$ podman build --secret=id=mysecret,src=.mysecret .
+$ podman build --secret=id=mysecret,src=.mysecret,type=file .
+.EE
+
+.SS Building a multi-architecture image using the --manifest option (requires emulation software)
+Build image using the specified architectures and link to a single manifest on successful completion:
+
+.EX
+$ podman build --arch arm --manifest myimage /tmp/mysrc
+$ podman build --arch amd64 --manifest myimage /tmp/mysrc
+$ podman build --arch s390x --manifest myimage /tmp/mysrc
+.EE
+
+.PP
+Similarly build using a single command
+
+.EX
+$ podman build --platform linux/s390x,linux/ppc64le,linux/amd64 --manifest myimage /tmp/mysrc
+.EE
+
+.PP
+Build image using multiple specified architectures and link to single manifest on successful completion:
+
+.EX
+$ podman build --platform linux/arm64 --platform linux/amd64 --manifest myimage /tmp/mysrc
+.EE
+
+.SS Building an image using a URL, Git repo, or archive
+The build context directory can be specified as a URL to a Containerfile, a
+Git repository, or URL to an archive. If the URL is a Containerfile, it is
+downloaded to a temporary location and used as the context. When a Git
+repository is set as the URL, the repository is cloned locally to a temporary
+location and then used as the context. Lastly, if the URL is an archive, it is
+downloaded to a temporary location and extracted before being used as the
+context.
+
+.SS Building an image using a URL to a Containerfile
+Build image from Containerfile downloaded into temporary location used as the build context:
+
+.EX
+$ podman build https://10.10.10.1/podman/Containerfile
+.EE
+
+.SS Building an image using a Git repository
+Podman clones the specified GitHub repository to a temporary location and
+uses it as the context. The Containerfile at the root of the repository is used
+and it only works if the GitHub repository is a dedicated repository.
+
+.PP
+Build image from specified git repository downloaded into temporary location used as the build context:
+
+.EX
+$ podman build -t hello  https://github.com/containers/PodmanHello.git
+$ podman run hello
+.EE
+
+.PP
+Note: GitHub does not support using \fBgit://\fR for performing \fBclone\fR operation due to recent changes in their security guidance (https://github.blog/2021-09-01-improving-git-protocol-security-github/). Use an \fBhttps://\fR URL if the source repository is hosted on GitHub.
+
+.SS Building an image using a URL to an archive
+Podman fetches the archive file, decompresses it, and uses its contents as the
+build context. The Containerfile at the root of the archive and the rest of the
+archive are used as the context of the build. Passing the
+\fB-f PATH/Containerfile\fR option as well tells the system to look for that file
+inside the contents of the archive.
+
+.EX
+$ podman build -f dev/Containerfile https://10.10.10.1/podman/context.tar.gz
+.EE
+
+.PP
+Note: supported compression formats are 'xz', 'bzip2', 'gzip' and 'identity'
+(no compression).
+
+.SH "فایل‌ها (FILES)"
+.SS \&.containerignore/.dockerignore
+If the file \fI\&.containerignore\fP or \fI\&.dockerignore\fP exists in the context directory,
+\fBpodman build\fR reads its contents. Use the \fB--ignorefile\fR option to override the
+\&.containerignore path location.
+Podman uses the content to exclude files and directories from the context
+directory, when executing COPY and ADD directives in the
+Containerfile/Dockerfile
+
+.PP
+The .containerignore and .dockerignore files use the same syntax; if both
+are in the context directory, podman build only uses .containerignore.
+
+.PP
+Users can specify a series of Unix shell globs in a .containerignore file to
+identify files/directories to exclude.
+
+.PP
+Podman supports a special wildcard string \fB**\fR which matches any number of
+directories (including zero). For example, *\fI/\fP\&.go excludes all files that
+end with .go that are found in all directories.
+
+.PP
+Example .containerignore file:
+
+.EX
+# exclude this content for image
+*/*.c
+**/output*
+src
+.EE
+
+.PP
+\fB*/*.c\fR
+Excludes files and directories whose names ends with .c in any top level
+subdirectory. For example, the source file include/rootless.c.
+
+.PP
+\fB**/output*\fR
+Excludes files and directories starting with \fBoutput\fR from any directory.
+
+.PP
+\fBsrc\fR
+Excludes files named src and the directory src as well as any content in it.
+
+.PP
+Lines starting with ! (exclamation mark) can be used to make exceptions to
+exclusions. The following is an example .containerignore file that uses this
+mechanism:
+
+.EX
+*.doc
+!Help.doc
+.EE
+
+.PP
+Exclude all doc files except Help.doc from the image.
+
+.PP
+This functionality is compatible with the handling of .containerignore files
+described here: \fBcontainerignore(5)\fP
+
+.SS registries.conf (\fB/etc/containers/registries.conf\fR)
+registries.conf is the configuration file which specifies which container
+registries is consulted when completing image names which do not include
+a registry or domain portion.
+See \fBcontainers-registries.conf(5)\fP
+
+.SH Troubleshooting
+.SS lastlog sparse file
+Using a useradd command within a Containerfile with a large UID/GID creates
+a large sparse file \fB/var/log/lastlog\fR\&.  This can cause the
+build to hang forever.  Go language does not support sparse files correctly,
+which can lead to some huge files being created in the container image.
+
+.PP
+When using the \fBuseradd\fR command within the build script, pass the
+\fB--no-log-init or -l\fR option to the \fBuseradd\fR command.  This option tells
+useradd to stop creating the lastlog file.
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBbuildah(1)\fP, \fBcontainers-certs.d(5)\fP, \fBcontainers-registries.conf(5)\fP, \fBcrun(1)\fP, \fBrunc(8)\fP, \fBuseradd(8)\fP, \fBpodman-ps(1)\fP, \fBpodman-rm(1)\fP, \fBContainerfile(5)\fP, \fBcontainerignore(5)\fP
+
+.SS Troubleshooting
+See podman-troubleshooting(7)
+for solutions to common issues.
+
+.PP
+See podman-rootless(7)
+for rootless issues.
+
+.SH "تاریخچه (HISTORY)"
+Aug 2020, Additional options and .containerignore added by Dan Walsh \fB<dwalsh@redhat.com>\fR
+
+.PP
+May 2018, Minor revisions added by Joe Doss \fB<joe@solidadmin.com>\fR
+
+.PP
+December 2017, Originally compiled by Tom Sweeney \fB<tsweeney@redhat.com>\fR
+
+.SH FOOTNOTES
+1: The Podman project is committed to inclusivity, a
+core value of open source. The \fBmaster\fR and \fBslave\fR mount propagation
+terminology used here is problematic and divisive, and needs to be changed.
+However, these terms are currently used within the Linux kernel and must be
+used as-is at this time. When the kernel maintainers rectify this usage,
+Podman will follow suit immediately.

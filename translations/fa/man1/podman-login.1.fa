@@ -1,0 +1,176 @@
+.nh
+.TH podman-login 1
+.SH "نام (NAME)"
+podman-login \- Log in to a container registry
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman login\fP [\fIoptions\fP] [\fIregistry\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+\fBpodman login\fP logs into a specified registry server with the correct username
+and password. If the registry is not specified, the first registry under [registries.search]
+from registries.conf is used. \fBpodman login\fP reads in the username and password from STDIN.
+The username and password can also be set using the \fBusername\fP and \fBpassword\fP flags.
+The path of the authentication file can be specified by the user by setting the \fBauthfile\fP
+flag. The default path for reading and writing credentials is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fP\&.
+Podman uses existing credentials if the user does not pass in a username.
+Podman first searches for the username and password in the \fB${XDG_RUNTIME_DIR}/containers/auth.json\fP, if they are not valid,
+Podman then uses any existing credentials found in \fB$HOME/.docker/config.json\fP\&.
+If those credentials are not present, Podman creates \fB${XDG_RUNTIME_DIR}/containers/auth.json\fP (if the file does not exist) and
+then stores the username and password from STDIN as a base64 encoded string in it.
+For more details about format and configurations of the auth.json file, see containers-auth.json(5)
+
+.PP
+\fBpodman [GLOBAL OPTIONS]\fP
+
+.PP
+\fBpodman login [GLOBAL OPTIONS]\fP
+
+.PP
+\fBpodman login [OPTIONS] [REGISTRY] [GLOBAL OPTIONS]\fP
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--authfile\fP=\fIpath\fP
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fB--cert-dir\fP=\fIpath\fP
+Use certificates at \fIpath\fP (*\&.crt, *\&.cert, *\&.key) to connect to the registry. (Default: /etc/containers/certs.d)
+For details, see \fBcontainers-certs.d(5)\fP\&.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--compat-auth-file\fP=\fIpath\fP
+Instead of updating the default credentials file, update the one at \fIpath\fP, and use a Docker-compatible format.
+
+.SS \fB--get-login\fP
+Return the logged-in user for the registry.  Return error if no login is found.
+
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement
+
+.SS \fB--password\fP, \fB-p\fP=\fIpassword\fP
+Password for registry
+
+.SS \fB--password-stdin\fP
+Take the password from stdin
+
+.SS \fB--secret\fP=\fIname\fP
+Read the password for the registry from the podman secret \fBname\fR\&.
+If --username is not specified --username=\fBname\fR is used.
+
+.SS \fB--tls-verify\fP
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SS \fB--username\fP, \fB-u\fP=\fIusername\fP
+Username for registry
+
+.SS \fB--verbose\fP, \fB-v\fP
+print detailed information about credential store
+
+.SH "مثال‌ها (EXAMPLES)"
+Add login credentials for specified registry to default authentication file;
+note that unlike the \fBdocker\fR default, the default credentials are under \fB$XDG_RUNTIME_DIR\fR
+which is a subdirectory of \fB/run\fR (an emphemeral directory) and hence do not persist across reboot.
+
+.EX
+$ podman login quay.io
+Username: umohnani
+Password:
+Login Succeeded!
+.EE
+
+.PP
+To explicitly preserve credentials across reboot, you will need to specify
+the default persistent path:
+
+.EX
+$ podman login --authfile ~/.config/containers/auth.json quay.io
+Username: umohnani
+Password:
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials using specified username and password for local registry to default authentication file.
+
+.EX
+$ podman login -u testuser -p testpassword localhost:5000
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials for alternate authfile path for the specified registry.
+
+.EX
+$ podman login --authfile authdir/myauths.json quay.io
+Username: umohnani
+Password:
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials using a Podman secret for the password.
+
+.EX
+$ echo -n MySecret! | podman secret create secretname -
+a0ad54df3c97cf89d5ca6193c
+$ podman login --secret secretname -u testuser quay.io
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials for user test with password test to localhost:5000 registry disabling tls verification requirement.
+
+.EX
+$ podman login --tls-verify=false -u test -p test localhost:5000
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials for user foo with password bar to localhost:5000 registry using the certificate directory /etc/containers/certs.d.
+
+.EX
+$ podman login --cert-dir /etc/containers/certs.d/ -u foo -p bar localhost:5000
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials for specified registries to default authentication file for given user with password information provided via stdin from a file on disk.
+
+.EX
+$ podman login -u testuser  --password-stdin < testpassword.txt docker.io
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials for specified registry to default authentication file for given user with password information provided via stdin from a pipe.
+
+.EX
+$ echo $testpassword | podman login -u testuser --password-stdin quay.io
+Login Succeeded!
+.EE
+
+.PP
+Add login credentials for specified registry to default authentication file in verbose mode.
+
+.EX
+$ podman login quay.io --verbose
+Username: myusername
+Password:
+Used: /run/user/1000/containers/auth.json
+Login Succeeded!
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-logout(1)\fP, \fBcontainers-auth.json(5)\fP, \fBcontainers-certs.d(5)\fP, \fBcontainers-registries.conf(5)\fP, \fBpodman-secret(1)\fP, \fBpodman-secret-create(1)\fP
+
+.SH "تاریخچه (HISTORY)"
+August 2017, Originally compiled by Urvashi Mohnani umohnani@redhat.com
+\[la]mailto:umohnani@redhat.com\[ra]

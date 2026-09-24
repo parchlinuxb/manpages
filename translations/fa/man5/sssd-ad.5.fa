@@ -1,0 +1,1834 @@
+'\" t
+.\"     Title: sssd-ad
+.\"    Author: The SSSD upstream - https://github.com/SSSD/sssd/
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 06/09/2026
+.\"    Manual: File Formats and Conventions
+.\"    Source: SSSD
+.\"  Language: English
+.\"
+.TH "SSSD\-AD" "5" "06/09/2026" "SSSD" "File Formats and Conventions"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+sssd-ad \- SSSD Active Directory provider
+.SH "توضیحات (DESCRIPTION)"
+.PP
+This manual page describes the configuration of the AD provider for
+\fBsssd\fR(8)\&. For a detailed syntax reference, refer to the
+\(lqFILE FORMAT\(rq
+section of the
+\fBsssd.conf\fR(5)
+manual page\&.
+.PP
+The AD provider is a back end used to connect to an Active Directory server\&. This provider requires that the machine be joined to the AD domain and a keytab is available\&. Back end communication occurs over a GSSAPI\-encrypted channel, SSL/TLS options should not be used with the AD provider and will be superseded by Kerberos usage\&.
+.PP
+The AD provider supports connecting to Active Directory 2008 R2 or later\&. Earlier versions may work, but are unsupported\&.
+.PP
+The AD provider can be used to get user information and authenticate users from trusted domains\&. Currently only trusted domains in the same forest are recognized\&. In addition servers from trusted domains are always auto\-discovered\&.
+.PP
+The AD provider enables SSSD to use the
+\fBsssd-ldap\fR(5)
+identity provider and the
+\fBsssd-krb5\fR(5)
+authentication provider with optimizations for Active Directory environments\&. The AD provider accepts the same options used by the sssd\-ldap and sssd\-krb5 providers with some exceptions\&. However, it is neither necessary nor recommended to set these options\&.
+.PP
+The AD provider primarily copies the traditional ldap and krb5 provider default options with some exceptions, the differences are listed in the
+\(lqMODIFIED DEFAULT OPTIONS\(rq
+section\&.
+.PP
+The AD provider can also be used as an access, chpass, sudo and autofs provider\&. No configuration of the access provider is required on the client side\&.
+.PP
+If
+\(lqauth_provider=ad\(rq
+or
+\(lqaccess_provider=ad\(rq
+is configured in sssd\&.conf then the id_provider must also be set to
+\(lqad\(rq\&.
+.PP
+By default, the AD provider will map UID and GID values from the objectSID parameter in Active Directory\&. For details on this, see the
+\(lqID MAPPING\(rq
+section below\&. If you want to disable ID mapping and instead rely on POSIX attributes defined in Active Directory, you should set
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ldap_id_mapping = False
+            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+If POSIX attributes should be used, it is recommended for performance reasons that the attributes are also replicated to the Global Catalog\&. If POSIX attributes are replicated, SSSD will attempt to locate the domain of a requested numerical ID with the help of the Global Catalog and only search that domain\&. In contrast, if POSIX attributes are not replicated to the Global Catalog, SSSD must search all the domains in the forest sequentially\&. Please note that the
+\(lqcache_first\(rq
+option might be also helpful in speeding up domainless searches\&. Note that if only a subset of POSIX attributes is present in the Global Catalog, the non\-replicated attributes are currently not read from the LDAP port\&.
+.PP
+Users, groups and other entities served by SSSD are always treated as case\-insensitive in the AD provider for compatibility with Active Directory\*(Aqs LDAP implementation\&.
+.PP
+SSSD only resolves Active Directory Security Groups\&. For more information about AD group types see:
+\m[blue]\fBActive Directory security groups\fR\m[]\&\s-2\u[1]\d\s+2
+.PP
+SSSD filters out Domain Local groups from remote domains in the AD forest\&. By default they are filtered out e\&.g\&. when following a nested group hierarchy in remote domains because they are not valid in the local domain\&. This is done to be in agreement with Active Directory\*(Aqs group\-membership assignment which can be seen in the PAC of the Kerberos ticket of a user issued by Active Directory\&.
+.SH "CONFIGURATION OPTIONS"
+.PP
+Refer to the section
+\(lqDOMAIN SECTIONS\(rq
+of the
+\fBsssd.conf\fR(5)
+manual page for details on the configuration of an SSSD domain\&.
+.PP
+ad_domain (string)
+.RS 4
+Specifies the name of the Active Directory domain\&. This is optional\&. If not provided, the configuration domain name is used\&.
+.sp
+For proper operation, this option should be specified as the lower\-case version of the long version of the Active Directory domain\&.
+.sp
+The short domain name (also known as the NetBIOS or the flat name) is autodetected by the SSSD\&.
+.RE
+.PP
+ad_enabled_domains (string)
+.RS 4
+A comma\-separated list of enabled Active Directory domains\&. If provided, SSSD will ignore any domains not listed in this option\&. If left unset, all discovered domains from the AD forest will be available\&.
+.sp
+During the discovery of the domains SSSD will filter out some domains where flags or attributes indicate that they do not belong to the local forest or are not trusted\&. If ad_enabled_domains is set, SSSD will try to enable all listed domains\&.
+.sp
+For proper operation, this option must be specified in all lower\-case and as the fully qualified domain name of the Active Directory domain\&. For example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_enabled_domains = sales\&.example\&.com, eng\&.example\&.com
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The short domain name (also known as the NetBIOS or the flat name) will be autodetected by SSSD\&.
+.sp
+Default: Not set
+.RE
+.PP
+ad_server, ad_backup_server (string)
+.RS 4
+The comma\-separated list of hostnames of the AD servers to which SSSD should connect in order of preference\&. For more information on failover and server redundancy, see the
+\(lqFAILOVER\(rq
+section\&.
+.sp
+This is optional if autodiscovery is enabled\&. For more information on service discovery, refer to the
+\(lqSERVICE DISCOVERY\(rq
+section\&.
+.sp
+Note: Trusted domains will always auto\-discover servers even if the primary server is explicitly defined in the ad_server option\&.
+.RE
+.PP
+ad_hostname (string)
+.RS 4
+Optional\&. On machines where the hostname(5) does not reflect the fully qualified name, sssd will try to expand the short name\&. If it is not possible or the short name should be really used instead, set this parameter explicitly\&.
+.sp
+This field is used to determine the host principal in use in the keytab and to perform dynamic DNS updates\&. It must match the hostname for which the keytab was issued\&.
+.RE
+.PP
+ad_enable_dns_sites (boolean)
+.RS 4
+Enables DNS sites \- location based service discovery\&.
+.sp
+If true and service discovery (see Service Discovery paragraph at the bottom of the man page) is enabled, the SSSD will first attempt to discover the Active Directory server to connect to using the Active Directory Site Discovery and fall back to the DNS SRV records if no AD site is found\&. The DNS SRV configuration, including the discovery domain, is used during site discovery as well\&.
+.sp
+Default: true
+.RE
+.PP
+ad_access_filter (string)
+.RS 4
+Specifies an LDAP access control filter that a user must match to gain access\&. The
+\(lqaccess_provider\(rq
+option must be explicitly set to
+\(lqad\(rq
+for this option to take effect\&. If you want to use the
+\(lqad_access_filter\(rq
+as the only access control scheme, you must disable GPO based access control (see option
+\(lqad_gpo_access_control\(rq
+for details)\&.
+.sp
+The option also supports specifying different filters per domain or forest\&. This extended filter would consist of:
+\(lqKEYWORD:NAME:FILTER\(rq\&. The keyword can be either
+\(lqDOM\(rq,
+\(lqFOREST\(rq
+or missing\&.
+.sp
+If the keyword equals to
+\(lqDOM\(rq
+or is missing, then
+\(lqNAME\(rq
+specifies the domain or subdomain the filter applies to\&. If the keyword equals to
+\(lqFOREST\(rq, then the filter equals to all domains from the forest specified by
+\(lqNAME\(rq\&.
+.sp
+Multiple filters can be separated with the
+\(lq?\(rq
+character, similarly to how search bases work\&.
+.sp
+Nested group membership must be searched for using a special OID
+\(lq:1\&.2\&.840\&.113556\&.1\&.4\&.1941:\(rq
+in addition to the full DOM:domain\&.example\&.org: syntax to ensure the parser does not attempt to interpret the colon characters associated with the OID\&. If you do not use this OID then nested group membership will not be resolved\&. See usage example below and refer here for further information about the OID:
+\m[blue]\fB[MS\-ADTS] section LDAP extensions\fR\m[]\&\s-2\u[2]\d\s+2
+.sp
+The most specific match is always used\&. For example, if the option specified filter for a domain the user is a member of and a global filter, the per\-domain filter would be applied\&. If there are more matches with the same specification, the first one is used\&.
+.sp
+Examples:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# apply filter on domain called dom1 only:
+dom1:(memberOf=cn=admins,ou=groups,dc=dom1,dc=com)
+
+# apply filter on domain called dom2 only:
+DOM:dom2:(memberOf=cn=admins,ou=groups,dc=dom2,dc=com)
+
+# apply filter on forest called EXAMPLE\&.COM only:
+FOREST:EXAMPLE\&.COM:(memberOf=cn=admins,ou=groups,dc=example,dc=com)
+
+# apply filter for a member of a nested group in dom1:
+DOM:dom1:(memberOf:1\&.2\&.840\&.113556\&.1\&.4\&.1941:=cn=nestedgroup,ou=groups,dc=example,dc=com)
+                        
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: Not set
+.RE
+.PP
+ad_site (string)
+.RS 4
+Specify AD site to which client should try to connect\&. If this option is not provided, the AD site will be auto\-discovered\&.
+.sp
+Default: Not set
+.RE
+.PP
+ad_enable_gc (boolean)
+.RS 4
+By default, the SSSD connects to the Global Catalog first to retrieve users from trusted domains and uses the LDAP port to retrieve group memberships or as a fallback\&. Disabling this option makes the SSSD only connect to the LDAP port of the current AD server\&.
+.sp
+Please note that disabling Global Catalog support does not disable retrieving users from trusted domains\&. The SSSD would connect to the LDAP port of trusted domains instead\&. However, Global Catalog must be used in order to resolve cross\-domain group memberships\&.
+.sp
+Default: true
+.RE
+.PP
+ad_gpo_access_control (string)
+.RS 4
+This option specifies the operation mode for GPO\-based access control functionality: whether it operates in disabled mode, enforcing mode, or permissive mode\&. Please note that the
+\(lqaccess_provider\(rq
+option must be explicitly set to
+\(lqad\(rq
+in order for this option to have an effect\&.
+.sp
+GPO\-based access control functionality uses GPO policy settings to determine whether or not a particular user is allowed to logon to the host\&. For more information on the supported policy settings please refer to the
+\(lqad_gpo_map\(rq
+options\&.
+.sp
+Please note that current version of SSSD does not support Active Directory\*(Aqs built\-in groups\&. Built\-in groups (such as Administrators with SID S\-1\-5\-32\-544) in GPO access control rules will be ignored by SSSD\&. See upstream issue tracker https://github\&.com/SSSD/sssd/issues/5063 \&.
+.sp
+Before performing access control SSSD applies group policy security filtering on the GPOs\&. For every single user login, the applicability of the GPOs that are linked to the host is checked\&. In order for a GPO to apply to a user, the user or at least one of the groups to which it belongs must have following permissions on the GPO:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Read: The user or one of its groups must have read access to the properties of the GPO (RIGHT_DS_READ_PROPERTY)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Apply Group Policy: The user or at least one of its groups must be allowed to apply the GPO (RIGHT_DS_CONTROL_ACCESS)\&.
+.RE
+.sp
+By default, the Authenticated Users group is present on a GPO and this group has both Read and Apply Group Policy access rights\&. Since authentication of a user must have been completed successfully before GPO security filtering and access control are started, the Authenticated Users group permissions on the GPO always apply also to the user\&.
+.sp
+NOTE: If the operation mode is set to enforcing, it is possible that users that were previously allowed logon access will now be denied logon access (as dictated by the GPO policy settings)\&. In order to facilitate a smooth transition for administrators, a permissive mode is available that will not enforce the access control rules, but will evaluate them and will output a syslog message if access would have been denied\&. By examining the logs, administrators can then make the necessary changes before setting the mode to enforcing\&. For logging GPO\-based access control debug level \*(Aqtrace functions\*(Aq is required (see
+\fBsssctl\fR(8)
+manual page)\&.
+.sp
+There are three supported values for this option:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+disabled: GPO\-based access control rules are neither evaluated nor enforced\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+enforcing: GPO\-based access control rules are evaluated and enforced\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+permissive: GPO\-based access control rules are evaluated, but not enforced\&. Instead, a syslog message will be emitted indicating that the user would have been denied access if this option\*(Aqs value were set to enforcing\&.
+.RE
+.sp
+Default: enforcing
+.RE
+.PP
+ad_gpo_implicit_deny (boolean)
+.RS 4
+Normally when no applicable GPOs are found the users are allowed access\&. When this option is set to True users will be allowed access only when explicitly allowed by a GPO rule\&. Otherwise users will be denied access\&. This can be used to harden security but be careful when using this option because it can deny access even to users in the built\-in Administrators group if no GPO rules apply to them\&.
+.sp
+Default: False
+.sp
+The following 2 tables should illustrate when a user is allowed or rejected based on the allow and deny login rights defined on the server\-side and the setting of ad_gpo_implicit_deny\&.
+.TS
+allbox tab(:);
+cB s s
+cB cB cB.
+T{
+ad_gpo_implicit_deny = False (default)
+T}
+T{
+allow\-rules
+T}:T{
+deny\-rules
+T}:T{
+results
+T}
+.T&
+c c c
+c c c
+c c c
+c c c.
+T{
+missing
+T}:T{
+missing
+T}:T{
+all users are allowed
+T}
+T{
+missing
+T}:T{
+present
+T}:T{
+only users not in deny\-rules are allowed
+T}
+T{
+present
+T}:T{
+missing
+T}:T{
+only users in allow\-rules are allowed
+T}
+T{
+present
+T}:T{
+present
+T}:T{
+only users in allow\-rules and not in deny\-rules are allowed
+T}
+.TE
+.sp 1
+.TS
+allbox tab(:);
+cB s s
+cB cB cB.
+T{
+ad_gpo_implicit_deny = True
+T}
+T{
+allow\-rules
+T}:T{
+deny\-rules
+T}:T{
+results
+T}
+.T&
+c c c
+c c c
+c c c
+c c c.
+T{
+missing
+T}:T{
+missing
+T}:T{
+no users are allowed
+T}
+T{
+missing
+T}:T{
+present
+T}:T{
+no users are allowed
+T}
+T{
+present
+T}:T{
+missing
+T}:T{
+only users in allow\-rules are allowed
+T}
+T{
+present
+T}:T{
+present
+T}:T{
+only users in allow\-rules and not in deny\-rules are allowed
+T}
+.TE
+.sp 1
+.RE
+.PP
+ad_gpo_ignore_unreadable (boolean)
+.RS 4
+Normally when some group policy containers (AD object) of applicable group policy objects are not readable by SSSD then users are denied access\&. This option allows to ignore group policy containers and with them associated policies if their attributes in group policy containers are not readable for SSSD\&.
+.sp
+Default: False
+.RE
+.PP
+ad_gpo_cache_timeout (integer)
+.RS 4
+The amount of time between lookups of GPO policy files against the AD server\&. This will reduce the latency and load on the AD server if there are many access\-control requests made in a short period\&.
+.sp
+Default: 5 (seconds)
+.RE
+.PP
+ad_gpo_map_interactive (string)
+.RS 4
+A comma\-separated list of PAM service names for which GPO\-based access control is evaluated based on the InteractiveLogonRight and DenyInteractiveLogonRight policy settings\&. Only those GPOs are evaluated for which the user has Read and Apply Group Policy permission (see option
+\(lqad_gpo_access_control\(rq)\&. If an evaluated GPO contains the deny interactive logon setting for the user or one of its groups, the user is denied local access\&. If none of the evaluated GPOs has an interactive logon right defined, the user is granted local access\&. If at least one evaluated GPO contains interactive logon right settings, the user is granted local access only, if it or at least one of its groups is part of the policy settings\&.
+.sp
+Note: Using the Group Policy Management Editor this value is called "Allow log on locally" and "Deny log on locally"\&.
+.sp
+It is possible to add another PAM service name to the default set by using
+\(lq+service_name\(rq
+or to explicitly remove a PAM service name from the default set by using
+\(lq\-service_name\(rq\&. For example, in order to replace a default PAM service name for this logon right (e\&.g\&.
+\(lqlogin\(rq) with a custom pam service name (e\&.g\&.
+\(lqmy_pam_service\(rq), you would use the following configuration:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_gpo_map_interactive = +my_pam_service, \-login
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: the default set of PAM service names includes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+login
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+su
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+su\-l
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+gdm\-fingerprint
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+gdm\-password
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+gdm\-smartcard
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+kdm
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+lightdm
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+lxdm
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+plasmalogin
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+sddm
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+unity
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+xdm
+.RE
+.sp
+.RE
+.PP
+ad_gpo_map_remote_interactive (string)
+.RS 4
+A comma\-separated list of PAM service names for which GPO\-based access control is evaluated based on the RemoteInteractiveLogonRight and DenyRemoteInteractiveLogonRight policy settings\&. Only those GPOs are evaluated for which the user has Read and Apply Group Policy permission (see option
+\(lqad_gpo_access_control\(rq)\&. If an evaluated GPO contains the deny remote logon setting for the user or one of its groups, the user is denied remote interactive access\&. If none of the evaluated GPOs has a remote interactive logon right defined, the user is granted remote access\&. If at least one evaluated GPO contains remote interactive logon right settings, the user is granted remote access only, if it or at least one of its groups is part of the policy settings\&.
+.sp
+Note: Using the Group Policy Management Editor this value is called "Allow log on through Remote Desktop Services" and "Deny log on through Remote Desktop Services"\&.
+.sp
+It is possible to add another PAM service name to the default set by using
+\(lq+service_name\(rq
+or to explicitly remove a PAM service name from the default set by using
+\(lq\-service_name\(rq\&. For example, in order to replace a default PAM service name for this logon right (e\&.g\&.
+\(lqsshd\(rq) with a custom pam service name (e\&.g\&.
+\(lqmy_pam_service\(rq), you would use the following configuration:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_gpo_map_remote_interactive = +my_pam_service, \-sshd
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: the default set of PAM service names includes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+sshd
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cockpit
+.RE
+.sp
+.RE
+.PP
+ad_gpo_map_network (string)
+.RS 4
+A comma\-separated list of PAM service names for which GPO\-based access control is evaluated based on the NetworkLogonRight and DenyNetworkLogonRight policy settings\&. Only those GPOs are evaluated for which the user has Read and Apply Group Policy permission (see option
+\(lqad_gpo_access_control\(rq)\&. If an evaluated GPO contains the deny network logon setting for the user or one of its groups, the user is denied network logon access\&. If none of the evaluated GPOs has a network logon right defined, the user is granted logon access\&. If at least one evaluated GPO contains network logon right settings, the user is granted logon access only, if it or at least one of its groups is part of the policy settings\&.
+.sp
+Note: Using the Group Policy Management Editor this value is called "Access this computer from the network" and "Deny access to this computer from the network"\&.
+.sp
+It is possible to add another PAM service name to the default set by using
+\(lq+service_name\(rq
+or to explicitly remove a PAM service name from the default set by using
+\(lq\-service_name\(rq\&. For example, in order to replace a default PAM service name for this logon right (e\&.g\&.
+\(lqftp\(rq) with a custom pam service name (e\&.g\&.
+\(lqmy_pam_service\(rq), you would use the following configuration:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_gpo_map_network = +my_pam_service, \-ftp
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: the default set of PAM service names includes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ftp
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+samba
+.RE
+.sp
+.RE
+.PP
+ad_gpo_map_batch (string)
+.RS 4
+A comma\-separated list of PAM service names for which GPO\-based access control is evaluated based on the BatchLogonRight and DenyBatchLogonRight policy settings\&. Only those GPOs are evaluated for which the user has Read and Apply Group Policy permission (see option
+\(lqad_gpo_access_control\(rq)\&. If an evaluated GPO contains the deny batch logon setting for the user or one of its groups, the user is denied batch logon access\&. If none of the evaluated GPOs has a batch logon right defined, the user is granted logon access\&. If at least one evaluated GPO contains batch logon right settings, the user is granted logon access only, if it or at least one of its groups is part of the policy settings\&.
+.sp
+Note: Using the Group Policy Management Editor this value is called "Allow log on as a batch job" and "Deny log on as a batch job"\&.
+.sp
+It is possible to add another PAM service name to the default set by using
+\(lq+service_name\(rq
+or to explicitly remove a PAM service name from the default set by using
+\(lq\-service_name\(rq\&. For example, in order to replace a default PAM service name for this logon right (e\&.g\&.
+\(lqcrond\(rq) with a custom pam service name (e\&.g\&.
+\(lqmy_pam_service\(rq), you would use the following configuration:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_gpo_map_batch = +my_pam_service, \-crond
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Note: Cron service name may differ depending on Linux distribution used\&.
+.sp
+Default: the default set of PAM service names includes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+crond
+.RE
+.sp
+.RE
+.PP
+ad_gpo_map_service (string)
+.RS 4
+A comma\-separated list of PAM service names for which GPO\-based access control is evaluated based on the ServiceLogonRight and DenyServiceLogonRight policy settings\&. Only those GPOs are evaluated for which the user has Read and Apply Group Policy permission (see option
+\(lqad_gpo_access_control\(rq)\&. If an evaluated GPO contains the deny service logon setting for the user or one of its groups, the user is denied service logon access\&. If none of the evaluated GPOs has a service logon right defined, the user is granted logon access\&. If at least one evaluated GPO contains service logon right settings, the user is granted logon access only, if it or at least one of its groups is part of the policy settings\&.
+.sp
+Note: Using the Group Policy Management Editor this value is called "Allow log on as a service" and "Deny log on as a service"\&.
+.sp
+It is possible to add a PAM service name to the default set by using
+\(lq+service_name\(rq\&. Since the default set is empty, it is not possible to remove a PAM service name from the default set\&. For example, in order to add a custom pam service name (e\&.g\&.
+\(lqmy_pam_service\(rq), you would use the following configuration:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_gpo_map_service = +my_pam_service
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: not set
+.RE
+.PP
+ad_gpo_map_permit (string)
+.RS 4
+A comma\-separated list of PAM service names for which GPO\-based access is always granted, regardless of any GPO Logon Rights\&.
+.sp
+It is possible to add another PAM service name to the default set by using
+\(lq+service_name\(rq
+or to explicitly remove a PAM service name from the default set by using
+\(lq\-service_name\(rq\&. For example, in order to replace a default PAM service name for unconditionally permitted access (e\&.g\&.
+\(lqsudo\(rq) with a custom pam service name (e\&.g\&.
+\(lqmy_pam_service\(rq), you would use the following configuration:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_gpo_map_permit = +my_pam_service, \-sudo
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: the default set of PAM service names includes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+polkit\-1
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+sudo
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+sudo\-i
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+systemd\-user
+.RE
+.sp
+.RE
+.PP
+ad_gpo_map_deny (string)
+.RS 4
+A comma\-separated list of PAM service names for which GPO\-based access is always denied, regardless of any GPO Logon Rights\&.
+.sp
+It is possible to add a PAM service name to the default set by using
+\(lq+service_name\(rq\&. Since the default set is empty, it is not possible to remove a PAM service name from the default set\&. For example, in order to add a custom pam service name (e\&.g\&.
+\(lqmy_pam_service\(rq), you would use the following configuration:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ad_gpo_map_deny = +my_pam_service
+                            
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: not set
+.RE
+.PP
+ad_gpo_default_right (string)
+.RS 4
+This option defines how access control is evaluated for PAM service names that are not explicitly listed in one of the ad_gpo_map_* options\&. This option can be set in two different manners\&. First, this option can be set to use a default logon right\&. For example, if this option is set to \*(Aqinteractive\*(Aq, it means that unmapped PAM service names will be processed based on the InteractiveLogonRight and DenyInteractiveLogonRight policy settings\&. Alternatively, this option can be set to either always permit or always deny access for unmapped PAM service names\&.
+.sp
+Supported values for this option include:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+interactive
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+remote_interactive
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+network
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+batch
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+service
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+permit
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+deny
+.RE
+.sp
+Default: deny
+.RE
+.PP
+ad_maximum_machine_account_password_age (integer)
+.RS 4
+SSSD will check once a day if the machine account password is older than the given age in days and try to renew it\&. A value of 0 will disable the renewal attempt\&.
+.sp
+Default: 30 days
+.RE
+.PP
+ad_machine_account_password_renewal_opts (string)
+.RS 4
+This option should only be used to test the machine account renewal task\&. The option expects 3 integers and a string separated by a colon (\*(Aq:\*(Aq)\&. The first integer defines the interval in seconds how often the task is run\&. The second specifies the initial timeout in seconds before the task is run for the first time after startup\&. The optional third value specifies a maximal random offset to the previous two values to avoid updates of many hosts at the same time ("thundering herd problem")\&. If this value is missing or empty in the value string \*(Aq0\*(Aq will be used\&.
+.sp
+The optional fourth string value identifies the helper binary which should be used for the renewal\&. Currently
+\fBadcli\fR
+and
+\fBrealm\fR
+are supported\&. If this value is missing or empty in the value string
+\fBrealm\fR
+will be used\&. Since the helper is started as the user SSSD is running as there might be the chance that the renewal will fail if this user does not has permissions to modify the keytab file where the machine account credentials are stored\&. This will typically be the case for
+\fBadcli\fR\&.
+.sp
+\fBrealm\fR
+is not updating the keytab directly but is calling the
+\fBrealmd\fR
+process, which runs as root user, for this task\&.
+\fBrealmd\fR
+can allow access to non\-privileged users with the help of PolicyKit and by default SSSD provides suitable rules for the user SSSD is running as\&.
+.sp
+Default: 86400:750:300:realm (24h, 12m30s and 5m)
+.RE
+.PP
+ad_update_samba_machine_account_password (boolean)
+.RS 4
+If enabled, when SSSD renews the machine account password, it will also be updated in Samba\*(Aqs database\&. This prevents Samba\*(Aqs copy of the machine account password from getting out of date when it is set up to use AD for authentication\&.
+.sp
+Default: false
+.RE
+.PP
+ad_use_ldaps (bool)
+.RS 4
+By default SSSD uses the plain LDAP port 389 and the Global Catalog port 3628\&. If this option is set to True SSSD will use the LDAPS port 636 and Global Catalog port 3629 with LDAPS protection\&. Since AD does not allow to have multiple encryption layers on a single connection and we still want to use SASL/GSSAPI or SASL/GSS\-SPNEGO for authentication the SASL security property maxssf is set to 0 (zero) for those connections\&.
+.sp
+Default: False
+.RE
+.PP
+dyndns_update (boolean)
+.RS 4
+Optional\&. This option tells SSSD to automatically update the Active Directory DNS server with the IP address of this client\&. The update is secured using GSS\-TSIG\&. As a consequence, the Active Directory administrator only needs to allow secure updates for the DNS zone\&. The IP address of the AD LDAP connection is used for the updates, if it is not otherwise specified by using the
+\(lqdyndns_iface\(rq
+option\&.
+.sp
+NOTE: On older systems (such as RHEL 5), for this behavior to work reliably, the default Kerberos realm must be set properly in /etc/krb5\&.conf
+.sp
+Default: true
+.RE
+.PP
+dyndns_ttl (integer)
+.RS 4
+The TTL to apply to the client DNS record when updating it\&. If dyndns_update is false this has no effect\&. This will override the TTL serverside if set by an administrator\&.
+.sp
+Default: 3600 (seconds)
+.RE
+.PP
+dyndns_iface (string)
+.RS 4
+Optional\&. Applicable only when dyndns_update is true\&. Choose the interface or a list of interfaces whose IP addresses should be used for dynamic DNS updates\&. The name of interface can be a wildcard pattern prefixed with
+\fI!\fR
+for interface excluding\&. First match stops the evaluation\&. For example list
+\fI!eth1, *\fR
+instruct SSSD to use all interfaces except
+\fIeth1\fR\&. See
+\fIman 7 glob\fR
+for details about patterns\&.
+.sp
+NOTE: While it is still possible to use the old
+\fIipa_dyndns_iface\fR
+option, users should migrate to using
+\fIdyndns_iface\fR
+in their config file\&.
+.sp
+Default: Use the IP addresses of the interface which is used for AD LDAP connection
+.sp
+Example: dyndns_iface = em[12], !vnet1, vnet*
+.RE
+.PP
+dyndns_address (string)
+.RS 4
+Optional\&. Applicable only when
+\fIdyndns_update\fR
+is true\&. A list of IP addresses or IP networks to be used for dynamic DNS updates\&. Network addresses must be in CIDR format\&. An entry can be prefixed with
+\fI!\fR
+to indicate exclusion\&. The
+\fIbest match\fR
+is used to determine whether an address is included or excluded (i\&.e\&., a longer prefix takes precedence)\&.
+.sp
+Default: No filtering of IP addresses\&.
+.sp
+Example: dyndns_address = 10\&.0\&.0\&.0/16, !10\&.0\&.1\&.0/24
+.RE
+.PP
+dyndns_refresh_interval (integer)
+.RS 4
+How often should the back end perform periodic DNS update in addition to the automatic update performed when the back end goes online\&. This option is optional and applicable only when dyndns_update is true\&. Note that the lowest possible value is 60 seconds in\-case if value is provided less than 60, parameter will assume lowest value only\&.
+.sp
+Default: 86400 (24 hours)
+.RE
+.PP
+dyndns_update_ptr (bool)
+.RS 4
+Whether the PTR record should also be explicitly updated when updating the client\*(Aqs DNS records\&. Applicable only when dyndns_update is true\&.
+.sp
+Note that
+\fIdyndns_update_per_family\fR
+parameter does not apply for PTR record updates\&. Those updates are always sent separately\&.
+.sp
+Default: True
+.RE
+.PP
+dyndns_force_tcp (bool)
+.RS 4
+Whether the nsupdate utility should default to using TCP for communicating with the DNS server\&.
+.sp
+Default: False (let nsupdate choose the protocol)
+.RE
+.PP
+dyndns_auth (string)
+.RS 4
+Whether the nsupdate utility should use GSS\-TSIG authentication for secure updates with the DNS server, insecure updates can be sent by setting this option to \*(Aqnone\*(Aq\&.
+.sp
+Default: GSS\-TSIG
+.RE
+.PP
+dyndns_auth_ptr (string)
+.RS 4
+Whether the nsupdate utility should use GSS\-TSIG authentication for secure PTR updates with the DNS server, insecure updates can be sent by setting this option to \*(Aqnone\*(Aq\&.
+.sp
+Default: Same as dyndns_auth
+.RE
+.PP
+dyndns_server (string)
+.RS 4
+The DNS server to use when performing a DNS update\&. In most setups, it\*(Aqs recommended to leave this option unset\&.
+.sp
+Setting this option makes sense for environments where the DNS server is different from the identity server or when we use encrypted DNS\&.
+.sp
+The parameter can be a simple string containing DNS name or IP address\&. It can also be an URI\&. The URI can look like
+\fIdns://servername/\fR
+or
+\fIdns+tls://1\&.2\&.3\&.4:853#servername/\fR\&.
+.sp
+The second example enables DNS\-over\-TLS protocol for DNS updates\&. The nsupdate utility must support DoT \- check the
+\fIman nsupdate\fR
+before enabling it in SSSD\&.
+.sp
+Please note that this option will be only used in fallback attempt when previous attempt using autodetected settings failed or when DNS\-over\-TLS is enabled\&.
+.sp
+Default: None (let nsupdate choose the server)
+.RE
+.PP
+dyndns_update_per_family (boolean)
+.RS 4
+DNS update is by default performed in two steps \- IPv4 update and then IPv6 update\&. In some cases it might be desirable to perform IPv4 and IPv6 update in single step\&.
+.sp
+Default: true
+.RE
+.PP
+dyndns_dot_cacert (string)
+.RS 4
+This option specifies the file of the certificate authorities certificates (in PEM format) in order to verify the remote server TLS certificate when using DoT\&.
+.sp
+Default: None (use global certificate store)
+.RE
+.PP
+dyndns_dot_cert (string)
+.RS 4
+This option sets the certificate(s) file for authentication for the DoT transport to the remote server\&. The certificate chain file is expected to be in PEM format\&.
+.sp
+The
+\fIdyndns_dot_cert\fR
+and
+\fIdyndns_dot_key\fR
+options must be both set to achieve mutual TLS authentication\&.
+.sp
+Default: None (Do not use TLS authentication)
+.RE
+.PP
+dyndns_dot_key (string)
+.RS 4
+This option sets the key file for authenticated encryption for the DoT transport to the remote server\&. The private key file is expected to be in PEM format\&.
+.sp
+Default: None (Do not use TLS authentication)
+.RE
+.PP
+override_homedir (string)
+.RS 4
+Override the user\*(Aqs home directory\&. You can either provide an absolute value or a template\&. In the template, the following sequences are substituted:
+.PP
+%u
+.RS 4
+login name
+.RE
+.PP
+%U
+.RS 4
+UID number
+.RE
+.PP
+%d
+.RS 4
+domain name
+.RE
+.PP
+%f
+.RS 4
+fully qualified user name (user@domain)
+.RE
+.PP
+%l
+.RS 4
+The first letter of the login name\&.
+.RE
+.PP
+%P
+.RS 4
+UPN \- User Principal Name (name@REALM)
+.RE
+.PP
+%o
+.RS 4
+The homedir value that is defined in the directory of the identity provider\&.
+.sp
+This substitution is designed to be used in an IPA\-AD trust scenario\&. If this substitution is used for the
+\fIsubdomain_homedir\fR
+option, it propagates the home directory value from the AD domain to the IPA clients\&. In this scenario, the option must be set in the SSSD configuration on the IPA server where SSSD is running in server mode\&.
+.RE
+.PP
+%h
+.RS 4
+The path defined for the homedir directory attribute of the identity provider, but in lower case\&. For details of use, see
+\fI%o\fR\&.
+.RE
+.PP
+%H
+.RS 4
+The value of configure option
+\fIhomedir_substring\fR\&.
+.RE
+.PP
+%%
+.RS 4
+a literal \*(Aq%\*(Aq
+.RE
+.sp
+This option can also be set per\-domain\&.
+.sp
+example:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+override_homedir = /home/%u
+        
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Default: Not set (SSSD will use the value retrieved from LDAP)
+.sp
+Please note, the home directory from a specific override for the user, either locally (see
+\fBsss_override\fR(8)) or centrally managed IPA id\-overrides, has a higher precedence and will be used instead of the value given by override_homedir\&.
+.RE
+.PP
+homedir_substring (string)
+.RS 4
+The value of this option will be used in the expansion of the
+\fIoverride_homedir\fR
+option if the template contains the format string
+\fI%H\fR\&. An LDAP directory entry can directly contain this template so that this option can be used to expand the home directory path for each client machine (or operating system)\&. It can be set per\-domain or globally in the [nss] section\&. A value specified in a domain section will override one set in the [nss] section\&.
+.sp
+Default: /home
+.RE
+.PP
+krb5_confd_path (string)
+.RS 4
+Absolute path of a directory where SSSD should place Kerberos configuration snippets\&.
+.sp
+To disable the creation of the configuration snippets set the parameter to \*(Aqnone\*(Aq\&.
+.sp
+Default: not set (krb5\&.include\&.d subdirectory of SSSD\*(Aqs pubconf directory)
+.RE
+.SH "MODIFIED DEFAULT OPTIONS"
+.PP
+Certain option defaults do not match their respective backend provider defaults, these option names and AD provider\-specific defaults are listed below:
+.SS "KRB5 Provider"
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+krb5_validate = true
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+krb5_use_enterprise_principal = true
+.RE
+.SS "LDAP Provider"
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_schema = ad
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_force_upper_case_realm = true
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_id_mapping = true
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_sasl_mech = GSS\-SPNEGO
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_referrals = false
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_account_expire_policy = ad
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_use_tokengroups = true
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+ldap_sasl_authid = sAMAccountName@REALM (typically SHORTNAME$@REALM)
+.sp
+The AD provider looks for a different principal than the LDAP provider by default, because in an Active Directory environment the principals are divided into two groups \- User Principals and Service Principals\&. Only User Principal can be used to obtain a TGT and by default, computer object\*(Aqs principal is constructed from its sAMAccountName and the AD realm\&. The well\-known host/hostname@REALM principal is a Service Principal and thus cannot be used to get a TGT with\&.
+.RE
+.SS "NSS configuration"
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+fallback_homedir = /home/%d/%u
+.sp
+The AD provider automatically sets "fallback_homedir = /home/%d/%u" to provide personal home directories for users without the homeDirectory attribute\&. If your AD Domain is properly populated with Posix attributes, and you want to avoid this fallback behavior, you can explicitly set "fallback_homedir = %o"\&.
+.sp
+Note that the system typically expects a home directory in /home/%u folder\&. If you decide to use a different directory structure, some other parts of your system may need adjustments\&.
+.sp
+For example automated creation of home directories in combination with selinux requires selinux adjustment, otherwise the home directory will be created with wrong selinux context\&.
+.RE
+.SH "FAILOVER"
+.PP
+The failover feature allows back ends to automatically switch to a different server if the current server fails\&.
+.SS "Failover Syntax"
+.PP
+The list of servers is given as a comma\-separated list; any number of spaces is allowed around the comma\&. The servers are listed in order of preference\&. The list can contain any number of servers\&.
+.PP
+For each failover\-enabled config option, two variants exist:
+\fIprimary\fR
+and
+\fIbackup\fR\&. The idea is that servers in the primary list are preferred and backup servers are only searched if no primary servers can be reached\&. If a backup server is selected, a timeout of 31 seconds is set\&. After this timeout SSSD will periodically try to reconnect to one of the primary servers\&. If it succeeds, it will replace the current active (backup) server\&.
+.SS "The Failover Mechanism"
+.PP
+The failover mechanism distinguishes between a machine and a service\&. The back end first tries to resolve the hostname of a given machine; if this resolution attempt fails, the machine is considered offline\&. No further attempts are made to connect to this machine for any other service\&. If the resolution attempt succeeds, the back end tries to connect to a service on this machine\&. If the service connection attempt fails, then only this particular service is considered offline and the back end automatically switches over to the next service\&. The machine is still considered online and might still be tried for another service\&.
+.PP
+Further connection attempts are made to machines or services marked as offline after a specified period of time; this is currently hard coded to 30 seconds\&.
+.PP
+If there are no more machines to try, the back end as a whole switches to offline mode, and then attempts to reconnect every 30 seconds\&.
+.SS "Failover time outs and tuning"
+.PP
+Resolving a server to connect to can be as simple as running a single DNS query or can involve several steps, such as finding the correct site or trying out multiple host names in case some of the configured servers are not reachable\&. The more complex scenarios can take some time and SSSD needs to balance between providing enough time to finish the resolution process but on the other hand, not trying for too long before falling back to offline mode\&. If the SSSD debug logs show that the server resolution is timing out before a live server is contacted, you can consider changing the time outs\&.
+.PP
+This section lists the available tunables\&. Please refer to their description in the
+\fBsssd.conf\fR(5), manual page\&.
+.PP
+dns_resolver_server_timeout
+.RS 4
+Time in milliseconds that sets how long would SSSD talk to a single DNS server before trying next one\&.
+.sp
+Default: 1000
+.RE
+.PP
+dns_resolver_op_timeout
+.RS 4
+Time in seconds to tell how long would SSSD try to resolve single DNS query (e\&.g\&. resolution of a hostname or an SRV record) before trying the next hostname or discovery domain\&.
+.sp
+Default: 3
+.RE
+.PP
+dns_resolver_timeout
+.RS 4
+How long would SSSD try to resolve a failover service\&. This service resolution internally might include several steps, such as resolving DNS SRV queries or locating the site\&.
+.sp
+Default: 6
+.RE
+.PP
+For LDAP\-based providers, the resolve operation is performed as part of an LDAP connection operation\&. Therefore, also the
+\(lqldap_opt_timeout\(rq
+timeout should be set to a larger value than
+\(lqdns_resolver_timeout\(rq
+which in turn should be set to a larger value than
+\(lqdns_resolver_op_timeout\(rq
+which should be larger than
+\(lqdns_resolver_server_timeout\(rq\&.
+.SH "SERVICE DISCOVERY"
+.PP
+The service discovery feature allows back ends to automatically find the appropriate servers to connect to using a special DNS query\&. This feature is not supported for backup servers\&.
+.SS "Configuration"
+.PP
+If no servers are specified, the back end automatically uses service discovery to try to find a server\&. Optionally, the user may choose to use both fixed server addresses and service discovery by inserting a special keyword,
+\(lq_srv_\(rq, in the list of servers\&. The order of preference is maintained\&. This feature is useful if, for example, the user prefers to use service discovery whenever possible, and fall back to a specific server when no servers can be discovered using DNS\&.
+.SS "The domain name"
+.PP
+Please refer to the
+\(lqdns_discovery_domain\(rq
+parameter in the
+\fBsssd.conf\fR(5)
+manual page for more details\&.
+.SS "The protocol"
+.PP
+The queries usually specify _tcp as the protocol\&. Exceptions are documented in respective option description\&.
+.SS "See Also"
+.PP
+For more information on the service discovery mechanism, refer to RFC 2782\&.
+.SH "ID MAPPING"
+.PP
+The ID\-mapping feature allows SSSD to act as a client of Active Directory without requiring administrators to extend user attributes to support POSIX attributes for user and group identifiers\&.
+.PP
+NOTE: When ID\-mapping is enabled, the uidNumber and gidNumber attributes are ignored\&. This is to avoid the possibility of conflicts between automatically\-assigned and manually\-assigned values\&. If you need to use manually\-assigned values, ALL values must be manually\-assigned\&.
+.PP
+Please note that changing the ID mapping related configuration options will cause user and group IDs to change\&. At the moment, SSSD does not support changing IDs, so the SSSD database must be removed\&. Because cached passwords are also stored in the database, removing the database should only be performed while the authentication servers are reachable, otherwise users might get locked out\&. In order to cache the password, an authentication must be performed\&. It is not sufficient to use
+\fBsss_cache\fR(8)
+to remove the database, rather the process consists of:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Making sure the remote servers are reachable
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Stopping the SSSD service
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Removing the database
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Starting the SSSD service
+.RE
+.sp
+Moreover, as the change of IDs might necessitate the adjustment of other system properties such as file and directory ownership, it\*(Aqs advisable to plan ahead and test the ID mapping configuration thoroughly\&.
+.SS "Mapping Algorithm"
+.PP
+Active Directory provides an objectSID for every user and group object in the directory\&. This objectSID can be broken up into components that represent the Active Directory domain identity and the relative identifier (RID) of the user or group object\&.
+.PP
+The SSSD ID\-mapping algorithm takes a range of available UIDs and divides it into equally\-sized component sections \- called "slices"\&. Each slice represents the space available to an Active Directory domain\&.
+.PP
+When a user or group entry for a particular domain is encountered for the first time, the SSSD allocates one of the available slices for that domain\&. In order to make this slice\-assignment repeatable on different client machines, we select the slice based on the following algorithm:
+.PP
+The SID string is passed through the murmurhash3 algorithm to convert it to a 32\-bit hashed value\&. We then take the modulus of this value with the total number of available slices to pick the slice\&.
+.PP
+NOTE: It is possible to encounter collisions in the hash and subsequent modulus\&. In these situations, we will select the next available slice, but it may not be possible to reproduce the same exact set of slices on other machines (since the order that they are encountered will determine their slice)\&. In this situation, it is recommended to either switch to using explicit POSIX attributes in Active Directory (disabling ID\-mapping) or configure a default domain to guarantee that at least one is always consistent\&. See
+\(lqConfiguration\(rq
+for details\&.
+.SS "Configuration"
+.PP
+Minimum configuration (in the
+\(lq[domain/DOMAINNAME]\(rq
+section):
+.PP
+.if n \{\
+.RS 4
+.\}
+.nf
+ldap_id_mapping = True
+ldap_schema = ad
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The default configuration results in configuring 10,000 slices, each capable of holding up to 200,000 IDs, starting from 200,000 and going up to 2,000,200,000\&. This should be sufficient for most deployments\&.
+.sp
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBAdvanced Configuration\fR
+.RS 4
+.PP
+ldap_idmap_range_min (integer)
+.RS 4
+Specifies the lower (inclusive) bound of the range of POSIX IDs to use for mapping Active Directory user and group SIDs\&. It is the first POSIX ID which can be used for the mapping\&.
+.sp
+NOTE: This option is different from
+\(lqmin_id\(rq
+in that
+\(lqmin_id\(rq
+acts to filter the output of requests to this domain, whereas this option controls the range of ID assignment\&. This is a subtle distinction, but the good general advice would be to have
+\(lqmin_id\(rq
+be less\-than or equal to
+\(lqldap_idmap_range_min\(rq
+.sp
+Default: 200000
+.RE
+.PP
+ldap_idmap_range_max (integer)
+.RS 4
+Specifies the upper (exclusive) bound of the range of POSIX IDs to use for mapping Active Directory user and group SIDs\&. It is the first POSIX ID which cannot be used for the mapping anymore, i\&.e\&. one larger than the last one which can be used for the mapping\&.
+.sp
+NOTE: This option is different from
+\(lqmax_id\(rq
+in that
+\(lqmax_id\(rq
+acts to filter the output of requests to this domain, whereas this option controls the range of ID assignment\&. This is a subtle distinction, but the good general advice would be to have
+\(lqmax_id\(rq
+be greater\-than or equal to
+\(lqldap_idmap_range_max\(rq
+.sp
+Default: 2000200000
+.RE
+.PP
+ldap_idmap_range_size (integer)
+.RS 4
+Specifies the number of IDs available for each slice\&. If the range size does not divide evenly into the min and max values, it will create as many complete slices as it can\&.
+.sp
+NOTE: The value of this option must be at least as large as the highest user RID planned for use on the Active Directory server\&. User lookups and login will fail for any user whose RID is greater than this value\&.
+.sp
+For example, if your most recently\-added Active Directory user has objectSid=S\-1\-5\-21\-2153326666\-2176343378\-3404031434\-1107,
+\(lqldap_idmap_range_size\(rq
+must be at least 1108 as range size is equal to maximal RID minus minimal RID plus one (e\&.g\&. 1108 = 1107 \- 0 + 1)\&.
+.sp
+It is important to plan ahead for future expansion, as changing this value will result in changing all of the ID mappings on the system, leading to users with different local IDs than they previously had\&.
+.sp
+Default: 200000
+.RE
+.PP
+ldap_idmap_default_domain_sid (string)
+.RS 4
+Specify the domain SID of the default domain\&. This will guarantee that this domain will always be assigned to slice zero in the ID map, bypassing the murmurhash algorithm described above\&.
+.sp
+Default: not set
+.RE
+.PP
+ldap_idmap_default_domain (string)
+.RS 4
+Specify the name of the default domain\&.
+.sp
+Default: not set
+.RE
+.PP
+ldap_idmap_autorid_compat (boolean)
+.RS 4
+Changes the behavior of the ID\-mapping algorithm to behave more similarly to winbind\*(Aqs
+\(lqidmap_autorid\(rq
+algorithm\&.
+.sp
+When this option is configured, domains will be allocated starting with slice zero and increasing monotonically with each additional domain\&.
+.sp
+NOTE: This algorithm is non\-deterministic (it depends on the order that users and groups are requested)\&. If this mode is required for compatibility with machines running winbind, it is recommended to also use the
+\(lqldap_idmap_default_domain_sid\(rq
+option to guarantee that at least one domain is consistently allocated to slice zero\&.
+.sp
+Default: False
+.RE
+.PP
+ldap_idmap_helper_table_size (integer)
+.RS 4
+Maximal number of secondary slices that is tried when performing mapping from UNIX id to SID\&.
+.sp
+Note: Additional secondary slices might be generated when SID is being mapped to UNIX id and RID part of SID is out of range for secondary slices generated so far\&. If value of ldap_idmap_helper_table_size is equal to 0 then no additional secondary slices are generated\&.
+.sp
+Default: 10
+.RE
+.RE
+.SS "Well\-Known SIDs"
+.PP
+SSSD supports to look up the names of Well\-Known SIDs, i\&.e\&. SIDs with a special hardcoded meaning\&. Since the generic users and groups related to those Well\-Known SIDs have no equivalent in a Linux/UNIX environment no POSIX IDs are available for those objects\&.
+.PP
+The SID name space is organized in authorities which can be seen as different domains\&. The authorities for the Well\-Known SIDs are
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Null Authority
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+World Authority
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Local Authority
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Creator Authority
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Mandatory Label Authority
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Authentication Authority
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+NT Authority
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Built\-in
+.RE
+.sp
+The capitalized version of these names are used as domain names when returning the fully qualified name of a Well\-Known SID\&.
+.PP
+Since some utilities allow to modify SID based access control information with the help of a name instead of using the SID directly SSSD supports to look up the SID by the name as well\&. To avoid collisions only the fully qualified names can be used to look up Well\-Known SIDs\&. As a result the domain names
+\(lqNULL AUTHORITY\(rq,
+\(lqWORLD AUTHORITY\(rq,
+\(lqLOCAL AUTHORITY\(rq,
+\(lqCREATOR AUTHORITY\(rq,
+\(lqMANDATORY LABEL AUTHORITY\(rq,
+\(lqAUTHENTICATION AUTHORITY\(rq,
+\(lqNT AUTHORITY\(rq
+and
+\(lqBUILTIN\(rq
+should not be used as domain names in
+sssd\&.conf\&.
+.SH "مثال (EXAMPLE)"
+.PP
+The following example assumes that SSSD is correctly configured and example\&.com is one of the domains in the
+\fI[sssd]\fR
+section\&. This example shows only the AD provider\-specific options\&.
+.PP
+.if n \{\
+.RS 4
+.\}
+.nf
+[domain/EXAMPLE]
+id_provider = ad
+auth_provider = ad
+access_provider = ad
+chpass_provider = ad
+
+ad_server = dc1\&.example\&.com
+ad_hostname = client\&.example\&.com
+ad_domain = example\&.com
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.SH "نکات (NOTES)"
+.PP
+The AD access control provider checks if the account is expired\&. It has the same effect as the following configuration of the LDAP provider:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+access_provider = ldap
+ldap_access_order = expire
+ldap_account_expire_policy = ad
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+However, unless the
+\(lqad\(rq
+access control provider is explicitly configured, the default access provider is
+\(lqpermit\(rq\&. Please note that if you configure an access provider other than
+\(lqad\(rq, you need to set all the connection parameters (such as LDAP URIs and encryption details) manually\&.
+.PP
+When the autofs provider is set to
+\(lqad\(rq, the RFC2307 schema attribute mapping (nisMap, nisObject, \&.\&.\&.) is used, because these attributes are included in the default Active Directory schema\&.
+.PP
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsssd\fR(8),
+\fBsssd.conf\fR(5),
+\fBsssd-ldap\fR(5),
+\fBsssd-ldap-attributes\fR(5),
+\fBsssd-krb5\fR(5),
+\fBsssd-simple\fR(5),
+\fBsssd-ipa\fR(5),
+\fBsssd-ad\fR(5),
+\fBsssd-idp\fR(5),
+\fBsssd-sudo\fR(5),
+\fBsssd-session-recording\fR(5),
+\fBsss_cache\fR(8),
+\fBsss_debuglevel\fR(8),
+\fBsss_obfuscate\fR(8),
+\fBsss_seed\fR(8),
+\fBsssd_krb5_locator_plugin\fR(8),
+\fBsss_ssh_authorizedkeys\fR(1), \fBsss_ssh_knownhosts\fR(1),
+\fBsssd-ifp\fR(5),
+\fBpam_sss\fR(8)\&.
+\fBsss_rpcidmapd\fR(5)
+.SH "نویسندگان (AUTHORS)"
+.PP
+\fBThe SSSD upstream \- https://github\&.com/SSSD/sssd/\fR
+.SH "نکات (NOTES)"
+.IP " 1." 4
+Active Directory security groups
+.RS 4
+\%https://docs.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-groups
+.RE
+.IP " 2." 4
+[MS-ADTS] section LDAP extensions
+.RS 4
+\%https://msdn.microsoft.com/en-us/library/cc223367.aspx
+.RE

@@ -1,0 +1,326 @@
+.nh
+.TH podman-pull 1
+.SH "نام (NAME)"
+podman-pull \- Pull an image from a registry
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman pull\fP [\fIoptions\fP] \fIsource\fP [\fIsource\fP\&...]
+
+.PP
+\fBpodman image pull\fP [\fIoptions\fP] \fIsource\fP [\fIsource\fP\&...]
+
+.PP
+\fBpodman pull\fP [\fIoptions\fP] [\fItransport\fP]\fIname\fP[:\fItag\fP|@\fIdigest\fP]
+
+.PP
+\fBpodman image pull\fP [\fIoptions\fP] [\fItransport\fP]\fIname\fP[:\fItag\fP|@\fIdigest\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+podman pull copies an image from a registry onto the local machine. The command can pull one or more images. If the image reference in the command line argument does not contain a registry, it is referred to as a \fBshort-name\fR reference. If the image is a 'short-name' reference, Podman prompts the user for the specific container registry to pull the image from, if an alias for the short-name has not been specified in the \fBshort-name-aliases.conf\fR\&. If an image tag is not specified, \fBpodman pull\fP defaults to the image with the \fBlatest\fP tag (if it exists) and pulls it. After the image is pulled, podman prints the full image ID. \fBpodman pull\fP can also pull images using a digest \fBpodman pull\fP \fIimage\fP@\fIdigest\fP and can also be used to pull images from archives and local storage using different transports.
+\fIIMPORTANT: Images are stored in local image storage.\fP
+
+.SH SOURCE
+SOURCE is the location from which the container image is pulled from. It supports all transports from \fBcontainers-transports(5)\fP\&. If no transport is specified, the input is subject to short-name resolution and the \fBdocker\fR (i.e., container registry) transport is used.  For remote clients, including Mac and Windows (excluding WSL2) machines, \fBdocker\fR is the only supported transport.
+
+.EX
+# Pull from a container registry
+$ podman pull quay.io/username/myimage
+
+# Pull from a container registry with short-name resolution
+$ podman pull fedora
+
+# Pull from a container registry via the docker transport
+$ podman pull docker://quay.io/username/myimage
+
+# Pull from a local directory
+$ podman pull dir:/tmp/myimage
+
+# Pull from a tarball in the docker-archive format
+$ podman pull docker-archive:/tmp/myimage
+
+# Pull from a local docker daemon
+$ sudo podman pull docker-daemon:docker.io/library/myimage:33
+
+# Pull from a tarball in the OCI-archive format
+$ podman pull oci-archive:/tmp/myimage
+.EE
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--all-tags\fP, \fB-a\fP
+All tagged images in the repository are pulled.
+
+.PP
+*IMPORTANT: When using the all-tags flag, Podman does not iterate over the search registries in the \fBcontainers-registries.conf(5)\fP but always uses docker.io for unqualified image names.*
+
+.SS \fB--arch\fP=\fIARCH\fP
+Override the architecture, defaults to the host, of the image to be pulled. For example, \fBarm\fR\&.
+Unless overridden, subsequent lookups of the same image in the local storage matches this architecture, regardless of the host.
+
+.SS \fB--authfile\fP=\fIpath\fP
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fB--cert-dir\fP=\fIpath\fP
+Use certificates at \fIpath\fP (*\&.crt, *\&.cert, *\&.key) to connect to the registry. (Default: /etc/containers/certs.d)
+For details, see \fBcontainers-certs.d(5)\fP\&.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--creds\fP=\fI[username[:password]]\fP
+The [username[:password]] to use to authenticate with the registry, if required.
+If one or both values are not supplied, a command line prompt appears and the
+value can be entered. The password is entered without echo.
+
+.PP
+Note that the specified credentials are only used to authenticate against
+target registries.  They are not used for mirrors or when the registry gets
+rewritten (see \fBcontainers-registries.conf(5)\fR); to authenticate against those
+consider using a \fBcontainers-auth.json(5)\fR file.
+
+.SS \fB--decryption-key\fP=\fIkey[:passphrase]\fP
+The [key[:passphrase]] to be used for decryption of images. Key can point to keys and/or certificates. Decryption is tried with all keys. If the key is protected by a passphrase, it is required to be passed in the argument and omitted otherwise.
+
+.SS \fB--disable-content-trust\fP
+This is a Docker-specific option to disable image verification to a container
+registry and is not supported by Podman. This option is a NOOP and provided
+solely for scripting compatibility.
+
+.SS \fB--help\fP, \fB-h\fP
+Print the usage statement.
+
+.SS \fB--os\fP=\fIOS\fP
+Override the OS, defaults to the host, of the image to be pulled. For example, \fBwindows\fR\&.
+Unless overridden, subsequent lookups of the same image in the local storage matches this OS, regardless of the host.
+
+.SS \fB--platform\fP=\fIOS/ARCH\fP
+Specify the platform for selecting the image.  (Conflicts with --arch and --os)
+The \fB--platform\fR option can be used to override the current architecture and operating system.
+Unless overridden, subsequent lookups of the same image in the local storage matches this platform, regardless of the host.
+
+.SS \fB--policy\fP
+Pull image policy. The default is \fBalways\fP\&.
+.IP \(bu 2
+\fBalways\fR: Always pull the image and throw an error if the pull fails.
+.IP \(bu 2
+\fBmissing\fR: Only pull the image if it could not be found in the local containers storage. Throw an error if no image could be found and the pull fails.
+.IP \(bu 2
+\fBnever\fR: Never pull the image; only use the local version. Throw an error if the image is not present locally.
+.IP \(bu 2
+\fBnewer\fR: Pull if the image on the registry is newer than the one in the local containers storage. An image is considered to be newer when the digests are different. Comparing the time stamps is prone to errors. Pull errors are suppressed if a local image was found.
+
+.SS \fB--quiet\fP, \fB-q\fP
+Suppress informational output messages (which indicate which instruction is being processed, and the progress of the instruction).  Print only the final error message or successful completion information, such as the image or container ID.
+
+.SS \fB--retry\fP=\fIattempts\fP
+Number of times to retry pulling or pushing images between the registry and
+local storage in case of failure. Default is \fB3\fP\&.
+
+.SS \fB--retry-delay\fP=\fIduration\fP
+Duration of delay between retry attempts when pulling or pushing images between
+the registry and local storage in case of failure. The default is to start at two seconds and then exponentially back off. The delay is used when this value is set, and no exponential back off occurs.
+
+.SS \fB--tls-verify\fP
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SS \fB--variant\fP=\fIVARIANT\fP
+Use \fIVARIANT\fP instead of the default architecture variant of the container image. Some images can use multiple variants of the arm architectures, such as arm/v5 and arm/v7.
+
+.SH "فایل‌ها (FILES)"
+\fBshort-name-aliases.conf\fP (\fB/var/cache/containers/short-name-aliases.conf\fR, \fB$HOME/.cache/containers/short-name-aliases.conf\fR)
+
+.PP
+When users specify images that do not include the container registry where the
+image is stored, this is called a short name. The use of unqualified-search registries entails an ambiguity as it is unclear from which registry a given image, referenced by a short name, may be pulled from.
+
+.PP
+Using short names is subject to the risk of hitting squatted registry namespaces. If the unqualified-search registries are set to ["public-registry.com",  "my-private-registry.com"] an attacker may take over a namespace of \fBpublic-registry.com\fR such that an image may be pulled from \fBpublic-registry.com\fR instead of the intended source \fBmy-private-registry.com\fR\&.
+
+.PP
+While it is highly recommended to always use fully-qualified image references, existing deployments using short names may not be easily changed. To circumvent the aforementioned ambiguity, so called short-name aliases can be configured that point to a fully-qualified image reference. Distributions often ship a default shortnames.conf expansion file in /etc/containers/registries.conf.d/ directory. Administrators can use this directory to add their own local short-name expansion files.
+
+.PP
+When pulling an image, if the user does not specify the complete registry, container engines attempt to expand the short-name into a full name. If the command is executed with a tty, the user is prompted to select a registry from the
+default list unqualified registries defined in registries.conf. The user's selection is then stored in a cache file to be used in all future short-name expansions. Rootful short-names are stored in /var/cache/containers/short-name-aliases.conf. Rootless short-names are stored in the $HOME/.cache/containers/short-name-aliases.conf file.
+
+.PP
+For more information on short-names, see \fBcontainers-registries.conf(5)\fR
+
+.PP
+\fBregistries.conf\fP (\fB/etc/containers/registries.conf\fR)
+
+.PP
+registries.conf is the configuration file which specifies which container registries is consulted when completing image names which do not include a registry or domain portion.
+
+.PP
+NOTE: Use the environment variable \fBTMPDIR\fR to change the temporary storage location of downloaded container images. Podman defaults to use \fB/var/tmp\fR\&.
+
+.SH "مثال‌ها (EXAMPLES)"
+Pull a single image with short name resolution.
+
+.EX
+$ podman pull alpine:latest
+Resolved "alpine" as an alias (/etc/containers/registries.conf.d/000-shortnames.conf)
+Trying to pull docker.io/library/alpine:latest...
+Getting image source signatures
+Copying blob 5843afab3874 done
+Copying config d4ff818577 done
+Writing manifest to image destination
+Storing signatures
+d4ff818577bc193b309b355b02ebc9220427090057b54a59e73b79bdfe139b83
+.EE
+
+.PP
+Pull multiple images with/without short name resolution.
+
+.EX
+podman pull busybox:musl alpine quay.io/libpod/cirros
+Trying to pull docker.io/library/busybox:musl...
+Getting image source signatures
+Copying blob 0c52b060233b [--------------------------------------] 0.0b / 0.0b
+Copying config 9ad2c435a8 done
+Writing manifest to image destination
+Storing signatures
+9ad2c435a887e3f723654e09b48563de44aa3c7950246b2e9305ec85dd3422db
+Trying to pull docker.io/library/alpine:latest...
+Getting image source signatures
+Copying blob 5843afab3874 [--------------------------------------] 0.0b / 0.0b
+Copying config d4ff818577 done
+Writing manifest to image destination
+Storing signatures
+d4ff818577bc193b309b355b02ebc9220427090057b54a59e73b79bdfe139b83
+Trying to pull quay.io/libpod/cirros:latest...
+Getting image source signatures
+Copying blob 8da581cc9286 done
+Copying blob 856628d95d17 done
+Copying blob f513001ba4ab done
+Copying config 3c82e4d066 done
+Writing manifest to image destination
+Storing signatures
+3c82e4d066cf6f9e50efaead6e3ff7fddddf5527826afd68e5a969579fc4db4a
+.EE
+
+.PP
+Pull an image using its digest.
+
+.EX
+$ podman pull alpine@sha256:d7342993700f8cd7aba8496c2d0e57be0666e80b4c441925fc6f9361fa81d10e
+Trying to pull docker.io/library/alpine@sha256:d7342993700f8cd7aba8496c2d0e57be0666e80b4c441925fc6f9361fa81d10e...
+Getting image source signatures
+Copying blob 188c0c94c7c5 done
+Copying config d6e46aa247 done
+Writing manifest to image destination
+Storing signatures
+d6e46aa2470df1d32034c6707c8041158b652f38d2a9ae3d7ad7e7532d22ebe0
+.EE
+
+.PP
+Pull an image by specifying an authentication file.
+
+.EX
+$ podman pull --authfile temp-auths/myauths.json docker://docker.io/umohnani/finaltest
+Trying to pull docker.io/umohnani/finaltest:latest...Getting image source signatures
+Copying blob sha256:6d987f6f42797d81a318c40d442369ba3dc124883a0964d40b0c8f4f7561d913
+ 1.90 MB / 1.90 MB [========================================================] 0s
+Copying config sha256:ad4686094d8f0186ec8249fc4917b71faa2c1030d7b5a025c29f26e19d95c156
+ 1.41 KB / 1.41 KB [========================================================] 0s
+Writing manifest to image destination
+Storing signatures
+03290064078cb797f3e0a530e78c20c13dd22a3dd3adf84a5da2127b48df0438
+.EE
+
+.PP
+Pull an image by authenticating to a registry.
+
+.EX
+$ podman pull --creds testuser:testpassword docker.io/umohnani/finaltest
+Trying to pull docker.io/umohnani/finaltest:latest...Getting image source signatures
+Copying blob sha256:6d987f6f42797d81a318c40d442369ba3dc124883a0964d40b0c8f4f7561d913
+ 1.90 MB / 1.90 MB [========================================================] 0s
+Copying config sha256:ad4686094d8f0186ec8249fc4917b71faa2c1030d7b5a025c29f26e19d95c156
+ 1.41 KB / 1.41 KB [========================================================] 0s
+Writing manifest to image destination
+Storing signatures
+03290064078cb797f3e0a530e78c20c13dd22a3dd3adf84a5da2127b48df0438
+.EE
+
+.PP
+Pull an image using tls verification.
+
+.EX
+$ podman pull --tls-verify=false --cert-dir image/certs docker.io/umohnani/finaltest
+Trying to pull docker.io/umohnani/finaltest:latest...Getting image source signatures
+Copying blob sha256:6d987f6f42797d81a318c40d442369ba3dc124883a0964d40b0c8f4f7561d913
+ 1.90 MB / 1.90 MB [========================================================] 0s
+Copying config sha256:ad4686094d8f0186ec8249fc4917b71faa2c1030d7b5a025c29f26e19d95c156
+ 1.41 KB / 1.41 KB [========================================================] 0s
+Writing manifest to image destination
+Storing signatures
+03290064078cb797f3e0a530e78c20c13dd22a3dd3adf84a5da2127b48df0438
+.EE
+
+.PP
+Pull an image by overriding the host architecture.
+
+.EX
+$ podman pull --arch=arm arm32v7/debian:stretch
+Trying to pull docker.io/arm32v7/debian:stretch...
+Getting image source signatures
+Copying blob b531ae4a3925 done
+Copying config 3cba58dad5 done
+Writing manifest to image destination
+Storing signatures
+3cba58dad5d9b35e755b48b634acb3fdd185ab1c996ac11510cc72c17780e13c
+.EE
+
+.PP
+Pull an image with up to 6 retries, delaying 10 seconds between retries in quet mode.
+
+.EX
+$ podman --remote pull -q --retry 6 --retry-delay 10s ubi9
+4d6addf62a90e392ff6d3f470259eb5667eab5b9a8e03d20b41d0ab910f92170
+.EE
+
+.PP
+Pull an image only if not present locally.
+
+.EX
+$ podman pull --policy missing alpine:latest
+.EE
+
+.PP
+Never pull the image, only use local version.
+
+.EX
+$ podman pull --policy never alpine:latest
+.EE
+
+.PP
+Always pull the image even if present locally.
+
+.EX
+$ podman pull --policy always alpine:latest
+Trying to pull docker.io/library/alpine:latest...
+Getting image source signatures
+Copying blob 5843afab3874 done
+Copying config d4ff818577 done
+Writing manifest to image destination
+Storing signatures
+d4ff818577bc193b309b355b02ebc9220427090057b54a59e73b79bdfe139b83
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-push(1)\fP, \fBpodman-login(1)\fP, \fBcontainers-certs.d(5)\fP, \fBcontainers-registries.conf(5)\fP, \fBcontainers-transports(5)\fP
+
+.SS Troubleshooting
+See podman-troubleshooting(7)
+for solutions to common issues.
+
+.SH "تاریخچه (HISTORY)"
+July 2017, Originally compiled by Urvashi Mohnani umohnani@redhat.com
+\[la]mailto:umohnani@redhat.com\[ra]

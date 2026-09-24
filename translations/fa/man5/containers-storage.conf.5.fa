@@ -1,0 +1,399 @@
+.nh
+.TH containers-storage.conf 5 "May 2017"
+.SH "نام (NAME)"
+containers-storage.conf \- Syntax of Container Storage configuration file
+
+.SH "توضیحات (DESCRIPTION)"
+The STORAGE configuration file specifies all of the available container storage options for tools using shared container storage, but in a TOML format that can be more easily modified and versioned.
+
+.SH FORMAT
+The [TOML format][toml] is used as the encoding of the configuration file.
+Every option and subtable listed here is nested under a global "storage" table.
+No bare options are used. The format of TOML can be simplified to:
+
+.EX
+[table]
+option = value
+
+[table.subtable1]
+option = value
+
+[table.subtable2]
+option = value
+.EE
+
+.SH STORAGE TABLE
+The \fBstorage\fR table supports the following options:
+
+.PP
+\fBdriver\fP=""
+  Copy On Write (COW) container storage driver. Valid drivers are "overlay", "vfs", "btrfs", and "zfs". Some drivers (for example, "zfs" and "btrfs") may not work if your kernel lacks support for the filesystem.
+Valid rootless drivers are "btrfs", "overlay", and "vfs".
+
+.PP
+\fBgraphroot\fP=""
+  container storage graph dir (default: \fB/var/lib/containers/storage\fR or as rootless \fB$XDG_DATA_HOME/containers/storage\fR/\fB$HOME/.local/share/containers/storage\fR depending on if \fB$XDG_DATA_HOME\fR is set)
+Default directory to store all writable content created by container storage programs.
+The graphroot path supports environment variable substitutions (ie. \fB$HOME/containers/storage\fR).
+When changing the graphroot location on an SELINUX system, ensure the labeling matches the default locations labels with the following commands:
+
+.EX
+# semanage fcontext -a -e /var/lib/containers/storage /NEWSTORAGEPATH
+# restorecon -R -v /NEWSTORAGEPATH
+.EE
+
+.PP
+In rootless mode you would set
+
+.EX
+# semanage fcontext -a -e $HOME/.local/share/containers NEWSTORAGEPATH
+$ restorecon -R -v /NEWSTORAGEPATH
+.EE
+
+.PP
+\fBrootless_storage_path\fP=""
+  Deprecated, use \fBgraphroot\fP instead. To switch the paths for all the rootless users, put the config file with \fBgraphroot\fP under the \fBstorage.rootless.conf.d/\fR directory.
+
+.PP
+\fBimagestore\fP=""
+ The image storage path (the default is assumed to be the same as \fBgraphroot\fR). Path of the imagestore, which is different from \fBgraphroot\fR\&. By default, images in the storage library are stored in the \fBgraphroot\fR\&. If \fBimagestore\fR is provided, newly pulled images will be stored in the \fBimagestore\fR location. All other storage continues to be stored in the \fBgraphroot\fR\&. When using the \fBoverlay\fR driver, images previously stored in the \fBgraphroot\fR remain accessible. Internally, the storage library mounts \fBgraphroot\fR as an \fBadditionalImageStore\fR to allow this behavior.
+
+.PP
+A common use case for the \fBimagestore\fR field is users who need to split filesystems in different partitions. The \fBimagestore\fR partition stores images and the \fBgraphroot\fR partition stores container content created from the images.
+
+.PP
+Imagestore, if set, must be different from \fBgraphroot\fR\&.
+
+.PP
+\fBrunroot\fP=""
+  container storage run dir (default: \fB/run/containers/storage\fR or as rootless \fB$XDG_RUNTIME_DIR/containers\fR/\fB/tmp/storage-run-$UID/containers\fR depending on if $XDG_RUNTIME_DIR is set)
+Default directory to store all temporary writable content created by container storage programs. This path should be on a tmpfs. The path supports environment variable substitutions (ie. \fB$HOME/containers/storage\fR).
+
+.PP
+\fBdriver_priority\fP=[]
+  Priority list for the storage drivers that will be tested one after the other to pick the storage driver if it is not defined. The first storage driver in this list that can be used, will be picked as the new one and all subsequent ones will not be tried. If all drivers in this list are not viable, then \fBall\fP known drivers will be tried and the first working one will be picked.
+By default, the storage driver is set via the \fBdriver\fR option. If it is not defined, then the best driver will be picked according to the current platform. This option allows you to override this internal priority list with a custom one to prefer certain drivers.
+Setting this option only has an effect if the local storage has not been initialized yet and the driver name is not set.
+
+.PP
+\fBtransient_store\fP = "false"|"true"
+
+.PP
+Transient store mode makes all container metadata be saved in temporary storage
+(i.e. runroot above). This is faster, but doesn't persist across reboots.
+Additional garbage collection must also be performed at boot-time, so this option should remain disabled in most configurations. (default: false)
+
+.SS STORAGE OPTIONS TABLE
+The \fBstorage.options\fR table supports the following options:
+
+.PP
+\fBadditionalimagestores\fP=[]
+  Paths to additional container image stores. Usually these are read/only and stored on remote network shares.
+
+.PP
+\fBroot-auto-userns-user\fP=""
+  Root-auto-userns-user is a user name which can be used to look up one or more UID/GID ranges in the /etc/subuid and /etc/subgid file.  These ranges will be partitioned to containers configured to create automatically a user namespace.  Containers configured to automatically create a user namespace can still overlap with containers having an explicit mapping set.  This setting is ignored when running as rootless.
+
+.PP
+\fBauto-userns-min-size\fP=1024
+  Auto-userns-min-size is the minimum size for a user namespace created automatically.
+
+.PP
+\fBauto-userns-max-size\fP=65536
+  Auto-userns-max-size is the maximum size for a user namespace created automatically.
+
+.PP
+\fBdisable-volatile\fP=true
+  If disable-volatile is set, then the "volatile" mount optimization is disabled for all the containers.
+
+.SS STORAGE PULL OPTIONS TABLE
+The \fBstorage.options.pull_options\fR table supports the following keys:
+
+.PP
+\fBenable_partial_images="true"|"false"\fP
+  Enable the "zstd:chunked" feature, which allows partial pulls, reusing
+  content that already exists on the system. This is disabled by default,
+  and must be explicitly enabled to be used. For more on zstd:chunked, see
+  
+\[la]https://github.com/containers/storage/blob/main/docs/containers\-storage\-zstd\-chunked.md\[ra]\&.
+  This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.PP
+\fBuse_hard_links="false"|"true"\fP
+  Tells containers/storage to use hard links rather then create new files in
+  the image, if an identical file already existed in storage.
+  This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.PP
+\fBostree_repos=""\fP
+  Path to an ostree repository that might have
+  previously pulled content which can be used when attempting to avoid
+  pulling content from the container registry.
+
+.PP
+\fBconvert_images="false"|"true"\fP
+  If set to "true", containers/storage will convert images that are
+  not already in zstd:chunked format to that format before processing
+  in order to take advantage of local deduplication and hard linking.
+  It is an expensive operation so it is not enabled by default.
+  This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.PP
+\fBinsecure_allow_unpredictable_image_contents="false"|"true"\fP
+  This should \fIalmost never\fP be set.
+  It allows partial pulls of images without guaranteeing that "partial
+  pulls" and non-partial pulls both result in consistent image contents.
+  This allows pulling estargz images and early versions of zstd:chunked images;
+  otherwise, these layers always use the traditional non-partial pull path.
+
+.PP
+This option should be enabled \fIextremely\fP rarely, only if \fIall\fP images that could
+  EVER be conceivably pulled on this system are \fIguaranteed\fP (e.g. using a signature policy)
+  to come from a build system trusted to never attack image integrity.
+
+.PP
+If this consistency enforcement were disabled, malicious images could be built
+  in a way designed to evade other audit mechanisms, so presence of most other audit
+  mechanisms is not a replacement for the above-mentioned need for all images to come
+  from a trusted build system.
+
+.PP
+As a side effect, enabling this option will also make image IDs unpredictable
+  (usually not equal to the traditional value matching the config digest).
+
+.PP
+This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.SS STORAGE OPTIONS FOR BTRFS TABLE
+The \fBstorage.options.btrfs\fR table supports the following options:
+
+.PP
+\fBmin_space\fP=""
+  Specifies the min space in a btrfs volume.
+
+.PP
+\fBsize\fP=""
+  Maximum size of a container image.   This flag can be used to set quota on the size of container images. (format: [], where unit = b (bytes), k (kilobytes), m (megabytes), or g (gigabytes))
+
+.SS STORAGE OPTIONS FOR OVERLAY TABLE
+The \fBstorage.options.overlay\fR table supports the following options:
+
+.PP
+\fBignore_chown_errors\fP = "false"
+  ignore_chown_errors can be set to allow a non privileged user running with a  single UID within a user namespace to run containers. The user can pull and use any image even those with multiple uids.  Note multiple UIDs will be squashed down to the default uid in the container.  These images will have no separation between the users in the container. (default: "false")
+  This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.PP
+\fBinodes\fP=""
+  Maximum inodes in a read/write layer.   This flag can be used to set a quota on the inodes allocated for a read/write layer of a container.
+
+.PP
+\fBforce_mask\fP = "0000|shared|private"
+  ForceMask specifies the permissions mask that is used for new files and
+directories. The values "shared" and "private" are accepted.  (default: ""). Octal permission
+masks are also accepted.
+.IP \(bu 2
+``: Not set
+All files/directories, get set with the permissions identified within the
+image.
+.IP \(bu 2
+\fBprivate\fR: it is equivalent to 0700.
+All files/directories get set with 0700 permissions.  The owner has rwx
+access to the files. No other users on the system can access the files.
+This setting could be used with networked based home directories.
+.IP \(bu 2
+\fBshared\fR: it is equivalent to 0755.
+The owner has rwx access to the files and everyone else can read, access
+and execute them. This setting is useful for sharing containers storage
+with other users.  For instance, a storage owned by root could be shared
+to rootless users as an additional store.
+NOTE:  All files within the image are made readable and executable by any
+user on the system. Even /etc/shadow within your image is now readable by
+any user.
+
+.PP
+\fBOCTAL\fR: Users can experiment with other OCTAL Permissions.
+
+.PP
+Note: The force_mask Flag is an experimental feature, it could change in the
+future.  When "force_mask" is set the original permission mask is stored in the
+"user.containers.override_stat" xattr and the "mount_program" option must be
+specified. Mount programs like "/usr/bin/fuse-overlayfs" present the extended
+attribute permissions to processes within containers rather than the
+"force_mask"  permissions.
+
+.PP
+\fBmount_program\fP=""
+  Specifies the path to a custom program to use instead of using kernel defaults
+for mounting the file system. In rootless mode, without the CAP_SYS_ADMIN
+capability, many kernels prevent mounting of overlay file systems, requiring
+you to specify a mount_program. The mount_program option is also required on
+systems where the underlying storage is btrfs, zfs, overlay, or ecryptfs
+based file systems.
+  mount_program = "/usr/bin/fuse-overlayfs"
+
+.PP
+\fBmountopt\fP=""
+  Comma separated list of default options to be used to mount container images.  Suggested value "nodev". Mount options are documented in the mount(8) man page.
+
+.PP
+\fBskip_mount_home="false"\fP
+  Tell storage drivers to not create a PRIVATE bind mount on their home directory.
+  This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.PP
+\fBsize\fP=""
+  Maximum size of a read/write layer.   This flag can be used to set quota on the size of a read/write layer of a container. (format: [], where unit = b (bytes), k (kilobytes), m (megabytes), or g (gigabytes))
+
+.PP
+\fBuse_composefs\fP = "false"
+    Use ComposeFS to mount the data layers image.  ComposeFS support is experimental and not recommended for production use.
+    This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.PP
+\fBsync\fP="none|filesystem"
+  Filesystem synchronization mode for layer creation. (default: "none")
+.IP \(bu 2
+\fBnone\fR: No synchronization.
+Layer operations complete without calling syncfs().
+.IP \(bu 2
+\fBfilesystem\fR: Sync before completion.
+Flush all pending writes to the file system before marking the layer
+as present.  This helps prevent data corruption if the system
+crashes or loses power during layer operations.
+
+.SS STORAGE OPTIONS FOR VFS TABLE
+The \fBstorage.options.vfs\fR table supports the following options:
+
+.PP
+\fBignore_chown_errors\fP = "false"
+  ignore_chown_errors can be set to allow a non privileged user running with a  single UID within a user namespace to run containers. The user can pull and use any image even those with multiple uids.  Note multiple UIDs will be squashed down to the default uid in the container.  These images will have no separation between the users in the container.
+  This is a "string bool": "false"|"true" (cannot be native TOML boolean)
+
+.PP
+\fBsync\fP="none|filesystem"
+  Filesystem synchronization mode for layer creation. (default: "none")
+.IP \(bu 2
+\fBnone\fR: No synchronization.
+Layer operations complete without calling syncfs().
+.IP \(bu 2
+\fBfilesystem\fR: Sync before completion.
+Flush all pending writes to the file system before marking the layer
+as present.  This helps prevent data corruption if the system
+crashes or loses power during layer operations.
+
+.SS STORAGE OPTIONS FOR ZFS TABLE
+The \fBstorage.options.zfs\fR table supports the following options:
+
+.PP
+\fBfsname\fP=""
+  File System name for the zfs driver
+
+.PP
+\fBmountopt\fP=""
+  Comma separated list of default options to be used to mount container images.  Suggested value "nodev". Mount options are documented in the mount(8) man page.
+
+.PP
+\fBsize\fP=""
+  Maximum size of a container image.   This flag can be used to set quota on the size of container images. (format: [], where unit = b (bytes), k (kilobytes), m (megabytes), or g (gigabytes))
+
+.SH SELINUX LABELING
+When running on an SELinux system, if you move the containers storage graphroot directory, you must make sure the labeling is correct.
+
+.PP
+Tell SELinux about the new containers storage by setting up an equivalence record. This tells SELinux to label content under the new path, as if it was stored under \fB/var/lib/containers/storage\fR\&.
+
+.EX
+semanage fcontext -a -e /var/lib/containers NEWSTORAGEPATH
+restorecon -R -v NEWSTORAGEPATH
+.EE
+
+.PP
+In rootless mode, you would set
+
+.EX
+semanage fcontext -a -e $HOME/.local/share/containers NEWSTORAGEPATH
+restorecon -R -v NEWSTORAGEPATH
+.EE
+
+.PP
+The semanage command above tells SELinux to setup the default labeling of \fBNEWSTORAGEPATH\fR to match \fB/var/lib/containers\fR\&.  The \fBrestorecon\fR command tells SELinux to apply the labels to the actual content.
+
+.PP
+Now all new content created in these directories will automatically be created with the correct label.
+
+.SH QUOTAS
+Container storage implements \fBXFS project quota controls\fR for overlay storage
+containers and volumes. The directory used to store the containers must be an
+\fBXFS\fR file system and be mounted with the \fBpquota\fR option.
+
+.PP
+Example /etc/fstab entry:
+
+.EX
+/dev/podman/podman-var /var xfs defaults,x-systemd.device-timeout=0,pquota 1 2
+.EE
+
+.PP
+Container storage generates project ids for each container and builtin volume, but these project ids need to be unique for the XFS file system.
+
+.PP
+The xfs_quota tool can be used to assign a project id to the storage driver directory, e.g.:
+
+.EX
+echo 100000:/var/lib/containers/storage/overlay >> /etc/projects
+echo 200000:/var/lib/containers/storage/volumes >> /etc/projects
+echo storage:100000 >> /etc/projid
+echo volumes:200000 >> /etc/projid
+xfs_quota -x -c 'project -s storage volumes' /<xfs mount point>
+.EE
+
+.PP
+In the example above, the storage directory project id will be used as a "start offset"
+and all containers will be assigned larger project ids (e.g. >= 100000).
+Then the volumes directory project id will be used as a "start offset"
+and all volumes will be assigned larger project ids (e.g. >= 200000).
+This is a way to prevent xfs_quota management from conflicting with containers/storage.
+
+.SH "فایل‌ها (FILES)"
+The following search locations are used:
+.IP \(bu 2
+\fB/usr/share/containers/storage.conf\fR
+.IP \(bu 2
+\fB/usr/share/containers/storage.conf.d/\fR
+.IP \(bu 2
+\fB/usr/share/containers/storage.rootful.conf.d/\fR (only when UID == 0)
+.IP \(bu 2
+\fB/usr/share/containers/storage.rootless.conf.d/\fR (only when UID > 0)
+.IP \(bu 2
+\fB/usr/share/containers/storage.rootless.conf.d/<UID>/\fR (only when UID > 0)
+.IP \(bu 2
+\fB/etc/containers/storage.conf\fR
+.IP \(bu 2
+\fB/etc/containers/storage.conf.d/\fR
+.IP \(bu 2
+\fB/etc/containers/storage.rootful.conf.d/\fR (only when UID == 0)
+.IP \(bu 2
+\fB/etc/containers/storage.rootless.conf.d/\fR (only when UID > 0)
+.IP \(bu 2
+\fB/etc/containers/storage.rootless.conf.d/<UID>/\fR (only when UID > 0)
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/storage.conf\fR or if \fB$XDG_CONFIG_HOME\fR is unset then \fB$HOME/.config/containers/storage.conf\fR
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/storage.conf.d/\fR or if \fB$XDG_CONFIG_HOME\fR is unset then \fB$HOME/.config/containers/storage.conf.d/\fR
+
+.PP
+See \fBcontainers-config(5)\fP for a more detailed description on how the files are loaded.
+
+.PP
+/etc/projects - XFS persistent project root definition
+/etc/projid -  XFS project name mapping file
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBcontainers-config(5)\fP, \fBsemanage(8)\fP, \fBrestorecon(8)\fP, \fBmount(8)\fP, \fBfuse-overlayfs(1)\fP, \fBxfs_quota(8)\fP, \fBprojects(5)\fP, \fBprojid(5)\fP
+
+.SH "تاریخچه (HISTORY)"
+May 2017, Originally compiled by Dan Walsh dwalsh@redhat.com
+\[la]mailto:dwalsh@redhat.com\[ra]
+Format copied from crio.conf man page created by Aleksa Sarai asarai@suse.de
+\[la]mailto:asarai@suse.de\[ra]

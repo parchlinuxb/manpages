@@ -1,0 +1,244 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "gmobile.udev" "" "" ""
+.SH "نام (NAME)"
+gmobile.udev \- Device configuration for gmobile
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgmobile\fP allows one to configure certain aspects through
+udev\(aqs hwdb \%<https://\:www\:.freedesktop\:.org/\:software/\:systemd/\:man/\:hwdb\:.html>
+.sp
+The following properties are supported:
+.SH WAKEUP KEYS
+.sp
+An input device\(aqs wakeup keys specify which keys unblank the screen of
+an idle device. By default all keys are wakeup keys. The default can
+be changed on a per keyboard level via
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+GM_WAKEUP_KEY_DEFAULT=0
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The behaviour of individual keys can be changed by giving their keycodes e.g.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+GM_WAKEUP_KEY_<keycode>=[0|1]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The keycode is the linux event code.
+.sp
+Note that gmobile merely provides that information. The Wayland compositor is
+responsible for applying it.
+.sp
+For details on how to add these properties to hwdb see below.
+.SH TORCH BRIGHTNESS
+.sp
+A LED that is uses as camera flash can also be used as torch. The minimum torch
+brightness should still be visible to the user to avoid battery drain. This is
+usually the case at level \fB1\fP\&. The \fBGM_TORCH_MIN_BRIGHTNESS\fP
+allows to override this value.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+GM_TORCH_MIN_BRIGHTNESS=10
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that gmobile merely provides that information. The applications using the
+flash as torch is responsible for applying it.
+.sp
+For details on how to add these properties to hwdb see below.
+.SH CONFIGURING HWDB
+.sp
+The hwdb contains a set of match rules that assign udev properties
+that become available when the device is connected. This section only
+describes the hwdb in relation to gmobile, it is not full
+documentation on how the hwdb works. For that please see the
+\fBhwdb(7)\fP man page.
+.sp
+gmobile\(aqs use of the hwdb is limited to properties systemd and custom
+rules files (where available) provide.
+.SS Querying the hwdb
+.sp
+gmobile currently only uses device nodes in the form of \fB/dev/input/eventX\fP where X
+is the number of the specific device. Running \fBlibinput debug\-events\fP lists
+all devices currently available to libinput and their event node name:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$> sudo libinput debug\-events
+\-event0   DEVICE_ADDED            gpio\-keys                         seat0 default group1  cap:k
+\-event2   DEVICE_ADDED            30370000.snvs:snvs\-powerkey       seat0 default group2  cap:k
+\-event3   DEVICE_ADDED            generic ft5x06 (f0)               seat0 default group3  cap:t ntouches 10 calib
+\&...
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note the event node name for your device and translate it into a syspath in
+the form of \fB/sys/class/input/eventX\fP\&. This path can be supplied to \fBudevadm
+info\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$> udevadm info \-p /sys/class/input/event0/
+P: /devices/platform/gpio\-keys/input/input0/event0
+M: event0
+R: 0
+U: input
+D: c 13:64
+N: input/event0
+L: 0
+S: input/by\-path/platform\-gpio\-keys\-event
+E: DEVPATH=/devices/platform/gpio\-keys/input/input0/event0
+E: SUBSYSTEM=input
+E: DEVNAME=/dev/input/event0
+E: MAJOR=13
+E: MINOR=64
+E: USEC_INITIALIZED=5327886
+E: ID_INPUT=1
+E: ID_INPUT_KEY=1
+E: ID_PATH=platform\-gpio\-keys
+E: ID_PATH_TAG=platform\-gpio\-keys
+E: GM_WAKEUP_KEY_114=0
+E: GM_WAKEUP_KEY_115=0
+…
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Lines starting with \fBE:\fP are udev properties available to applications. Properties
+added by gmobile all have a \fIGM_\fP prefix. They are only present if a hwdb entry
+matches.
+.SS Reloading the hwdb
+.sp
+The actual hwdb is stored in a binary file on\-disk and must be updated
+manually whenever a \fB\&.hwdb\fP file changes. This is required both when a user
+manually edits the \fB\&.hwdb\fP file or when gmobile ships an updated set of entries.
+.sp
+To update the binary file on\-disk, run:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sudo systemd\-hwdb update
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Then, to trigger a reload of all properties on your device, run:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sudo udevadm trigger /sys/class/input/eventX
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Then check with \fBudevadm info\fP whether the properties were updated, see
+\fIQuerying the hwdb\fP\&. If a new property does not appear on the device, use \fBudevadm
+test\fP to check for error messages by udev and the hwdb (e.g. syntax errors
+in the udev rules files).
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sudo udevadm test /sys/class/input/eventX
+.EE
+.UNINDENT
+.UNINDENT
+.SS Modifying the hwdb
+.sp
+This section applies to users that need to add, change, or remove a hwdb
+entry for their device. Note that \fBthe hwdb is not part of the public API
+and may change at any time\fP\&. Once a device has been made to work, the
+change must be submitted to the
+gmobile repository \%<https://\:gitlab\:.gnome\:.org/\:World/\:Phosh/\:gmobile>\&.
+.sp
+hwdb entries are only applied if a udev rules calls out to the hwdb with the
+right match format. gmobile ships with a set of rules to query the hwdb,
+the different rules are reflected by their prefix. Again, \fBthis is not part
+of the public API\fP\&. gmobile\(aqs matches are
+composed of a literal \(dqgmobile\(dq, then either the device name (prefixed
+with \fIname:\fP) followed by the machine\(aqs first device tree compatible
+(prefixed with \fIdt:\fP) or dmi modalias. For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gmobile:name:gpio\-keys:dt:purism,librem5*
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The device name is available in the device\(aqs \fI/sys/class/input/eventX/device/name\fP
+while the device tree compatible is available in \fI/sys/firmware/devicetree/base/compatible\fP\&.
+.sp
+The hwdb match string is the first portion of the hwdb entry. The second
+portion is the property to set. Each hwdb entry may match on multiple
+devices and may apply multiple properties. For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gmobile:name:gpio\-keys:dt:purism,librem5*
+  GM_WAKEUP_KEY_114=0
+  GM_WAKEUP_KEY_115=0
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In the example above the matching gpio\-keys device will have both
+properties applied.
+.sp
+The hwdb does not allow removing properties. Where a property must be unset,
+it should be set to 0.
+.sp
+For testing any user\-specific hwdb entries should be placed in a file
+\fI/etc/udev/hwdb.d/99\-gmobile.hwdb\fP but please make sure to submit them upstream
+as the hwdb format might change without notice.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+\fBhwdb(7)\fP \fBsystemd\-hwdb(8)\fP \fBphoc(1)\fP \fBphosh(1)\fP
+.\" End of generated man page.

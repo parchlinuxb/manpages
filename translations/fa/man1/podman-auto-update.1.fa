@@ -1,0 +1,151 @@
+'\" t
+.nh
+.TH podman-auto-update 1
+.SH "نام (NAME)"
+podman-auto-update \- Auto update containers according to their auto-update policy
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman auto-update\fP [\fIoptions\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+\fBpodman auto-update\fP pulls down new container images and restarts containers configured for auto updates.
+To make use of auto updates, the container or Kubernetes workloads must run inside a systemd unit.
+After a successful update of an image, the containers using the image get updated by restarting the systemd units they run in.
+Please refer to \fBpodman-systemd.unit(5)\fR on how to run Podman under systemd.
+
+.PP
+To configure a container for auto updates, it must be created with the \fBio.containers.autoupdate\fR label or the \fBAutoUpdate\fR field in \fBpodman-systemd.unit(5)\fR with one of the following two values:
+.IP \(bu 2
+\fBregistry\fR: If the label is present and set to \fBregistry\fR, Podman reaches out to the corresponding registry to check if the image has been updated.
+The label \fBimage\fR is an alternative to \fBregistry\fR maintained for backwards compatibility.
+An image is considered updated if the digest in the local storage is different than the one of the remote image.
+If an image must be updated, Podman pulls it down and restarts the systemd unit executing the container.
+The registry policy requires a fully-qualified image reference (e.g., quay.io/podman/stable:latest) to be used to create the container.
+This enforcement is necessary to know which image to actually check and pull.
+If an image ID was used, Podman would not know which image to check/pull anymore.
+.IP \(bu 2
+\fBlocal\fR: If the autoupdate label is set to \fBlocal\fR, Podman compares the image digest of the container to the one in the local container storage.
+If they differ, the local image is considered to be newer and the systemd unit gets restarted.
+
+.SS Auto Updates and Kubernetes YAML
+Podman supports auto updates for Kubernetes workloads.  The auto-update policy can be configured directly via \fBpodman-systemd.unit(5)\fR or inside the Kubernetes YAML with the Podman-specific annotations mentioned below:
+.IP \(bu 2
+\fBio.containers.autoupdate\fR: "registry|local" to apply the auto-update policy to all containers
+.IP \(bu 2
+\fBio.containers.autoupdate/$container\fR: "registry|local" to apply the auto-update policy to \fB$container\fR only
+.IP \(bu 2
+\fBio.containers.sdnotify\fR: "conmon|container" to apply the sdnotify policy to all containers
+.IP \(bu 2
+\fBio.containers.sdnotify/$container\fR: "conmon|container" to apply the sdnotify policy to \fB$container\fR only
+
+.PP
+By default, the autoupdate policy is set to "disabled", the sdnotify policy is set to "conmon".
+
+.SS Systemd Unit and Timer
+Podman ships with a \fBpodman-auto-update.service\fR systemd unit. This unit is triggered daily at midnight by the \fBpodman-auto-update.timer\fR systemd timer.
+The timer can be altered for custom time-based updates if desired.
+The unit can further be invoked by other systemd units (e.g., via the dependency tree) or manually via \fBsystemctl start podman-auto-update.service\fP\&.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--authfile\fP=\fIpath\fP
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.PP
+Alternatively, the \fBio.containers.autoupdate.authfile\fR container label can be configured.  In that case, Podman will use the specified label's value instead.
+
+.SS \fB--dry-run\fP
+Check for the availability of new images but do not perform any pull operation or restart any service or container.
+The \fBUPDATED\fR field indicates the availability of a new image with "pending".
+
+.SS \fB--format\fP=\fIformat\fP
+Change the default output format.  This can be of a supported type like 'json' or a Go template.
+Valid placeholders for the Go template are listed below:
+
+.TS
+allbox;
+l l 
+l l .
+\fB\fBPlaceholder\fP\fP	\fB\fBDescription\fP\fP
+\&.Container	ID and name of the container
+\&.ContainerID	ID of the container
+\&.ContainerName	Name of the container
+\&.Image	Name of the image
+\&.Policy	T{
+Auto-update policy of the container
+T}
+\&.Unit	Name of the systemd unit
+\&.Updated	T{
+Update status: true,false,failed,pending
+T}
+.TE
+
+.SS \fB--rollback\fP
+If restarting a systemd unit after updating the image has failed, rollback to using the previous image and restart the unit another time.  Default is true.
+
+.PP
+Note that detecting if a systemd unit has failed is best done by the container sending the READY message via SDNOTIFY.
+This way, restarting the unit waits until having received the message or a timeout kicked in.
+Without that, restarting the systemd unit may succeed even if the container has failed shortly after.
+
+.PP
+For a container to send the READY message via SDNOTIFY it must be created with the \fB--sdnotify=container\fR option (see podman-run(1)).
+The application running inside the container can then execute \fBsystemd-notify --ready\fR when ready or use the sdnotify bindings of the specific programming language (e.g., sd_notify(3)).
+
+.SS \fB--tls-verify\fP
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SH "مثال‌ها (EXAMPLES)"
+Create a Quadlet file configured for auto updates:
+
+.EX
+$ cat ~/.config/containers/systemd/sleep.container
+[Container]
+Image=registry.fedoraproject.org/fedora:latest
+Exec=sleep infinity
+AutoUpdate=registry
+.EE
+
+.PP
+Generate a systemd service from the Quadlet file by reloading the systemd user daemon:
+
+.EX
+$ systemctl --user daemon-reload
+.EE
+
+.PP
+Start the systemd service and make sure the container is running
+
+.EX
+$ systemctl --user start sleep.service
+$ podman ps
+CONTAINER ID  IMAGE                                     COMMAND         CREATED        STATUS        PORTS       NAMES
+f8e4759798d4  registry.fedoraproject.org/fedora:latest  sleep infinity  2 seconds ago  Up 2 seconds              systemd-sleep
+.EE
+
+.PP
+Check if a new image is available via \fB--dry-run\fR:
+
+.EX
+$ podman auto-update --dry-run --format "{{.Image}} {{.Updated}}"
+registry.fedoraproject.org/fedora:latest   pending
+.EE
+
+.PP
+Update the service:
+
+.EX
+$ podman auto-update
+UNIT           CONTAINER                     IMAGE                                     POLICY      UPDATED
+sleep.service  f8e4759798d4 (systemd-sleep)  registry.fedoraproject.org/fedora:latest  registry    true
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-generate-systemd(1)\fP, \fBpodman-run(1)\fP, \fBpodman-systemd.unit(5)\fP, \fBsd_notify(3)\fP, \fBsystemd.unit(5)\fP

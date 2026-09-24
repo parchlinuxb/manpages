@@ -1,0 +1,203 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "DNF-AUTOMATIC" "8" "Dec 17, 2025" "4.24.0" "DNF"
+.SH "نام (NAME)"
+dnf-automatic \- DNF Automatic
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBdnf\-automatic [<config file>]\fP
+.SH "توضیحات (DESCRIPTION)"
+.sp
+Alternative CLI to \fBdnf upgrade\fP with specific facilities to make it suitable to be executed automatically and regularly from systemd timers, cron jobs and similar.
+.sp
+The operation of the tool is usually controlled by the configuration file or the function\-specific timer units (see below). The command only accepts a single optional argument pointing to the config file, and some control arguments intended for use by the services that back the timer units. If no configuration file is passed from the command line, \fB/etc/dnf/automatic.conf\fP is used.
+.sp
+The tool synchronizes package metadata as needed and then checks for updates available for the given system and then either exits, downloads the packages or downloads and applies the packages. The outcome of the operation is then reported by a selected mechanism, for instance via the standard output, email or MOTD messages.
+.sp
+The systemd timer unit \fBdnf\-automatic.timer\fP will behave as the configuration file specifies (see below) with regard to whether to download and apply updates. Some other timer units are provided which override the configuration file with some standard behaviours:
+.INDENT 0.0
+.IP \(bu 2
+dnf\-automatic\-notifyonly
+.IP \(bu 2
+dnf\-automatic\-download
+.IP \(bu 2
+dnf\-automatic\-install
+.UNINDENT
+.sp
+Regardless of the configuration file settings, the first will only notify of available updates. The second will download, but not install them. The third will download and install them.
+.SH RUN DNF-AUTOMATIC
+.sp
+You can select one that most closely fits your needs, customize \fB/etc/dnf/automatic.conf\fP for any specific behaviors, and enable the timer unit.
+.sp
+For example: \fBsystemctl enable \-\-now dnf\-automatic\-notifyonly.timer\fP
+.SH CONFIGURATION FILE FORMAT
+.sp
+The configuration file is separated into topical sections.
+.SS \fB[commands]\fP section
+.sp
+Setting the mode of operation of the program.
+.INDENT 0.0
+.TP
+.B \fBapply_updates\fP
+boolean, default: False
+.sp
+Whether packages comprising the available updates should be applied by \fBdnf\-automatic.timer\fP, i.e. installed via RPM. Implies \fBdownload_updates\fP\&. Note that if this is set to \fBFalse\fP, downloaded packages will be left in the cache till the next successful DNF transaction. Note that the other timer units override this setting.
+.TP
+.B \fBdownload_updates\fP
+boolean, default: False
+.sp
+Whether packages comprising the available updates should be downloaded by \fBdnf\-automatic.timer\fP\&. Note that the other timer units override this setting.
+.TP
+.B \fBnetwork_online_timeout\fP
+time in seconds, default: 60
+.sp
+Maximal time dnf\-automatic will wait until the system is online. 0 means that network availability detection will be skipped.
+.TP
+.B \fBrandom_sleep\fP
+time in seconds, default: 0
+.sp
+Maximal random delay before downloading.  Note that, by default, the \fBsystemd\fP timers also apply a random delay of up to 1 hour.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \fBupgrade_type\fP
+either one of \fBdefault\fP, \fBsecurity\fP, default: \fBdefault\fP
+.sp
+What kind of upgrades to look at. \fBdefault\fP signals looking for all available updates, \fBsecurity\fP only those with an issued security advisory.
+.TP
+.B \fBreboot\fP
+either one of \fBnever\fP, \fBwhen\-changed\fP, \fBwhen\-needed\fP, default: \fBnever\fP
+.sp
+When the system should reboot following upgrades. \fBnever\fP does not reboot the system. \fBwhen\-changed\fP triggers a reboot after any upgrade. \fBwhen\-needed\fP triggers a reboot only when rebooting is necessary to apply changes, such as when systemd or the kernel is upgraded.
+.TP
+.B \fBreboot_command\fP
+string, default: \fBshutdown \-r +5 \(aqRebooting after applying package updates\(aq\fP
+.sp
+Specify the command to run to trigger a reboot of the system. For example, to skip the 5\-minute delay and wall message, use \fBshutdown \-r\fP
+.UNINDENT
+.SS \fB[emitters]\fP section
+.sp
+Choosing how the results should be reported.
+.INDENT 0.0
+.TP
+.B \fBemit_via\fP
+list, default: \fBemail, stdio, motd\fP
+.sp
+List of emitters to report the results through. Available emitters are \fBstdio\fP to print the result to standard output, \fBcommand\fP to send the result to a custom command, \fBcommand_email\fP to send an email using a command, and \fBemail\fP to send the report via email and \fBmotd\fP sends the result to \fI/etc/motd\fP file.
+.TP
+.B \fBsystem_name\fP
+string, default: hostname of the given system
+.sp
+How the system is called in the reports.
+.TP
+.B \fBsend_error_messages\fP
+boolean, default: False
+.sp
+Invokes emitters when an error occurs.
+.UNINDENT
+.SS \fB[command]\fP section
+.sp
+The command emitter configuration. Variables usable in format string arguments are \fBbody\fP with the message body.
+.INDENT 0.0
+.TP
+.B \fBcommand_format\fP
+format string, default: \fBcat\fP
+.sp
+The shell command to execute.
+.TP
+.B \fBstdin_format\fP
+format string, default: \fB{body}\fP
+.sp
+The data to pass to the command on stdin.
+.UNINDENT
+.SS \fB[command_email]\fP section
+.sp
+The command email emitter configuration. Variables usable in format string arguments are \fBbody\fP with message body, \fBsubject\fP with email subject, \fBemail_from\fP with the \(dqFrom:\(dq address and \fBemail_to\fP with a space\-separated list of recipients.
+.INDENT 0.0
+.TP
+.B \fBcommand_format\fP
+format string, default: \fBmail \-Ssendwait \-s {subject} \-r {email_from} {email_to}\fP
+.sp
+The shell command to execute.
+.TP
+.B \fBemail_from\fP
+string, default: \fBroot\fP
+.sp
+Message\(aqs \(dqFrom:\(dq address.
+.TP
+.B \fBemail_to\fP
+list, default: \fBroot\fP
+.sp
+List of recipients of the message.
+.TP
+.B \fBstdin_format\fP
+format string, default: \fB{body}\fP
+.sp
+The data to pass to the command on stdin.
+.UNINDENT
+.SS \fB[email]\fP section
+.sp
+The email emitter configuration.
+.INDENT 0.0
+.TP
+.B \fBemail_from\fP
+string, default: \fBroot\fP
+.sp
+Message\(aqs \(dqFrom:\(dq address.
+.TP
+.B \fBemail_host\fP
+string, default: \fBlocalhost\fP
+.sp
+Hostname of the SMTP server used to send the message.
+.TP
+.B \fBemail_port\fP
+integer, default: \fB25\fP
+.sp
+Port number to connect to at the SMTP server.
+.TP
+.B \fBemail_tls\fP
+either one of \fBno\fP, \fByes\fP, \fBstarttls\fP, default: \fBno\fP
+.sp
+Whether to use TLS, STARTTLS or no encryption to connect to the SMTP server.
+.TP
+.B \fBemail_to\fP
+list, default: \fBroot\fP
+.sp
+List of recipients of the message.
+.UNINDENT
+.SS \fB[base]\fP section
+.sp
+Can be used to override settings from DNF\(aqs main configuration file. See DNF Configuration Reference \%<>\&.
+.SH "نویسنده (AUTHOR)"
+See AUTHORS in DNF source distribution.
+.SH "حق نشر (COPYRIGHT)"
+2012-2020, Red Hat, Licensed under GPLv2+
+.\" End of generated man page.

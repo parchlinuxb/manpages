@@ -1,0 +1,232 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "DNF5-AUTOMATIC" "8" "Sep 06, 2026" "" "dnf5"
+.SH "نام (NAME)"
+dnf5-automatic \- Automatic Command
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBdnf5 automatic [options]\fP
+.SH "توضیحات (DESCRIPTION)"
+.sp
+Alternative CLI to \fBdnf upgrade\fP with specific facilities to make it suitable to be executed automatically and regularly from systemd timers, cron jobs and similar.
+.sp
+The operation of the tool is controlled by configuration files. Default values are set from \fB/usr/share/dnf5/dnf5\-plugins/automatic.conf\fP config file. Host\-specific overrides from \fB/etc/dnf/automatic.conf\fP are then applied.
+.sp
+The tool synchronizes package metadata as needed and then checks for updates available for the given system and then either exits, downloads the packages or downloads and applies the updates. The outcome of the operation is then reported by a selected mechanism, for instance via the standard output, email or MOTD messages.
+.sp
+The systemd timer unit \fBdnf5\-automatic.timer\fP will behave as the configuration file specifies (see below) with regard to whether to download and apply updates.
+.SH "گزینه‌ها (OPTIONS)"
+.INDENT 0.0
+.TP
+.B \fB\-\-timer\fP
+.nf
+Apply random delay before execution.
+.fi
+.sp
+.UNINDENT
+.sp
+The following options can be used to override values from the configuration file.
+.INDENT 0.0
+.TP
+.B \fB\-\-downloadupdates\fP
+.nf
+Automatically download updated packages.
+.fi
+.sp
+.TP
+.B \fB\-\-no\-downloadupdates\fP
+.nf
+Do not automatically download updated packages.
+.fi
+.sp
+.TP
+.B \fB\-\-installupdates\fP
+.nf
+Automatically install downloaded updates (implies \-\-downloadupdates).
+.fi
+.sp
+.TP
+.B \fB\-\-no\-installupdates\fP
+.nf
+Do not automatically install downloaded updates.
+.fi
+.sp
+.UNINDENT
+.SH RUN DNF5 AUTOMATIC SERVICE
+.sp
+The service is typically executed using the systemd timer \fBdnf5\-automatic.timer\fP\&. To configure the service, customize the \fB/etc/dnf/automatic.conf\fP file. You can either copy the distribution config file from \fB/usr/share/dnf5/dnf5\-plugins/automatic.conf\fP and use it as a baseline, or create your own configuration file from scratch with only the required overrides.
+.sp
+Then enable the timer unit:
+.sp
+\fBsystemctl enable \-\-now dnf5\-automatic.timer\fP
+.SH CONFIGURATION FILE FORMAT
+.sp
+The configuration file is separated into topical sections.
+.SS \fB[commands]\fP section
+.sp
+Setting the mode of operation of the program.
+.INDENT 0.0
+.TP
+.B \fBapply_updates\fP
+boolean, default: False
+.sp
+Whether packages comprising the available updates should be applied by \fBdnf5\-automatic.timer\fP, i.e. installed via RPM. Implies \fBdownload_updates\fP\&. Note that if this is set to \fBFalse\fP, downloaded packages will be left in the cache till the next successful DNF transaction.
+.TP
+.B \fBdownload_updates\fP
+boolean, default: True
+.sp
+Whether packages comprising the available updates should be downloaded by \fBdnf5\-automatic.timer\fP\&.
+.TP
+.B \fBnetwork_online_timeout\fP
+time in seconds, default: 60
+.sp
+Maximal time \fBdnf5 automatic\fP will wait until the system is online. 0 means that network availability detection will be skipped.
+.TP
+.B \fBrandom_sleep\fP
+time in seconds, default: 0
+.sp
+Maximal random delay before downloading (only applied if \fB\-\-timer\fP option was used).  Note that, by default, the \fBsystemd\fP timers also apply a random delay of up to 1 hour.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \fBupgrade_type\fP
+either one of \fBdefault\fP, \fBsecurity\fP, \fBdistro\-sync\fP, default: \fBdefault\fP
+.sp
+What kind of upgrades to look at. \fBdefault\fP signals looking for all available updates, \fBsecurity\fP only those with an issued security advisory, \fBdistro\-sync\fP synchronizes packages to the latest available versions in the enabled repositories (similar to \fBdnf5 distro\-sync\fP).
+.TP
+.B \fBreboot\fP
+either one of \fBnever\fP, \fBwhen\-changed\fP, \fBwhen\-needed\fP, default: \fBnever\fP
+.sp
+When the system should reboot following upgrades. \fBnever\fP does not reboot the system. \fBwhen\-changed\fP triggers a reboot after any upgrade. \fBwhen\-needed\fP triggers a reboot only when rebooting is necessary to apply changes, such as when systemd or the kernel is upgraded.
+.TP
+.B \fBreboot_command\fP
+string, default: \fBshutdown \-r +5 \(aqRebooting after applying package updates\(aq\fP
+.sp
+Specify the command to run to trigger a reboot of the system. For example, to skip the 5\-minute delay and wall message, use \fBshutdown \-r\fP
+.UNINDENT
+.SS \fB[emitters]\fP section
+.sp
+Choosing how the results should be reported.
+.INDENT 0.0
+.TP
+.B \fBemit_via\fP
+list, default: \fBstdio\fP
+.sp
+List of emitters to report the results through. Available emitters are \fBstdio\fP to print the result to standard output, \fBcommand\fP to send the result to a custom command, \fBcommand_email\fP to send an email using a command, \fBemail\fP to send the report via email using SMTP server (see \fB[email]\fP section for requirements), and \fBmotd\fP sends the result to \fI/etc/motd.d/dnf5\-automatic\fP file.
+.TP
+.B \fBsystem_name\fP
+string, default: hostname of the given system
+.sp
+How the system is called in the reports.
+.TP
+.B \fBemit_no_updates\fP
+boolean, default: False
+.sp
+Whether to emit a message when nothing interesting happened \- the operation succeeded and no packages were available/installed.
+.UNINDENT
+.SS \fB[command]\fP section
+.sp
+The command emitter configuration. Variables usable in format string arguments are \fBbody\fP with the message body.
+.INDENT 0.0
+.TP
+.B \fBcommand_format\fP
+format string, default: \fBcat\fP
+.sp
+The shell command to execute.
+.TP
+.B \fBstdin_format\fP
+format string, default: \fB{body}\fP
+.sp
+The data to pass to the command on stdin.
+.UNINDENT
+.SS \fB[command_email]\fP section
+.sp
+The command email emitter configuration. Variables usable in format string arguments are \fBbody\fP with message body, \fBsubject\fP with email subject, \fBemail_from\fP with the \(dqFrom:\(dq address and \fBemail_to\fP with a space\-separated list of recipients.
+.INDENT 0.0
+.TP
+.B \fBcommand_format\fP
+format string, default: \fBmail \-Ssendwait \-s {subject} \-r {email_from} {email_to}\fP
+.sp
+The shell command to execute.
+.TP
+.B \fBemail_from\fP
+string, default: \fBroot\fP
+.sp
+Message\(aqs \(dqFrom:\(dq address.
+.TP
+.B \fBemail_to\fP
+list, default: \fBroot\fP
+.sp
+List of recipients of the message.
+.TP
+.B \fBstdin_format\fP
+format string, default: \fB{body}\fP
+.sp
+The data to pass to the command on stdin.
+.UNINDENT
+.SS \fB[email]\fP section
+.sp
+The email emitter configuration. This emitter sends messages directly via an SMTP server using \fBlibcurl\fP\&. It requires \fBlibcurl\fP with SMTP protocol support. Some distributions ship a minimal variant of libcurl without SMTP support. On Fedora, this can be resolved by running \fBdnf5 swap libcurl\-minimal libcurl\fP\&. Alternatively, use the \fBcommand_email\fP emitter which does not require SMTP support in libcurl. Credentials for the SMTP server are read from the \fB~/.netrc\fP file.
+.INDENT 0.0
+.TP
+.B \fBemail_from\fP
+string, default: \fBroot\fP
+.sp
+Message\(aqs \(dqFrom:\(dq address.
+.TP
+.B \fBemail_to\fP
+list, default: \fBroot\fP
+.sp
+List of recipients of the message.
+.TP
+.B \fBemail_host\fP
+string, default: \fBlocalhost\fP
+.sp
+Hostname of the SMTP server used to send the message.
+.TP
+.B \fBemail_port\fP
+integer, default: \fB25\fP
+.sp
+Port number to connect to at the SMTP server.
+.TP
+.B \fBemail_tls\fP
+either one of \fBno\fP, \fByes\fP, \fBstarttls\fP, default: \fBno\fP
+.sp
+Whether to use TLS, STARTTLS or no encryption to connect to the SMTP server.
+.UNINDENT
+.SS \fB[base]\fP section
+.sp
+Can be used to override settings from DNF\(aqs main configuration file. See \fBdnf5.conf(5)\fP\&.
+.SH "نویسنده (AUTHOR)"
+See AUTHORS.md in dnf5 source distribution.
+.SH "حق نشر (COPYRIGHT)"
+Contributors to the dnf5 project.
+.\" End of generated man page.

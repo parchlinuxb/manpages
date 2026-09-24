@@ -1,0 +1,935 @@
+'\" t
+.nh
+.TH podman-kube-play 1
+.SH "نام (NAME)"
+podman-kube-play \- Create containers, pods and volumes based on Kubernetes YAML
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman kube play\fP [\fIoptions\fP] \fIfile.yml|-|https://website.io/file.yml\fP
+
+.SH "توضیحات (DESCRIPTION)"
+\fBpodman kube play\fP reads in a structured file of Kubernetes YAML.  It recreates the containers, pods, or volumes described in the YAML.  Containers within a pod are then started, and the ID of the new Pod or the name of the new Volume is output. If the YAML file is specified as "-", then \fBpodman kube play\fR reads the YAML file from stdin.
+The input can also be a URL that points to a YAML file such as https://podman.io/demo.yml. \fBpodman kube play\fR reads the YAML from the URL and create pods and containers from it.
+
+.PP
+Using the \fB--down\fR command line option, it is also capable of tearing down the pods created by a previous run of \fBpodman kube play\fR\&.
+
+.PP
+Using the \fB--replace\fR command line option, it tears down the pods(if any) created by a previous run of \fBpodman kube play\fR and recreate the pods with the Kubernetes YAML file.
+
+.PP
+Ideally the input file is created by the Podman command (see podman-kube-generate(1)).  This guarantees a smooth import and expected results.
+
+.PP
+Currently, the supported Kubernetes kinds are:
+.IP \(bu 2
+Pod
+.IP \(bu 2
+Deployment
+.IP \(bu 2
+PersistentVolumeClaim
+.IP \(bu 2
+ConfigMap
+.IP \(bu 2
+Secret
+.IP \(bu 2
+DaemonSet
+.IP \(bu 2
+Job
+
+.PP
+\fBKubernetes Pods or Deployments\fR
+
+.PP
+Only five volume types are supported by kube play, the \fIhostPath\fP, \fIemptyDir\fP, \fIconfigMap\fP, \fIpersistentVolumeClaim\fP, and \fIimage\fP volume types.
+.IP \(bu 2
+When using the \fIhostPath\fP volume type, only the  \fIdefault (empty)\fP, \fIDirectoryOrCreate\fP, \fIDirectory\fP, \fIFileOrCreate\fP, \fIFile\fP, \fISocket\fP, \fICharDevice\fP and \fIBlockDevice\fP subtypes are supported. Podman interprets the value of \fIhostPath\fP \fIpath\fP as a file path when it contains at least one forward slash, otherwise Podman treats the value as the name of a named volume.
+.IP \(bu 2
+When using a \fIpersistentVolumeClaim\fP, the value for \fIclaimName\fP is the name for the Podman named volume.
+.IP \(bu 2
+When using an \fIemptyDir\fP volume, Podman creates an anonymous volume that is attached the containers running inside the pod and is deleted once the pod is removed.
+.IP \(bu 2
+When using an \fIconfigMap\fP volume, Podman creates an anonymous volume that is attached the containers running inside the pod and is deleted once the pod is removed.
+.IP \(bu 2
+When using an \fIimage\fP volume, Podman creates a read-only image volume with an empty subpath (the whole image is mounted). The image must already exist locally. It is supported in rootful mode only.
+
+.PP
+Note: The default restart policy for containers is \fBalways\fR\&.  You can change the default by setting the \fBrestartPolicy\fR field in the spec.
+
+.PP
+Note: When playing a kube YAML with init containers, the init container is created with init type value \fBonce\fR\&. To change the default type, use the \fBio.podman.annotations.init.container.type\fR annotation to set the type to \fBalways\fR\&.
+
+.PP
+Note: \fIhostPath\fP volume types created by kube play is given an SELinux shared label (z), bind mounts are not relabeled (use \fBchcon -t container_file_t -R <directory>\fR).
+
+.PP
+Note: To set userns of a pod, use the \fBio.podman.annotations.userns\fP annotation in the pod/deployment definition. For example, \fBio.podman.annotations.userns=keep-id\fP annotation tells Podman to create a user namespace where the current rootless user's UID:GID are mapped to the same values in the container. This can be overridden with the \fB--userns\fR flag.
+
+.PP
+Note: Use the \fBio.podman.annotations.volumes-from\fP annotation to bind mount volumes of one container to another. You can mount volumes from multiple source containers to a target container. The source containers that belong to the same pod must be defined before the source container in the kube YAML. The annotation format is \fBio.podman.annotations.volumes-from/targetContainer: "sourceContainer1:mountOpts1;sourceContainer2:mountOpts2"\fR\&.
+
+.PP
+Note: If the \fB:latest\fR tag is used, Podman attempts to pull the image from a registry. If the image was built locally with Podman or Buildah, it has \fBlocalhost\fR as the domain, in that case, Podman uses the image from the local store even if it has the \fB:latest\fR tag.
+
+.PP
+Note: The command \fBpodman play kube\fR is an alias of \fBpodman kube play\fR, and performs the same function.
+
+.PP
+Note: The command \fBpodman kube down\fR can be used to stop and remove pods or containers based on the same Kubernetes YAML used
+by \fBpodman kube play\fR to create them.
+
+.PP
+Note: To customize the name of the infra container created during \fBpodman kube play\fR, use the \fBio.podman.annotations.infra.name\fP annotation in the pod definition. This annotation is automatically set when generating a kube yaml from a pod that was created with the \fB--infra-name\fR flag set.
+
+.PP
+Note: Use the \fBio.podman.annotations.pids-limit/$ctrname\fP annotation to configure the pod's pids limit.
+
+.PP
+Note: Use the \fBio.podman.annotations.cpuset/$ctrname\fP annotation to restrict a container's execution to a specific set of CPU cores. This is equivalent to the \fB--cpuset-cpus=number\fR option in podman-run(1).
+
+.PP
+Note: Use the \fBio.podman.annotations.memory-nodes/$ctrname\fP annotation to restrict a container's memory allocations to a specific set of memory nodes on NUMA systems. This is equivalent to the \fB--cpuset-mems=nodes\fR option in podman-run(1).
+
+.PP
+\fBKubernetes PersistentVolumeClaims\fR
+
+.PP
+A Kubernetes PersistentVolumeClaim represents a Podman named volume. Only the PersistentVolumeClaim name is required by Podman to create a volume. Kubernetes annotations can be used to make use of the available options for Podman volumes.
+.IP \(bu 2
+volume.podman.io/driver
+.IP \(bu 2
+volume.podman.io/device
+.IP \(bu 2
+volume.podman.io/type
+.IP \(bu 2
+volume.podman.io/uid
+.IP \(bu 2
+volume.podman.io/gid
+.IP \(bu 2
+volume.podman.io/mount-options
+.IP \(bu 2
+volume.podman.io/import-source
+.IP \(bu 2
+volume.podman.io/image
+
+.PP
+Use \fBvolume.podman.io/import-source\fR to import the contents of the tarball (.tar, .tar.gz, .tgz, .bzip, .tar.xz, .txz, .tar.zst) specified in the annotation's value into the created Podman volume
+
+.PP
+Kube play is capable of building images on the fly given the correct directory layout and Containerfiles. This
+option is not available for remote clients, including Mac and Windows (excluding WSL2) machines, yet. Consider the following excerpt from a YAML file:
+
+.EX
+apiVersion: v1
+kind: Pod
+metadata:
+\&...
+spec:
+  containers:
+  - name: container
+    image: foobar
+\&...
+.EE
+
+.PP
+If there is a directory named \fBfoobar\fR in the current working directory with a file named \fBContainerfile\fR or \fBDockerfile\fR,
+Podman kube play builds that image and name it \fBfoobar\fR\&.  An example directory structure for this example looks
+like:
+
+.EX
+|- mykubefiles
+    |- myplayfile.yaml
+    |- foobar
+         |- Containerfile
+.EE
+
+.PP
+The build considers \fBfoobar\fR to be the context directory for the build. If there is an image in local storage
+called \fBfoobar\fR, the image is not built unless the \fB--build\fR flag is used. Use \fB--build=false\fR to completely
+disable builds.
+
+.PP
+Kube play supports CDI (Container Device Interface) device selectors to share
+host devices (e.g. GPUs) with containers. The configuration format follows
+Kubernetes extended resource management:
+
+.EX
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: container
+    resources:
+      limits:
+        nvidia.com/gpu=all: 1
+.EE
+
+.PP
+To enable sharing host devices, analogous to using the \fB--device\fR flag Podman
+kube supports a custom CDI selector: \fBpodman.io/device=<host device path>\fR\&.
+
+.PP
+\fBKubernetes ConfigMap\fR
+
+.PP
+Kubernetes ConfigMap can be referred as a source of environment variables or volumes in Pods or Deployments.
+ConfigMaps aren't a standalone object in Podman; instead, when a container uses a ConfigMap, Podman creates environment variables or volumes as needed.
+
+.PP
+For example, the following YAML document defines a ConfigMap and then uses it in a Pod:
+
+.EX
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: foo
+data:
+    FOO: bar
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: foobar
+spec:
+  containers:
+  - name: container-1
+    image: foobar
+    envFrom:
+    - configMapRef:
+        name: foo
+        optional: false
+.EE
+
+.PP
+and as a result environment variable \fBFOO\fR is set to \fBbar\fR for container \fBcontainer-1\fR\&.
+
+.PP
+\fBKubernetes Secret\fR
+
+.PP
+Kubernetes Secret represents a Podman named secret. The Kubernetes Secret is saved as a whole and may be referred to as a source of environment variables or volumes in Pods or Deployments.
+
+.PP
+For example, the following YAML document defines a Secret and then uses it in a Pod:
+
+.EX
+kind: Secret
+apiVersion: v1
+metadata:
+  name: foo
+data:
+  foo: YmFy # base64 for bar
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: foobar
+spec:
+  containers:
+  - name: container-1
+    image: foobar
+    env:
+    - name: FOO
+      valueFrom:
+        secretKeyRef:
+          name: foo
+          key: foo
+.EE
+
+.PP
+and as a result environment variable \fBFOO\fR is set to \fBbar\fR for container \fBcontainer-1\fR\&.
+
+.PP
+\fBAutomounting Volumes (deprecated)\fR
+
+.PP
+Note: The automounting annotation is deprecated. Kubernetes has native support for image volumes and that should be used rather than this podman-specific annotation.
+
+.PP
+An image can be automatically mounted into a container if the annotation \fBio.podman.annotations.kube.image.automount/$ctrname\fR is given. The following rules apply:
+.IP \(bu 2
+The image must already exist locally.
+.IP \(bu 2
+The image must have at least 1 volume directive.
+.IP \(bu 2
+The path given by the volume directive will be mounted from the image into the container. For example, an image with a volume at \fB/test/test_dir\fR will have \fB/test/test_dir\fR in the image mounted to \fB/test/test_dir\fR in the container.
+.IP \(bu 2
+Multiple images can be specified. If multiple images have a volume at a specific path, the last image specified trumps.
+.IP \(bu 2
+The images are always mounted read-only.
+.IP \(bu 2
+Images to mount are defined in the annotation "io.podman.annotations.kube.image.automount/$ctrname" as a semicolon-separated list. They are mounted into a single container in the pod, not the whole pod. The annotation can be specified for additional containers if additional mounts are required.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--annotation\fP=\fIkey=value\fP
+Add an annotation to the container or pod. This option can be set multiple times.
+
+.PP
+Note: For \fBpodman kube play\fR, the \fB--annotation\fR flag adds Podman-specific annotations to the containers and pods created by Podman, not to the Kubernetes YAML itself. These annotations can be used to configure Podman-specific features like user namespaces (\fBio.podman.annotations.userns\fR), volumes-from (\fBio.podman.annotations.volumes-from\fR), and other container behaviors.
+
+.SS \fB--authfile\fP=\fIpath\fP
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fB--build\fP
+Build images even if they are found in the local storage. Use \fB--build=false\fR to completely disable builds. (This option is not available with the remote Podman client)
+
+.PP
+Note:  You  can also override the default isolation type by setting the BUILDAH_ISOLATION environment variable.  export BUILDAH_ISOLATION=oci. See podman-build.1.md for more information.
+
+.SS \fB--cert-dir\fP=\fIpath\fP
+Use certificates at \fIpath\fP (*\&.crt, *\&.cert, *\&.key) to connect to the registry. (Default: /etc/containers/certs.d)
+For details, see \fBcontainers-certs.d(5)\fP\&.
+(This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--configmap\fP=\fIpath\fP
+Use the Kubernetes ConfigMap YAML as the \fIpath\fP to provide environment variable values within the containers of the pod.  (This option is not available with the remote Podman client)
+
+.PP
+Note: The \fB--configmap\fP option can be used multiple times, or a comma-separated list of paths can be used to pass multiple Kubernetes ConfigMap YAMLs.
+The YAML file may be in a multi-doc YAML format. But, it must contain only ConfigMaps.
+
+.SS \fB--context-dir\fP=\fIpath\fP
+Use \fIpath\fP as the build context directory for each image. Requires --build option be true. (This option is not available with the remote Podman client)
+
+.SS \fB--creds\fP=\fI[username[:password]]\fP
+The [username[:password]] to use to authenticate with the registry, if required.
+If one or both values are not supplied, a command line prompt appears and the
+value can be entered. The password is entered without echo.
+
+.PP
+Note that the specified credentials are only used to authenticate against
+target registries.  They are not used for mirrors or when the registry gets
+rewritten (see \fBcontainers-registries.conf(5)\fR); to authenticate against those
+consider using a \fBcontainers-auth.json(5)\fR file.
+
+.SS \fB--force\fP
+Tear down the volumes linked to the PersistentVolumeClaims as part of --down
+
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement
+
+.SS \fB--ip\fP=\fIIP address\fP
+Assign a static ip address to the pod. This option can be specified several times when kube play creates more than one pod.
+Note: When joining multiple networks use the \fB--network name:ip=<ip>\fP syntax.
+
+.SS \fB--log-driver\fP=\fIdriver\fP
+Set logging driver for all created containers.
+
+.SS \fB--log-opt\fP=\fIname=value\fP
+Logging driver specific options.
+
+.PP
+Set custom logging configuration. The following *name*s are supported:
+
+.PP
+\fBpath\fP: specify a path to the log file
+    (e.g. \fB--log-opt path=/var/log/container/mycontainer.json\fP);
+
+.PP
+\fBmax-size\fP: specify a max size of the log file
+    (e.g. \fB--log-opt max-size=10mb\fP);
+
+.PP
+\fBtag\fP: specify a custom log tag for the container
+    (e.g. \fB--log-opt tag="{{.ImageName}}"\fP\&.
+It supports the same keys as \fBpodman inspect --format\fP\&.
+This option is currently supported only by the \fBjournald\fP log driver.
+
+.PP
+\fBlabel\fP: specify a custom log label for the container
+    (e.g. \fB--log-opt label="CONTAINER_IMAGE={{.ImageName}}"\fP\&.
+It supports the same keys as \fBpodman inspect --format\fP\&.
+This option can be repeated multiple times.
+This option is currently supported only by the \fBjournald\fP log driver.
+
+.SS \fB--mac-address\fP=\fIMAC address\fP
+Assign a static mac address to the pod. This option can be specified several times when kube play creates more than one pod.
+Note: When joining multiple networks use the \fB--network name:mac=<mac>\fP syntax.
+
+.SS \fB--network\fP=\fImode\fP, \fB--net\fP
+Set the network mode for the pod.
+
+.PP
+Valid \fImode\fP values are:
+.IP \(bu 2
+\fBbridge[:OPTIONS,...]\fP: Create a network stack on the default bridge. This is the default for rootful containers. It is possible to specify these additional options:
+.RS
+.IP \(bu 2
+\fBalias=\fP\fIname\fP: Add network-scoped alias for the container.
+.IP \(bu 2
+\fBip=\fP\fIIPv4\fP: Specify a static IPv4 address for this container.
+.IP \(bu 2
+\fBip6=\fP\fIIPv6\fP: Specify a static IPv6 address for this container.
+.IP \(bu 2
+\fBmac=\fP\fIMAC\fP: Specify a static MAC address for this container.
+.IP \(bu 2
+\fBinterface_name=\fP\fIname\fP: Specify a name for the created network interface inside the container.
+.IP \(bu 2
+\fBhost_interface_name=\fP\fIname\fP: Specify a name for the created network interface outside the container.
+.RE
+.IP
+Any other options will be passed through to netavark without validation. This can be useful to pass arguments to netavark plugins.
+
+For rootless bridge networks, port forwarding uses \fBrootlessport\fR by default. Setting \fBrootless_port_forwarder="pasta"\fR in the \fB[network]\fR section of \fBcontainers.conf(5)\fP switches to pasta's kernel-level forwarding (via \fBpesto\fR), which preserves the original client source IP address inside the container. This option is experimental and its behavior is subject to change.
+
+For example, to set a static IPv4 address and a static mac address, use \fB--network bridge:ip=10.88.0.10,mac=44:33:22:11:00:99\fR\&.
+.IP \(bu 2
+\fI<network name or ID>\fP\fB[:OPTIONS,...]\fP: Connect to a user-defined network; this is the network name or ID from a network created by \fBpodman network create\fP\&. It is possible to specify the same options described under the bridge mode above. Use the \fB--network\fP option multiple times to specify additional networks.
+.br
+For backwards compatibility it is also possible to specify comma-separated networks on the first \fB--network\fP argument, however this prevents you from using the options described under the bridge section above.
+.IP \(bu 2
+\fBnone\fP: Create a network namespace for the container but do not configure network interfaces for it, thus the container has no network connectivity.
+.IP \(bu 2
+\fBcontainer:\fP\fIid\fP: Reuse another container's network stack.
+.IP \(bu 2
+\fBhost\fP: Use the host's network namespace for the container instead of creating an isolated namespace. Warning: This gives the container full access to abstract Unix domain sockets and to TCP/UDP sockets bound to localhost. Since these mechanisms are often used to prevent access to sensitive system services, isolating them from access by external entities, use of this option may be considered a security vulnerability.
+.IP \(bu 2
+\fBns:\fP\fIpath\fP: Path to a network namespace to join.
+.IP \(bu 2
+\fBprivate\fP: Create a new namespace for the container. This uses the \fBbridge\fP mode for rootful containers and \fBpasta\fP for rootless ones.
+.IP \(bu 2
+\fBpasta[:OPTIONS,...]\fP: use \fBpasta\fP(1) to create a user-mode networking
+stack.
+.br
+This is the default for rootless containers and only supported in rootless mode.
+.br
+By default, IPv4 and IPv6 addresses and routes, as well as the pod interface
+name, are copied from the host. Port forwarding preserves the original
+source IP address. Options described in pasta(1) can be specified as
+comma-separated arguments.
+.br
+In terms of pasta(1) options, \fB--config-net\fP is given by default, in
+order to configure networking when the container is started, and
+\fB--no-map-gw\fP is also assumed by default, to avoid direct access from
+container to host using the gateway address. The latter can be overridden
+by passing \fB--map-gw\fP in the pasta-specific options (despite not being an
+actual pasta(1) option).
+.br
+For better integration with DNS handling, \fB--dns-forward 169.254.1.1\fP is passed by default,
+and this address is added to resolv.conf(5) as first resolver. It is possible to pass
+\fB--dns-forward\fP explicitly in case a different IP address should be used.
+.br
+To make the \fBhost.containers.internal\fR /etc/hosts entry work and allow connections
+to the host, \fB--map-guest-addr 169.254.1.2\fP is passed by default. Again, it can be set
+explicitly to choose a different IP address.
+.br
+Also, \fB-t none\fP and \fB-u none\fP are passed if, respectively, no TCP or
+UDP port forwarding from host to container is configured (via Podman's
+\fB--publish\fP or by passing the pasta \fB-t\fP/\fB-u\fP options directly),
+to disable automatic port forwarding based on bound ports. Similarly, \fB-T none\fP
+and \fB-U none\fP are given to disable the same functionality from container to
+host.
+.br
+All options can also be set in \fBcontainers.conf(5)\fP;
+see the \fBpasta_options\fR key under the network section in that file.
+.br
+Some examples:
+.RS
+.IP \(bu 2
+\fBpasta:--map-gw\fP: Allow the container to directly reach the host using the
+gateway address.
+.IP \(bu 2
+\fBpasta:--mtu,1500\fP: Specify a 1500 bytes MTU for the \fItap\fP interface in
+the container.
+.IP \(bu 2
+\fBpasta:--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,-m,1500,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+disable IPv6, assign \fB10.0.2.0/24\fR to the \fBtap0\fR interface in the container,
+with gateway \fB10.0.2.3\fR, enable DNS forwarder reachable at \fB10.0.2.3\fR,
+set MTU to 1500 bytes, disable NDP, DHCPv6 and DHCP support.
+.IP \(bu 2
+\fBpasta:-I,tap0,--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+same as above, but leave the MTU to 65520 bytes
+.IP \(bu 2
+\fBpasta:-t,auto,-u,auto,-T,auto,-U,auto\fP: enable automatic port forwarding
+based on observed bound ports from both host and container sides
+.IP \(bu 2
+\fBpasta:-T,5201\fP: enable forwarding of TCP port 5201 from container to
+host, using the loopback interface instead of the tap interface for improved
+performance
+.RE
+
+.PP
+When no network option is specified and \fIhost\fP network mode is not configured in the YAML file, a new network stack is created and pods are attached to it making possible pod to pod communication.
+
+.SS \fB--no-hostname\fP
+Do not create the \fI/etc/hostname\fP file in the containers.
+
+.PP
+By default, Podman manages the \fI/etc/hostname\fP file, adding the container's own hostname.  When the \fB--no-hostname\fP option is set, the image's \fI/etc/hostname\fP will be preserved unmodified if it exists.
+
+.SS \fB--no-hosts\fP
+Do not modify the \fB/etc/hosts\fR file in the pod.
+
+.PP
+Podman assumes control over the pod's \fB/etc/hosts\fR file by
+default and adds entries for the container's name (see \fB--name\fP option) and
+hostname (see \fB--hostname\fP option), the internal \fBhost.containers.internal\fR
+and \fBhost.docker.internal\fR hosts, as well as any hostname added using the
+\fB--add-host\fP option. Refer to the \fB--add-host\fP option for details. Passing
+\fB--no-hosts\fP disables this, so that the image's \fB/etc/hosts\fR file is kept
+unmodified. The same can be achieved globally by setting \fIno_hosts=true\fP in
+\fBcontainers.conf\fR\&.
+
+.PP
+This option conflicts with host added in the Kubernetes YAML.
+
+.SS \fB--no-pod-prefix\fP
+Do not prefix container name with pod name.
+
+.SS \fB--publish\fP=\fI[[ip:][hostPort]:]containerPort[/protocol]\fP
+Define or override a port definition in the YAML file.
+
+.PP
+The lists of ports in the YAML file and the command line are merged. Matching is done by using the \fBcontainerPort\fP field.
+If \fBcontainerPort\fP exists in both the YAML file and the option, the latter takes precedence.
+
+.SS \fB--publish-all\fP
+Setting this option to \fBtrue\fR will expose all ports to the host,
+even if only specified via \fBcontainerPort\fP in the K8 YAML.
+In terms of which port will be exposed, \fB--publish\fP has higher priority than \fBhostPort\fP, has higher priority than
+\fBcontainerPort\fP\&.
+
+.PP
+If set to \fBfalse\fR (which is the default), only ports defined via \fBhostPort\fP
+or \fB--publish\fP are published on the host.
+
+.SS \fB--quiet\fP, \fB-q\fP
+Suppress output information when pulling images
+
+.SS \fB--replace\fP
+Tears down the pods created by a previous run of \fBkube play\fR and recreates the pods. This option is used to keep the existing pods up to date based upon the Kubernetes YAML.
+
+.SS \fB--seccomp-profile-root\fP=\fIpath\fP
+Directory path for seccomp profiles (default: "/var/lib/kubelet/seccomp"). (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fB--start\fP
+Start the pod after creating it, set to false to only create it.
+
+.SS \fB--tls-verify\fP
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SS \fB--userns\fP=\fImode\fP
+Set the user namespace mode for the container.
+
+.PP
+If \fB--userns\fR is not set, the default value is determined as follows.
+- If \fB--pod\fR is set, \fB--userns\fR is ignored and the user namespace of the pod is used.
+- If the environment variable \fBPODMAN_USERNS\fP is set its value is used.
+- If \fBuserns\fR is specified in \fBcontainers.conf\fR this value is used.
+- Otherwise, \fB--userns=host\fR is assumed.
+
+.PP
+\fB--userns=""\fR (i.e., an empty string) is an alias for \fB--userns=host\fR\&.
+
+.PP
+This option is incompatible with \fB--gidmap\fP, \fB--uidmap\fP, \fB--subuidname\fP and \fB--subgidname\fP\&.
+
+.PP
+Rootless user --userns=Key mappings:
+
+.TS
+allbox;
+l l l 
+l l l .
+\fBKey\fP	\fBHost User\fP	\fBContainer User\fP
+auto	$UID	T{
+nil (Host User UID is not mapped into container.)
+T}
+host	$UID	T{
+0 (Default User account mapped to root user in container.)
+T}
+keep-id	$UID	T{
+$UID (Map user account to same UID within container.)
+T}
+keep-id:uid=200,gid=210	$UID	T{
+200:210 (Map user account to specified UID, GID value within container.)
+T}
+nomap	$UID	T{
+nil (Host User UID is not mapped into container.)
+T}
+.TE
+
+.PP
+Valid \fImode\fP values are:
+
+.PP
+\fBauto\fP[:\fIOPTIONS,...\fP]: automatically create a unique user namespace.
+.IP \(bu 2
+\fBrootful mode\fR: The \fB--userns=auto\fR flag requires that the user name \fBcontainers\fP be specified in the /etc/subuid and /etc/subgid files, with an unused range of subordinate user IDs that Podman containers are allowed to allocate.  Example: \fBcontainers:2147483647:2147483648\fR\&.
+.IP \(bu 2
+\fBrootless mode\fR: The users range from the /etc/subuid and /etc/subgid files will be used. Note running a single container without using --userns=auto will use the entire range of UIDs and not allow further subdividing. See subuid(5).
+
+.PP
+Podman allocates unique ranges of UIDs and GIDs from the \fBcontainers\fR subordinate user IDs. The size of the ranges is based on the number of UIDs required in the image. The number of UIDs and GIDs can be overridden with the \fBsize\fR option.
+
+.PP
+The option \fB--userns=keep-id\fR uses all the subuids and subgids of the user.
+The option \fB--userns=nomap\fR uses all the subuids and subgids of the user except the user's own ID.
+Using \fB--userns=auto\fR when starting new containers does not work as long as any containers exist that were started with \fB--userns=nomap\fR or \fB--userns=keep-id\fR without limiting the user namespace size.
+
+.PP
+Valid \fBauto\fR options:
+.IP \(bu 2
+\fIgidmapping\fP=\fICONTAINER_GID:HOST_GID:SIZE\fP: to force a GID mapping to be present in the user namespace.
+.IP \(bu 2
+\fIsize\fP=\fISIZE\fP: to specify an explicit size for the automatic user namespace. e.g. \fB--userns=auto:size=8192\fR\&. If \fBsize\fR is not specified, \fBauto\fR estimates a size for the user namespace.
+.IP \(bu 2
+\fIuidmapping\fP=\fICONTAINER_UID:HOST_UID:SIZE\fP: to force a UID mapping to be present in the user namespace.
+
+.PP
+The host UID and GID in \fIgidmapping\fP and \fIuidmapping\fP can optionally be prefixed with the \fB@\fR symbol.
+In this case, podman will look up the intermediate ID corresponding to host ID and it will map the found intermediate ID to the container id.
+For details see \fB--uidmap\fP\&.
+
+.PP
+\fBcontainer:\fP\fIid\fP: join the user namespace of the specified container.
+
+.PP
+\fBhost\fP or \fB""\fP (empty string): run in the user namespace of the caller. The processes running in the container have the same privileges on the host as any other process launched by the calling user.
+
+.PP
+\fBkeep-id\fP: creates a user namespace where the current user's UID:GID are mapped to the same values in the container. For containers created by root, the current mapping is created into a new user namespace.
+
+.PP
+In addition, the init process within the container will run under the current user's UID. This behavior overrides the image's \fBUSER\fR instruction unless you explicitly set \fB--user\fR\&.
+
+.PP
+Valid \fBkeep-id\fR options:
+.IP \(bu 2
+\fIuid\fP=UID: override the UID inside the container that is used to map the current user to.
+.IP \(bu 2
+\fIgid\fP=GID: override the GID inside the container that is used to map the current user to.
+.IP \(bu 2
+\fIsize\fP=SIZE: override the size of the configured user namespace.  It is useful to not saturate all the available IDs.  Not supported when running as root.
+
+.PP
+\fBnomap\fP: creates a user namespace where the current rootless user's UID:GID are not mapped into the container. This option is not allowed for containers created by the root user.
+
+.PP
+\fBns:\fP\fInamespace\fP: run the pod in the given existing user namespace.
+
+.SS \fB--wait\fP, \fB-w\fP
+Run pods and containers in the foreground. Default is false.
+
+.PP
+At  any time you can run \fBpodman pod ps\fR in another shell to view a list of
+the running pods and containers.
+
+.PP
+When  attached  in the tty mode, you can kill the pods and containers by pressing
+Ctrl-C or receiving any other interrupt signals.
+
+.PP
+All pods, containers, and volumes created with \fBpodman kube play\fR is removed
+upon exit.
+
+.SH "مثال‌ها (EXAMPLES)"
+Recreate the pod and containers described in the specified host YAML file.
+
+.EX
+$ podman kube play demo.yml
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+.EE
+
+.PP
+Recreate the pod and containers specified in a YAML file sent to stdin.
+
+.EX
+$ cat demo.yml | podman kube play -
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+.EE
+
+.PP
+Tear down the pod and containers as described in the specified YAML file.
+
+.EX
+$  podman kube play --down demo.yml
+Pods stopped:
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+Pods removed:
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+.EE
+
+.PP
+Provide multiple configmap files as sources for environment variables within the specified pods and containers.
+
+.EX
+$ podman kube play demo.yml --configmap configmap-foo.yml,configmap-bar.yml
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+
+$ podman kube play demo.yml --configmap configmap-foo.yml --configmap configmap-bar.yml
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+.EE
+
+.PP
+Create a pod connected to two networks with a static ip on each.
+
+.EX
+$ podman kube play demo.yml --network net1:ip=10.89.1.5 --network net2:ip=10.89.10.10
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+.EE
+
+.PP
+Please take into account that networks must be created first using podman-network-create(1).
+
+.PP
+Create and teardown from a URL pointing to a YAML file.
+
+.EX
+$ podman kube play https://podman.io/demo.yml
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+
+$ podman kube play --down https://podman.io/demo.yml
+Pods stopped:
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+Pods removed:
+52182811df2b1e73f36476003a66ec872101ea59034ac0d4d3a7b40903b955a6
+.EE
+
+.PP
+\fBpodman kube play --down\fR does not work with a URL if the YAML file the URL points to
+has been changed or altered.
+
+
+.SH Podman Kube Play Support
+This document outlines the kube yaml fields that are currently supported by the \fBpodman kube play\fP command.
+
+.PP
+Note: \fBN/A\fP means that the option cannot be supported in a single-node Podman environment.
+
+.SH Pod Fields
+.TS
+allbox;
+l l 
+l l .
+\fBField\fP	\fBSupport\fP
+containers	✅
+initContainers	✅
+imagePullSecrets	no
+enableServiceLinks	no
+os\&.name	no
+volumes	✅
+nodeSelector	N/A
+nodeName	N/A
+affinity\&.nodeAffinity	N/A
+affinity\&.podAffinity	N/A
+affinity\&.podAntiAffinity	N/A
+tolerations\&.key	N/A
+tolerations\&.operator	N/A
+tolerations\&.effect	N/A
+tolerations\&.tolerationSeconds	N/A
+schedulerName	N/A
+runtimeClassName	no
+priorityClassName	no
+priority	no
+topologySpreadConstraints\&.maxSkew	N/A
+topologySpreadConstraints\&.topologyKey	N/A
+topologySpreadConstraints\&.whenUnsatisfiable	N/A
+topologySpreadConstraints\&.labelSelector	N/A
+topologySpreadConstraints\&.minDomains	N/A
+restartPolicy	✅
+terminationGracePeriodSeconds	✅
+activeDeadlineSeconds	no
+readinessGates\&.conditionType	no
+hostname	✅
+setHostnameAsFQDN	no
+subdomain	no
+hostAliases\&.hostnames	✅
+hostAliases\&.ip	✅
+dnsConfig\&.nameservers	✅
+dnsConfig\&.options\&.name	✅
+dnsConfig\&.options\&.value	✅
+dnsConfig\&.searches	✅
+dnsPolicy	no
+hostNetwork	✅
+hostPID	✅
+hostIPC	✅
+shareProcessNamespace	✅
+serviceAccountName	no
+automountServiceAccountToken	no
+securityContext\&.runAsUser	✅
+securityContext\&.runAsNonRoot	no
+securityContext\&.runAsGroup	✅
+securityContext\&.supplementalGroups	✅
+securityContext\&.fsGroup	no
+securityContext\&.fsGroupChangePolicy	no
+securityContext\&.seccompProfile\&.type	no
+securityContext\&.seccompProfile\&.localhostProfile	no
+securityContext\&.seLinuxOptions\&.level	✅
+securityContext\&.seLinuxOptions\&.role	✅
+securityContext\&.seLinuxOptions\&.type	✅
+securityContext\&.seLinuxOptions\&.user	✅
+securityContext\&.sysctls\&.name	✅
+securityContext\&.sysctls\&.value	✅
+securityContext\&.windowsOptions\&.gmsaCredentialSpec	no
+securityContext\&.windowsOptions\&.hostProcess	no
+securityContext\&.windowsOptions\&.runAsUserName	no
+.TE
+
+.SH Container Fields
+.TS
+allbox;
+l l 
+l l .
+\fBField\fP	\fBSupport\fP
+name	✅
+image	✅
+imagePullPolicy	✅
+command	✅
+args	✅
+workingDir	✅
+ports\&.containerPort	✅
+ports\&.hostIP	✅
+ports\&.hostPort	✅
+ports\&.name	✅
+ports\&.protocol	✅
+env\&.name	✅
+env\&.value	✅
+env\&.valueFrom\&.configMapKeyRef\&.key	✅
+env\&.valueFrom\&.configMapKeyRef\&.name	✅
+env\&.valueFrom\&.configMapKeyRef\&.optional	✅
+env\&.valueFrom\&.fieldRef	✅
+env\&.valueFrom\&.resourceFieldRef	✅
+env\&.valueFrom\&.secretKeyRef\&.key	✅
+env\&.valueFrom\&.secretKeyRef\&.name	✅
+env\&.valueFrom\&.secretKeyRef\&.optional	✅
+envFrom\&.configMapRef\&.name	✅
+envFrom\&.configMapRef\&.optional	✅
+envFrom\&.prefix	no
+envFrom\&.secretRef\&.name	✅
+envFrom\&.secretRef\&.optional	✅
+volumeMounts\&.mountPath	✅
+volumeMounts\&.name	✅
+volumeMounts\&.mountPropagation	no
+volumeMounts\&.readOnly	✅
+volumeMounts\&.subPath	✅
+volumeMounts\&.subPathExpr	no
+volumeDevices\&.devicePath	no
+volumeDevices\&.name	no
+resources\&.limits	✅
+resources\&.requests	✅
+lifecycle\&.postStart	no
+lifecycle\&.preStop	no
+lifecycle\&.stopSignal	✅
+terminationMessagePath	no
+terminationMessagePolicy	no
+livenessProbe	✅
+readinessProbe	no
+startupProbe	no
+securityContext\&.runAsUser	✅
+securityContext\&.runAsNonRoot	no
+securityContext\&.runAsGroup	✅
+securityContext\&.readOnlyRootFilesystem	✅
+securityContext\&.procMount	✅
+securityContext\&.privileged	✅
+securityContext\&.allowPrivilegeEscalation	✅
+securityContext\&.capabilities\&.add	✅
+securityContext\&.capabilities\&.drop	✅
+securityContext\&.seccompProfile\&.type	no
+securityContext\&.seccompProfile\&.localhostProfile	no
+securityContext\&.seLinuxOptions\&.level	✅
+securityContext\&.seLinuxOptions\&.role	✅
+securityContext\&.seLinuxOptions\&.type	✅
+securityContext\&.seLinuxOptions\&.user	✅
+securityContext\&.windowsOptions\&.gmsaCredentialSpec	no
+securityContext\&.windowsOptions\&.hostProcess	no
+securityContext\&.windowsOptions\&.runAsUserName	no
+stdin	no
+stdinOnce	no
+tty	no
+.TE
+
+.SH PersistentVolumeClaim Fields
+.TS
+allbox;
+l l 
+l l .
+\fBField\fP	\fBSupport\fP
+volumeName	no
+storageClassName	✅
+volumeMode	no
+accessModes	✅
+selector	no
+resources\&.limits	no
+resources\&.requests	✅
+.TE
+
+.SH ConfigMap Fields
+.TS
+allbox;
+l l 
+l l .
+\fBField\fP	\fBSupport\fP
+binaryData	✅
+data	✅
+immutable	no
+.TE
+
+.SH Deployment Fields
+.TS
+allbox;
+l l 
+l l .
+\fBField\fP	\fBSupport\fP
+replicas	T{
+✅ (the actual replica count is ignored and set to 1)
+T}
+selector	✅
+template	✅
+minReadySeconds	no
+strategy\&.type	no
+strategy\&.rollingUpdate\&.maxSurge	no
+strategy\&.rollingUpdate\&.maxUnavailable	no
+revisionHistoryLimit	no
+progressDeadlineSeconds	no
+paused	no
+.TE
+
+.SH DaemonSet Fields
+.TS
+allbox;
+l l 
+l l .
+\fBField\fP	\fBSupport\fP
+selector	✅
+template	✅
+minReadySeconds	no
+strategy\&.type	no
+strategy\&.rollingUpdate\&.maxSurge	no
+strategy\&.rollingUpdate\&.maxUnavailable	no
+revisionHistoryLimit	no
+.TE
+
+.SH Job Fields
+.TS
+allbox;
+l l 
+l l .
+\fBField\fP	\fBSupport\fP
+activeDeadlineSeconds	no
+selector	no (automatically set by k8s)
+template	✅
+backoffLimit	no
+completionMode	no
+completions	T{
+no (set to 1 with kube generate)
+T}
+manualSelector	no
+parallelism	T{
+no (set to 1 with kube generate)
+T}
+podFailurePolicy	no
+suspend	no
+ttlSecondsAfterFinished	no
+.TE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-kube(1)\fP, \fBpodman-kube-down(1)\fP, \fBpodman-network-create(1)\fP, \fBpodman-kube-generate(1)\fP, \fBpodman-build(1)\fP, \fBcontainers-certs.d(5)\fP

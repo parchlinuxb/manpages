@@ -1,0 +1,196 @@
+.TH  pam_ihosts  8 " 2015/05/20"
+.SH "نام (NAME)"
+
+.P
+pam_ihosts \- Allow or block login on the basis of mac address, ip address, or ip registrar/region.
+.SH "خلاصه دستور (SYNOPSIS)"
+
+
+.nf
+
+pam_ihosts.so [user=<username>] [syslog] [allow\-device=<device>] [allow\-mac=<mac address>] [allow\-ip=<ip address>] [allow\-region=<region>] [region\-files=<paths>] [script=<path>]
+.fi
+.ad b
+.SH "توضیحات (DESCRIPTION)"
+
+.P
+pam_ihosts considers a user\(aqs remote ip to prevent/allow login by users who have already provided the correct credentials. 
+.P
+pam_ihosts.so can use the "stats" files that regional internet registrars provide in order to look up the registrar and country that an IP is registered to, allowing a form of crude geo-location. 
+
+pam_ihosts.so sets the following environment variables on login. Source IP address of the connection is stored in "IHOSTS_ADDRESS", source MAC address in "IHOSTS_MAC" and region information is stored in the environment variable "IHOSTS_REGION" for use by programs after login.
+.P
+\fbBeware\fP. pam_ihosts.so denies login by default for any user that it\(aqs specified to handle. Options must be supplied to indicate the mac-address, ip-address, country-code or region of hosts that are allowed to log in.
+
+
+.SH "گزینه‌ها (OPTIONS)"
+
+.P
+PAM options that can be applied to configuration files in /etc/pam.d are as follows.
+.TP
+.B
+\fIuser=[user patterns]\fP
+Comma separated list of fnmatch (shell-style) patterns that identify users for whom this rule applies. To match all users either leave this out, leave it blank, or explicitly set it to "user\=*".  A \(aq!\(aq character at the start of the pattern allows inversion, so to match all users but root use: "user=!root"
+.TP
+.B
+\fIconf-file=[path]\fP
+Specifies a path to a config file that can have any pam_ihosts options in it. The config file only applies to the current line in the pam config, so you can have, say, multiple entries in PAM config that have different user= matches, and different config files.
+
+.TP
+.B
+\fIsyslog\fP
+Record events via syslog messages
+
+.TP
+.B
+\fIscript=[path]\fP
+Run script when a connection is either denied or allowed. Arguments passed to the script will be "ALLOW/DENY" "User", "IP", "Mac Address", "Device" and "Region". "Region" will be in the format "<registrar>:<countrycode>" so for example, "ripencc:GB".
+
+.TP
+.B
+\fIallow-ip=[ip]\fP
+A comma-separated list of fnmatch patterns that match IP addresses allowed to log in.
+
+.TP
+.B
+\fIallow-hosts=[host]\fP
+A comma-separated list of patterns that match hostnames (looked up from the ip-address) that are allowed to log in.
+
+.TP
+.B
+\fIallow-dyndns=[host]\fP
+A comma-separated list of hostnames (not patterns) that are allowed to log in (see 'DYNDNS' below).
+
+.TP
+.B
+\fIallow-mac=[mac]\fP
+A comma-separated list of fnmatch patterns that match MAC addresses allowed to log in.
+
+.TP
+.B
+\fIallow-dev=[dev]\fP
+A comma-separated list of fnmatch patterns that match network device names that the connection is coming to. This is the network adapter on your machine that is \fIreceiving\fP the connection from the remote host.
+
+.TP
+.B
+\fIallow-region=[region]\fP
+A comma-separated list of fnmatch patterns that match region strings looked up in IP registrar files. Region strings are in the format "<registrar>:<countrycode>. This option requires you to supply the paths to the region files with the "region-files" option. For more details see "REGIONS" below.
+
+.TP
+.B
+\fIregion-files=[paths]\fP
+A comma-separated list of paths to files containing IP registrar assignments. Each path can be prefixed with "mmap:" in which case the program will use a shared mmap of the file (see MMAPPED FILES below). For more details see "REGIONS" below.
+
+.TP
+.B
+\fIblacklist=[paths]\fP
+A comma-separated list of paths to files containing IP addresses, MAC addresses or hostnames that are \fBblacklisted\fP (denied login). The files must contain one item (ip address) per line. Each path can be prefixed with "mmap:" in which case the program will use a shared mmap of the file (see MMAPPED FILES below).
+
+.TP
+.B
+\fIwhitelist=[paths]\fP
+A comma-separated list of paths to files containing IP addresses, MAC addresses or hostnames that are \fBwhitelisted\fP (allowed login). The files must contain one item (ip address) per line. Each path can be prefixed with "mmap:" in which case the program will use a shared mmap of the file (see MMAPPED FILES below).
+
+.TP
+.B
+\fIdnsblacklist=[domains]\fP
+A comma-separated list of domains to use in dns-blacklist lookups. So, for instance "dnsblacklist=zen.spamhaus.org,bots.abuse.net" would check if the host was present in zen.spamhaus.org or bots.abuse.net dns blacklists. Items for which a matching entry is returned are DENIED login. DNS lookups are not executed in parallel but one after the other, so unfortunately login can become slow if many lists are queried.
+
+.TP
+.B
+\fIdnswhitelist=[domains]\fP
+A comma-separated list of domains to use in dns-whitelist lookups. So, for instance "dnswhitelist=whitelist.spamhaus.org,mylist.local" would check if the host was present in whitelist.spamhaus.org or mylist.local. Items for which a matching entry is returned are ALLOWED login. DNS lookups are not executed in parallel but one after the other, so unfortunately login can become slow if many lists are queried.
+
+
+.SH DYNDNS
+
+.P
+Hostnames used in the "allow-host" rule-type are looked up from the IP address that the attempted login is coming from. However, for the "allow-dyndns" rule-type the lookups go in the other direction. Each hostname listed in the rule is looked up, and checked if it has the same IP address as the address that\(aqs logging in. This is to allow the use of dynamic DNS services that allow hosts that change their IP address (either because the host is mobile, or because their IP is handed out by their ISP and frequently changes) against a hostname. Normally these hosts will have a "real" hostname that is controlled by the ISP, and the dynamic DNS name is a secondary name. Thus looking up the hostname for the IP will return the "real" primary hostname, so the check has to be performed by looking up the IP for the dynamic hostname, and checking if that matches the IP the login is coming from.
+
+
+.SH REGION FILES
+
+.P
+Region information is looked up in files provided by the Regional Internet Registries. These files are downloadable at the following addresses:
+.IP
+http://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-latest      # Latin America
+.IP
+http://ftp.ripe.net/ripe/stats/delegated-ripencc-latest             # Europe, Russia, Middle East
+.IP
+http://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest   # North America
+.IP
+http://ftp.afrinic.net/pub/stats/afrinic/delegated-afrinic-latest   # Africa
+.IP
+http://ftp.apnic.net/stats/apnic/delegated-apnic-latest             # Asia Pacific
+
+.SH BLACKLISTS/WHITELISTS
+
+.P
+Blacklist/whitelist files contain IP addresses, hostnames, or MAC addresses that are either denied or allowed login. One item per line. All three types of item can be present in the same file. Blacklist files are checked first, and then can be overridden with whitelist files. As pam_ihosts denies login by default, so a whitelist file can be used on its own. To use only a blacklist file, one would have to specify "allow-ip\=*" and then specify a blacklist file, which would have the effect of allowing everything except those things in the blacklist file.
+
+.SH MMAPPED FILES
+
+.P
+Blacklist, whitelist and region file paths can be prefixed with "mmap:" In this case pam_ihosts uses a shared memory mapping of the file. Provided that some other program currently has the file mapped, pam_ihosts will not have to load the file from disk, as it will already be available as shared memory. This can significantly improve performance for large files, at the cost of some memory. If no other program has the file mmapped, then pam_ihosts loads it into shared memory, but has to pay the performance cost of loading it from disk. Therefore, for this system to deliver a benefit, some long-lived program has to keep the files mapped.
+
+.SH "مثال‌ها (EXAMPLES)"
+
+.P
+Allow root login only from 192.168.0.x
+
+.nf
+
+account    required  pam_ihosts.so user=root syslog allow\-ip=192.168.0.*
+.fi
+.ad b
+
+.P
+For all users allow login only from two mac-addresses
+
+.nf
+
+account    required  pam_ihosts.so user\=* allow\-mac=ff:c0:a8:e4:99:31,ff:c0:a8:f9:cc:01
+.fi
+.ad b
+
+.P
+For all users other than root, allow login only from ip-addresses in Great Britain.
+
+.nf
+
+account    required  pam_ihosts.so user=!root region\-files=/etc/ip\-lists/delegated\-afrinic\-latest,/etc/ip\-lists/delegated\-lacnic\-latest,/etc/ip\-lists/delegated\-apnic\-latest,/etc/ip\-lists/delegated\-ripencc\-latest allow\-region=ripencc:GB
+.fi
+.ad b
+
+.P
+For all users, allow login only from Asia Pacific IPs.
+
+.nf
+
+account    required  pam_ihosts.so user\=* region\-files=/etc/ip\-lists/delegated\-afrinic\-latest,/etc/ip\-lists/delegated\-lacnic\-latest,/etc/ip\-lists/delegated\-apnic\-latest,/etc/ip\-lists/delegated\-ripencc\-latest allow\-region=apnic:*
+.fi
+.ad b
+
+.P
+Same as above, but perhaps more efficient, only look up regions in the apnic file.
+
+.nf
+
+account    required  pam_ihosts.so user\=* region\-files=/etc/ip\-lists/delegated\-apnic\-latest allow\-region=apnic:*
+.fi
+.ad b
+
+.P
+For all users, allow login only from Asia Pacific IPs. Use mmap shared memory for the afrinic and lacnic files.
+
+.nf
+
+account    required  pam_ihosts.so user\=* region\-files=mmap:/etc/ip\-lists/delegated\-afrinic\-latest,mmap:/etc/ip\-lists/delegated\-lacnic\-latest,/etc/ip\-lists/delegated\-apnic\-latest,/etc/ip\-lists/delegated\-ripencc\-latest allow\-region=apnic:*
+.fi
+.ad b
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+
+.P
+pam.conf(5), pam.d(5), pam(8)

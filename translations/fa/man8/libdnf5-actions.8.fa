@@ -1,0 +1,1314 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LIBDNF5-ACTIONS" "8" "Sep 06, 2026" "" "dnf5"
+.SH "نام (NAME)"
+libdnf5-actions \- Actions Plugin
+.SH "توضیحات (DESCRIPTION)"
+.sp
+This plugin allows defining actions to be executed through libdnf5 callback hooks.
+Each action is hooked to one specific callback. Actions for \fBgoal_resolved\fP, \fBpre_transaction\fP, and
+\fBpost_transaction\fP callbacks may define a (glob\-like) filtering rule on the package
+NEVRA or package files, as well as whether the package is incoming or outgoing.
+.SH "پیکربندی (CONFIGURATION)"
+.sp
+The plugin does not extend the standard configuration. However, it reads \(dqactions\(dq files.
+.sp
+The actions files are read from the \fB<libdnf5_plugins_config_dir>/actions.d/\fP directory. Only files
+with a \(dq.actions\(dq extension are read. Action files are read in lexical order (sorted by filename)
+by comparing character values, ignoring locale.
+.SH ACTIONS FILE FORMAT
+.sp
+Empty lines and lines that start with a \(aq#\(aq character (comment line) are ignored.
+.sp
+Each non\-comment line defines an action and consists of five items separated by colons: \fBcallback_name:package_filter:direction:options:command\fP\&.
+.sp
+\fBcallback_name\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBpre_base_setup\fP
+.IP \(bu 2
+\fBpost_base_setup\fP
+.IP \(bu 2
+\fBrepos_configured\fP  (added in version 1.0.0)
+.IP \(bu 2
+\fBrepos_loaded\fP  (added in version 1.0.0)
+.IP \(bu 2
+\fBpre_add_cmdline_packages\fP  (added in version 1.0.0)
+.IP \(bu 2
+\fBpost_add_cmdline_packages\fP  (added in version 1.0.0)
+.IP \(bu 2
+\fBgoal_resolved\fP (added in version 1.3.0)
+.IP \(bu 2
+\fBpre_transaction\fP
+.IP \(bu 2
+\fBpost_transaction\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \fBpackage_filter\fP
+A (glob\-like) filtering rule applied on the package NEVRA (also in the shortened forms) or package files.
+.sp
+An empty filter means executing the command once with no information about the package.
+The \(dq*\(dq filter means executing the command for each package in the transaction that matches the \fBdirection\fP filter.
+The filter can be non\-empty only for \fBgoal_resolved\fP, \fBpre_transaction\fP, and \fBpost_transaction\fP callbacks.
+.TP
+.B \fBdirection\fP
+Filters packages by their direction (coming into the system/going out of the system) in a transaction.
+If empty, the filter is not applied.
+The filter can only be non\-empty when combined with a non\-empty \fBpackage_filter\fP\&.
+.INDENT 7.0
+.IP \(bu 2
+\fBin\fP \- packages coming to the system (downgrade, install, reinstall, upgrade)
+.IP \(bu 2
+\fBout\fP \- packages going out of the system (upgraded, downgraded, reinstalled, removed, replaced/obsoleted)
+.UNINDENT
+.TP
+.B \fBoptions\fP
+Options are separated by spaces. A space within an option can be written using escaping.
+.INDENT 7.0
+.IP \(bu 2
+\fBenabled=<value>\fP \- the \fB<value>\fP specifies when the action is enabled (added in version 0.3.0)
+.INDENT 2.0
+.IP \(bu 2
+\fB1\fP \- action is always enabled
+.IP \(bu 2
+\fBhost\-only\fP \- the action is only enabled for operations on the host
+.IP \(bu 2
+\fBinstallroot\-only\fP \- the action is only enabled for operations in the alternative \(dqinstallroot\(dq
+.UNINDENT
+.IP \(bu 2
+\fBmode=<value>\fP \- the \fB<value>\fP specifies the action plugin communication mode (added in version 1.2.0)
+.INDENT 2.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBplain\fP \- the original and default communication mode. Data is only passed to the process via arguments
+when it is started. The process can send data to the actions plugin by writing to standard
+output.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBjson\fP \- this mode establishes a bidirectional communication channel between the actions plugin and
+the process, using a request\-response model. The process writes requests to standard output
+and reads responses from standard input. All communication is handled in JSON format (added
+in version 1.2.0).
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fBraise_error=<value>\fP \- the \fB<value>\fP specifies how action process errors are handled. What happens if
+the action process did not start, ended with a non\-zero exit code, ended abnormally (received a signal),
+or an error occurred during communication (syntax error, communication interrupt, failed to process the output
+line in plain communication mode). If the option is not present, \fBraise_error=0\fP for backward compatibility
+(added in version 1.4.0).
+.INDENT 2.0
+.IP \(bu 2
+\fB0\fP \- the errors are logged
+.IP \(bu 2
+\fB1\fP \- an exception is thrown
+.UNINDENT
+.UNINDENT
+.TP
+.B \fBcommand\fP
+Any executable file with arguments.
+.sp
+Arguments are separated by spaces. A space within an argument can be written using escaping.
+Escaping can also be used to prevent substitution and to pass special characters: \ea, \eb, \ef, \en, \er, \et, \ev.
+Unescaping of arguments is done after substitution.
+.sp
+The following variables in the command will be substituted:
+.INDENT 7.0
+.IP \(bu 2
+\fB${pid}\fP \- process ID
+.IP \(bu 2
+\fB${plugin.version}\fP \- version of the actions plugin (added in version 0.3.0)
+.IP \(bu 2
+\fB${conf.<option_name>}\fP \- option from base configuration
+.IP \(bu 2
+\fB${conf.<repoid_pattern>.<option_name>[=<value_pattern>]}\fP \- list of \(dqrepoid.option=value\(dq pairs (added in version 1.1.0)
+.IP \(bu 2
+\fB${var.<variable_name>}\fP \- variable
+.IP \(bu 2
+\fB${tmp.<actions_plugin_variable_name>}\fP \- variable exists only in actions plugin context
+.IP \(bu 2
+\fB${pkg.<package_attribute_name>}\fP \- value of the package attribute
+.INDENT 2.0
+.IP \(bu 2
+\fB${pkg.name}\fP \- package name
+.IP \(bu 2
+\fB${pkg.arch}\fP \- package arch
+.IP \(bu 2
+\fB${pkg.version}\fP \- package version
+.IP \(bu 2
+\fB${pkg.release}\fP \- package release
+.IP \(bu 2
+\fB${pkg.epoch}\fP \- package epoch
+.IP \(bu 2
+\fB${pkg.na}\fP \- package name.architecture
+.IP \(bu 2
+\fB${pkg.evr}\fP \- package epoch\-version\-release
+.IP \(bu 2
+\fB${pkg.nevra}\fP \- package nevra (0 epoch is hidden)
+.IP \(bu 2
+\fB${pkg.full_nevra}\fP \- package full nevra (epoch is always present) name\-epoch:version\-release.arch
+.IP \(bu 2
+\fB${pkg.repo_id}\fP \- package repository id
+.IP \(bu 2
+\fB${pkg.license}\fP \- package license
+.IP \(bu 2
+\fB${pkg.location}\fP \- package relative path/location from repodata
+.IP \(bu 2
+\fB${pkg.vendor}\fP \- package vendor
+.IP \(bu 2
+\fB${pkg.action}\fP \- action performed on the package:
+.INDENT 2.0
+.IP \(bu 2
+\fBI\fP \- newly installed package
+.IP \(bu 2
+\fBU\fP \- package installed as an upgrade
+.IP \(bu 2
+\fBD\fP \- package installed as a downgrade
+.IP \(bu 2
+\fBR\fP \- package used for reinstallation
+.IP \(bu 2
+\fBE\fP \- erased (removed) package from the system
+.IP \(bu 2
+\fBO\fP \- replaced package (was obsoleted/upgraded/downgraded/reinstalled/removed)
+.IP \(bu 2
+\fB?\fP \- package with changed installation reason
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The command will be evaluated for each package that matched the \fBpackage_filter\fP and
+the \fBdirection\fP\&. However, after variable substitution, any duplicate commands will be
+removed and each command will only be executed once per transaction.
+The commands are executed in sequence. There is no parallelism. Argument substitution is performed
+after the previous command has completed. This allows the substitution to use the results of the previous commands.
+The order of execution of the commands follows the order in the action files, but may differ from the order of
+packages in the transaction. In other words, when you define several action lines for the same
+\fBpackage_filter\fP and \fBdirection\fP these lines will be executed in the order they were defined in the action
+file when the \fBpackage_filter\fP and \fBdirection\fP matches a package. However, the order
+of when a particular \fBpackage_filter\fP is invoked depends on the position
+of the corresponding package in the transaction.
+.sp
+The \fBrepoid.option=value\fP pairs in the list are separated by the \(aq,\(aq character.
+The \(aq,\(aq character in the value is replaced by the escape sequence \fB\(dq\ex2C\(dq\fP\&.
+If \fBvalue_pattern\fP is used, only pairs with the matching value are listed.
+The \fBrepoid_pattern\fP and \fBvalue_pattern\fP can contain globs.
+.UNINDENT
+.SH ACTION PROCESS STANDARD OUTPUT FORMAT IN "PLAIN" COMMUNICATION MODE
+.sp
+The standard output of each executed action (command) is captured and processed.
+Each line of output can change the value of a base configuration option, the value
+of a configuration option in matching repositories, or a variable.
+It can also set or unset one actions plugin variable. The value of this variable is available
+for the following commands using the \fB${tmp.<actions_plugin_variable_name>}\fP substitution.
+.sp
+Actions should change the repositories configuration in the \fBrepos_configured\fP hook.
+At this point, the repositories configuration is loaded but not yet applied.
+.sp
+Since version 1.4.0, the output line can write a message to the logger, throw a stop exception
+and an error exception.
+.SS Output line format
+.INDENT 0.0
+.IP \(bu 2
+\fBtmp.<actions_plugin_variable_name>=<value>\fP \- sets the value of action plugins variable <actions_plugin_variable_name>
+.IP \(bu 2
+\fBtmp.<actions_plugin_variable_name>\fP \- removes the action plugins variable if it exists
+.IP \(bu 2
+\fBconf.<option_name>=<value>\fP \- sets the value of option <option_name> in the base configuration
+.IP \(bu 2
+\fBconf.<repoid_pattern>.<option_name>=<value>\fP \- sets the value of option <option_name> in the matching repositories (added in version 1.1.0)
+.IP \(bu 2
+\fBvar.<variable_name>=<value>\fP \- sets value of the variable <variable_name>
+.IP \(bu 2
+\fBstop=<message>\fP \- throws a stop exception with <message> (added in version 1.4.0)
+.IP \(bu 2
+\fBerror=<message>\fP \- the error <message> is logged or throws an error exception with <message> if \fBraise_error=1\fP
+(added in version 1.4.0)
+.IP \(bu 2
+\fBlog.<level>=<message>\fP \- writes <message> to the logger with priority <level> (added in version 1.4.0)
+.INDENT 2.0
+.INDENT 3.5
+Levels: \fBCRITICAL\fP, \fBERROR\fP, \fBWARNING\fP, \fBNOTICE\fP, \fBINFO\fP, \fBDEBUG\fP, \fBTRACE\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH MESSAGES IN "JSON" COMMUNICATION MODE
+.sp
+The \(dqjson\(dq communication mode establishes a bidirectional communication channel between the actions plugin and the process, using a request\-response model. The process writes requests to standard output and reads responses from the actions plugin from standard input. All communication is handled in JSON format.
+.sp
+\fIFormat of a request message from the process:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dq<operation>\(dq, \(dqdomain\(dq:\(dq<domain>\(dq, \(dqargs\(dq:{}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIFormat of a response:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dq<operation_from_request>\(dq, \(dqdomain\(dq:\(dq<domain_from_request>\(dq,
+  \(dqstatus\(dq:\(dqOK\(dq, \(dqreturn\(dq:{}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIFormat of a response with an error message:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dq<operation_from_request>\(dq, \(dqdomain\(dq:\(dq<domain_from_request>\(dq,
+  \(dqstatus\(dq:\(dqERROR\(dq, \(dqmessage\(dq:\(dq<error message>\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Supported <operation> values
+.INDENT 0.0
+.IP \(bu 2
+\fBget\fP \- request to get values
+.IP \(bu 2
+\fBset\fP \- request to set a value
+.IP \(bu 2
+\fBnew\fP \- creates a new repository configuration
+.IP \(bu 2
+\fBlog\fP \- writes a message to the logger (added in version 1.4.0)
+.IP \(bu 2
+\fBstop\fP \- throws a stop exception with a message (added in version 1.4.0)
+.IP \(bu 2
+\fBerror\fP \- the error message is logged or throws an error exception with a message if \fBraise_error=1\fP (added in version 1.4.0)
+.UNINDENT
+.SS Description of the \fBget\fP operation
+.sp
+The \fBget\fP operation is defined for several \fB<domain>\fP\&.
+.INDENT 0.0
+.IP \(bu 2
+\fBconf\fP \- request to read the value of a configuration (global or repository configuration)
+.IP \(bu 2
+\fBvars\fP \- request to read the value of variables
+.IP \(bu 2
+\fBactions_vars\fP \- request to read the value of action plugin variables \- these variables exist only in the actions plugin context
+.IP \(bu 2
+\fBactions_attrs\fP \- allows getting the process ID and the version of the actions plugin
+.IP \(bu 2
+\fBpackages\fP \- request to list available and installed packages
+.IP \(bu 2
+\fBtrans_packages\fP \- request to list packages in the transaction
+.IP \(bu 2
+\fBcmdline_packages_paths\fP \- request to list command\-line packages
+.UNINDENT
+.SS Reading a configuration value
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dq<name>\(dq}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dq<repo_id>.<name>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dq<repo_id>.<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dq<error message>\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<name>\fP \- the name of a global configuration option or a repository configuration option if \fB<repo_id>\fP is specified
+.IP \(bu 2
+\fB<repo_id>\fP \- the repository ID; in a request, it can contain globs, in which case the value of the configuration option is read for all matching repositories
+.IP \(bu 2
+\fB<value>\fP \- the read value of the configuration option
+.IP \(bu 2
+\fB<error message>\fP \- error message
+.UNINDENT
+.sp
+When using \fB<repo_id>\fP, the number of \fBkeys_val\fP items in the response depends on the number of matching repositories.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dqcountme\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dqcountme\(dq, \(dqvalue\(dq:\(dq0\(dq}]}}
+
+{\(dqop\(dq: \(dqget\(dq, \(dqdomain\(dq: \(dqconf\(dq, \(dqargs\(dq: {\(dqkey\(dq: \(dq*.enabled\(dq}}
+{\(dqop\(dq: \(dqreply\(dq, \(dqrequested_op\(dq: \(dqget\(dq, \(dqdomain\(dq: \(dqconf\(dq, \(dqstatus\(dq: \(dqOK\(dq,
+  \(dqreturn\(dq: {
+    \(dqkeys_val\(dq: [{\(dqkey\(dq: \(dqdnf\-ci\-fedora.enabled\(dq, \(dqvalue\(dq: \(dq1\(dq},
+                 {\(dqkey\(dq: \(dqdnf\-ci\-fedora\-updates.enabled\(dq, \(dqvalue\(dq: \(dq1\(dq},
+                 {\(dqkey\(dq: \(dqdnf\-ci\-thirdparty.enabled\(dq, \(dqvalue\(dq: \(dq0\(dq},
+                 {\(dqkey\(dq: \(dqtest\-repo.enabled\(dq, \(dqvalue\(dq: \(dq0\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Reading a variable value
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dq<name>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[{\(dqname\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<name>\fP \- the name of the variable; in a request, it can contain globs, in which case the value of all matching variables will be read
+.IP \(bu 2
+\fB<value>\fP \- the read value of the variable
+.UNINDENT
+.sp
+The number of \fBvars\fP items in the response depends on the number of matching variables.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dqtest_var*\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[{\(dqname\(dq:\(dqtest_var1\(dq, \(dqvalue\(dq:\(dqvalue1\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dqnonexist_var\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Reading an action variable value
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dq<name>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqactions_vars\(dq:[{\(dqname\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<name>\fP \- the name of the action variable; in a request, it can contain globs, in which case the value of all matching action variables will be read
+.IP \(bu 2
+\fB<value>\fP \- the read value of the action variable
+.UNINDENT
+.sp
+The number of \fBactions_vars\fP items in the response depends on the number of matching action variables.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dqtest_actions_var*\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqactions_vars\(dq:[{\(dqname\(dq:\(dqtest_actions_var1\(dq, \(dqvalue\(dq:\(dqvalue1\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dqnonexist_var\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqactions_vars\(dq:[]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Reading an action attribute value
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_attrs\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dq<name>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_attrs\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqactions_attrs\(dq:[{\(dqkey\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<name>\fP \- the name of the action attribute; in a request, it can contain globs, in which case the value of all matching actions plugin attributes will be read. Currently, two attributes are supported: \fBpid\fP and \fBversion\fP\&.
+.INDENT 2.0
+.IP \(bu 2
+\fBpid\fP \- the process ID of the actions plugin
+.IP \(bu 2
+\fBversion\fP \- the version of the actions plugin, a string in the format \fBMAJOR.MINOR.MICRO\fP
+.UNINDENT
+.IP \(bu 2
+\fB<value>\fP \- the read value of the action attribute
+.UNINDENT
+.sp
+The number of \fBactions_attrs\fP items in the response depends on the number of matching action attributes.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_attrs\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dq*\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_attrs\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{
+    \(dqactions_attrs\(dq:[{\(dqkey\(dq:\(dqpid\(dq, \(dqvalue\(dq:\(dq523\(dq},
+                     {\(dqkey\(dq:\(dqversion\(dq, \(dqvalue\(dq:\(dq1.4.0\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_attrs\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dqnonexist_attribute\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqactions_attrs\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqactions_attrs\(dq:[]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Getting available, installed, and transaction packages
+.sp
+The \fBpackages\fP domain is used to get available and installed packages.
+The \fBtrans_packages\fP domain is used to get packages in the transaction.
+The \fBtrans_packages\fP domain can only be used in \fBgoal_resolved\fP, \fBpre_transaction\fP, and \fBpost_transaction\fP callbacks.
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq],
+  \(dqparams\(dq:[{\(dqkey\(dq:\(dq<param_name>\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq],
+  \(dqfilters\(dq:[{\(dqkey\(dq:\(dq<filter_name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq, \(dqoperator\(dq:\(dq<cmp_operator>\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq],
+  \(dqparams\(dq:[{\(dqkey\(dq:\(dq<param_name>\(dq}],
+  \(dqfilters\(dq:[{\(dqkey\(dq:\(dq<filter_name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq, \(dqoperator\(dq:\(dq<cmp_operator>\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq],
+  \(dqparams\(dq:[{\(dqkey\(dq:\(dq<param_name>\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq],
+  \(dqfilters\(dq:[{\(dqkey\(dq:\(dq<filter_name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq, \(dqoperator\(dq:\(dq<cmp_operator>\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq, \(dqargs\(dq:{\(dqoutput\(dq:[\(dq<pkg_attr>\(dq],
+  \(dqparams\(dq:[{\(dqkey\(dq:\(dq<param_name>\(dq}],
+  \(dqfilters\(dq:[{\(dqkey\(dq:\(dq<filter_name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq, \(dqoperator\(dq:\(dq<cmp_operator>\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqpackages\(dq:[{\(dq<pkg_attr>\(dq:\(dq<attr_value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqtrans_packages\(dq:[{\(dq<pkg_attr>\(dq:\(dq<attr_value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dq<error message>\(dq}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dq<error message>\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<pkg_attr>\fP \- package attribute to return; the array can contain multiple attributes
+.sp
+General attributes
+.INDENT 2.0
+.IP \(bu 2
+\fBname\fP \- package name
+.IP \(bu 2
+\fBarch\fP \- package arch
+.IP \(bu 2
+\fBversion\fP \- package version
+.IP \(bu 2
+\fBrelease\fP \- package release
+.IP \(bu 2
+\fBepoch\fP \- package epoch
+.IP \(bu 2
+\fBna\fP \- package name.architecture
+.IP \(bu 2
+\fBevr\fP \- package epoch\-version\-release
+.IP \(bu 2
+\fBnevra\fP \- package nevra (0 epoch is hidden)
+.IP \(bu 2
+\fBfull_nevra\fP \- package full nevra (epoch is always present) name\-epoch:version\-release.arch
+.IP \(bu 2
+\fBdownload_size\fP \- filesize of package
+.IP \(bu 2
+\fBinstall_size\fP \- size the package should occupy after installing on disk
+.IP \(bu 2
+\fBrepo_id\fP \- package repository id
+.IP \(bu 2
+\fBlicense\fP \- package license
+.IP \(bu 2
+\fBlocation\fP \-  package relative path/location from repodata
+.IP \(bu 2
+\fBvendor\fP \- package vendor
+.UNINDENT
+.sp
+Attributes usable only with the \fBtrans_packages\fP domain
+.INDENT 2.0
+.IP \(bu 2
+\fBaction\fP \- action performed on the package
+.INDENT 2.0
+.IP \(bu 2
+\fBI\fP \- newly installed package
+.IP \(bu 2
+\fBU\fP \- package installed as an upgrade
+.IP \(bu 2
+\fBD\fP \- package installed as a downgrade
+.IP \(bu 2
+\fBR\fP \- package used for reinstallation
+.IP \(bu 2
+\fBE\fP \- erased (removed) package from the system
+.IP \(bu 2
+\fBO\fP \- replaced package (was obsoleted/upgraded/downgraded/reinstalled/removed)
+.IP \(bu 2
+\fB?\fP \- package with changed installation reason
+.UNINDENT
+.IP \(bu 2
+\fBdirection\fP \- package direction in transaction
+.UNINDENT
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBIN\fP \- packages coming to the system (downgrade, install, reinstall, upgrade)
+.IP \(bu 2
+\fBOUT\fP \- packages going out of the system (upgraded, downgraded, reinstalled, removed, replaced/obsoleted)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB<param_name>\fP \- one of \fBIGNORE_EXCLUDES\fP, \fBIGNORE_MODULAR_EXCLUDES\fP, \fBIGNORE_REGULAR_EXCLUDES\fP, \fBIGNORE_REGULAR_CONFIG_EXCLUDES\fP, \fBIGNORE_REGULAR_USER_EXCLUDES\fP
+.IP \(bu 2
+\fB<filter_name>\fP \- name of package attribute to filter; the array can contain multiple attributes
+.sp
+General attributes
+.INDENT 2.0
+.IP \(bu 2
+\fBname\fP \- filter packages by name, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBarch\fP \- filter packages by arch, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBversion\fP \- filter packages by version, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBrelease\fP \- filter packages by release, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBepoch\fP \- filter packages by epoch, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBnevra\fP \- filter packages by nevra (0 epoch is hidden), uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBrepo_id\fP \- filter packages by repository id, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBavailable\fP \- filter available packages
+.IP \(bu 2
+\fBinstalled\fP \- filter installed packages
+.IP \(bu 2
+\fBuserinstalled\fP \- filter user installed packages
+.IP \(bu 2
+\fBinstallonly\fP \- filter installonly packages
+.IP \(bu 2
+\fBdescription\fP \- filter packages by description, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBfile\fP \- filter packages by files they contain, uses \fB<value>\fP and \fB<cmp_operator>\fP
+.IP \(bu 2
+\fBupgradable\fP \- filter installed packages for which there are available upgrades
+.IP \(bu 2
+\fBupgrades\fP \- filter available packages that are upgrades to installed packages
+.IP \(bu 2
+\fBdowngradable\fP \- filter installed packages for which there are available downgrades
+.IP \(bu 2
+\fBdowngrades\fP \- filter available packages that are downgrades to installed packages
+.UNINDENT
+.sp
+Attributes usable only with the \fBtrans_packages\fP domain
+.INDENT 2.0
+.IP \(bu 2
+\fBdirection\fP \- filters packages by their direction in a transaction, uses \fB<value>\fP; supported values:
+.UNINDENT
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fBIN\fP \- packages coming to the system (downgrade, install, reinstall, upgrade)
+.IP \(bu 2
+\fBOUT\fP \- packages going out of the system (upgraded, downgraded, reinstalled, removed, replaced/obsoleted)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB<value>\fP \- a value used by some filters; the type of comparison depends on the \fB<cmp_operator>\fP
+.IP \(bu 2
+\fB<cmp_operator>\fP \- the operator used by the filter to evaluate a match with \fB<value>\fP; if not specified, \fBEQ\fP is assumed
+.IP \(bu 2
+\fB<attr_value>\fP \- the value of the package attribute
+.IP \(bu 2
+\fB<error message>\fP \- error message
+.UNINDENT
+.sp
+The number of \fBpackages\fP and \fBtrans_packages\fP items in the response depends on the number of matching packages.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq,
+  \(dqargs\(dq:{
+    \(dqparams\(dq:[{\(dqkey\(dq:\(dqIGNORE_EXCLUDES\(dq}],
+    \(dqfilters\(dq:[{\(dqkey\(dq:\(dqname\(dq, \(dqvalue\(dq:\(dqlame*\(dq, \(dqoperator\(dq:\(dqGLOB\(dq}],
+    \(dqoutput\(dq:[\(dqnevra\(dq]}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqstatus\(dq:\(dqOK\(dq, \(dqreturn\(dq:{\(dqpackages\(dq:[
+  { \(dqnevra\(dq:\(dqlame\-3.100\-5.fc29.src\(dq }, { \(dqnevra\(dq:\(dqlame\-3.100\-5.fc29.x86_64\(dq },
+  { \(dqnevra\(dq:\(dqlame\-libs\-3.100\-5.fc29.x86_64\(dq }, { \(dqnevra\(dq:\(dqlame\-3.100\-4.fc29.src\(dq },
+  { \(dqnevra\(dq:\(dqlame\-3.100\-4.fc29.x86_64\(dq }, { \(dqnevra\(dq:\(dqlame\-libs\-3.100\-4.fc29.x86_64\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq,
+  \(dqargs\(dq:{
+    \(dqparams\(dq:[{\(dqkey\(dq:\(dqUNKNOWN\(dq}],
+    \(dqfilters\(dq:[{\(dqkey\(dq:\(dqname\(dq, \(dqvalue\(dq:\(dqlame*\(dq, \(dqoperator\(dq:\(dqGLOB\(dq}],
+    \(dqoutput\(dq:[\(dqnevra\(dq]}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqpackages\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dqBad key \e\(dqUNKNOWN\e\(dq for params\(dq}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq,
+  \(dqargs\(dq:{
+    \(dqfilters\(dq:[{\(dqkey\(dq:\(dqdirection\(dq, \(dqvalue\(dq:\(dqIN\(dq}, {\(dqkey\(dq:\(dqarch\(dq, \(dqvalue\(dq:\(dqx86_64\(dq}],
+    \(dqoutput\(dq:[\(dqaction\(dq, \(dqname\(dq, \(dqversion\(dq, \(dqrepo_id\(dq]}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqtrans_packages\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{
+    \(dqtrans_packages\(dq:[
+      {\(dqaction\(dq:\(dqI\(dq, \(dqname\(dq:\(dqglibc\(dq, \(dqversion\(dq:\(dq2.28\(dq, \(dqrepo_id\(dq:\(dqdnf\-ci\-fedora\-updates\(dq},
+      {\(dqaction\(dq:\(dqI\(dq, \(dqname\(dq:\(dqglibc\-all\-langpacks\(dq, \(dqversion\(dq:\(dq2.28\(dq, \(dqrepo_id\(dq:\(dqdnf\-ci\-fedora\-updates\(dq},
+      {\(dqaction\(dq:\(dqI\(dq, \(dqname\(dq:\(dqglibc\-common\(dq, \(dqversion\(dq:\(dq2.28\(dq, \(dqrepo_id\(dq:\(dqdnf\-ci\-fedora\-updates\(dq},
+      {\(dqaction\(dq:\(dqI\(dq, \(dqname\(dq:\(dqfilesystem\(dq, \(dqversion\(dq:\(dq3.9\(dq, \(dqrepo_id\(dq:\(dqdnf\-ci\-fedora\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Getting paths of command\-line specified packages
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqcmdline_packages_paths\(dq, \(dqargs\(dq:{}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqcmdline_packages_paths\(dq, \(dqargs\(dq:{
+  \(dqfilters\(dq:[{\(dqkey\(dq:\(dqpath\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqcmdline_packages_paths\(dq, \(dqargs\(dq:{
+  \(dqfilters\(dq:[{\(dqkey\(dq:\(dqpath\(dq, \(dqvalue\(dq:\(dq<value>\(dq, \(dqoperator\(dq:\(dq<cmp_operator>\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqcmdline_packages_paths\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqcmdline_packages_paths\(dq:[\(dq<pkg_path>\(dq]}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<value>\fP \- if specified, it will only return paths matching the given pattern; the comparison type depends on \fB<cmp_operator>\fP
+.IP \(bu 2
+\fB<cmp_operator>\fP \- the operator to evaluate whether the path matches the pattern in \fB<value>\fP; if not specified, \fBEQ\fP is assumed
+.IP \(bu 2
+\fB<pkg_path>\fP \- the path to the package specified on the command line
+.UNINDENT
+.sp
+The number of \fBcmdline_packages_paths\fP items in the response depends on the number of matching package paths on the command line.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqcmdline_packages_paths\(dq,
+  \(dqargs\(dq:{\(dqfilters\(dq:[{\(dqkey\(dq:\(dqpath\(dq, \(dqvalue\(dq:\(dq/local/*\(dq, \(dqoperator\(dq:\(dqGLOB\(dq}]}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqget\(dq, \(dqdomain\(dq:\(dqcmdline_packages_paths\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqcmdline_packages_paths\(dq:[\(dq/local/packageB.rpm\(dq, \(dq/local/packageC.rpm\(dq]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Supported compare operators
+.sp
+Some \fBget\fP operations support \fB<cmp_operator>\fP\&. The actions plugin supports the following compare operators:
+.INDENT 0.0
+.IP \(bu 2
+\fBEQ\fP \- exact equality of arguments
+.IP \(bu 2
+\fBIEQ\fP \- string equality, case\-insensitive comparison
+.IP \(bu 2
+\fBGT\fP \- greater than
+.IP \(bu 2
+\fBGTE\fP \- greater than or equal to
+.IP \(bu 2
+\fBLT\fP \- less than
+.IP \(bu 2
+\fBLTE\fP \- less than or equal to
+.IP \(bu 2
+\fBCONTAINS\fP \- contains a substring
+.IP \(bu 2
+\fBICONTAINS\fP \- contains a substring, case\-insensitive search
+.IP \(bu 2
+\fBSTARTSWITH\fP \- starts with a substring
+.IP \(bu 2
+\fBISTARTSWITH\fP \- starts with a substring, case\-insensitive comparison
+.IP \(bu 2
+\fBENDSWITH\fP \- ends with a substring
+.IP \(bu 2
+\fBIENDSWITH\fP \- ends with a substring, case\-insensitive comparison
+.IP \(bu 2
+\fBREGEX\fP \- matches a regular expression
+.IP \(bu 2
+\fBIREGEX\fP \- matches a regular expression, case\-insensitive evaluation
+.IP \(bu 2
+\fBGLOB\fP \- matches a glob pattern
+.IP \(bu 2
+\fBIGLOB\fP \- matches a glob pattern, case\-insensitive evaluation
+.UNINDENT
+.sp
+The meaning of any operator can be inverted by using the \fBNOT_\fP prefix. Examples: \fBNOT_EQ\fP, \fBNOT_GT\fP\&.
+.SS Description of the \fBset\fP operation
+.sp
+The \fBset\fP operation is defined for several \fB<domain>\fP\&.
+.INDENT 0.0
+.IP \(bu 2
+\fBconf\fP \- request to set a configuration value (global or repository configuration)
+.IP \(bu 2
+\fBvars\fP \- request to set a variable value
+.IP \(bu 2
+\fBactions_vars\fP \- request to set an action plugin variable \- these variables exist only in the actions plugin context
+.UNINDENT
+.SS Setting a configuration value
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}}
+
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dq<repo_id>.<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dq<repo_id>.<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dq<error message>\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<name>\fP \- the name of a global configuration option or a repository configuration option if \fB<repo_id>\fP is specified
+.IP \(bu 2
+\fB<repo_id>\fP \- the repository ID; in a request, it can contain globs, in which case the value of the configuration option is set for all matching repositories
+.IP \(bu 2
+\fB<value>\fP \- in the request, the value to be set; in the response, the actual value after being set
+.IP \(bu 2
+\fB<error message>\fP \- error message
+.UNINDENT
+.sp
+When using \fB<repo_id>\fP, the number of \fBkeys_val\fP items in the response depends on the number of matching repositories.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dqcountme\(dq, \(dqvalue\(dq:\(dq1\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dqcountme\(dq, \(dqvalue\(dq:\(dq1\(dq}]}}
+
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqargs\(dq:{\(dqkey\(dq:\(dqdnf\-ci\-fedora*.enabled\(dq, \(dqvalue\(dq:\(dq1\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{
+    \(dqkeys_val\(dq:[{\(dqkey\(dq:\(dqdnf\-ci\-fedora.enabled\(dq, \(dqvalue\(dq:\(dq1\(dq},
+                {\(dqkey\(dq:\(dqdnf\-ci\-fedora\-updates.enabled\(dq, \(dqvalue\(dq:\(dq1\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Setting a variable value
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}}
+
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dq<name>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[{\(dqname\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[{\(dqname\(dq:\(dq<name>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dq<error message>\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<name>\fP \- the name of the variable
+.IP \(bu 2
+\fB<value>\fP \- in the request, the value to be set; if not specified, it means the variable should be removed. In the response, the actual value after being set; if not specified, the variable did not exist or was removed
+.IP \(bu 2
+\fB<error message>\fP \- error message
+.UNINDENT
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dqtest_var1\(dq, \(dqvalue\(dq:\(dqvalue1\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqvars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[{\(dqname\(dq:\(dqtest_var1\(dq, \(dqvalue\(dq:\(dqvalue1\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Setting an action variable value
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}}
+
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dq<name>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[{\(dqname\(dq:\(dq<name>\(dq, \(dqvalue\(dq:\(dq<value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqvars\(dq:[{\(dqname\(dq:\(dq<name>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dq<error message>\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<name>\fP \- the name of the action variable
+.IP \(bu 2
+\fB<value>\fP \- in the request, the value to be set; if not specified, it means the variable should be removed. In the response, the actual value after being set; if not specified, the variable did not exist or was removed
+.IP \(bu 2
+\fB<error message>\fP \- error message
+.UNINDENT
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqargs\(dq:{\(dqname\(dq:\(dqtest_actions_var1\(dq, \(dqvalue\(dq:\(dqvalue1\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqset\(dq, \(dqdomain\(dq:\(dqactions_vars\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqactions_vars\(dq:[{\(dqname\(dq:\(dqtest_actions_var1\(dq, \(dqvalue\(dq:\(dqvalue1\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Description of the \fBnew\fP operation
+.sp
+The \fBnew\fP operation creates a new repository configuration. It can be used only in the \fBrepos_configured\fP callback.
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqnew\(dq, \(dqdomain\(dq:\(dqrepoconf\(dq,
+  \(dqargs\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dqrepo_id\(dq, \(dqvalue\(dq:\(dq<repo_id>\(dq},
+                      {\(dqkey\(dq:\(dq<repo_opt>\(dq, \(dqvalue\(dq:\(dq<opt_value>\(dq}]}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqnew\(dq, \(dqdomain\(dq:\(dqrepoconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{\(dqkeys_val\(dq:[{\(dqkey\(dq:\(dqrepo_id\(dq, \(dqvalue\(dq:\(dq<repo_id>\(dq},
+                        {\(dqkey\(dq:\(dq<repo_opt>\(dq, \(dqvalue\(dq:\(dq<opt_value>\(dq}]}}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqnew\(dq, \(dqdomain\(dq:\(dqrepoconf\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dq<error_message>\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<repo_id>\fP \- repository ID
+.IP \(bu 2
+\fB<repo_opt>\fP \- any existing repository configuration option
+.IP \(bu 2
+\fB<opt_value>\fP \- the value to be set for the configuration option
+.UNINDENT
+.sp
+The \fBkeys_val\fP field must contain at least one element \- specifying the \fBrepo_id\fP is mandatory. Setting other repository configuration options is optional. If the \fBenabled\fP option is not present, the repository is disabled by default. The response contains the same keys as the request and their actual values.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqnew\(dq, \(dqdomain\(dq:\(dqrepoconf\(dq,
+  \(dqargs\(dq:{
+    \(dqkeys_val\(dq:[{\(dqkey\(dq:\(dqrepo_id\(dq, \(dqvalue\(dq:\(dqtest\-repo\(dq},
+                {\(dqkey\(dq:\(dqname\(dq, \(dqvalue\(dq:\(dqTest repository\(dq},
+                {\(dqkey\(dq:\(dqenabled\(dq, \(dqvalue\(dq:\(dqfalse\(dq},
+                {\(dqkey\(dq:\(dqbaseurl\(dq, \(dqvalue\(dq:\(dqhttps://xyz.com/rpm\(dq}]}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqnew\(dq, \(dqdomain\(dq:\(dqrepoconf\(dq, \(dqstatus\(dq:\(dqOK\(dq,
+  \(dqreturn\(dq:{
+    \(dqkeys_val\(dq:[{\(dqkey\(dq:\(dqrepo_id\(dq, \(dqvalue\(dq:\(dqtest\-repo\(dq},
+                {\(dqkey\(dq:\(dqname\(dq, \(dqvalue\(dq:\(dqTest repository\(dq},
+                {\(dqkey\(dq:\(dqenabled\(dq, \(dqvalue\(dq:\(dq0\(dq},
+                {\(dqkey\(dq:\(dqbaseurl\(dq, \(dqvalue\(dq:\(dqhttps://xyz.com/rpm\(dq}]}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Description of the \fBlog\fP operation
+.sp
+The \fBlog\fP operation writes a message to the logger.
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqlog\(dq, \(dqargs\(dq:{\(dqlevel\(dq:\(dq<level>\(dq, \(dqmessage\(dq:\(dq<message>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqlog\(dq, \(dqdomain\(dq:\(dqlog\(dq, \(dqstatus\(dq:\(dqOK\(dq}
+
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqlog\(dq, \(dqdomain\(dq:\(dqlog\(dq, \(dqstatus\(dq:\(dqERROR\(dq,
+  \(dqmessage\(dq:\(dqUnknown log level \(aq<level_from_request>\(aq\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<level>\fP \- \fBCRITICAL\fP, \fBERROR\fP, \fBWARNING\fP, \fBNOTICE\fP, \fBINFO\fP, \fBDEBUG\fP, \fBTRACE\fP
+.IP \(bu 2
+\fB<message>\fP \- text to be written to the log
+.IP \(bu 2
+\fB<level_from_request>\fP \- the level from the request, if it contains an unsupported value
+.UNINDENT
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqlog\(dq, \(dqargs\(dq:{\(dqlevel\(dq:\(dqWARNING\(dq, \(dqmessage\(dq:\(dqMy warning message\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqlog\(dq, \(dqdomain\(dq:\(dqlog\(dq, \(dqstatus\(dq:\(dqOK\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Description of the \fBstop\fP operation
+.sp
+The \fBstop\fP operation throws a stop exception with a message.
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqstop\(dq, \(dqargs\(dq:{\(dqmessage\(dq:\(dq<message>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<message>\fP \- text to be included in the stop exception
+.UNINDENT
+.sp
+After this request, the application is expected to terminate. The actions plugin does not send a response but closes the communication channel \- pipes connected to the standard output and input of the process.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqstop\(dq, \(dqargs\(dq:{\(dqmessage\(dq:\(dqI want to stop the task\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Description of the \fBerror\fP operation
+.sp
+The \fBerror\fP operation logs the error message or throws an error exception with a message if \fBraise_error=1\fP\&.
+.sp
+\fIRequest format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqerror\(dq, \(dqargs\(dq:{\(dqmessage\(dq:\(dq<message>\(dq}}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIResponse format:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqerror\(dq, \(dqdomain\(dq:\(dqerror\(dq, \(dqstatus\(dq:\(dqOK\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fIDescription:\fP
+.INDENT 0.0
+.IP \(bu 2
+\fB<message>\fP \- text written to the log or included in the error exception if \fBraise_error=1\fP
+.UNINDENT
+.sp
+If \fBraise_error=1\fP, the application is expected to terminate. The actions plugin does not send a response but closes the communication channel \- pipes connected to the standard output and input of the process.
+.sp
+\fIExample:\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{\(dqop\(dq:\(dqerror\(dq, \(dqargs\(dq:{\(dqmessage\(dq:\(dqError in action process 1\(dq}}
+{\(dqop\(dq:\(dqreply\(dq, \(dqrequested_op\(dq:\(dqerror\(dq, \(dqdomain\(dq:\(dqerror\(dq, \(dqstatus\(dq:\(dqOK\(dq}
+.EE
+.UNINDENT
+.UNINDENT
+.SH AN EXAMPLE ACTIONS FILE:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# Prints header with process id
+pre_base_setup::::/usr/bin/sh \-c echo\e \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\e >>/tmp/actions\-trans.log
+pre_base_setup::::/usr/bin/sh \-c date\e >>/tmp/actions\-trans.log
+pre_base_setup::::/usr/bin/sh \-c echo\e libdnf5\e pre_base_setup\e was\e called.\e Process\e ID\e =\e \(aq${pid}\(aq.\e >>/tmp/actions\-trans.log
+pre_base_setup:::enabled=installroot\-only:/usr/bin/sh \-c echo\e run\e in\e alternative\e \(dqinstallroot\(dq:\e installroot\e =\e \(aq${conf.installroot}\(aq\e >>/tmp/actions\-trans.log
+
+# Prints the value of the configuration option \(dqdefaultyes\(dq.
+pre_base_setup::::/usr/bin/sh \-c echo\e pre_base_setup:\e conf.defaultyes=${conf.defaultyes}\e >>/tmp/actions.log
+
+# Prints a message that the \(dqpost_base_setup\(dq callback was called.
+post_base_setup::::/usr/bin/sh \-c echo\e libdnf5\e post_base_setup\e was\e called.\e >>/tmp/actions\-trans.log
+
+# Executes the \(dqadd_new_repo\(dq application with json communication.
+# This application, for instance, can add new repository configurations.
+repos_configured:::mode=json:/usr/local/bin/add_new_repo
+
+# Prints a list of configured repositories with their enable state.
+repos_configured::::/usr/bin/sh \-c echo\e Repositories:\e ${conf.*.enabled}\e >>/tmp/repos.log
+
+# Prints a list of repositories that use the http protocol in baseurl.
+repos_configured::::/usr/bin/sh \-c echo\e \(dq${conf.*.baseurl=*http://*}\(dq\e >>/tmp/baseurl_http.log
+
+# Disables all repositories whose id starts with \(dqrpmfusion\(dq.
+repos_configured::::/usr/bin/sh \-c echo\e conf.rpmfusion*.enabled=0
+
+# Executes the \(dqcheck_transaction\(dq application with json communication, terminating if the application encounters an error.
+# This application, for instance, can check for forbidden packages within a transaction and send a stop message.
+pre_transaction:::mode=json raise_error=1:/usr/local/bin/check_transaction
+
+# Prints the information about the start of the transaction.
+# Since package_filter is empty, it executes the commands once.
+pre_transaction::::/usr/bin/sh \-c echo\e Transaction\e start.\e Packages\e in\e transaction:\e >>/tmp/actions\-trans.log
+
+# Logs all packages (package action, full_nevra, repo id) in transaction into a file.
+# Uses the shell command \(dqecho\(dq and redirection to a file.
+pre_transaction:*:::/usr/bin/sh \-c echo\e \(aq${pkg.action}\(aq\e \(aq${pkg.full_nevra}\(aq\e \(aq${pkg.repo_id}\(aq\e >>/tmp/actions\-trans.log
+
+# Prints the date and time and information about the end of the transaction.
+# Since package_filter is empty, it executes the commands once.
+post_transaction::::/usr/bin/sh \-c date\e >>/tmp/actions\-trans.log
+post_transaction::::/usr/bin/sh \-c echo\e Transaction\e end.\e Repositories\e used\e in\e the\e transaction:\e >>/tmp/actions\-trans.log
+
+# Logs all the repositories from which packages were used in the transaction to install on the system.
+# Each repository will be listed only once, even if multiple packages from the same repository were used.
+# The same command (after variables substitution) is executed only once per transaction.
+post_transaction:*:in::/usr/bin/sh \-c echo\e \(aq${pkg.repo_id}\(aq\e >>/tmp/actions\-trans.log
+
+# ==============================================================================================
+# The next two actions emulate the DNF4 snapper plugin. It uses the \(dqsnapper\(dq command\-line program.
+
+# Creates a snapshot description and saves it to the \(dqtmp.snapper_descr\(dq variable.
+pre_transaction::::/usr/bin/sh \-c echo\e \(dqtmp.snapper_descr=$(ps\e \-o\e command\e \-\-no\-headers\e \-p\e \(aq${pid}\(aq)\(dq
+
+# Creates pre snapshot before the transaction and stores the snapshot number in the \(dqtmp.snapper_pre_number\(dq variable.
+pre_transaction::::/usr/bin/sh \-c echo\e \(dqtmp.snapper_pre_number=$(snapper\e create\e \-t\e pre\e \-p\e \-d\e \(aq${tmp.snapper_descr}\(aq)\(dq
+
+# If the variable \(dqtmp.snapper_pre_number\(dq exists, it creates post snapshot after the transaction and removes the used variables.
+post_transaction::::/usr/bin/sh \-c [\e \-n\e \(dq${tmp.snapper_pre_number}\(dq\e ]\e &&\e snapper\e create\e \-t\e post\e \-\-pre\-number\e \(dq${tmp.snapper_pre_number}\(dq\e \-d\e \(dq${tmp.snapper_descr}\(dq\e ;\e echo\e tmp.snapper_pre_number\e ;\e echo\e tmp.snapper_descr
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+See AUTHORS.md in dnf5 source distribution.
+.SH "حق نشر (COPYRIGHT)"
+Contributors to the dnf5 project.
+.\" End of generated man page.

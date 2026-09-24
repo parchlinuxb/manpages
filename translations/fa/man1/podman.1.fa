@@ -1,0 +1,641 @@
+'\" t
+.nh
+.TH podman 1
+.SH "نام (NAME)"
+podman \- Simple management tool for pods, containers and images
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman\fP [\fIoptions\fP] \fIcommand\fP
+
+.SH "توضیحات (DESCRIPTION)"
+Podman (Pod Manager) is a fully featured container engine that is a simple daemonless tool.
+Podman provides a Docker-CLI comparable command line that eases the transition from other
+container engines and allows the management of pods, containers and images.  Simply put: \fBalias docker=podman\fR\&.
+Most Podman commands can be run as a regular user, without requiring additional
+privileges.
+
+.PP
+Podman uses Buildah(1) internally to create container images. Both tools share image
+(not container) storage, hence each can use or manipulate images (but not containers)
+created by the other.
+
+.PP
+Default settings for flags are defined in \fBcontainers.conf\fR\&. Most settings for
+Remote connections use the server's containers.conf, except when documented in
+man pages.
+
+.PP
+To manage containers, pods, volumes, networks, and images declaratively via systemd,
+use quadlet files. See \fBpodman-quadlet\fP(1) and \fBpodman-systemd.unit\fP(5).
+
+.PP
+\fBpodman [GLOBAL OPTIONS]\fP
+
+.SH GLOBAL OPTIONS
+.SS \fB--cdi-spec-dir\fP=\fIpath\fP
+The CDI spec directory path (may be set multiple times). Default path is \fB/etc/cdi\fR\&.
+
+.SS \fB--cgroup-manager\fP=\fImanager\fP
+The CGroup manager to use for container cgroups. Supported values are \fBcgroupfs\fP or \fBsystemd\fP\&. Default is \fIsystemd\fP unless overridden in the containers.conf file.
+
+.PP
+Note: Setting this flag can cause certain commands to break when called on containers previously created by the other CGroup manager type.
+
+.SS \fB--config\fP
+Location of config file. Mainly for docker compatibility, only the authentication parts of the config are supported.
+
+.SS \fB--conmon\fP
+Path of the conmon binary (Default path is configured in \fBcontainers.conf\fR)
+
+.SS \fB--connection\fP, \fB-c\fP
+Connection to use for remote podman, including Mac and Windows (excluding WSL2) machines, (Default connection is configured in \fBcontainers.conf\fR)
+Setting this option switches the \fB--remote\fP option to true.
+Remote connections use local containers.conf for default.
+
+.SS \fB--events-backend\fP=\fItype\fP
+Backend to use for storing events. Allowed values are \fBfile\fP, \fBjournald\fP, and
+\fBnone\fP\&. When \fIfile\fP is specified, the events are stored under
+\fB<tmpdir>/events/events.log\fR (see \fB--tmpdir\fP below).
+
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement
+
+.SS \fB--hooks-dir\fP=\fIpath\fP
+Each \fB*.json\fR file in the path configures a hook for Podman containers.  For more details on the syntax of the JSON files and the semantics of hook injection, see \fBoci-hooks(5)\fR\&.  Podman and libpod currently support both the 1.0.0 and 0.1.0 hook schemas, although the 0.1.0 schema is deprecated.
+
+.PP
+This option may be set multiple times; paths from later options have higher precedence (\fBoci-hooks(5)\fR discusses directory precedence).
+
+.PP
+For the annotation conditions, libpod uses any annotations set in the generated OCI configuration.
+
+.PP
+For the bind-mount conditions, only mounts explicitly requested by the caller via \fB--volume\fR are considered.  Bind mounts that libpod inserts by default (e.g. \fB/dev/shm\fR) are not considered.
+
+.PP
+If \fB--hooks-dir\fR is unset for root callers, Podman and libpod currently default to \fB/usr/share/containers/oci/hooks.d\fR and \fB/etc/containers/oci/hooks.d\fR in order of increasing precedence.  Using these defaults is deprecated. Migrate to explicitly setting \fB--hooks-dir\fR\&.
+
+.PP
+Podman and libpod currently support an additional \fBprecreate\fR state which is called before the runtime's \fBcreate\fR operation.  Unlike the other stages, which receive the container state on their standard input, \fBprecreate\fR hooks receive the proposed runtime configuration on their standard input.  They may alter that configuration as they see fit, and write the altered form to their standard output.
+
+.PP
+\fBWARNING\fP: the \fBprecreate\fR hook allows powerful changes to occur, such as adding additional mounts to the runtime configuration.  That power also makes it easy to break things.  Before reporting libpod errors, try running a container with \fBprecreate\fR hooks disabled to see if the problem is due to one of the hooks.
+
+.SS \fB--identity\fP=\fIpath\fP
+Path to ssh identity file. If the identity file has been encrypted, podman prompts the user for the passphrase.
+If no identity file is provided and no user is given, podman defaults to the user running the podman command.
+Podman prompts for the login password on the remote server.
+
+.PP
+Identity value resolution precedence:
+ - command line value
+ - environment variable \fBCONTAINER_SSHKEY\fR, if \fBCONTAINER_HOST\fR is found
+ - \fBcontainers.conf\fR
+Remote connections use local containers.conf for default.
+
+.SS \fB--imagestore\fP=\fIpath\fP
+Path of the imagestore where images are stored.  By default, the storage library stores all the images in the graphroot but if an imagestore is provided, then the storage library will store newly pulled images in the provided imagestore and keep using the graphroot for everything else. If the user is using the overlay driver, then the images which were already part of the graphroot will still be accessible.
+
+.PP
+This will override \fIimagestore\fP option in \fBcontainers-storage.conf(5)\fR, refer to \fBcontainers-storage.conf(5)\fR for more details.
+
+.SS \fB--log-level\fP=\fIlevel\fP
+Log messages at and above specified level: \fBdebug\fP, \fBinfo\fP, \fBwarn\fP, \fBerror\fP, \fBfatal\fP or \fBpanic\fP (default: \fIwarn\fP)
+
+.SS \fB--module\fP=\fIpath\fP
+Load the specified \fBcontainers.conf(5)\fR module.  Can be an absolute or relative path.  Please refer to \fBcontainers.conf(5)\fR for details.
+
+.PP
+This flag is not supported on the remote client, including Mac and Windows (excluding WSL2) machines.
+Further note that the flag is a root-level flag and must be specified before any Podman sub-command.
+
+.SS \fB--network-config-dir\fP=\fIdirectory\fP
+Path to the directory where network configuration files are located.
+The default is "/etc/containers/networks" as root
+and "$graphroot/networks" as rootless.
+
+.SS \fB--out\fP=\fIpath\fP
+Redirect the output of podman to the specified path without affecting the container output or its logs. This parameter can be used to capture the output from any of podman's commands directly into a file and enable suppression of podman's output by specifying /dev/null as the path. To explicitly disable the container logging, the \fB--log-driver\fP option should be used.
+
+.SS \fB--remote\fP, \fB-r\fP
+When true, access to the Podman service is remote. Defaults to false.
+Settings can be modified in the containers.conf file. If the CONTAINER_HOST
+environment variable is set, the \fB--remote\fP option defaults to true.
+
+.SS \fB--root\fP=\fIvalue\fP
+Storage root dir in which data, including images, is stored (default: "/var/lib/containers/storage" for UID 0, "$HOME/.local/share/containers/storage" for other users).
+Default root dir configured in \fBcontainers-storage.conf(5)\fR\&.
+
+.PP
+This option causes the \fBstorage.options.<driver>\fR settings in \fBcontainers-storage.conf(5)\fR and the \fBSTORAGE_OPTS\fR environment variable to be ignored.
+The user must specify additional options via the \fB--storage-opt\fR flag.
+
+.SS \fB--runroot\fP=\fIvalue\fP
+Storage state directory where all state information is stored (default: "/run/containers/storage" for UID 0, "/run/user/$UID/run" for other users).
+Default state dir configured in \fBcontainers-storage.conf(5)\fR\&.
+
+.SS \fB--runtime\fP=\fIvalue\fP
+Name of the OCI runtime as specified in containers.conf or absolute path to the OCI compatible binary used to run containers.
+
+.SS \fB--runtime-flag\fP=\fIflag\fP
+Adds global flags for the container runtime. To list the supported flags, please
+consult the manpages of the selected container runtime (\fBrunc\fR is the default
+runtime, the manpage to consult is \fBrunc(8)\fR\&.  When the machine is configured
+for cgroup V2, the default runtime is \fBcrun\fR, the manpage to consult is \fBcrun(8)\fR\&.).
+
+.PP
+Default runtime flags can be added in containers.conf.
+
+.PP
+Note: Do not pass the leading \fB--\fR to the flag. To pass the runc flag \fB--log-format json\fR
+to podman build, the option given can be \fB--runtime-flag log-format=json\fR\&.
+
+.SS \fB--ssh\fP=\fIvalue\fP
+This option allows the user to change the ssh mode, meaning that rather than using the default \fBgolang\fP mode, one can instead use \fB--ssh=native\fP
+to use the installed ssh binary and config file declared in containers.conf.
+
+.SS \fB--storage-driver\fP=\fIvalue\fP
+Storage driver.  The default storage driver is configured in \fBcontainers-storage.conf(5)\fR\&. The \fBSTORAGE_DRIVER\fR environment variable overrides the default. The --storage-driver specified driver overrides all.
+
+.PP
+This option causes the \fBstorage.options.<driver>\fR settings in \fBcontainers-storage.conf(5)\fR and the \fBSTORAGE_OPTS\fR environment variable to be ignored.
+The user must specify additional options via the \fB--storage-opt\fR flag.
+
+.SS \fB--storage-opt\fP=\fIvalue\fP
+Specify a storage driver option. Default storage driver options are configured in \fBcontainers-storage.conf(5)\fR\&. The \fBSTORAGE_OPTS\fR environment variable overrides the default. The --storage-opt specified options override all. Specify --storage-opt="" so no storage options is used.
+
+.PP
+The \fB--root\fR and \fB--storage-driver\fR options clear the default storage options, ignoring the default storage driver options from \fBcontainers-storage.conf(5)\fR and the \fBSTORAGE_OPTS\fR environment variable.
+
+.SS \fB--syslog\fP
+Output logging information to syslog as well as the console (default \fIfalse\fP).
+
+.PP
+On remote clients, including Mac and Windows (excluding WSL2) machines, logging is directed to the file $HOME/.config/containers/podman.log.
+
+.SS \fB--tls-ca\fP=\fIpath\fP
+Path to a PEM file containing the certificate authority bundle to verify the server's certificate against.
+
+.SS \fB--tls-cert\fP=\fIpath\fP
+Path to a PEM file containing the TLS client certificate to present to the server. \fB--tls-key\fR must also be provided.
+
+.SS \fB--tls-details\fP=\fIpath\fP
+Path to a \fBcontainers-tls-details.yaml(5)\fR file, affecting TLS behavior throughout the program.
+
+.PP
+If not set, defaults to a reasonable default that may change over time (depending on system’s global policy,
+version of the program, version of the Go language, and the like).
+
+.PP
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
+.SS \fB--tls-key\fP=\fIpath\fP
+Path to a PEM file containing the private key matching \fB--tls-cert\fR\&. \fB--tls-cert\fR must also be provided.
+
+.SS \fB--tmpdir\fP=\fIpath\fP
+Path to the tmp directory, for libpod runtime content. Defaults to \fB$XDG_RUNTIME_DIR/libpod/tmp\fR as rootless and \fB/run/libpod/tmp\fR as rootful.
+
+.PP
+NOTE --tmpdir is not used for the temporary storage of downloaded images.  Use the environment variable \fBTMPDIR\fR to change the temporary storage location of downloaded container images. Podman defaults to use \fB/var/tmp\fR\&.
+
+.SS \fB--transient-store\fP
+Enables a global transient storage mode where all container metadata is stored on non-persistent media (i.e. in the location specified by \fB--runroot\fR).
+This mode allows starting containers faster, as well as guaranteeing a fresh state on boot in case of unclean shutdowns or other problems. However
+it is not compatible with a traditional model where containers persist across reboots.
+
+.PP
+Only the Podman database (container and volume metadata) is stored transiently. Volume data on disk is not affected and persists across reboots. After a reboot, previously created volumes will not appear in \fBpodman volume ls\fP because their database entries were lost, but the underlying data remains in the volume storage directory. If a container later creates a volume with the same name, it will reuse the existing data. To clean up leftover volume data that is no longer tracked by the database, use \fBpodman system prune --external\fP\&.
+
+.PP
+It should be used consistently across all Podman commands and not mixed with regular (non-transient) usage within the same environment.
+
+.PP
+Default value for this is configured in \fBcontainers-storage.conf(5)\fR\&.
+
+.SS \fB--url\fP=\fIvalue\fP
+URL to access Podman service (default from \fBcontainers.conf\fR, rootless \fBunix:///run/user/$UID/podman/podman.sock\fR or as root \fBunix:///run/podman/podman.sock\fR).
+Setting this option switches the \fB--remote\fP option to true.
+.IP \(bu 2
+\fBCONTAINER_HOST\fR is of the format \fB<schema>://[<user[:<password>]@]<host>[:<port>][<path>]\fR
+
+.PP
+Details:
+ - \fBschema\fR is one of:
+   * \fBssh\fR (default): a local unix(7) socket on the named \fBhost\fR and \fBport\fR, reachable via SSH
+   * \fBtcp\fR: an unencrypted, unauthenticated TCP connection to the named \fBhost\fR and \fBport\fR
+   * \fBunix\fR: a local unix(7) socket at the specified \fBpath\fR, or the default for the user
+ - \fBuser\fR defaults to either \fBroot\fR or the current running user (\fBssh\fR only)
+ - \fBpassword\fR has no default (\fBssh\fR only)
+ - \fBhost\fR must be provided and is either the IP or name of the machine hosting the Podman service (\fBssh\fR and \fBtcp\fR)
+ - \fBport\fR defaults to 22 (\fBssh\fR and \fBtcp\fR)
+ - \fBpath\fR defaults to either \fB/run/podman/podman.sock\fR, or \fB/run/user/$UID/podman/podman.sock\fR if running rootless (\fBunix\fR), or must be explicitly specified (\fBssh\fR)
+
+.PP
+URL value resolution precedence:
+ - command line value
+ - environment variable \fBCONTAINER_HOST\fR
+ - \fBengine.service_destinations\fR table in containers.conf, excluding the /usr/share/containers directory
+ - \fBunix:///run/podman/podman.sock\fR
+
+.PP
+Remote connections use local containers.conf for default.
+
+.PP
+Some example URL values in valid formats:
+ - \fBunix:///run/podman/podman.sock\fR
+ - \fBunix:///run/user/$UID/podman/podman.sock\fR
+ - \fBssh://notroot@localhost:22/run/user/$UID/podman/podman.sock\fR
+ - \fBssh://root@localhost:22/run/podman/podman.sock\fR
+ - \fBtcp://localhost:34451\fR
+ - \fBtcp://127.0.0.1:34451\fR
+
+.SS \fB--version\fP, \fB-v\fP
+Print the version
+
+.SS \fB--volumepath\fP=\fIvalue\fP
+Volume directory where builtin volume information is stored (default: "/var/lib/containers/storage/volumes" for UID 0, "$HOME/.local/share/containers/storage/volumes" for other users). Default volume path can be overridden in \fBcontainers.conf\fR\&.
+
+.SH Environment Variables
+Podman can set up environment variables from env of [engine] table in containers.conf. These variables can be overridden by passing  environment variables before the \fBpodman\fR commands.
+
+.SS \fBCONTAINERS_CONF\fP
+Set default locations of containers.conf file
+
+.SS \fBCONTAINERS_REGISTRIES_CONF\fP
+Set default location of the registries.conf file.
+
+.SS \fBCONTAINERS_STORAGE_CONF\fP
+Set default location of the storage.conf file.
+
+.SS \fBCONTAINER_CONNECTION\fP
+Override default \fB--connection\fR value to access Podman service. Automatically enables the --remote option.
+
+.SS \fBCONTAINER_HOST\fP
+Set default \fB--url\fR value to access Podman service. Automatically enables --remote option.
+
+.SS \fBCONTAINER_SSHKEY\fP
+Set default \fB--identity\fR path to ssh key file value used to access Podman service.
+
+.SS \fBPODMAN_CONNECTIONS_CONF\fP
+The path to the file where the system connections and farms created with \fBpodman system connection add\fR
+and \fBpodman farm add\fR are stored, by default it uses \fB~/.config/containers/podman-connections.json\fR\&.
+
+.SS \fBSTORAGE_DRIVER\fP
+Set default \fB--storage-driver\fR value.
+
+.SS \fBSTORAGE_OPTS\fP
+Set default \fB--storage-opt\fR value. Overrides storage driver options in \fBcontainers-storage.conf(5)\fR\&.
+Ignored when the \fB--root\fR or \fB--storage-driver\fR options are set.
+
+.SS \fBTMPDIR\fP
+Set the temporary storage location of downloaded container images. Podman defaults to use \fB/var/tmp\fR\&.
+
+.SS \fBXDG_CONFIG_HOME\fP
+In Rootless mode configuration files are read from \fBXDG_CONFIG_HOME\fR when
+specified, otherwise in the home directory of the user under
+\fB$HOME/.config/containers\fR\&.
+
+.SS \fBXDG_DATA_HOME\fP
+In Rootless mode images are pulled under \fBXDG_DATA_HOME\fR when specified,
+otherwise in the home directory of the user under
+\fB$HOME/.local/share/containers/storage\fR\&.
+
+.SS \fBXDG_RUNTIME_DIR\fP
+In Rootless mode temporary configuration data is stored in \fB${XDG_RUNTIME_DIR}/containers\fR\&.
+
+.SS \fBPODMAN_NO_PAUSE_PROCESS\fP
+In Rootless mode, when set to a value other than "0", Podman does not use a pause process.
+Namespace file handles are stored to allow rejoining the existing user and mount namespace if they are still alive.
+
+.SH Remote Access
+The Podman command can be used with remote services using the \fB--remote\fR flag. Connections can
+be made using local unix domain sockets, ssh or directly to tcp sockets. When specifying the
+podman --remote flag, only the global options \fB--url\fR, \fB--identity\fR, \fB--log-level\fR, \fB--connection\fR are used.
+
+.PP
+Connection information can also be managed using the containers.conf file.
+
+.SH Exit Codes
+The exit code from \fBpodman\fR gives information about why the container
+failed to run or why it exited.  When \fBpodman\fR commands exit with a non-zero code,
+the exit codes follow the \fBchroot\fR standard, see below:
+
+.PP
+\fB125\fP The error is with podman \fB\fIitself\fP\fP
+
+.EX
+$ podman run --foo busybox; echo $?
+Error: unknown flag: --foo
+125
+.EE
+
+.PP
+\fB126\fP Executing a \fIcontainer command\fP and the \fIcommand\fP cannot be invoked
+
+.EX
+$ podman run busybox /etc; echo $?
+Error: container_linux.go:346: starting container process caused "exec: \\"/etc\\": permission denied": OCI runtime error
+126
+.EE
+
+.PP
+\fB127\fP Executing a \fIcontainer command\fP and the \fIcommand\fP cannot be found
+
+.EX
+$ podman run busybox foo; echo $?
+Error: container_linux.go:346: starting container process caused "exec: \\"foo\\": executable file not found in $PATH": OCI runtime error
+127
+.EE
+
+.PP
+\fBExit code\fP otherwise, \fBpodman\fR returns the exit code of the \fIcontainer command\fP
+
+.EX
+$ podman run busybox /bin/sh -c 'exit 3'; echo $?
+3
+.EE
+
+.SH COMMANDS
+.TS
+allbox;
+l l 
+l l .
+\fBCommand\fP	\fBDescription\fP
+podman-artifact(1)	Manage OCI artifacts.
+podman-attach(1)	Attach to a running container.
+podman-auto-update(1)	T{
+Auto update containers according to their auto-update policy
+T}
+podman-build(1)	T{
+Build a container image using a Containerfile.
+T}
+podman-farm(1)	T{
+Farm out builds to machines running podman for different architectures
+T}
+podman-commit(1)	T{
+Create new image based on the changed container.
+T}
+podman-completion(1)	T{
+Generate shell completion scripts
+T}
+podman-compose(1)	T{
+Run Compose workloads via an external compose provider.
+T}
+podman-container(1)	Manage containers.
+podman-cp(1)	T{
+Copy files/folders between a container and the local filesystem.
+T}
+podman-create(1)	Create a new container.
+podman-diff(1)	T{
+Inspect changes on a container or image's filesystem.
+T}
+podman-events(1)	Monitor Podman events
+podman-exec(1)	T{
+Execute a command in a running container.
+T}
+podman-export(1)	T{
+Export a container's filesystem contents as a tar archive.
+T}
+podman-generate(1)	T{
+Generate structured data based on containers, pods or volumes.
+T}
+podman-healthcheck(1)	T{
+Manage healthchecks for containers
+T}
+podman-history(1)	Show the history of an image.
+podman-image(1)	Manage images.
+podman-images(1)	List images in local storage.
+podman-import(1)	T{
+Import a tarball and save it as a filesystem image.
+T}
+podman-info(1)	T{
+Display Podman related system information.
+T}
+podman-init(1)	T{
+Initialize one or more containers
+T}
+podman-inspect(1)	T{
+Display artifact, container, image, volume, network, or pod's configuration.
+T}
+podman-kill(1)	T{
+Kill the main process in one or more containers.
+T}
+podman-load(1)	T{
+Load image(s) from tar archives, directories, or URLs into container storage.
+T}
+podman-login(1)	T{
+Log in to a container registry.
+T}
+podman-logout(1)	T{
+Log out of a container registry.
+T}
+podman-logs(1)	T{
+Display the logs of one or more containers.
+T}
+podman-machine(1)	T{
+Manage Podman's virtual machine
+T}
+podman-manifest(1)	T{
+Create and manipulate manifest lists and image indexes.
+T}
+podman-mount(1)	T{
+Mount a working container's root filesystem.
+T}
+podman-network(1)	Manage Podman networks.
+podman-pause(1)	Pause one or more containers.
+podman-kube(1)	T{
+Play containers, pods or volumes based on a structured input file.
+T}
+podman-pod(1)	T{
+Management tool for groups of containers, called pods.
+T}
+podman-port(1)	T{
+List port mappings for a container.
+T}
+podman-ps(1)	T{
+Print out information about containers.
+T}
+podman-pull(1)	Pull an image from a registry.
+podman-push(1)	T{
+Push an image, manifest list or image index from local storage to elsewhere.
+T}
+podman-quadlet(1)	T{
+Allows users to manage Quadlets.
+T}
+podman-rename(1)	Rename an existing container.
+podman-restart(1)	T{
+Restart one or more containers.
+T}
+podman-rm(1)	Remove one or more containers.
+podman-rmi(1)	T{
+Remove one or more locally stored images.
+T}
+podman-run(1)	T{
+Run a command in a new container.
+T}
+podman-save(1)	T{
+Save image(s) to an archive or directory.
+T}
+podman-search(1)	T{
+Search a registry for an image.
+T}
+podman-secret(1)	Manage podman secrets.
+podman-start(1)	Start one or more containers.
+podman-stats(1)	T{
+Display a live stream of one or more container's resource usage statistics.
+T}
+podman-stop(1)	T{
+Stop one or more running containers.
+T}
+podman-system(1)	Manage podman.
+podman-tag(1)	T{
+Add an additional name to a local image.
+T}
+podman-top(1)	T{
+Display the running processes of a container.
+T}
+podman-unmount(1)	T{
+Unmount a working container's root filesystem.
+T}
+podman-unpause(1)	T{
+Unpause one or more containers.
+T}
+podman-unshare(1)	T{
+Run a command inside of a modified user namespace.
+T}
+podman-untag(1)	T{
+Remove one or more names from a locally-stored image.
+T}
+podman-update(1)	T{
+Update the configuration of a given container.
+T}
+podman-version(1)	T{
+Display the Podman version information.
+T}
+podman-volume(1)	T{
+Simple management tool for volumes.
+T}
+podman-wait(1)	T{
+Wait on one or more containers to stop and print their exit codes.
+T}
+.TE
+
+.SH "فایل‌های پیکربندی (CONFIGURATION FILES)"
+\fBcontainers.conf\fP (\fB/usr/share/containers/containers.conf\fR, \fB/etc/containers/containers.conf\fR, \fB$HOME/.config/containers/containers.conf\fR)
+
+.PP
+Podman has builtin defaults for command line options. These defaults can be overridden using the containers.conf configuration files.
+
+.PP
+Distributions ship the \fB/usr/share/containers/containers.conf\fR file with their default settings. Administrators can override fields in this file by creating the \fB/etc/containers/containers.conf\fR file.  Users can further modify defaults by creating the \fB$HOME/.config/containers/containers.conf\fR file. Podman merges its builtin defaults with the specified fields from these files, if they exist. Fields specified in the users file override the administrator's file, which overrides the distribution's file, which override the built-in defaults.
+
+.PP
+Podman uses builtin defaults if no containers.conf file is found.
+
+.PP
+If the \fBCONTAINERS_CONF\fP environment variable is set, then its value is used for the containers.conf file rather than the default.
+
+.PP
+\fBmounts.conf\fP (\fB/usr/share/containers/mounts.conf\fR)
+
+.PP
+The mounts.conf file specifies volume mount directories that are automatically mounted inside containers when executing the \fBpodman run\fR or \fBpodman start\fR commands. Administrators can override the defaults file by creating \fB/etc/containers/mounts.conf\fR\&.
+
+.PP
+When Podman runs in rootless mode, the file \fB$HOME/.config/containers/mounts.conf\fR overrides the default if it exists. For details, see containers-mounts.conf(5).
+
+.PP
+\fBpolicy.json\fP (\fB/etc/containers/policy.json\fR, \fB$HOME/.config/containers/policy.json\fR)
+
+.PP
+Signature verification policy files are used to specify policy, e.g. trusted keys, applicable when deciding whether to accept an image, or individual signatures of that image, as valid. For details, see containers-policy.json(5).
+
+.PP
+\fBregistries.conf\fP (\fB/etc/containers/registries.conf\fR, \fB$HOME/.config/containers/registries.conf\fR)
+
+.PP
+registries.conf is the configuration file which specifies which container registries is consulted when completing image names which do not include a registry or domain portion.
+
+.PP
+Non root users of Podman can create the \fB$HOME/.config/containers/registries.conf\fR file to be used instead of the system defaults.
+
+.PP
+If the \fBCONTAINERS_REGISTRIES_CONF\fP environment variable is set, then its value is used for the registries.conf file rather than the default.
+
+.PP
+\fBstorage.conf\fP (\fB/etc/containers/storage.conf\fR, \fB$HOME/.config/containers/storage.conf\fR)
+
+.PP
+storage.conf is the storage configuration file for all tools using containers/storage
+
+.PP
+The storage configuration file specifies all of the available container storage options for tools using shared container storage.
+
+.PP
+When Podman runs in rootless mode, the file \fB$HOME/.config/containers/storage.conf\fR is used instead of the system defaults.
+
+.PP
+If the \fBCONTAINERS_STORAGE_CONF\fP environment variable is set, then its value is used for the storage.conf file rather than the default.
+
+.SH Rootless mode
+Podman can also be used as non-root user. When podman runs in rootless mode, a user namespace is automatically created for the user, defined in \fB/etc/subuid\fR and \fB/etc/subgid\fR\&.
+
+.PP
+Containers created by a non-root user are not visible to other users and are not seen or managed by Podman running as root.
+
+.PP
+It is required to have multiple UIDS/GIDS set for a user.  Be sure the user is present in the files \fB/etc/subuid\fR and \fB/etc/subgid\fR\&.
+
+.PP
+Execute the following commands to add the ranges to the files
+
+.EX
+$ sudo usermod --add-subuids 10000-75535 USERNAME
+$ sudo usermod --add-subgids 10000-75535 USERNAME
+.EE
+
+.PP
+Or just add the content manually.
+
+.EX
+$ echo USERNAME:10000:65536 >> /etc/subuid
+$ echo USERNAME:10000:65536 >> /etc/subgid
+.EE
+
+.PP
+See the \fBsubuid(5)\fR and \fBsubgid(5)\fR man pages for more information.
+
+.PP
+Note: whitespace in any row of \fB/etc/subuid\fR or \fB/etc/subgid\fR, including trailing blanks, may result in no entry failures.
+
+.PP
+Images are pulled under \fBXDG_DATA_HOME\fR when specified, otherwise in the home directory of the user under \fB\&.local/share/containers/storage\fR\&.
+
+.PP
+Currently pasta is required to be installed to create a network
+device, otherwise rootless containers need to run in the network namespace of
+the host.
+
+.PP
+In certain environments like HPC (High Performance Computing), users cannot take advantage of the additional UIDs and GIDs from the \fB/etc/subuid\fR and \fB/etc/subgid\fR systems.  However, in this environment, rootless Podman can operate with a single UID.  To make this work, set the \fBignore_chown_errors\fR option in the \fBcontainers-storage.conf(5)\fR file. This option tells Podman when pulling an image to ignore chown errors when attempting to change a file in a container image to match the non-root UID in the image. This means all files get saved as the user's UID. Note this can cause issues when running the container.
+
+.SS \fBNOTE:\fP Unsupported file systems in rootless mode
+The Overlay file system (OverlayFS) is not supported with kernels prior to 5.12.9 in rootless mode.  The fuse-overlayfs package is a tool that provides the functionality of OverlayFS in user namespace that allows mounting file systems in rootless environments.  It is recommended to install the fuse-overlayfs package.  In rootless mode, Podman automatically uses the fuse-overlayfs program as the mount_program if installed, as long as the \fB$HOME/.config/containers/storage.conf\fR file was not previously created.  If storage.conf exists in the homedir, add \fBmount_program = "/usr/bin/fuse-overlayfs"\fR under \fB[storage.options.overlay]\fR to enable this feature.
+
+.PP
+The Network File System (NFS) and other distributed file systems (for example: Lustre, Spectrum Scale, the General Parallel File System (GPFS)) are not supported when running in rootless mode as these file systems do not understand user namespace.  However, rootless Podman can make use of an NFS Homedir by modifying the \fB$HOME/.config/containers/storage.conf\fR to have the \fBgraphroot\fR option point to a directory stored on local (Non NFS) storage.
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBcontainers-mounts.conf(5)\fP, \fBcontainers.conf(5)\fP, \fBcontainers-registries.conf(5)\fP, \fBcontainers-storage.conf(5)\fP, \fBbuildah(1)\fP, \fBoci-hooks(5)\fP, \fBcontainers-policy.json(5)\fP, \fBcrun(1)\fP, \fBrunc(8)\fP, \fBsubuid(5)\fP, \fBsubgid(5)\fP, \fBpasta(1)\fP, \fBconmon(8)\fP, \fBpodman-quadlet(1)\fP, \fBpodman-systemd.unit(5)\fP
+
+.SS Troubleshooting
+See podman-troubleshooting(7)
+for solutions to common issues.
+
+.PP
+See podman-rootless(7)
+for rootless issues.
+
+.SH "تاریخچه (HISTORY)"
+Dec 2016, Originally compiled by Dan Walsh dwalsh@redhat.com
+\[la]mailto:dwalsh@redhat.com\[ra]

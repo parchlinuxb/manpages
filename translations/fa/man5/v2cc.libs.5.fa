@@ -1,0 +1,266 @@
+.TH V2CC.LIBS "5" "December 2005" "Debian/GNU Linux" "File Formats"
+.SH "نام (NAME)"
+v2cc.libs \- VHDL library mapping file for the FreeHDL compiler/simulator.
+.SH "توضیحات (DESCRIPTION)"
+
+\fBFreeHDL\fR is a compiler/simulator suite for the hardware
+description language VHDL.  VHDL'93 as well as VHDL'87 standards are
+supported. 
+
+\fBFreeHDL\fR translates the original VHDL source FILEs into
+C++. Then, the C++ source can be compiled and linked to the kernel to
+build the simulation program. Starting the generated executable will
+simulate the corresponding VHDL model. The actual build process to
+generate the simulator from the VHDL source is a complex process which
+is handled by the \fBgvhdl\fR script.
+
+FreeHDL does not have a opaque notion of design libraries.  VHDL files
+are not pre-analyzed and checked into some library data base as in
+other VHDL compiler/simulator systems.  Instead, whenever a reference
+to a design unit needs to be made, FreeHDL parses the VHDL code of
+that design unit from fresh.  Therefore, it needs to be able to find
+the source file of a design unit given the VHDL name of that unit.
+
+Thus, as far as FreeHDL is concerned, a design library is a mapping
+from VHDL identifiers to file names.  There is also a mapping for
+getting library names from mapping files.
+
+Such a mapping is specified via a "mapping file".  It contains a list
+of pattern rules that each transform a certain class of identifiers
+into file names.
+
+The syntax of a mapping file is:
+
+  Lexical:
+
+     litchar: 'a'..'z' | 'A'..'Z' | '0'..'9' | '_' | '/' | '-' | '.' escchar
+
+     escchar: '\\' char
+
+     whitespace: ' ' | '\\n' | '\\v' | '\\t' | comment
+
+     comment: '#' any_character* '\\n'
+
+     opchar: ':' | ',' | '(' | ')'
+
+     specchar: every printable char except litchar, whitespace and opchar
+
+     symchar: litchar | specchar
+
+     symbol: symchar+
+
+  Grammar:
+
+     mapping: version patternrule*
+
+     version: "v2cc_mapfile" "0"
+
+     patternrule: symbol [ ':' symbol ]
+
+Comments are ignored.
+
+A mapping files specifies a sequence of pattern rules.  When
+transforming an identifier, each rule is tried in turn and the first
+one that matches is chosen.
+
+A rule looks like
+
+  pattern: filename
+
+When the ": filename" part is omitted, it defaults to "patternEXT"
+where "EXT" is determined by the user of the mapping file.
+
+The "pattern" can contain the special character "<" which introduces a
+`wildcard'.  The "<" must be followed by a ">", with arbitrary
+characters inbetween.  These characters form the name of the wildcard.
+A wildcard matches any sequence of characters.  There can be any
+number of wildcards in the pattern, but each must have a unique name.
+
+The "filename" can also contain the character "<", followed by a name,
+followed by ">".  There, it introduces a `wildcard substitution'.  It
+will be replaced with the characters that matched the wildcard with
+the same name in "pattern".  When there is no wildcard in "pattern"
+with the right name, it will be replaced with nothing.  While doing
+this replacement, the characters "#" and "/" are replaced as "##", and
+"#-" respectively.  No other character translations are done, so if
+you have funny characters in your VHDL identifiers, you will have
+funny characters in your filenames.
+
+Before doing the comparison with the patterns, the VHDL identifier is
+brought into a canonical form: when it is not an abstract
+identifier, all its characters are down-cased.
+
+When the resulting filename is relative (does not begin with "/"), it
+is prefixed with the directory of the mapping file.
+
+A non-existent mapping file is equivalent to the single rule
+
+  <>
+
+An empty mapping file is just that: an empty mapping.
+
+The mapping does not need to be reversible.  It is OK when multiple
+identifiers map to a single filename.
+
+No special character besides "<" and ">" is valid in "pattern" or
+"filename".  They are reserved for future extensions.
+
+
+The mapping files for going from design unit names to filenames are
+found by looking into directories specified by the `v2cc library
+path'.  You can use the environment variable V2CC_LIBRARY_PATH and
+command line options to define the path.  When the environment
+variable is not set, it defaults to a value that makes the standard
+libraries available that are distributed and installed with v2cc
+itself.  When it is set, it completely overwrites this default value.
+
+The variable V2CC_LIBRARY_PATH consists of ":" separated filenames.
+The filename "*" is replaced with the default value mentioned above.
+
+In addition to the environment variable, you can use the "-L libdir"
+command line option with v2cc.  The directories specified with "-L"
+are added in front of the ones specified by V2CC_LIBRARY_PATH.  In the
+final library path, they appear in the same order as on the command
+line.
+
+Looking for a design unit named UNIT in a library named LIB is done
+like this:
+
+     for each component of the library path, L
+       if L is a regular file
+         set LMAP to L
+       else if L is a directory
+         set LMAP to L/v2cc.libs
+       else
+         continue with next component
+       translate LIB into FLIB using LMAP with EXT=""
+       if FLIB.vhdl exists
+         terminate with FLIB.vhdl as the result
+       if FLIB.v2cc exists
+         set UMAP to FLIB.v2cc
+       else if FLIB is a directory
+         set UMAP to FLIB/v2cc.units
+       else
+         continue with next component
+       translate UNIT into FUNIT using UMAP with EXT=".vhdl"
+       terminate with FUNIT as the result
+     terminate unsuccessfully
+
+
+This mechanism is used for all design units that are referenced from
+within VHDL code (or via other means).  There is a complication with
+architectures and package bodies, though, because they are not
+uniquely identified by a single identifier.  For them, a artificial
+identifier is constructed.  Architectures get names of the form 
+
+    <entity>(<architecture>)
+
+while package bodies become
+
+    <package>(body)
+
+For example, "architecture struct of model" is turned into
+"model(struct)" and "package body misc" is turned into "misc(body)".
+
+When a design file contains multiple design units, they are all
+parsed, checked for correctness and remembered, but only the needed
+unit will be used for code generation.  That is, when a design file
+contains both a package header and a package body and the package
+header is referenced from another design unit, no code will be
+generated for the package body.  When one of the ignored units will be
+referenced later in the same invocation of v2cc, the design file will
+not be read again because all design units are retained in core.
+.SH "مثال‌ها (EXAMPLES)"
+The simplest situation is when you have no mapping files at all.  A
+design library is then a directory on your library path.  The name of
+that directory is that of the library in VHDL.  Each file in that
+directory with a ".vhdl" extension is used for a design unit with the
+same name as the file without the extension.
+
+Say you have this directory structure
+
+    somedir/
+      std/
+        standard.vhdl
+        textio.vhdl
+      ieee/
+        numeric_bit.vhdl
+        std_logic_1164.vhdl
+
+When you put "somedir" into your library path, you have access to the
+design units
+
+       STD.STANDARD
+       STD.TEXTIO
+       IEEE.NUMERIC_BIT
+       IEEE.STD_LOGIC_1164
+
+In this situation, you have one file per design unit.  When you have
+one file per design library, it would look like this
+
+    somedir/
+      fmf.vhdl
+
+All references to design units in the FMF design library would be
+routed to "fmf.vhdl".
+
+As another example assume that all VHDL libraries are mapped into
+subdirs starting from root directory "/foo". Further, assume that
+there are VHDL libraries named "lib1" and "lib2". They shall be mapped
+to subdir "/foo/lib1_dir" and "/foo/lib2_dir". Hence, the
+file/directory structure is as follows:
+
+/foo  			<-  library root directory
+/foo/v2cc.libs  	<-  mapping control file	  
+/foo/lib1_dir		<-  library dir for VHDL library lib1
+/foo/lib1_dir/comp1.vhdl <- file that contains VHDL model comp1
+/foo/lib2_dir		<-  library dir for VHDL library lib2
+/foo/lib2_dir/comp2.vhdl <- file that contains VHDL model comp2
+
+Then, file "/foo/v2cc.libs" should contain:
+
+v2cc_mapfile 0
+lib1 : lib1_dir
+lib2 : lib2_dir
+
+In order to compile a design named comp1 (stored in file comp1.vhdl)
+into VHDL library lib1 goto subdir "/foo/lib1_dir" and execute:
+
+    gvhdl -c -L .. -l lib1 comp1.vhdl
+
+Note that option "-l lib1" forces the compiler to associate the model
+stored in "comp1.vhdl" with VHDL library lib1.  Note further, that
+the compiler switch "-L .." specifies the path to the directory where
+"v2cc.libs" is stored. You may also specify an absolute path:
+
+    gvhdl -c -L /foo -l lib1 comp1.vhdl
+
+Note that comp1 should reside in a file named "comp1.vhdl".
+
+If lib2 contains a design comp2 that makes use of comp1 from lib1 then
+goto "/foo/lib2_dir" and run the following command to create an
+executable for model comp2:
+
+    gvhdl -L .. -l lib2 comp2.vhdl ../lib1_dir/comp1.o 
+.SH "همچنین ببینید (SEE ALSO)"
+gvhdl(1), freehdl-v2cc(1), freehdl-config(1)
+.SH AVAILABILITY
+The latest version of FreeHDL can always be obtained from
+\fBwww.freehdl.seul.org\fR
+.SH "گزارش باگ‌ها (REPORTING BUGS)"
+Known bugs are documented within the BUGS file.  If your report
+addresses a parser related topic then contact Marius Vollmer
+<mvo@zagadka.ping.de>.  If it is related to the code generator or
+compiler then send an email to Edwin Naroska
+<edwin@ds.e-technik.uni-dortmund.de>.  If your are not sure send it to
+Edwin.  He will take care of forwarding your report to the appropriate
+recipient.
+.SH "حق نشر (COPYRIGHT)"
+Edwin Naroska \(co 1999, 2000, 2001, 2002, 2003, 2004, 2005
+<edwin@ds.e-technik.uni-dortmund.de>
+.PP
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "نویسندگان (AUTHORS)"
+Written by Marius Vollmer <mvo@zagadka.ping.de> and Edwin Naroska
+<edwin@ds.e-technik.uni-dortmund.de>.

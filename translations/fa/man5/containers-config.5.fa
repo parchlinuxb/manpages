@@ -1,0 +1,206 @@
+.nh
+.TH containers-config 5
+
+.SH "نام (NAME)"
+containers-config \- Rules for loading container engine configuration files
+
+
+.SH "توضیحات (DESCRIPTION)"
+This document describes the loading order of the \fBcontainers.conf(5)\fP,
+\fBcontainers-storage.conf(5)\fP and
+\fBcontainers-registries.conf(5)\fP\&.
+Refer to their individual man pages for more details on the file formats.
+
+
+.SH Search Locations
+In the following paths \fB<name>\fR is a placeholder for either \fBcontainers\fR, \fBstorage\fR, or \fBregistries\fR
+depending on the specific config file.
+
+.PP
+The paths are listed from lowest to highest precedence (i.e. later paths override / are preferred
+over the earlier paths, see below for details).
+
+.SH Linux and macOS
+System defaults:
+.IP \(bu 2
+\fB/usr/share/containers/<name>.conf\fR
+.IP \(bu 2
+\fB/usr/share/containers/<name>.conf.d/\fR
+.IP \(bu 2
+\fB/usr/share/containers/<name>.rootful.conf.d/\fR (only when UID == 0)
+.IP \(bu 2
+\fB/usr/share/containers/<name>.rootless.conf.d/\fR (only when UID > 0)
+.IP \(bu 2
+\fB/usr/share/containers/<name>.rootless.conf.d/<UID>/\fR (only when UID > 0)
+
+.PP
+Admin overrides:
+.IP \(bu 2
+\fB/etc/containers/<name>.conf\fR
+.IP \(bu 2
+\fB/etc/containers/<name>.conf.d/\fR
+.IP \(bu 2
+\fB/etc/containers/<name>.rootful.conf.d/\fR (only when UID == 0)
+.IP \(bu 2
+\fB/etc/containers/<name>.rootless.conf.d/\fR (only when UID > 0)
+.IP \(bu 2
+\fB/etc/containers/<name>.rootless.conf.d/<UID>/\fR (only when UID > 0)
+
+.PP
+User overrides:
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/<name>.conf\fR or if \fB$XDG_CONFIG_HOME\fR is unset then \fB$HOME/.config/containers/<name>.conf\fR
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/<name>.conf.d/\fR or if \fB$XDG_CONFIG_HOME\fR is unset then \fB$HOME/.config/containers/<name>.conf.d/\fR
+
+.SH FreeBSD
+System defaults:
+.IP \(bu 2
+\fB/usr/local/share/containers/<name>.conf\fR
+.IP \(bu 2
+\fB/usr/local/share/containers/<name>.conf.d/\fR
+.IP \(bu 2
+\fB/usr/local/share/containers/<name>.rootful.conf.d/\fR (only when UID == 0)
+.IP \(bu 2
+\fB/usr/local/share/containers/<name>.rootless.conf.d/\fR (only when UID > 0)
+.IP \(bu 2
+\fB/usr/local/share/containers/<name>.rootless.conf.d/<UID>/\fR (only when UID > 0)
+
+.PP
+Admin overrides:
+.IP \(bu 2
+\fB/usr/local/etc/containers/<name>.conf\fR
+.IP \(bu 2
+\fB/usr/local/etc/containers/<name>.conf.d/\fR
+.IP \(bu 2
+\fB/usr/local/etc/containers/<name>.rootful.conf.d/\fR (only when UID == 0)
+.IP \(bu 2
+\fB/usr/local/etc/containers/<name>.rootless.conf.d/\fR (only when UID > 0)
+.IP \(bu 2
+\fB/usr/local/etc/containers/<name>.rootless.conf.d/<UID>/\fR (only when UID > 0)
+
+.PP
+User overrides:
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/<name>.conf\fR or if \fB$XDG_CONFIG_HOME\fR is unset then \fB$HOME/.config/containers/<name>.conf\fR
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/<name>.conf.d/\fR or if \fB$XDG_CONFIG_HOME\fR is unset then \fB$HOME/.config/containers/<name>.conf.d/\fR
+
+.SH Windows
+There is no location for system defaults.
+
+.PP
+Admin overrides:
+.IP \(bu 2
+\fB%ProgramData%\\containers\\<name>.conf\fR
+.IP \(bu 2
+\fB%ProgramData%\\containers\\<name>.conf.d\\\fR
+
+.PP
+User overrides:
+.IP \(bu 2
+\fB%APPDATA%\\containers\\<name>.conf\fR
+.IP \(bu 2
+\fB%APPDATA%\\containers\\<name>.conf.d\\\fR
+
+
+.SH Load Order
+The search locations are split into two file categories, the main files and the drop-in directories.
+
+.PP
+Only one main file, \fB<name>.conf\fR, will be loaded: the highest-precedence file that exists.
+If no \fB<name>.conf\fR file exists, no main file is loaded, which is valid too.
+
+.PP
+After the main file, drop-in directories are loaded. Each file can override settings
+set in earlier files. Files within the directory must be suffixed with \fB\&.conf\fR, otherwise they get ignored.
+
+.PP
+All drop-in files will be sorted in the lexicographic order of the file name, if there are two or more
+drop-in files with the same file name only the one with the highest precedence will be used and thus
+replaces the prior one.
+
+
+.SH "مثال‌ها (EXAMPLES)"
+.SH Example 1
+.IP \(bu 2
+~~\fB/usr/share/containers/containers.conf\fR~~ (overridden by \fB$XDG_CONFIG_HOME/containers/containers.conf\fR and thus not read)
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/containers.conf\fR
+.IP \(bu 2
+\fB/usr/share/containers/containers.conf.d/00-vendor.conf\fR
+.IP \(bu 2
+~~\fB/etc/containers/containers.conf.d/50-myconf.conf\fR~~ (overridden by \fB$XDG_CONFIG_HOME/containers/containers.conf.d/50-myconf.conf\fR and thus not read)
+.IP \(bu 2
+\fB$XDG_CONFIG_HOME/containers/containers.conf.d/50-myconf.conf\fR
+.IP \(bu 2
+\fB/usr/share/containers/containers.conf.d/99-conf.conf\fR
+
+.SH Example 2
+Consider the following files with their contents:
+
+.PP
+~~\fB/usr/share/containers/containers.conf\fR~~ (overridden by \fB/etc/containers/containers.conf\fR):
+
+.EX
+field_1 = a
+.EE
+
+.PP
+\fB/etc/containers/containers.conf\fR:
+
+.EX
+field_2 = b
+.EE
+
+.PP
+~~\fB/usr/share/containers/containers.conf.d/10-vendor.conf\fR~~ (overridden by \fB$XDG_CONFIG_HOME/containers/containers.conf.d/10-vendor.conf\fR):
+
+.EX
+field_3 = c
+.EE
+
+.PP
+\fB/usr/share/containers/containers.conf.d/99-important.conf\fR:
+
+.EX
+field_4 = d
+.EE
+
+.PP
+\fB/usr/share/containers/containers.rootless.conf.d/50-my.conf\fR:
+
+.EX
+field_5 = e
+.EE
+
+.PP
+\fB$XDG_CONFIG_HOME/containers/containers.conf.d/10-vendor.conf\fR:
+
+.EX
+# empty
+.EE
+
+.PP
+\fB$XDG_CONFIG_HOME/containers/containers.conf.d/33-opt.conf\fR (this is read but field_4 is overridden by \fB/usr/share/containers/containers.conf.d/99-important.conf\fR as \fB99-important.conf\fR is sorted later):
+
+.EX
+field_4 = user
+field_6 = f
+.EE
+
+.PP
+Now parsing this as user with UID 1000 results in this final config:
+
+.EX
+field_2 = b
+field_4 = d
+field_5 = e
+field_6 = f
+.EE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBcontainers.conf(5)\fP,
+\fBcontainers-storage.conf(5)\fP,
+\fBcontainers-registries.conf(5)\fP

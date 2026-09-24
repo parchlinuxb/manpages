@@ -1,0 +1,697 @@
+'\" t
+.nh
+.TH podman-build.unit 5
+
+.SH "نام (NAME)"
+podman-build.unit \- systemd unit files for building container images using Podman Quadlet
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fIname\fP\&.build
+
+
+.SH "توضیحات (DESCRIPTION)"
+Build files are named with a \fB\&.build\fR extension and contain a section \fB[Build]\fR describing the image
+build command. The generated service is a one-shot service that ensures that the image is built on
+the host from a supplied Containerfile and context directory. Subsequent (re-)starts of the
+generated build service will usually finish quickly, as image layer caching will skip unchanged
+build steps.
+
+.PP
+A minimal \fB\&.build\fR unit needs at least \fBImageTag=\fR and either \fBFile=\fR or \fBSetWorkingDirectory=\fR\&.
+
+.PP
+Using build units allows containers and volumes to depend on images being built locally. This can be
+interesting for creating container images not available on container registries, or for local
+testing and development.
+
+
+.SH USAGE SUMMARY
+The \fB\&.build\fR file is parsed by the \fBpodman-system-generator\fR at boot or reload, generating a systemd
+\fB\&.service\fR that runs \fBpodman build\fR\&. That service can be managed like any other unit:
+
+.EX
+systemctl --user start myimage-build.service
+.EE
+
+.PP
+The resulting image can be referenced by \fB\&.container\fR or \fB\&.volume\fR units via:
+
+.EX
+Image=myimage.build
+.EE
+
+
+.SH "گزینه‌ها (OPTIONS)"
+Valid options for \fB[Build]\fR section are listed below:
+
+.TS
+allbox;
+l l 
+l l .
+\fB\fB[Build] options\fP\fP	\fB\fBpodman build equivalent\fP\fP
+Annotation=annotation=value	--annotation=annotation=value
+Arch=aarch64	--arch=aarch64
+AuthFile=/etc/registry/auth\&.json	--authfile=/etc/registry/auth\&.json
+ContainersConfModule=/etc/nvd\&.conf	--module=/etc/nvd\&.conf
+DNS=192.168.55.1	--dns=192.168.55.1
+DNSOption=ndots:1	--dns-option=ndots:1
+DNSSearch=example.com	--dns-search example.com
+Environment=foo=bar	--env foo=bar
+File=/path/to/Containerfile	--file=/path/to/Containerfile
+ForceRM=false	--force-rm=false
+GlobalArgs=--log-level=debug	--log-level=debug
+GroupAdd=keep-groups	--group-add=keep-groups
+ImageTag=localhost/imagename	--tag=localhost/imagename
+Label=label	--label=label
+Network=host	--network=host
+PodmanArgs=--pull never	--pull never
+Pull=never	--pull never
+Retry=5	--retry=5
+RetryDelay=10s	--retry-delay=10s
+Secret=secret	--secret=id=mysecret,src=path
+SetWorkingDirectory=unit	Set \fBWorkingDirectory\fR of systemd unit file
+Target=my-app	--target=my-app
+TLSVerify=false	--tls-verify=false
+Variant=arm/v7	--variant=arm/v7
+Volume=/source:/dest	--volume /source:/dest
+.TE
+
+.SS \fBAnnotation=annotation=value [annotation=value ...]\fR
+Add an image \fIannotation\fP (e.g. annotation=\fIvalue\fP) to the image metadata. Can
+be used multiple times.
+
+.PP
+Note: this information is not present in Docker image formats, so it is
+discarded when writing images in Docker formats.
+
+.SS \fBArch=ARCH\fR
+Override the architecture, defaults to the host, of the image to be pulled. For example, \fBarm\fR\&.
+Unless overridden, subsequent lookups of the same image in the local storage matches this architecture, regardless of the host.
+
+.SS \fBAuthFile=path\fR
+Path of the authentication file. Default is \fB${XDG_RUNTIME_DIR}/containers/auth.json\fR on Linux, and \fB$HOME/.config/containers/auth.json\fR on Windows/macOS.
+The file is created by \fBpodman login\fP\&. If the authorization state is not found there, \fB$HOME/.docker/config.json\fR is checked, which is set using \fBdocker login\fP\&.
+
+.PP
+Note: There is also the option to override the default path of the authentication file by setting the \fBREGISTRY_AUTH_FILE\fR environment variable. This can be done with \fBexport REGISTRY_AUTH_FILE=\fIpath\fP\fP\&.
+
+.SS \fBContainersConfModule=module\fR
+Load the specified containers.conf(5) module.
+
+.PP
+This option can be listed multiple times.
+
+.SS \fBDNS=ipaddr\fR
+Set custom DNS servers.
+
+.PP
+This option can be used to override the DNS
+configuration passed to the container. Typically this is necessary when the
+host DNS configuration is invalid for the container (e.g., \fB127.0.0.1\fP). When this
+is the case, the \fBDNS=.\fP flag is necessary for every run.
+
+.PP
+The special value \fBnone\fP can be specified to disable creation of \fI/etc/resolv.conf\fP in the container by Podman.
+The \fI/etc/resolv.conf\fP file in the image is then used without changes.
+
+.PP
+Note that \fBipaddr\fP may be added directly to the container's \fI/etc/resolv.conf\fP\&.
+This is not guaranteed though.  For example, passing a custom network whose \fIdns_enabled\fP is set to \fItrue\fP to \fB--network\fP will result in \fI/etc/resolv.conf\fP only referring to the aardvark-dns server.  aardvark-dns then forwards to the supplied \fBipaddr\fP for all non-container name queries.
+
+.SS \fBDNSOption=option\fR
+Set custom DNS options to be used during the build.
+
+.SS \fBDNSSearch=domain\fR
+Set custom DNS search domains to be used during the build.
+
+.SS \fBEnvironment=env=value [env=value ...]\fR
+Set environment variables.
+
+.PP
+This option allows arbitrary environment variables that are available for the process to be launched inside of the container. If an environment variable is specified without a value, Podman checks the host environment for a value and set the variable only if it is set on the host. As a special case, if an environment variable ending in \fB*\fP is specified without a value, Podman searches the host environment for variables starting with the prefix and adds those variables to the container.
+
+.SS \fBFile=Containerfile\fR
+Specifies a Containerfile which contains instructions for building the image,
+either a local file or an \fBhttp\fP or \fBhttps\fP URL.  If more than one
+Containerfile is specified, \fIFROM\fP instructions are only accepted from the
+last specified file.
+
+.PP
+Note that for a given relative path to a Containerfile, or when using a \fBhttp(s)://\fR URL, also set
+\fBSetWorkingDirectory=\fR in order for \fBpodman build\fR to find a valid context directory for the
+resources specified in the Containerfile.
+
+.PP
+Note that setting a \fBFile=\fR field is mandatory for a \fB\&.build\fR file, unless \fBSetWorkingDirectory\fR (or
+a \fBWorkingDirectory\fR in the \fBService\fR group) has also been set.
+
+.PP
+Specifying the option File=- causes
+the Containerfile contents to be read from stdin.
+
+.SS \fBForceRM=\fR
+Always remove intermediate containers after a build, even if the build fails (default true).
+
+.SS \fBGlobalArgs=\fR
+This key contains a list of arguments passed directly after the \fBpodman\fR command in the generated
+file. It can be used to access Podman features otherwise unsupported by the generator. Since the
+generator is unaware of what unexpected interactions can be caused by these arguments, it is not
+recommended to use this option.
+
+.PP
+The format of this is a space separated list of arguments, which can optionally be individually
+escaped to allow inclusion of whitespace and other control characters.
+
+.PP
+This key can be listed multiple times.
+
+.SS \fBGroupAdd=group | keep-groups\fR
+Assign additional groups to the primary user running within the container process.
+.IP \(bu 2
+\fBkeep-groups\fR is a special flag that tells Podman to keep the supplementary group access.
+
+.PP
+Allows container to use the user's supplementary group access. If file systems or
+devices are only accessible by the rootless user's group, this flag tells the OCI
+runtime to pass the group access into the container. Currently only available
+with the \fBcrun\fR OCI runtime. Note: \fBkeep-groups\fR is exclusive, other groups cannot be specified
+with this flag. (Not available for remote commands, including Mac and Windows (excluding WSL2) machines)
+
+.SS \fBImageTag=imageName\fR
+Specifies the name which is assigned to the resulting image if the build process completes successfully.
+If \fIimageName\fP does not include a registry name, the registry name \fIlocalhost\fP is prepended to the image name.
+
+.SS \fBLabel=label\fR
+Add an image \fIlabel\fP (e.g. label=\fIvalue\fP) to the image metadata. Can be used
+multiple times.
+
+.PP
+Users can set a special LABEL \fBio.containers.capabilities=CAP1,CAP2,CAP3\fP in
+a Containerfile that specifies the list of Linux capabilities required for the
+container to run properly. This label specified in a container image tells
+Podman to run the container with just these capabilities. Podman launches the
+container with just the specified capabilities, as long as this list of
+capabilities is a subset of the default list.
+
+.PP
+If the specified capabilities are not in the default set, Podman prints an error
+message and runs the container with the default capabilities.
+
+.SS \fBNetwork=mode\fR
+Sets the configuration for network namespaces when handling \fBRUN\fR instructions.
+
+.PP
+Special case:
+.IP \(bu 2
+If the \fBname\fR of the network ends with \fB\&.network\fR, Quadlet will look for the corresponding \fB\&.network\fR Quadlet unit. If found, Quadlet will use the name of the Network set in the Unit, otherwise, \fBsystemd-$name\fR is used. The generated systemd service contains a dependency on the service unit generated for that \fB\&.network\fR unit, or on \fB$name-network.service\fR if the \fB\&.network\fR unit is not found. Note: the corresponding \fB\&.network\fR file must exist.
+
+.PP
+Valid \fImode\fP values are:
+.IP \(bu 2
+\fBnone\fP: no networking.
+.IP \(bu 2
+\fBhost\fP: use the Podman host network stack. Note: the host mode gives the
+container full access to local system services such as D-bus and is therefore
+considered insecure.
+.IP \(bu 2
+\fBns:\fP\fIpath\fP: path to a network namespace to join.
+.IP \(bu 2
+\fBprivate\fP: create a new namespace for the container (default)
+.IP \(bu 2
+\fB<network name|ID>\fP: Join the network with the given name or ID, e.g. use \fB--network mynet\fR to join the network with the name mynet. Only supported for rootful users.
+.IP \(bu 2
+\fBpasta[:OPTIONS,...]\fP: use \fBpasta\fP(1) to create a user-mode networking
+stack.
+.br
+This is the default for rootless containers and only supported in rootless mode.
+.br
+By default, IPv4 and IPv6 addresses and routes, as well as the pod interface
+name, are copied from the host. If port forwarding isn't configured, ports
+are forwarded dynamically as services are bound on either side (init
+namespace or container namespace). Port forwarding preserves the original
+source IP address. Options described in pasta(1) can be specified as
+comma-separated arguments.
+.br
+In terms of pasta(1) options, \fB--config-net\fP is given by default, in
+order to configure networking when the container is started, and
+\fB--no-map-gw\fP is also assumed by default, to avoid direct access from
+container to host using the gateway address. The latter can be overridden
+by passing \fB--map-gw\fP in the pasta-specific options (despite not being an
+actual pasta(1) option).
+.br
+Also, \fB-t none\fP and \fB-u none\fP are passed to disable
+automatic port forwarding based on bound ports. Similarly, \fB-T none\fP and
+\fB-U none\fP are given to disable the same functionality from container to
+host.
+.br
+Some examples:
+.RS
+.IP \(bu 2
+\fBpasta:--map-gw\fP: Allow the container to directly reach the host using the
+gateway address.
+.IP \(bu 2
+\fBpasta:--mtu,1500\fP: Specify a 1500 bytes MTU for the \fItap\fP interface in
+the container.
+.IP \(bu 2
+\fBpasta:--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,-m,1500,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+disable IPv6, assign \fB10.0.2.0/24\fR to the \fBtap0\fR interface in the container,
+with gateway \fB10.0.2.3\fR, enable DNS forwarder reachable at \fB10.0.2.3\fR,
+set MTU to 1500 bytes, disable NDP, DHCPv6 and DHCP support.
+.IP \(bu 2
+\fBpasta:-I,tap0,--ipv4-only,-a,10.0.2.0,-n,24,-g,10.0.2.2,--dns-forward,10.0.2.3,--no-ndp,--no-dhcpv6,--no-dhcp\fP:
+same as above, but leave the MTU to 65520 bytes
+.IP \(bu 2
+\fBpasta:-t,auto,-u,auto,-T,auto,-U,auto\fP: enable automatic port forwarding
+based on observed bound ports from both host and container sides
+.IP \(bu 2
+\fBpasta:-T,5201\fP: enable forwarding of TCP port 5201 from container to
+host, using the loopback interface instead of the tap interface for improved
+performance
+.RE
+
+.SS \fBPodmanArgs=\fR
+This key contains a list of arguments passed directly to the end of the \fBpodman\fR command
+in the generated file. It can be used to access Podman features otherwise unsupported
+by the generator. Since the generator is unaware of what unexpected interactions can be
+caused by these arguments, it is not recommended to use this option.
+
+.PP
+The format of this is a space separated list of arguments, which can optionally be individually
+escaped to allow inclusion of whitespace and other control characters.
+
+.PP
+This key can be listed multiple times.
+
+.SS \fBPull=policy\fR
+Pull image policy. The default is \fBmissing\fP\&.
+.IP \(bu 2
+\fBalways\fP: Always pull the image and throw an error if the pull fails.
+.IP \(bu 2
+\fBmissing\fP: Pull the image only when the image is not in the local containers storage.  Throw an error if no image is found and the pull fails.
+.IP \(bu 2
+\fBnever\fP: Never pull the image but use the one from the local containers storage.  Throw an error if no image is found.
+.IP \(bu 2
+\fBnewer\fP: Pull if the image on the registry is newer than the one in the local containers storage.  An image is considered to be newer when the digests are different.  Comparing the time stamps is prone to errors.  Pull errors are suppressed if a local image was found.
+
+.SS \fBRetry=attempts\fR
+Number of times to retry pulling or pushing images between the registry and
+local storage in case of failure. Default is \fB3\fP\&.
+
+.SS \fBRetryDelay=duration\fR
+Duration of delay between retry attempts when pulling or pushing images between
+the registry and local storage in case of failure. The default is to start at two seconds and then exponentially back off. The delay is used when this value is set, and no exponential back off occurs.
+
+.SS \fBSecret=id=id[,src=envOrFile][,env=ENV][,type=file | env]\fR
+Pass secret information to be used in the Containerfile for building images
+in a safe way that will not end up stored in the final image, or be seen in other stages.
+The value of the secret will be read from an environment variable or file named
+by the "id" option, or named by the "src" option if it is specified, or from an
+environment variable specified by the "env" option. See EXAMPLES
+\[la]#examples\[ra]\&.
+The secret will be mounted in the container at \fB/run/secrets/id\fR by default.
+
+.PP
+To later use the secret, use the --mount flag in a \fBRUN\fR instruction within a \fBContainerfile\fR:
+
+.PP
+\fBRUN --mount=type=secret,id=mysecret cat /run/secrets/mysecret\fR
+
+.PP
+The location of the secret in the container can be overridden using the
+"target", "dst", or "destination" option of the \fBRUN --mount\fR flag.
+
+.PP
+\fBRUN --mount=type=secret,id=mysecret,target=/run/secrets/myothersecret cat /run/secrets/myothersecret\fR
+
+.PP
+Note: changing the contents of secret files will not trigger a rebuild of layers that use said secrets.
+
+.SS \fBSetWorkingDirectory=path\fR
+Provide context (a working directory) to \fBpodman build\fR\&. Supported values are a path, a URL, or the
+special keys \fBfile\fR or \fBunit\fR to set the context directory to the parent directory of the file from
+the \fBFile=\fR key or to that of the Quadlet \fB\&.build\fR unit file, respectively. This allows Quadlet to
+resolve relative paths.
+
+.PP
+When using one of the special keys (\fBfile\fR or \fBunit\fR), the \fBWorkingDirectory\fR field of the \fBService\fR
+group of the Systemd service unit will also be set accordingly. Alternatively, users can
+explicitly set the \fBWorkingDirectory\fR field of the \fBService\fR group in the \fB\&.build\fR file. Please note
+that if the \fBWorkingDirectory\fR field of the \fBService\fR group is set by the user, Quadlet will not
+overwrite it even if \fBSetWorkingDirectory\fR is set to \fBfile\fR or \fBunit\fR\&.
+
+.PP
+By providing a URL to \fBSetWorkingDirectory=\fR you can instruct \fBpodman build\fR to clone a Git
+repository or download an archive file extracted to a temporary location by \fBpodman build\fR as build
+context. Note that in this case, the \fBWorkingDirectory\fR of the Systemd service unit is left
+untouched by Quadlet.
+
+.PP
+Note that providing a context directory is mandatory for a \fB\&.build\fR file, unless a \fBFile=\fR key has
+also been provided.
+
+.SS \fBTarget=stageName\fR
+Set the target build stage to build.  When building a Containerfile with multiple build stages, --target can be used to specify an intermediate build stage by name as the final stage for the resulting image. Commands after the target stage is skipped.
+
+.SS \fBTLSVerify=\fR
+Require HTTPS and verify certificates when contacting registries (default: \fBtrue\fP).
+If explicitly set to \fBtrue\fP, TLS verification is used.
+If set to \fBfalse\fP, TLS verification is not used.
+If not specified, TLS verification is used unless the target registry
+is listed as an insecure registry in \fBcontainers-registries.conf(5)\fP
+
+.SS \fBVariant=VARIANT\fR
+Set the architecture variant of the image to be built, and that of the base
+image to be pulled, if the build uses one, to the provided value instead of
+using the architecture variant of the build host.
+
+.SS \fBVolume=[[SOURCE-VOLUME|HOST-DIR:]CONTAINER-DIR[:OPTIONS]]\fR
+Create a bind mount. If \fB-v /HOST-DIR:/CONTAINER-DIR\fR is specified, Podman
+bind mounts \fB/HOST-DIR\fR from the host into \fB/CONTAINER-DIR\fR in the Podman
+container. Similarly, \fB-v SOURCE-VOLUME:/CONTAINER-DIR\fR mounts the named
+volume from the host into the container. If no such named volume exists,
+Podman creates one. The \fBnocreate\fP option can be used to disable this
+behavior and require the volume to already exist. If no source is given,
+the volume is created as an anonymously named volume with a randomly
+generated name, and is removed when the container is removed via
+the \fB--rm\fR flag or the \fBpodman rm --volumes\fR command.
+
+.PP
+Special case:
+.IP \(bu 2
+If \fBSOURCE-VOLUME\fR ends with \fB\&.volume\fR, a Podman named volume called \fBsystemd-$name\fR is used as the source, and the generated systemd service contains a dependency on the \fB$name-volume.service\fR\&. Note that the corresponding \fB\&.volume\fR file must exist.
+
+.PP
+(Note when using the remote client, including Mac and Windows (excluding WSL2) machines, the volumes are mounted from the remote server, not necessarily the client machine.)
+
+.PP
+The \fIOPTIONS\fP is a comma-separated list and can be one or more of:
+.IP \(bu 2
+\fBrw\fP|\fBro\fP
+.IP \(bu 2
+\fBz\fP|\fBZ\fP
+.IP \(bu 2
+[\fBO\fP]
+.IP \(bu 2
+[\fBU\fP]
+.IP \(bu 2
+[\fBno\fP]\fBcopy\fP
+.IP \(bu 2
+[\fBno\fP]\fBdev\fP
+.IP \(bu 2
+[\fBno\fP]\fBexec\fP
+.IP \(bu 2
+[\fBno\fP]\fBsuid\fP
+.IP \(bu 2
+[\fBr\fP]\fBbind\fP
+.IP \(bu 2
+[\fBr\fP]\fBshared\fP|[\fBr\fP]\fBslave\fP|[\fBr\fP]\fBprivate\fP[\fBr\fP]\fBunbindable\fP [1]
+\[la]#Footnote1\[ra]
+.IP \(bu 2
+\fBidmap\fP[=\fBoptions\fP]
+.IP \(bu 2
+\fBnocreate\fP
+
+.PP
+The \fBCONTAINER-DIR\fR must be an absolute path such as \fB/src/docs\fR\&. The volume
+is mounted into the container at this directory.
+
+.PP
+If a volume source is specified, it must be a path on the host or the name of a
+named volume. Host paths are allowed to be absolute or relative; relative paths
+are resolved relative to the directory Podman is run in. If the source does not
+exist, Podman returns an error. Users must pre-create the source files or
+directories.
+
+.PP
+Any source that does not begin with a \fB\&.\fR or \fB/\fR is treated as the name of
+a named volume. If a volume with that name does not exist, it is created.
+Volumes created with names are not anonymous, and they are not removed by the \fB--rm\fR
+option and the \fBpodman rm --volumes\fR command.
+
+.PP
+The \fBnocreate\fP option can be specified for named volumes to prevent automatic
+volume creation. If \fBnocreate\fP is set and the volume does not exist, Podman
+returns an error instead of creating the volume. This is useful when you want
+to ensure that a volume was explicitly created before use.
+
+.EX
+$ podman podman-build.unit.5.md.in -v myvolume:/data:nocreate alpine
+.EE
+
+.PP
+Specify multiple \fB-v\fP options to mount one or more volumes into a
+container.
+
+.PP
+\fBWrite Protected Volume Mounts\fR
+
+.PP
+Add \fB:ro\fP or \fB:rw\fP option to mount a volume in read-only or
+read-write mode, respectively. By default, the volumes are mounted read-write.
+See examples.
+
+.PP
+\fBChowning Volume Mounts\fR
+
+.PP
+When a named volume is first mounted to a container, Podman
+automatically adjusts the ownership of the volume's mount point during
+container initialization. This chown operation occurs under the
+following conditions:
+.IP \(bu 2
+The volume was not used yet (has \fBNeedsChown\fR set to true)
+.IP \(bu 2
+The volume is empty or has not been copied up yet
+.IP \(bu 2
+The volume is not managed by an external volume driver
+.IP \(bu 2
+The volume driver is not "image"
+
+.PP
+For volumes with idmapped mounts (using the \fBidmap\fR option), the
+ownership change takes into account the container's user namespace
+mappings, but the idmapped volume retains proper UID/GID mapping. For
+volumes without idmapping, the mount point is chowned to match the
+container's process user and group, mapped to the host user namespace
+if user namespace remapping is enabled.
+
+.PP
+If a container is created in a new user namespace, the UID and
+GID in the container may correspond to another UID and GID on the host.
+
+.PP
+The \fB:U\fR suffix tells Podman to use the correct host UID and GID based on the
+UID and GID within the container, to change recursively the owner and
+group of the source volume. Chowning walks the file system under the volume and
+changes the UID/GID on each file. If the volume has thousands of inodes, this
+process takes a long time, delaying the start of the container.
+
+.PP
+\fBWarning\fP use with caution since this modifies the host filesystem.
+
+.PP
+\fBLabeling Volume Mounts\fR
+
+.PP
+Labeling systems like SELinux require that proper labels are placed on volume
+content mounted into a container. Without a label, the security system
+might prevent the processes running inside the container from using the
+content. By default, Podman does not change the labels set by the OS.
+
+.PP
+To change a label in the container context, add either of two suffixes
+\fB:z\fP or \fB:Z\fP to the volume mount. These suffixes tell Podman to relabel file
+objects on the shared volumes. The \fBz\fP option tells Podman that two or more
+containers share the volume content. As a result, Podman labels the
+content with a shared content label. Shared volume labels allow all containers
+to read/write content. The \fBZ\fP option tells Podman to label the content with
+a private unshared label. Only the current container can use a private
+volume.
+
+.PP
+Note: all containers within a \fBpod\fR share the same SELinux label. This
+means all containers within said pod can read/write volumes shared into the
+container created with the \fB:Z\fR on any one of the containers. Relabeling walks
+the file system under the volume and changes the label on each file; if the
+volume has thousands of inodes, this process takes a long time, delaying the
+start of the container. If the volume was previously relabeled with the
+\fBz\fR option, Podman is optimized to not relabel a second time. If files are
+moved into the volume, then the labels can be manually changed with the
+\fBchcon -Rt container_file_t PATH\fR command.
+
+.PP
+Note: Do not relabel system files and directories. Relabeling system content
+might cause other confined services on the machine to fail.  For these types
+of containers we recommend disabling SELinux separation.  The option
+\fB--security-opt label=disable\fP disables SELinux separation for the container.
+For example if a user wanted to volume mount their entire home directory into a
+container, they need to disable SELinux separation.
+
+.EX
+$ podman podman-build.unit.5.md.in --security-opt label=disable -v $HOME:/home/user fedora touch /home/user/file
+.EE
+
+.PP
+\fBOverlay Volume Mounts\fR
+
+.PP
+The \fB:O\fR flag tells Podman to mount the directory from the host as a
+temporary storage using the \fBoverlay file system\fR\&. The container processes
+can modify content within the mountpoint which is stored in the
+container storage in a separate directory. In overlay terms, the source
+directory is the lower, and the container storage directory is the
+upper. Modifications to the mount point are destroyed when the container
+finishes executing, similar to a tmpfs mount point being unmounted.
+
+.PP
+For advanced users, the \fBoverlay\fP option also supports custom non-volatile
+\fBupperdir\fP and \fBworkdir\fP for the overlay mount. Custom \fBupperdir\fP and
+\fBworkdir\fP can be fully managed by the users themselves, and Podman does not
+remove it on lifecycle completion.
+Example \fB:O,upperdir=/some/upper,workdir=/some/work\fP
+
+.PP
+Subsequent executions of the container sees the original source directory
+content, any changes from previous container executions no longer exist.
+
+.PP
+One use case of the overlay mount is sharing the package cache from the
+host into the container to allow speeding up builds.
+
+.PP
+Note: The \fBO\fR flag conflicts with other options listed above.
+
+.PP
+Content mounted into the container is labeled with the private label.
+On SELinux systems, labels in the source directory must be readable
+by the  container label. Usually containers can read/execute \fBcontainer_share_t\fR
+and can read/write \fBcontainer_file_t\fR\&. If unable to change the labels on a
+source volume, SELinux container separation must be disabled for the  container
+to work.
+
+.PP
+Do not modify the source directory mounted into the container with an overlay mount,
+it can cause unexpected failures. Only modify the directory after the container finishes running.
+
+.PP
+\fBMounts propagation\fR
+
+.PP
+By default, bind-mounted volumes are \fBprivate\fR\&. That means any mounts done
+inside the container are not visible on the host and vice versa.
+One can change this behavior by specifying a volume mount propagation property.
+When a volume is \fBshared\fR, mounts done under that volume inside the container
+are visible on host and vice versa. Making a volume \fBslave\fP[1]
+\[la]#Footnote1\[ra]
+enables only one-way mount propagation: mounts done on the host under that volume
+are visible inside the container but not the other way around.
+
+.PP
+To control mount propagation property of a volume one can use the [\fBr\fP]\fBshared\fP,
+[\fBr\fP]\fBslave\fP, [\fBr\fP]\fBprivate\fP or the [\fBr\fP]\fBunbindable\fP propagation flag.
+Propagation property can be specified only for bind mounted volumes and not for
+internal volumes or named volumes. For mount propagation to work the source mount
+point (the mount point where source dir is mounted on) has to have the right propagation
+properties. For shared volumes, the source mount point has to be shared. And for
+slave volumes, the source mount point has to be either shared or slave.
+[1]
+\[la]#Footnote1\[ra]
+
+.PP
+To recursively mount a volume and all of its submounts into a
+container, use the \fBrbind\fP option. By default the bind option is
+used, and submounts of the source directory is not mounted into the
+container.
+
+.PP
+Mounting the volume with a \fBcopy\fP option tells podman to copy content from
+the underlying destination directory onto newly created internal volumes. The
+\fBcopy\fP only happens on the initial creation of the volume. Content is not
+copied up when the volume is subsequently used on different containers. The
+\fBcopy\fP option is ignored on bind mounts and has no effect.
+
+.PP
+Mounting volumes with the \fBnosuid\fP options means that SUID executables on the
+volume can not be used by applications to change their privilege. By default
+volumes are mounted with \fBnosuid\fP\&.
+
+.PP
+Mounting the volume with the \fBnoexec\fP option means that no executables on the
+volume can be executed within the container.
+
+.PP
+Mounting the volume with the \fBnodev\fP option means that no devices on the volume
+can be used by processes within the container. By default volumes
+are mounted with \fBnodev\fP\&.
+
+.PP
+If the \fIHOST-DIR\fP is a mount point, then \fBdev\fP, \fBsuid\fP, and \fBexec\fP options are
+ignored by the kernel.
+
+.PP
+Use \fBdf HOST-DIR\fP to figure out the source mount, then use
+\fBfindmnt -o TARGET,PROPAGATION \fIsource-mount-dir\fP\fP to figure out propagation
+properties of source mount. If \fBfindmnt\fP(1) utility is not available, then one
+can look at the mount entry for the source mount point in \fI/proc/self/mountinfo\fP\&. Look
+at the "optional fields" and see if any propagation properties are specified.
+In there, \fBshared:N\fP means the mount is shared, \fBmaster:N\fP means mount
+is slave, and if nothing is there, the mount is private. [1]
+\[la]#Footnote1\[ra]
+
+.PP
+To change propagation properties of a mount point, use \fBmount\fP(8) command. For
+example, if one wants to bind mount source directory \fI/foo\fP, one can do
+\fBmount --bind /foo /foo\fP and \fBmount --make-private --make-shared /foo\fP\&. This
+converts /foo into a shared mount point. Alternatively, one can directly
+change propagation properties of source mount. Say \fI/\fP is source mount for
+\fI/foo\fP, then use \fBmount --make-shared /\fP to convert \fI/\fP into a shared mount.
+
+.PP
+Note: if the user only has access rights via a group, accessing the volume
+from inside a rootless container fails.
+
+.PP
+\fBIdmapped mount\fR
+
+.PP
+If \fBidmap\fR is specified, create an idmapped mount to the target user
+namespace in the container. The idmap option supports a custom mapping
+that can be different than the user namespace used by the
+container. The mapping can be specified after the idmap option like:
+\fBidmap=uids=0-1-10#10-11-10;gids=0-100-10\fR\&.
+For each triplet, the first value is the start of the backing file
+system IDs that are mapped to the second value on the host.  The
+length of this mapping is given in the third value.
+Multiple ranges are separated with #.
+
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS Simple build
+.EX
+[Build]
+ImageTag=localhost/myapp
+File=Containerfile
+SetWorkingDirectory=unit
+.EE
+
+.SS From Git repository
+.EX
+[Build]
+ImageTag=localhost/mygitimage
+File=Containerfile
+SetWorkingDirectory=https://github.com/example/repo.git
+.EE
+
+.SS Build with secret
+.EX
+[Build]
+ImageTag=localhost/secureimage
+Secret=mysecret
+.EE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+podman-build(1),
+podman-systemd.unit(5),
+systemd.unit(5)

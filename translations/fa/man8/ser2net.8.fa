@@ -1,0 +1,286 @@
+.TH ser2net 8 06/02/01  "Serial to network proxy"
+
+.SH "نام (NAME)"
+ser2net \- Serial to network proxy
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.B ser2net
+[\-c configfile] [\-C sysconfdir] [\-Y configline] [\-p admin-accepter]
+[\-n] [\-d] [\-b] [\-v] [-P pidfile]
+
+.SH "توضیحات (DESCRIPTION)"
+The
+.BR ser2net
+daemon allows telnet and tcp sessions to be established with a unit's
+serial ports or with an IPMI Serial Over LAN (SOL) interface.
+.PP
+The program comes up normally as a daemon, opens the network ports
+specified in the configuration file, and waits for connections.  Once
+a connection occurs, the program attempts to set up the connection and
+open the serial port.  If another user is already using the connection
+or serial port, the connection is refused with an error message.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.I "\-c config\-file"
+Set the configuration file to one other than the default of
+.BR "sysconfdir/ser2net/ser2net.yaml".
+If the
+.B config-file
+is
+.B "-"
+then standard input is read as the config file.  See \-C for info on
+sysconfdir
+.TP
+.I "\-C sysconfdir"
+Set the directory where the configuration file and ssl keys are
+stored.  This is generally /etc/ser2net on Unix-type systems, on
+Windows it is ../etc/ser2net from the executable's location by
+default.
+.TP
+.I "\-a authdir"
+Set the default directory where authentication information is stored.
+This is generally /usr/share/ser2net on Unix-type systems, on Windows
+it is ../share/ser2net from the executable's location by default.
+This can be overridden in the config file.  See the ser2net.yaml.5 for
+info on what this does.
+.TP
+.I "\-A admin-authdir"
+Set the default directory where the administrator's authentication
+information is stores.  This is
+.BR "sysconfdir/auth"
+by default.  This can be overridden in the config file.  See the
+ser2net.yaml.5 for info on what this does.
+.TP
+.I "\-Y yaml-config-string"
+Add a yaml config string to the end of strings to be processed.  This
+may be specified multiple times for multiple strings.  These are
+appended onto the end of a yaml config file; though if this is
+specified, the default config file is disabled and you have to enable
+it with the -c option.
+
+To make things easier to handle, any # in the config string that is
+not inside quotes (what would normally start a comment in yaml) is
+converted to a new line.  Plus a new line is added after each
+separate config string.  So, for instance:
+
+  -Y 'connection: &con01#  accepter: tcp,2013'
+  -Y '  connector: serialdev,/dev/ttyEcho0,9600n81,local'
+  -Y '  options:#    banner: "### A Banner ###\er\en"'
+
+can be put on the ser2net command line.
+.TP
+.I \-n
+Stops  the  daemon  from  forking  and  detaching from the controlling
+terminal. This is useful for running from init.
+.TP
+.I \-d
+Like -n, but also sends the system logs to standard output. This is
+most useful for debugging purposes.
+.TP
+.I \-P pidfile
+If specified, put the process id (pid) of ser2net in the pidfile,
+replacing whatever was in that file previously.  A pidfile is not created
+by default, you must specify this to create one.  Note also that this
+filename must be specific with the full path, as ser2net will change
+directory to "/" when it becomes a daemon.
+.TP
+.I \-u
+If UUCP locking is enabled, this will disable the use of UUCP locks.
+.TP
+.I \-b
+Cisco IOS uses a different mechanism for specifying the baud rates
+than the mechanism described in RFC2217.  This option sets the IOS
+version of setting the baud rates.  The default is RFC2217's.  Note
+that this capability is now handled automatically and this option is
+ignored.
+.TP
+.I \-v
+Prints the version of the program and exits.
+.TP
+.I \-w
+Allow unhashed passwords.  Normally only hashed passwords are allowed,
+this is for backwards compatibility.
+.TP
+.I \-t <num threads>
+Spawn the given number of threads for ser2net to use.  The default
+is 1.  Only valid if pthreads is enabled at build time.
+.TP
+.I \-p <admin-accepter>
+Enables the admin interface on the given accepter specification.
+See "ADMIN CONNECTION" in ser2net.yaml(5) for more details on how
+to configure this, and "ADMIN INTERFACE" below for details on how
+to use it.
+.TP
+.I \-s signature
+Specifies the default RFC2217 signature.
+
+.SH ADMIN INTERFACE
+The admin interface provides a simple interface for controlling the ports and
+viewing their status. To accomplish this, it has the following commands:
+.TP
+.B showport [<network port>]
+Show information about a port. If no port is given, all ports are displayed.
+.TP
+.B showshortport [<network port>]
+Show information about a port, each port on one line. If no port is given,
+all ports are displayed.  This can produce very wide output.
+.TP
+.B help
+Display a short list and summary of commands.
+.TP
+.B exit
+Disconnect from the control port.
+.TP
+.B yaml
+Go into yaml output mode.  See YAML MODES below.
+.TP
+.B version
+Display the version of this program.
+.TP
+.B monitor <type> <network port>
+Display all the input for a given port on
+the calling control port.  Only one direction may be monitored
+at a time.  The type field may be
+.I tcp
+or
+.I term
+and specifies
+whether to monitor data from the network port or from the serial port
+Note that data monitoring is best effort, if the controller port
+cannot keep up the data will be silently dropped.  A controller
+may only monitor one thing and a port may only be monitored by
+one controller.
+.TP
+.B monitor stop
+Stop the current monitor.
+.TP
+.B disconnect <network port>
+Disconnect the tcp connection on the port.
+.TP
+.B setporttimeout <network port> <timeout>
+Set the amount of time in seconds before the port connection will be
+shut down if no activity has been seen on the port.
+.TP
+.B setportcontrol <network port> <controls>
+Modify dynamic port controls.  These do not stay between connections.
+Controls are:
+.I DTRHI, DTRLO
+Turns on and off the DTR line.
+.I RTSHI, RTSLO
+Turns on and off the RTS line.
+.TP
+.B setportenable <network port> <enable state>
+Sets the port operation state.  Valid states are:
+.I off
+to shut the network port down,
+.I raw
+to enable the network port transfer all I/O as-is,
+.I rawlp
+to enable the network port input and device output without termios setting, and
+.I telnet
+to enable the network port is up run the telnet negotiation protocol on the
+port.
+.TP
+.B reload
+Causes ser2net to reload its configuration.  Any error output will
+come out in the output, along with going to syslog.
+.SS YAML MODES
+If the "yaml" command is issued, echo is turned off and all output is
+YAML compliant.  The form is basically the same as the non-YAML
+output, with some minor adjustments to make it YAML compliant.  In
+addition, all responses are in the form:
+
+  %YAML 1.1
+  ---
+  response:
+    <response info here>
+  ...
+
+If there is an error, it is returned in the response with the "error"
+key.  If the command succeeded, no "error" key will be present in the
+response mapping.  The "..." will be at the end of all responses.
+
+The following commands are available in yaml output mode: exit,
+version, showport, disconnect, setporttimeout, setportenable,
+setportcontrol, reload,
+
+If "%YAML" is seen in the input, YAML input and output modes are
+activated, echo is disabled, and all input is expected to be in the
+form:
+
+  ---
+  command:
+    name: <command name>
+    id: <optional id>
+    parms: [ parm1 [, parm2 [...]]]
+  ...
+
+The id is optional and will just be returned in the response.  The
+parms are optional, too, unless the command requires them.  Extra
+parms are ignored, along with unknown keys in the main mapping.
+
+Note that you have to deal with the "->" that is issued when the
+connection is made, before going into YAML mode, YAML doesn't handle
+that well.
+
+In YAML output mode, you will get asynchronous reports of connections
+and disconnections in the form:
+
+  %YAML 1.1
+  ---
+  new connection: 
+    name: !!str 'con1'
+    remaddr: !!str 'ipv6,::1,59072'
+  ...
+
+  %YAML 1.1
+  ---
+  disconnect: 
+    name: !!str 'con1'
+    remaddr: !!str 'ipv6,::1,59072'
+  ...
+.SH "پیکربندی (CONFIGURATION)"
+Configuration is accomplished through the file
+.BR /etc/ser2net/ser2net.yaml .
+A file with another name or path may be specified using the
+.I \-c
+option.
+
+The yaml configuration file is described in ser2net.yaml(5)
+
+.SH "SIGNALS"
+.TP 0.5i
+.B SIGHUP
+If ser2net receives a SIGHUP, it will reread it configuration file and
+make the appropriate changes.  If an in use connection is changed or
+deleted, the actual change will not occur until the port is
+disconnected, except that if you disable a connection it will kick the
+users off.
+
+ser2net uses the name (the connection alias) of the connection to tell
+if it is new, changed or deleted.  If the new configuration file has a
+connection with the same name, it is treated as a change.
+
+This has some unusual interactions with connections that allow more
+than one simultaneous connection.  It works just like the other
+port, but the accepter is disabled and new connections will not
+be accepted until all the existing connections are closed.
+
+.SH "ERRORS"
+All error output after startup goes to syslog, not standard output, unless
+you use the -d option.
+
+.SH "فایل‌ها (FILES)"
+/etc/ser2net/ser2net.yaml, /etc/ser2net/ser2net.key, /etc/ser2net/ser2net.crt,
+/usr/share/ser2net
+
+.SH "همچنین ببینید (SEE ALSO)"
+telnet(1), ser2net.yaml(5), hosts_access(5)
+
+.SH "KNOWN PROBLEMS"
+None.
+
+.SH "نویسنده (AUTHOR)"
+.PP
+Corey Minyard <minyard@acm.org>

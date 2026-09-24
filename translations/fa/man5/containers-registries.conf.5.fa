@@ -1,0 +1,453 @@
+.nh
+.TH CONTAINERS-REGISTRIES.CONF 5 System-wide registry configuration file
+Brent Baude
+Aug 2017
+
+.SH "نام (NAME)"
+containers-registries.conf \- Syntax of System Registry Configuration File
+
+
+.SH "توضیحات (DESCRIPTION)"
+The CONTAINERS-REGISTRIES configuration file is a system-wide configuration
+file for container image registries. The file format is TOML.
+
+.PP
+By default, the configuration is read from \fB$XDG_CONFIG_HOME/containers/registries.conf\fR (or from \fB$HOME/.config/containers/registries.conf\fR if \fB$XDG_CONFIG_HOME\fR is unset), if it exists; otherwise from \fB/etc/containers/registries.conf\fR;  otherwise from \fB/usr/share/containers/registries.conf\fR\&. Applications may allow using a different configuration path instead.
+
+.PP
+If \fBCONTAINERS_REGISTRIES_CONF\fR is set, it specifies the configuration file to use,
+unless overridden by application-specific configuration. If the environment variable
+is set then the following drop-in directories will not be read.
+
+.PP
+In addition to registries.conf, drop-in files using the same format from the following directories are also read:
+ - \fB$XDG_CONFIG_HOME/containers/registries.conf.d\fR (or from \fB$HOME/.config/containers/registries.conf.d\fR if \fB$XDG_CONFIG_HOME\fR is unset)
+ - \fB/etc/containers/registries.rootful.conf.d\fR (only when running as uid 0)
+ - \fB/etc/containers/registries.rootless.conf.d/$UID\fR (only when running as uid > 0)
+ - \fB/etc/containers/registries.rootless.conf.d\fR (only when running as uid > 0)
+ - \fB/etc/containers/registries.conf.d\fR
+ - \fB/usr/share/containers/registries.rootful.conf.d\fR (only when running as uid 0)
+ - \fB/usr/share/containers/registries.rootless.conf.d/$UID\fR (only when running as uid > 0)
+ - \fB/usr/share/containers/registries.rootless.conf.d\fR (only when running as uid > 0)
+ - \fB/usr/share/containers/registries.conf.d\fR
+
+.PP
+The files must be using the \fB\&.conf\fR suffix, directories or files with other suffixes will be ignored.
+All files from these paths will be first collected and then sorted in alpha-numerical order.
+If the same filename is used twice then only the first match from the directory list above is
+being used. Then the files will be parsed in the sorted order.
+
+.PP
+For example consider these files:
+.IP \(bu 2
+\fB/usr/share/containers/registries.rootless.conf.d/50-middle.conf\fR
+.IP \(bu 2
+\fB/etc/containers/registries.rootless.conf.d/20-first.conf\fR
+.IP \(bu 2
+\fB/etc/containers/registries.rootless.conf.d/70-last.conf\fR
+
+.PP
+They will be read in the order of \fB20-first.conf\fR, \fB50-middle.conf\fR, \fB70-last.conf\fR,
+the directory path itself does not matter for the order, only the basename.
+
+.PP
+Specified fields in a conf file will overwrite any previous setting.
+For instance, setting the \fBunqualified-search-registries\fR in
+\fB/etc/containers/registries.conf.d/myregistries.conf\fR will overwrite previous
+settings in \fB/etc/containers/registries.conf\fR\&.  The \fB[[registry]]\fR tables merged
+by overwriting existing items if the prefixes are identical while new ones are
+added.
+
+.PP
+If \fBCONTAINERS_REGISTRIES_CONF_OVERRIDE\fR is set, it specifies an additional path that is being read last,
+unless overridden by application-specific configuration.
+
+.PP
+See \fBcontainers-config(5)\fP for a more detailed description on how the files are loaded.
+
+.SS GLOBAL SETTINGS
+.TP
+\fBunqualified-search-registries\fR
+An array of \fIhost\fP[\fB:\fR\fIport\fP] registries to try when pulling an unqualified image, in order.
+
+.TP
+\fBcredential-helpers\fR
+An array of default credential helpers used as external credential stores.  Note that "containers-auth.json" is a reserved value to use auth files as specified in containers-auth.json(5).  The credential helpers are set to \fB["containers-auth.json"]\fR if none are specified.
+
+.TP
+\fBadditional-layer-store-auth-helper\fR
+A string containing the helper binary name. This enables passing registry credentials to an
+Additional Layer Store every time an image is read using the \fBdocker://\fR
+transport so that it can access private registries. See the 'Enabling Additional Layer Store to access to private registries' section below for
+more details.
+
+.SS NAMESPACED \fB[[registry]]\fR SETTINGS
+The bulk of the configuration is represented as an array of \fB[[registry]]\fR
+TOML tables; the settings may therefore differ among different registries
+as well as among different namespaces/repositories within a registry.
+
+.SS Choosing a \fB[[registry]]\fR TOML table
+Given an image name, a single \fB[[registry]]\fR TOML table is chosen based on its \fBprefix\fR field.
+
+.PP
+\fBprefix\fR: A prefix of the user-specified image name, i.e. using one of the following formats:
+  - \fIhost\fP[\fB:\fR\fIport\fP]
+  - \fIhost\fP[\fB:\fR\fIport\fP]\fB/\fR\fInamespace\fP[\fB/\fR_namespace_…]
+  - \fIhost\fP[\fB:\fR\fIport\fP]\fB/\fR\fInamespace\fP[\fB/\fR_namespace_…]\fB/\fR\fIrepo\fP
+  - \fIhost\fP[\fB:\fR\fIport\fP]\fB/\fR\fInamespace\fP[\fB/\fR_namespace_…]\fB/\fR\fIrepo\fP(\fB:\fR_tag|\fB@\fR\fIdigest\fP)
+  - [\fB*.\fR]\fIhost\fP
+
+.PP
+The user-specified image name must start with the specified \fBprefix\fR (and continue
+with the appropriate separator) for a particular \fB[[registry]]\fR TOML table to be
+considered; (only) the TOML table with the longest match is used. It can
+also include wildcarded subdomains in the format \fB*.example.com\fR\&.
+The wildcard should only be present at the beginning as shown in the formats
+above. Other cases will not work. For example, \fB*.example.com\fR is valid but
+\fBexample.*.com\fR, \fB*.example.com/foo\fR and \fB*.example.com:5000/foo/bar:baz\fR are not.
+Note that \fB*\fR matches an arbitrary number of subdomains. \fB*.example.com\fR will hence
+match \fBbar.example.com\fR, \fBfoo.bar.example.com\fR and so on.
+
+.PP
+As a special case, the \fBprefix\fR field can be missing; if so, it defaults to the value
+of the \fBlocation\fR field (described below).
+
+.SS Per-namespace settings
+.TP
+\fBinsecure\fR
+\fBtrue\fR or \fBfalse\fR\&.
+By default, container runtimes require TLS when retrieving images from a registry.
+If \fBinsecure\fR is set to \fBtrue\fR, unencrypted HTTP as well as TLS connections with untrusted
+certificates are allowed.
+
+.TP
+\fBblocked\fR
+\fBtrue\fR or \fBfalse\fR\&.
+If \fBtrue\fR, pulling images with matching names is forbidden.
+
+.SS Remapping and mirroring registries
+The user-specified image reference is, primarily, a "logical" image name, always used for naming
+the image.  By default, the image reference also directly specifies the registry and repository
+to use, but the following options can be used to redirect the underlying accesses
+to different registry servers or locations (e.g. to support configurations with no access to the
+internet without having to change \fBDockerfile\fRs, or to add redundancy).
+.TP
+\fBlocation\fR
+Accepts the same format as the \fBprefix\fR field, and specifies the physical location
+of the \fBprefix\fR-rooted namespace.
+
+.PP
+By default, this is equal to \fBprefix\fR (in which case \fBprefix\fR can be omitted and the
+\fB[[registry]]\fR TOML table can only specify \fBlocation\fR).
+
+.PP
+Example: Given
+
+.EX
+prefix = "example.com/foo"
+location = "internal-registry-for-example.com/bar"
+.EE
+
+.PP
+requests for the image \fBexample.com/foo/myimage:latest\fR will actually work with the
+\fBinternal-registry-for-example.com/bar/myimage:latest\fR image.
+
+.PP
+With a \fBprefix\fR containing a wildcard in the format: "*.example.com" for subdomain matching,
+the location can be empty. In such a case,
+prefix matching will occur, but no reference rewrite will occur. The
+original requested image string will be used as-is. But other settings like
+\fBinsecure\fR / \fBblocked\fR / \fBmirrors\fR will be applied to matching images.
+
+.PP
+Example: Given
+
+.EX
+prefix = "*.example.com"
+.EE
+
+.PP
+requests for the image \fBblah.example.com/foo/myimage:latest\fR will be used
+as-is. But other settings like insecure/blocked/mirrors will be applied to matching images
+.TP
+\fBmirror\fR
+An array of TOML tables specifying (possibly-partial) mirrors for the
+\fBprefix\fR-rooted namespace (i.e., the current \fB[[registry]]\fR TOML table).
+
+.PP
+The mirrors are attempted in the specified order; the first one that can be
+contacted and contains the image will be used (and if none of the mirrors contains the image,
+the primary location specified by the \fBregistry.location\fR field, or using the unmodified
+user-specified reference, is tried last).  If individual blob fetches later fail on the
+selected source, the remaining sources are tried automatically (see \fBBlob-level mirror
+fallback\fP below).
+
+.PP
+Each TOML table in the \fBmirror\fR array can contain the following fields:
+- \fBlocation\fR： same semantics
+as specified in the \fB[[registry]]\fR TOML table
+- \fBinsecure\fR： same semantics
+as specified in the \fB[[registry]]\fR TOML table
+- \fBpull-from-mirror\fR: \fBall\fR, \fBdigest-only\fR or \fBtag-only\fR\&.  If "digest-only"， mirrors will only be used for digest pulls. Pulling images by tag can potentially yield different images, depending on which endpoint we pull from.  Restricting mirrors to pulls by digest avoids that issue.  If "tag-only", mirrors will only be used for tag pulls.  For a more up-to-date and expensive mirror that it is less likely to be out of sync if tags move, it should not be unnecessarily used for digest references.  Default is "all" (or left empty), mirrors will be used for both digest pulls and tag pulls unless the mirror-by-digest-only is set for the primary registry.
+Note that this per-mirror setting is allowed only when \fBmirror-by-digest-only\fR is not configured for the primary registry.
+.TP
+\fBmirror-by-digest-only\fR
+\fBtrue\fR or \fBfalse\fR\&.
+If \fBtrue\fR, mirrors will only be used during pulling if the image reference includes a digest.
+Note that if all mirrors are configured to be digest-only, images referenced by a tag will only use the primary
+registry.
+If all mirrors are configured to be tag-only, images referenced by a digest will only use the primary
+registry.
+
+.PP
+Referencing an image by digest ensures that the same is always used
+(whereas referencing an image by a tag may cause different registries to return
+different images if the tag mapping is out of sync).
+
+.SS Blob-level mirror fallback
+After a pull source is selected based on manifest availability, individual blob
+(layer) fetches may still fail.  When a blob fetch fails with a transient error
+(HTTP 5xx, network timeout), \fBBLOB_UNKNOWN\fR, or HTTP 429 after the built-in
+retries, the remaining configured sources are tried in order.  If a working
+source is found, it is used for subsequent blob fetches in the same pull
+operation.
+
+.PP
+This means that even if the selected source can serve the manifest, blob pulls
+can transparently retry on the same source once and then fall back to another
+mirror or the primary registry without restarting the entire pull.
+
+.PP
+This fallback or retry operates in addition to caller-level retry (e.g. \fBcontainers-common\fR\&'s \fBretry\fR package or kubelet retries).  A single blob fetch may be retried once on the same source before
+falling back, and the caller may retry the entire pull operation on top of that.
+
+.PP
+\fINote\fP: Redirection and mirrors are currently processed only when reading a single image,
+not when pushing to a registry nor when doing any other kind of lookup/search on a on a registry.
+This may change in the future.
+
+.SS Short-Name Aliasing
+The use of unqualified-search registries entails an ambiguity as it is
+unclear from which registry a given image, referenced by a short name,
+may be pulled from.
+
+.PP
+As mentioned in the note at the end of this man page, using short names is
+subject to the risk of hitting squatted registry namespaces.  If the
+unqualified-search registries are set to \fB["registry1.com", "registry2.com"]\fR
+an attacker may take over a namespace of registry1.com such that an image may
+be pulled from registry1.com instead of the intended source registry2.com.
+
+.PP
+While it is highly recommended to always use fully-qualified image references,
+existing deployments using short names may not be easily changed.  To
+circumvent the aforementioned ambiguity, so called short-name aliases can be
+configured that point to a fully-qualified image
+reference.
+
+.PP
+Short-name aliases can be configured in the \fB[aliases]\fR table in the form of
+\fB"name"="value"\fR with the left-hand \fBname\fR being the short name (e.g., "image")
+and the right-hand \fBvalue\fR being the fully-qualified image reference (e.g.,
+"registry.com/namespace/image").  Note that neither "name" nor "value" can
+include a tag or digest.  Moreover, "name" must be a short name and hence
+cannot include a registry domain or refer to localhost.
+
+.PP
+When pulling a short name, the configured aliases table will be used for
+resolving the short name.  If a matching alias is found, it will be used
+without further consulting the unqualified-search registries list.  If no
+matching alias is found, the behavior can be controlled via the
+\fBshort-name-mode\fR option as described below.
+
+.PP
+Note that tags and digests are stripped off a user-specified short name for
+alias resolution.  Hence, "image", "image:tag" and "image@digest" all resolve
+to the same alias (i.e., "image").  Stripped off tags and digests are later
+appended to the resolved alias.
+
+.PP
+Further note that drop-in configuration files (see containers-registries.conf.d(5))
+can override aliases in the specific loading order of the files.  If the "value" of
+an alias is empty (i.e., ""), the alias will be erased.  However, a given
+"name" may only be specified once in a single config file.
+
+.SS Short-Name Aliasing: Modes
+The \fBshort-name-mode\fR option supports three modes to control the behaviour of
+short-name resolution.
+.IP \(bu 2
+\fBenforcing\fR: If only one unqualified-search registry is set, use it as there
+is no ambiguity.  If there is more than one registry and the user program is
+running in a terminal (i.e., stdout & stdin are a TTY), prompt the user to
+select one of the specified search registries.  If the program is not running
+in a terminal, the ambiguity cannot be resolved which will lead to an error.
+.IP \(bu 2
+\fBpermissive\fR: Behaves as enforcing but does not lead to an error if the
+program is not running in a terminal.  Instead, fallback to using all
+unqualified-search registries.
+.IP \(bu 2
+\fBdisabled\fR: Use all unqualified-search registries without prompting.
+
+.PP
+If \fBshort-name-mode\fR is not specified at all or left empty, default to the
+\fBpermissive\fR mode.  If the user-specified short name was not aliased already,
+the \fBenforcing\fR and \fBpermissive\fR mode if prompted, will record a new alias
+after a successful pull.  Note that the recorded alias will be written to
+\fB/var/cache/containers/short-name-aliases.conf\fR for root to have a clear
+separation between possibly human-edited registries.conf files and the
+machine-generated \fBshort-name-aliases-conf\fR\&.  Note that \fB$HOME/.cache\fR is used
+for rootless users.  If an alias is specified in a
+\fBregistries.conf\fR file and also the machine-generated
+\fBshort-name-aliases.conf\fR, the \fBshort-name-aliases.conf\fR file has precedence.
+
+.SS Normalization of docker.io references
+The Docker Hub \fBdocker.io\fR is handled in a special way: every push and pull
+operation gets internally normalized with \fB/library\fR if no other specific
+namespace is defined (for example on \fBdocker.io/namespace/image\fR).
+
+.PP
+(Note that the above-described normalization happens to match the behavior of
+Docker.)
+
+.PP
+This means that a pull of \fBdocker.io/alpine\fR will be internally translated to
+\fBdocker.io/library/alpine\fR\&. A pull of \fBdocker.io/user/alpine\fR will not be
+rewritten because this is already the correct remote path.
+
+.PP
+Therefore, to remap or mirror the \fBdocker.io\fR images in the (implied) \fB/library\fR
+namespace (or that whole namespace), the prefix and location fields in this
+configuration file must explicitly include that \fB/library\fR namespace. For
+example \fBprefix = "docker.io/library/alpine"\fR and not \fBprefix =
+"docker.io/alpine"\fR\&. The latter would match the \fBdocker.io/alpine/*\fR
+repositories but not the \fBdocker.io/[library/]alpine\fR image).
+
+.SS EXAMPLE
+.EX
+unqualified-search-registries = ["example.com"]
+
+[[registry]]
+prefix = "example.com/foo"
+insecure = false
+blocked = false
+location = "internal-registry-for-example.com/bar"
+
+[[registry.mirror]]
+location = "example-mirror-0.local/mirror-for-foo"
+
+[[registry.mirror]]
+location = "example-mirror-1.local/mirrors/foo"
+insecure = true
+
+[[registry]]
+location = "registry.com"
+
+[[registry.mirror]]
+location = "mirror.registry.com"
+.EE
+
+.PP
+Given the above, a pull of \fBexample.com/foo/image:latest\fR will try:
+.IP "  1." 5
+\fBexample-mirror-0.local/mirror-for-foo/image:latest\fR
+.IP "  2." 5
+\fBexample-mirror-1.local/mirrors/foo/image:latest\fR
+.IP "  3." 5
+\fBinternal-registry-for-example.com/bar/image:latest\fR
+
+.PP
+in order, and use the first one that can serve the manifest.  If a blob fetch
+subsequently fails on the selected source, the remaining sources are tried as
+described in \fBBlob-level mirror fallback\fP\&.
+
+.PP
+Note that a mirror is associated only with the current \fB[[registry]]\fR TOML table. If using the example above, pulling the image \fBregistry.com/image:latest\fR will hence only reach out to \fBmirror.registry.com\fR, and the mirrors associated with \fBexample.com/foo\fR will not be considered.
+
+.SS Enabling Additional Layer Store to access to private registries
+The \fBadditional-layer-store-auth-helper\fR option enables passing registry
+credentials to an Additional Layer Store so that it can access private registries.
+
+.PP
+When accessing a private registry via an Additional Layer Store, a helper binary needs to be provided. This helper binary is
+registered via the \fBadditional-layer-store-auth-helper\fR option. Every time an image
+is read using the \fBdocker://\fR transport, the specified helper binary is executed
+and receives registry credentials from stdin in the following format.
+
+.EX
+{
+  "$image_reference": {
+    "username": "$username",
+    "password": "$password",
+    "identityToken": "$identityToken"
+  }
+}
+.EE
+
+.PP
+The format of \fB$image_reference\fR is \fB$repo{:$tag|@$digest}\fR\&.
+
+.PP
+Additional Layer Stores can use this helper binary to access the private registry.
+
+.SS EXAMPLE
+The following example configuration defines two searchable registries, one
+insecure registry, and two blocked registries.
+
+.EX
+[registries.search]
+registries = ['registry1.com', 'registry2.com']
+
+[registries.insecure]
+registries = ['registry3.com']
+
+[registries.block]
+registries = ['registry.untrusted.com', 'registry.unsafe.com']
+.EE
+
+
+.SH NOTE: RISK OF USING UNQUALIFIED IMAGE NAMES
+We recommend always using fully qualified image names including the registry
+server (full dns name), namespace, image name, and tag
+(e.g., registry.redhat.io/ubi8/ubi:latest). When using short names, there is
+always an inherent risk that the image being pulled could be spoofed. For
+example, a user wants to pull an image named \fBfoobar\fR from a registry and
+expects it to come from myregistry.com. If myregistry.com is not first in the
+search list, an attacker could place a different \fBfoobar\fR image at a registry
+earlier in the search list. The user would accidentally pull and run the
+attacker's image and code rather than the intended content. We recommend only
+adding registries which are completely trusted, i.e. registries which don't
+allow unknown or anonymous users to create accounts with arbitrary names. This
+will prevent an image from being spoofed, squatted or otherwise made insecure.
+If it is necessary to use one of these registries, it should be added at the
+end of the list.
+
+.PP
+It is recommended to use fully-qualified images for pulling as
+the destination registry is unambiguous. Pulling by digest
+(i.e., quay.io/repository/name@digest) further eliminates the ambiguity of
+tags.
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+containers-config(5), containers-auth.json(5), containers-certs.d(5)
+
+
+.SH "تاریخچه (HISTORY)"
+Dec 2019, Warning added for unqualified image names by Tom Sweeney tsweeney@redhat.com
+\[la]mailto:tsweeney@redhat.com\[ra]
+
+.PP
+Mar 2019, Added additional configuration format by Sascha Grunert sgrunert@suse.com
+\[la]mailto:sgrunert@suse.com\[ra]
+
+.PP
+Aug 2018, Renamed to containers-registries.conf(5) by Valentin Rothberg vrothberg@suse.com
+\[la]mailto:vrothberg@suse.com\[ra]
+
+.PP
+Jun 2018, Updated by Tom Sweeney tsweeney@redhat.com
+\[la]mailto:tsweeney@redhat.com\[ra]
+
+.PP
+Aug 2017, Originally compiled by Brent Baude bbaude@redhat.com
+\[la]mailto:bbaude@redhat.com\[ra]

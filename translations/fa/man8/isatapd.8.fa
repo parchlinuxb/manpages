@@ -1,0 +1,140 @@
+.\" shorthand for double quote that works everywhere.
+.ds q \N'34'
+.TH isatapd 8 "September 13th, 2013" "isatapd-0.9.7" "ISATAP client for Linux"
+.SH "نام (NAME)"
+isatapd \- ISATAP client for Linux
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.B isatapd
+\fB\-\-help\fP
+.br
+.B isatapd
+[ \fB\-\-daemon\fP ] [ \fB\-\-link\fP \fIdevice\fP ] [ \fBoptions\fP ] [ \fIrouter\fP ] [ \fI...\fP ]
+
+.SH "توضیحات (DESCRIPTION)"
+.B isatapd
+is a userspace program or daemon that sets up and maintains an ISATAP client tunnel by using the kernels ISATAP capabilities, first introduced with 2.6.25.
+
+The program will create the tunnel, periodically query the specified routers, add them to the 
+.I potential router list
+, send periodic router solicitations and parse router advertisements.
+.B isatapd
+will try to keep the tunnel up and running, even if the network topology changes.
+
+See
+.B NOTES
+below for more information
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB\-n \-\-name\fP \fIname\fP
+Name of the tunnel interface. Default is \fIis0\fP.
+.TP
+\fB\-l \-\-link\fP \fIdevice\fP
+Tunnel link device. If specified, tunnel will be restricted to that device, allowing multiple instances of
+.B isatapd
+with different tunnels. The tunnel can only exist as long as the link device is up and has a IPv4 address configured.
+
+If unspecified or
+.I 'auto'
+, the outgoing IPv4 address will be guessed for the first
+.I router
+and the tunnel created accordingly. The tunnel device will only created, if there is a possible IPv4 source address to reach the first router.
+.TP
+\fB\-m \-\-mtu \fIbytes\fP
+Sets the MTU to 
+.I bytes
+for the tunnel device, minimum is 1280. If unspecified, 
+.I 'auto'
+or 0, the kernel will choose the MTU, usually 1480.
+.TP
+\fB\-t \-\-ttl\fP \fIhoplimit\fP
+Set the tunnel hoplimit, default is 64. Specifying
+.I 'auto'
+or
+.I 'inherit'
+will make the tunnel inherit the ttl from the linked device.
+.TP
+\fB\-N \-\-nopmtudisc\fP
+Disable (IPv4) Path MTU Discovery on this tunnel. For this to work --ttl has to be set to inherit. Default: do Path MTU Discovery to reduce redundant fragmentation.
+.TP
+\fB\-r \-\-router\fP \fIrouter\fP
+Set a potential router.
+.B isatapd
+will resolv the hostname, add the IPv4 address to the
+.I PRL
+and send periodic router solicitation messages. Up to 10 potential routers can be specified, the default is the unqualified domainname "isatap". 
+.TP
+\fB\-i \-\-interval\fP \fIseconds\fP
+Default interval to send router solicitations. If the router lifetime is lower or interval is
+.I 'auto'
+, the interval will be 80\% of the router's lifetime. Can be used to force solicitations at a shorter interval.
+
+Default: 
+.I auto
+.TP
+\fB\-D \-\-check-dns\fP \fIseconds\fP
+Interval to perform DNS resolution of configured routers and to recreate the PRL, if necessary. Set to 0 to disable.
+
+Default: 3600 sec = 1 hour
+.TP
+\fB\-d \-\-daemon\fP
+fork to background. No logging is available yet.
+.TP
+\fB\-p \-\-pid\fP \fIfile\fP
+Store the pid as plaintext to \fIfile\fP. The pid file will be write-locked to prevent multiple running instances. Useful for scripts and when running \fBisatapd\fP as a daemon.
+.TP
+\fB\-\-user\fP \fIusername\fP
+Drop privileges to this user when running the solicitation loop.
+
+Default: 
+.I nobody
+
+.TP
+\fB\-v \-\-verbose\fP
+increase verbosity
+.TP
+\fB\-q \-\-quiet\fP
+decrease verbosity
+.TP
+\fB\-h \-\-help\fP
+print usage
+.TP
+\fB\-\-version\fP
+print version
+
+.SH "وضعیت خروج (EXIT STATUS)"
+On success \fIzero\fP is returned, otherwise a \fInon-zero\fP value is returned.
+
+.SH "SIGNALS"
+.TP
+.B SIGHUP
+Force sending router solicitations and recreate the tunnel, if neccessary. 
+.TP
+.B SIGINT SIGTERM
+Gracefully shut down tunnel device and terminate.
+
+.SH "SYSLOG"
+.B isatapd
+logs to stderr when run in foreground and to \fBsyslog\fP(3), using the facility \fILOG_DAEMON\fP. Verbosity can be controlled with the \fB\-v\fP and \fB\-q\fP switches.
+
+.SH "نکات (NOTES)"
+Network data will be processed by
+.B isatapd
+with privileges of an unprivileged user to minimize impact of bugs in the networking code. To create and maintain the tunnel device, root privileges are necessary.
+
+Whenever the tunnel link interface goes down or the source address for the local tunnel endpoint changes, the tunnel device will be destroyed and recreated, if possible. Note that till then your tunnel might be in a unusable state.
+
+.SH "نویسندگان (AUTHORS)"
+Sascha Hlusiak \<mail\@saschahlusiak.de\>
+
+Kwong-Sang Yin \<kwong-sang.yin\@boeing.com\>
+
+Fred Templin \<fred.l.templin\@boeing.com\>
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR ip (8)
+.BR syslog-ng (8)
+
+.B http://www.ietf.org/rfc/rfc5214.txt

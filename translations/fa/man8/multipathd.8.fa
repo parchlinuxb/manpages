@@ -1,0 +1,702 @@
+.\" ----------------------------------------------------------------------------
+.\" Update the date below if you make any significant change.
+.\" ----------------------------------------------------------------------------
+.
+.TH MULTIPATHD 8 2024-05-29 Linux
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "نام (NAME)"
+.\" ----------------------------------------------------------------------------
+.
+multipathd \- Multipath daemon.
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "خلاصه دستور (SYNOPSIS)"
+.\" ----------------------------------------------------------------------------
+.
+.B multipathd
+.RB [\| \-d \|]
+.RB [\| \-s \|]
+.RB [\| \-v\ \c
+.IR verbosity \|]
+.RB [\| \-B \|]
+.RB [\| \-w \|]
+.LP
+.B multipathd
+.RB [\| \-v\ \c
+.IR verbosity \|]
+.B -k\fIcommand\fR
+.LP
+.B multipathd
+.RB [\| \-v\ \c
+.IR verbosity \|]
+.B -k
+
+.\" ----------------------------------------------------------------------------
+.SH "توضیحات (DESCRIPTION)"
+.\" ----------------------------------------------------------------------------
+.
+The \fBmultipathd\fR daemon is in charge of checking for failed paths. When this
+happens, it will reconfigure the multipath map the path belongs to, so that this
+map regains its maximum performance and redundancy.
+
+With the \fB-k\fR option, \fBmultipathd\fR acts as a client utility that
+sends commands to a running instance of the multipathd daemon (see
+\fBCOMMANDS\fR below).
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "گزینه‌ها (OPTIONS)"
+.\" ----------------------------------------------------------------------------
+.
+.TP
+.B \-d
+Foreground Mode. Don't daemonize, and print all messages to stdout and stderr.
+.
+.TP
+.B \-s
+Suppress timestamps. Do not prefix logging messages with a timestamp.
+.
+.TP
+.BI \-v " level"
+Verbosity level. Print additional information while running multipathd. A level
+of 0 means only print errors. A level of 3 or greater prints debugging information
+as well.
+.
+.TP
+.B \-B
+Read-only bindings file. multipathd will not write to the \fIuser_friendly_names\fR
+bindings file. If a \fIuser_friendly_name\fR doesn't already exist for a device, it
+will use its WWID as its alias.
+.
+.TP
+.B \-k\fIcommand\fB
+multipathd executes the given command (see \fBCOMMANDS\fR below). If the
+command contains whitespace or shell special characters, it needs to be quoted
+like in \fImultipathd -k'show topology'\fR. No whitespace is allowed between
+the \fB-k\fR and the command string.
+
+Commands can also be issued without using \fB-k\fR. In this case, the command
+string should not be quoted. Command arguments that contain whitespace or
+special characters still need to be quoted, like in \fImultipathd show paths
+format "%n %w"\fR
+.
+.TP
+.B \-k
+multipathd executes the \fBmultipathc\fR interactive shell for entering
+commands (see \fBCOMMANDS\fR below).
+.
+.TP
+.B \-n
+\fBIGNORED\fR. Use the option
+\fIfind_multipaths\fR to control the treatment of newly detected devices by
+multipathd. See
+.BR multipath.conf(5).
+.
+.TP
+.B \-w
+Since kernel 4.14 a new device-mapper event polling interface is used for updating
+multipath devices on dmevents. Use this flag to force it to use the old event
+waiting method, based on creating a separate thread for each device.
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH COMMUNICATING WITH MULTIPATHD
+.\" ----------------------------------------------------------------------------
+
+In addition to the multipathd CLI, the \fBlibmpathcmd\fR library can be used to
+send commands (see \fBCOMMANDS\fR below) to the multipathd daemon from other
+programs. By default, multipathd listens on both the \fI@/org/kernel/linux/storage/multipathd\fR
+abstract namespace socket and the \fI/run/multipathd.socket\fR socket file.
+libmpathcmd will use either of these sockets to connect to multipathd. The
+socket file can be useful to communicate with multipathd from different
+namespaces since it can be bind mounted in them, unlike the abstract namespace
+socket. Multipathd will accept \fBlist|show\fR commands from any user. All
+other commands must be issued by root.
+
+It is possible to change the sockets that multipathd listens on. If
+\fImultipathd.socket\fR is running, multipathd will use the sockets it listens
+on.  A maximum of two sockets can be defined by \fImultipathd.socket\fR, and by
+default it listens on \fI@/org/kernel/linux/storage/multipathd\fR and \fI/run/multipathd.socket\fR. If
+\fImultipathd.socket\fR is not running, a single socket can be configured for
+listening on by setting the \fIMULTIPATH_SOCKET_NAME\fR environment variable
+when starting multipathd. This environment variable must also be set to make
+multipathd CLI commands (or any other program using libmpathcmd) connect to the
+multipathd daemon using a non-default socket, regardless of whether that socket
+was set for the daemon using \fImultipathd.socket\fR or the
+\fIMULTIPATH_SOCKET_NAME\fR environment variable.
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH COMMANDS
+.\" ----------------------------------------------------------------------------
+.
+.TP
+The following commands can be used in interactive mode:
+.
+.TP
+.B list|show paths
+Show the paths that multipathd is monitoring, and their state.
+.
+.TP
+.B list|show paths [raw] format $format
+Show the paths that multipathd is monitoring, using a format string with path
+format wildcards. Adding \fIraw\fR will remove the headers and alignment
+padding from the output. See "Path format wildcards" below.
+.
+.TP
+.B list|show path $path
+Show whether path $path is offline or running.
+.
+.TP
+.B list|show maps|multipaths
+Show the multipath devices that the multipathd is monitoring.
+.
+.TP
+.B list|show maps|multipaths [raw] format $format
+Show the status of all multipath devices that the multipathd is monitoring,
+using a format string with multipath format wildcards. Adding \fIraw\fR will
+remove the headers and alignment padding from the output. See "Multipath
+format wildcards" below.
+.
+.TP
+.B list|show maps|multipaths status
+Show the status of all multipath devices that the multipathd is monitoring.
+.
+.TP
+.B list|show maps|multipaths stats
+Show some statistics of all multipath devices that the multipathd is monitoring.
+.
+.TP
+.B list|show maps|multipaths topology
+Show the current multipath topology. Same as '\fImultipath \-ll\fR'.
+.TP
+.
+.B list|show maps|multipaths json
+Show information about all multipath devices in JSON format.
+.
+.TP
+.B list|show topology
+Show the current multipath topology. Same as '\fImultipath \-ll\fR'.
+.
+.TP
+.B list|show map|multipath $map topology
+Show topology of a single multipath device specified by $map, for example
+36005076303ffc56200000000000010aa. This map could be obtained from '\fIlist maps\fR'.
+.
+.TP
+.B list|show map|multipath $map [raw] format $format.
+Show the status of multipath device $map, using a format string with multipath
+format wildcards. Adding \fIraw\fR will remove the headers and alignment
+padding from the output. See "Multipath format wildcards" below.
+.
+.TP
+.B list|show map|multipath $map json
+Show information about multipath device $map in JSON format.
+.
+.TP
+.B list|show wildcards
+Show the format wildcards used in interactive commands taking $format. See
+"Format Wildcards" below.
+.
+.TP
+.B list|show config
+Show the currently used configuration, derived from default values and values
+specified within the configuration file \fI/etc/multipath.conf\fR.
+.
+.TP
+.B list|show config local
+Show the currently used configuration like \fIshow config\fR, but limiting
+the devices section to those devices that are actually present in the system.
+.
+.TP
+.B list|show blacklist
+Show the currently used blacklist rules, derived from default values and values
+specified within the configuration file \fI/etc/multipath.conf\fR.
+.
+.TP
+.B list|show devices
+Show all available block devices by name including the information if they are
+blacklisted or not.
+.
+.TP
+.B list|show status
+Show the number of path checkers in each possible state, the number of monitored
+paths, and whether multipathd is currently handling a uevent.
+.
+.TP
+.B list|show daemon
+Show the current state of the multipathd daemon.
+.
+.TP
+.B reset maps|multipaths stats
+Reset the statistics of all multipath devices.
+.
+.TP
+.B reset map|multipath $map stats
+Reset the statistics of multipath device $map.
+.
+.TP
+.B add path $path
+Add a path to the list of monitored paths. $path is as listed in /sys/block (e.g. sda).
+.
+.TP
+.B remove|del path $path
+Stop monitoring a path. $path is as listed in /sys/block (e.g. sda).
+.
+.TP
+.B add map|multipath $map
+Add a multipath device to the list of monitored devices. $map can either be a
+device-mapper device as listed in /sys/block (e.g. dm-0) or it can be the alias
+for the multipath device (e.g. mpath1) or the uid of the multipath device
+(e.g. 36005076303ffc56200000000000010aa).
+.
+.TP
+.B remove|del maps|multipaths
+Remove all multipath devices.
+.
+.TP
+.B remove|del map|multipath $map
+Remove the multipath device $map.
+.
+.TP
+.B resize map|multipath $map
+Resizes map $map to the given size.
+.
+.TP
+.B switch|switchgroup map|multipath $map group $group
+Force a multipath device to switch to a specific path group. $group is the path
+group index, starting with 1.
+.
+.TP
+.B reconfigure
+Rereads the configuration, and reloads all changed multipath devices. This
+also happens at startup, when the service is reload, or when a SIGHUP is
+received.
+.
+.TP
+.B reconfigure all
+Rereads the configuration, and reloads all multipath devices regardless of
+whether or not they have changed. This also happens when \fImultipath -r\fR is
+run.
+.TP
+.B suspend map|multipath $map
+Sets map $map into suspend state.
+.
+.TP
+.B resume map|multipath $map
+Resumes map $map from suspend state.
+.
+.TP
+.B reset map|multipath $map
+Reassign existing device-mapper table(s) use the multipath device, instead
+of its path devices.
+.
+.TP
+.B reload map|multipath $map
+Reload a multipath device.
+.
+.TP
+.B fail path $path
+Sets path $path into failed state.
+.
+.TP
+.B reinstate path $path
+Resumes path $path from failed state.
+.
+.TP
+.B disablequeueing maps|multipaths
+Disable queueing on all multipath devices.
+.
+.TP
+.B restorequeueing maps|multipaths
+Restore queueing to the configured \fIno_path_retry\fR setting on all multipath
+devices whose queueing has been previously disabled by the \fIdisablequeueing\fR
+command. \fBNote:\fR If \fIno_path_path_retry\fR is set to queue for a limited
+number of retries after all paths have failed, this will not enable queueing if
+there are no active paths.
+.
+.TP
+.B disablequeueing map|multipath $map
+Disable queuing on multipathed map $map.
+.
+.TP
+.B restorequeueing map|multipath $map
+restore queueing to the configured \fIno_path_retry\fR setting on multipathed
+map $map whose queueing has been previously disabled by the
+\fIdisablequeueing\fR command. \fBNote:\fR If \fIno_path_path_retry\fR is set to
+queue for a limited number of retries after all paths have failed, this will not
+enable queueing if there are no active paths.
+.
+.TP
+.B forcequeueing daemon
+Forces multipathd into queue_without_daemon mode, so that no_path_retry queueing
+will not be disabled when the daemon stops.
+.
+.TP
+.B restorequeueing daemon
+Restores configured queue_without_daemon mode.
+.
+.TP
+.B setprstatus map|multipath $map
+Enable persistent reservation management on $map.
+.
+.TP
+.B setprstatus map|multipath $map pathlist $pathlist
+Enable persistent reservation management on $map, and notify multipathd of
+the paths that have been registered, so it doesn't attempt to re-register
+them.
+.
+.TP
+.B unsetprstatus map|multipath $map
+Disable persistent reservation management on $map.
+.
+.TP
+.B getprstatus map|multipath $map
+Get the current persistent reservation management status of $map.
+.
+.TP
+.B getprkey map|multipath $map
+Get the current persistent reservation key associated with $map.
+.
+.TP
+.B setprkey map|multipath $map key $key
+Set the persistent reservation key associated with $map to $key in the
+\fIprkeys_file\fR. This key will only be used by multipathd if
+\fIreservation_key\fR is set to \fBfile\fR in \fI/etc/multipath.conf\fR.
+.
+.TP
+.B unsetprkey map|multipath $map
+Remove the persistent reservation key associated with $map from the
+\fIprkeys_file\fR. This will only unset the key used by multipathd if
+\fIreservation_key\fR is set to \fBfile\fR in \fI/etc/multipath.conf\fR.
+.
+.TP
+.B setmarginal path $path
+move $path to a marginal pathgroup. The path will remain in the marginal
+path group until \fIunsetmarginal\fR is called. This command will only
+work if \fImarginal_pathgroups\fR is enabled and there is no Shaky paths
+detection method configured (see the multipath.conf man page for details).
+.
+.TP
+.B unsetmarginal path $path
+return marginal path $path to its normal pathgroup. This command will only
+work if \fImarginal_pathgroups\fR is enabled and there is no Shaky paths
+detection method configured (see the multipath.conf man page for details).
+.
+.TP
+.B unsetmarginal map $map
+return all marginal paths in $map to their normal pathgroups. This command
+will only work if \fImarginal_pathgroups\fR is enabled and there is no Shaky
+paths detection method configured (see the multipath.conf man page for details).
+.
+.TP
+.B quit|exit
+End interactive session.
+.
+.TP
+.B shutdown
+Stop multipathd.
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "Format Wildcards"
+.\" ----------------------------------------------------------------------------
+.
+Multipathd commands that take a $format option require a format string. This
+string controls how a device is printed and should include format wildcards.
+When the devices are printed, these wildcards will be replaced by the
+appropriate device information. The following wildcards are supported.
+.TP
+.B Multipath format wildcards
+.RS
+.TP
+.B %n
+The device name.
+.TP
+.B %w
+The device WWID (uuid).
+.TP
+.B %d
+The device sysfs name (dm-<minor_nr>).
+.TP
+.B %F
+The device \fBfailback\fR setting. For deferred failbacks, it will either
+include the configured time if a deferred failback is not in progress, or
+it will show the current progress of a deferred failback in seconds.
+.TP
+.B %Q
+The device \fBno_path_retry\fR setting. If no_path_retry is set to a
+number of retries, it will either print the configured number of checker
+retries if the device is not in recovery mode, the number of seconds until
+queueing is disabled if the device is queueing in recovery mode, or \fIoff\fR
+if the device has disabled queueing.
+.TP
+.B %N
+The number of active paths for the device.
+.TP
+.B %r
+The device write-protect setting, either \fIro\fR or \fIrw\fR.
+.TP
+.B %t
+The state of the device in device-mapper. \fIsuspend\fR if the devices is
+suspended, and \fIactive\fR otherwise.
+.TP
+.B %S
+The device size, using the suffixes \fBK\fR, \fBM\fR, \fBG\fR, \fBT\fR,
+and \fBP\fR, to stand for kilobytes, megabytes, gigabytes, terabytes,
+and petabytes, respectively.
+.TP
+.B %f
+The "features" string of the device-mapper table in the kernel.
+.TP
+.B %x
+The number of times the device has entered a state where it will fail IO.
+This is an alias for the \fB%4\fR wildcard.
+This value can be reset with the '\fIreset map $map stats\fR' command.
+.TP
+.B %h
+The device table hardware handler string.
+.TP
+.B %A
+The last action multipathd took on the device. This wildcard is for debugging
+use, as understanding its meaning requires looking at the code.
+.TP
+.B %0
+The number of times a path in the device has failed.
+This value can be reset with the '\fIreset map $map stats\fR' command.
+.TP
+.B %1
+The number of times multipathd has initiated a pathgroup switch for the device.
+This value can be reset with the '\fIreset map $map stats\fR' command.
+.TP
+.B %2
+The number of times multipathd has loaded a new table for the device.
+This value can be reset with the '\fIreset map $map stats\fR' command.
+.TP
+.B %3
+The approximate number of seconds that multipathd has spent queueing with
+no usable paths. This value can be reset with the '\fIreset map $map stats\fR'
+command.
+.TP
+.B %4
+The number of times the device has entered a state where it will fail IO.
+This is an alias for the \fB%x\fR wildcard.
+This value can be reset with the '\fIreset map $map stats\fR' command.
+.TP
+.B %s
+The vendor/product string for the device.
+.TP
+.B %v
+The array vendor string for the device.
+.TP
+.B %p
+The array product string for the device.
+.TP
+.B %e
+The array firmware revision string for the device.
+.TP
+.B %G
+The foreign library used for the device, or \fB--\fR for native device-mapper
+multipath devices. See "FOREIGN MULTIPATH SUPPORT" in
+.BR /etc/multipath.conf (5).
+.TP
+.B %g
+Data from vendor specific vpd pages for the device, if any. Currently
+multipathd supports VPD page 0xc0 for HPE 3PAR / Primera / Alletra storage
+arrays.
+.TP
+.B %k
+The actual max_sectors_kb setting for the device (which may be different from
+the configured one).
+.RE
+.
+.
+.TP
+.B Path format wildcards
+.RS
+.TP
+.B %w
+The device WWID (uuid).
+.TP
+.B %i
+The device Host:Channel:Id:Lun for SCSI devices. The device "Controller Instance
+Number":"Controller ID":"Namespace Instance Number":"Namespace ID" for NVMe
+devices. The Controller and Namespace Instance Numbers match the NVMe device
+name: "nvme<Controller_Instance_Number>n<Namespace_Instance_Number>"
+.TP
+.B %d
+The device sysfs name.
+.TP
+.B %D
+The device major:minor
+.TP
+.B %t
+The device-mapper state of the device, either \fIactive\fR or \fIfailed\fR.
+.TP
+.B %o
+The offline state of the device. This shows "offline" if the device's "state"
+attribute in sysfs is "offline" (for SCSI) or "dead" (for NVMe). For all other
+sysfs states, it shows "running".
+.TP
+.B %T
+The multipathd path checker state of the device. The possible states are:
+.RS
+.TP
+.I ready
+The device is ready to handle IO.
+.TP
+.I faulty
+The device is unusable.
+.TP
+.I shaky
+The device is not able to handle IO but can still be accessed to check the
+priority.
+.TP
+.I ghost
+The device is in stand-by state.
+.TP
+.I i/o pending
+The checker is in the process of determining the device state.
+.TP
+.I i/o timeout
+The path checker has timed out, failing the device.
+.TP
+.I delayed
+The device appears usable, but it being delayed for marginal path checking.
+.TP
+.I undef
+The device either is not part of a multipath device, or its path checker has
+not yet run.
+.RE
+.TP
+.B %s
+The vendor/product/revision string for the device.
+.TP
+.B %c
+The name of the device's path checking algorithm
+.TP
+.B %C
+The progress towards the next path checker run on the device in seconds.
+.TP
+.B %p
+The device priority.
+.TP
+.B %S
+The device size, using the suffixes \fBK\fR, \fBM\fR, \fBG\fR, \fBT\fR,
+and \fBP\fR, to stand for kilobytes, megabytes, gigabytes, terabytes,
+and petabytes, respectively.
+.TP
+.B %z
+The device serial number.
+.TP
+.B %M
+The device marginal state, either \fImarginal\fR or \fInormal\fR.
+.TP
+.B %m
+The multipath device that this device is a path of, or \fI[offline]\fR
+if this device could not be added to a device because it is offline or
+\fI[orphan]\fR if it is not part of any multipath device.
+.TP
+.B %N
+The host World Wide Node Name (WWNN) of the device, if any.
+.TP
+.B %n
+The target World Wide Node Name (WWNN) of the device, if any.
+.TP
+.B %R
+The host World Wide Port Name (WWPN) of the device, if any.
+.TP
+.B %r
+The target World Wide Port Name (WWPN) of the device, if any.
+.TP
+.B %a
+The host adapter name for the device (only SCSI devices).
+.TP
+.B %G
+The foreign library used for the device, or \fB--\fR for native device-mapper
+multipath devices. See "FOREIGN MULTIPATH SUPPORT" in
+.BR /etc/multipath.conf (5).
+.TP
+.B %g
+Data from vendor specific vpd pages for the device, if any. Currently
+multipathd supports VPD page 0xc0 for HPE 3PAR / Primera / Alletra storage
+arrays.
+.TP
+.B %0
+The number of times this device has failed.
+.TP
+.B %P
+The device protocol. See
+.BR /etc/multipath.conf (5).
+.TP
+.B %I
+The device initialization state. Devices that have been fully initialized
+are shown as \fIok\fR.
+.TP
+.B %L
+The device SCSI LUN ID in hexadecimal format. This is only meaningful for
+SCSI devices.
+.TP
+.B %A
+The ALUA Target Port Group ID for the device, if applicable.
+.TP
+.B %k
+The actual max_sectors_kb setting for the device (which may be different than
+the configured one).
+.RE
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "SYSTEMD INTEGRATION"
+.\" ----------------------------------------------------------------------------
+.
+When compiled with systemd support two systemd service files are installed,
+\fImultipathd.service\fR and \fImultipathd.socket\fR. If enabled, the
+\fImultipathd.socket\fR service instructs systemd to intercept the CLI command
+socket, so that any call to the CLI interface will start-up the daemon if
+required. The \fImultipathd.service\fR file carries the definitions for
+controlling the multipath daemon. The daemon itself uses the \fBsd_notify\fR(3)
+interface to communicate with systemd. The following unit keywords are
+recognized:
+.
+.TP
+.B WatchdogSec=
+Enables the internal watchdog from systemd. multipath will send a
+notification via \fBsd_notify\fR(3) to systemd to reset the watchdog. If
+specified the \fIpolling_interval\fR and \fImax_polling_interval\fR settings
+will be overridden by the watchdog settings.
+Please note that systemd prior to version 207 has issues which prevent
+the systemd-provided watchdog from working correctly. So the watchdog
+is not enabled per default, but has to be enabled manually by updating
+the \fImultipathd.service\fR file.
+.
+.TP
+.B OOMScoreAdjust=
+Overrides the internal OOM adjust mechanism.
+.
+.TP
+.B LimitNOFILE=
+Overrides the \fImax_fds\fR configuration setting.
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "همچنین ببینید (SEE ALSO)"
+.\" ----------------------------------------------------------------------------
+.
+.BR multipathc (8),
+.BR multipath (8),
+.BR kpartx (8),
+.BR sd_notify (3),
+.BR systemd.service (5).
+.
+.
+.\" ----------------------------------------------------------------------------
+.SH "نویسندگان (AUTHORS)"
+.\" ----------------------------------------------------------------------------
+.
+\fImultipath-tools\fR was developed by Christophe Varoqui <christophe.varoqui@opensvc.com>
+and others.
+.\" EOF

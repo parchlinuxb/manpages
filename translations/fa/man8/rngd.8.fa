@@ -1,0 +1,298 @@
+.\" Copyright (C) 2017 - Neil Horman <nhorman@tuxdriver.com>
+.\"
+.TH RNGD 8 "March 2001" "rng-tools 6.17"
+
+.SH "نام (NAME)"
+rngd \- Check and feed random data from hardware device to kernel random device
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.B rngd
+[\fB\-b\fR, \fB\-\-background\fR]
+[\fB\-f\fR, \fB\-\-foreground\fR]
+[\fB\-d\fR, \fB\-\-debug\fR]
+[\fB\-l\fR, \fB\-\-list\fR]
+[\fB\-x\fR, \fB\-\-exclude\fR]
+[\fB\-n\fR, \fB\-\-include\fR]
+[\fB\-O\fR, \fB\-\-option\fR]
+[\fB\-i\fR, \fB\-\-ignorefail\fR]
+[\fB\-o\fR, \fB\-\-random-device=\fIfile\fR]
+[\fB\-p\fR, \fB\-\-pid-file=\fIfile\fR]
+[\fB\-r\fR, \fB\-\-rng-device=\fIfile\fR]
+[\fB\-s\fR, \fB\-\-random-step=\fInnn\fR]
+[\fB\-t\fR, \fB\-\-test\fR]
+[\fB\-W\fR, \fB\-\-fill-watermark=\fInnn\fR]
+[\fB\-R\fR, \fB\-\-force-reseed=\fInnn\fR]
+[\fB\-u\fR, \fB\-\-use-slow-sources\fR]
+[\fB\-D\fR, \fB\-\-drop-privileges=\fIuser:group\fR]
+[\fB\-q\fR, \fB\-\-quiet\fR]
+[\fB\-?\fR, \fB\-\-help\fR]
+[\fB\-v\fR, \fB\-\-version\fR]
+.RI
+
+.SH "توضیحات (DESCRIPTION)"
+This daemon feeds data from a random number generator to the kernel's
+random number entropy pool, after first checking the data to ensure that
+it is properly random.
+.PP
+The \fB\-f\fR or \fB\-\-foreground\fR options can be used to tell
+\fBrngd\fR to avoid forking on startup.  This is typically used for
+debugging.  The \fB\-b\fR or \fB\-\-background\fR options, which fork and put
+\fBrngd\fR into the background automatically, are the default.
+.PP
+The \fB\-r\fR or \fB\-\-rng-device\fR options can be used to select an
+alternate source of input, besides the default /dev/hwrng.
+The \fB\-o\fR or \fB\-\-random-device\fR options can be used to select
+an alternate entropy output device, besides the default /dev/random.
+Note that this device must support the Linux kernel /dev/random
+ioctl API.
+.PP
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB\-b\fR, \fB\-\-background\fR
+Become a daemon (default)
+.TP
+\fB\-f\fR, \fB\-\-foreground\fR
+Do not fork and become a daemon
+.TP
+\fB\-d\fR, \fB\-\-debug\fR
+Enable debug messages
+.TP
+\fB\-l\fR, \fB\-\-list\fR
+List the indexes and names of available entropy sources. Exit code when listing
+sources is 0 if at least 1 entropy source was found and initialized, 1
+otherwise.
+.TP
+\fB\-x\fR, \fB\-\-exclude\fR
+Disable entropy sources based on index or (shortname) reported from --list option
+.TP
+\fB\-n\fR, \fB\-\-include\fR
+Enable entropy sources based on index or (shortname) reported from --list option
+.TP
+\fB\-O\fR, \fB\-\-option\fR
+Provide specific config options to individual entropy sources, in the format
+--option [index|shortname]:key:value.  See Entropy Sources section below for indices and
+source specific options.  Note that specifying \fB-O [<index>|<shortname>]\fR will print the
+available options for that index to the console.
+.TP
+\fB\-p\fI file\fR, \fB\-\-pid-file=\fIfile\fR
+File used for recording daemon PID, and multiple exclusion
+(default: /var/run/rngd.pid)
+.TP
+\fB\-i\fR, \fB\-\-ignorefail\fR
+Ignore repeated fips failures
+.TP
+\fB\-o\fI file\fR, \fB\-\-random-device=\fIfile\fR
+Kernel device used for random number output
+(default: /dev/random)
+.TP
+\fB\-r\fI file\fR, \fB\-\-rng-device=\fIfile\fR
+Kernel device used for random number input
+(default: /dev/hwrng)
+.TP
+\fB\-s\fI nnn\fR, \fB\-\-random-step=\fInnn\fR
+Number of bytes written to random-device at a time (default: 64)
+.TP
+\fB\-t, \fB\-\-test\fR
+Enter test mode.  In this mode (which implies -f), all generated entropy is
+discarded and rngd reports the amount of entropy generated every second.
+.TP
+\fB\-e\fI nnn\fR, \fB\-\-entropy-count=\fInnn\fR
+Number of bits to consider random when adding entropy. 1<=e<=8
+(default: 8)
+.TP
+\fB\-W\fI n\fR, \fB\-\-fill\-watermark=\fInnn\fR
+Once we start doing it, feed entropy to \fIrandom-device\fR until at least
+\fIfill-watermark\fR bits of entropy are available in its entropy pool.
+By default, this value is set to 75% of the entropy pool size or 2048 bits
+if the entropy pool size couldn't be determined.
+Setting this too high will cause \fIrngd\fR to dominate the contents of the
+entropy pool.  Low values will hurt system performance during entropy
+starves.  Do not set \fIfill-watermark\fR above the size of the
+entropy pool (usually 256 bits).  A value of 0 to this option will cause no
+watermark to be set.
+.TP
+\fB\-R\fI n\fR, \fB\-\-force-reseed=\fInnn\fR
+For newer kernels which support non-blocking entropy pools, it is still
+beneficial to periodically add fresh entropy as a reseeding event.
+--force-reseed defines the number of seconds between which fresh entropy is
+added to the kernel entropy pool.  Defaults to 5 minutes.
+.TP
+\fB\-u\fR, \fB\-\-use-slow-sources\fR
+The entropy sources nist, jitter and pkcs11 are considered to be slow in providing entropy.
+By default their data is only used after all other sources failed to provide valid entropy 
+a 100 times over. With this option rngd always tries to gather entropy from these sources too.
+.TP
+\fB\-D\fR, \fB\-\-drop-privileges=\fIuser:group\fR
+Drop privileges to a user and a group specified after initialization. A user
+and a group can be specified as a name or as a numerical id and must be separated
+with a colon. A user and a group must exist. A default is not to drop privileges.
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Suppress all messages
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Give a short summary of all program options
+.TP
+\fB\-v\fR, \fB\-\-version\fR
+Print program version
+
+.SH
+ENTROPY SOURCES
+.P
+Rngd is made up of multiple entropy sources, the data from which is
+aggregated and fed into the kernels entropy pool.  Note that not all entropy
+sources are available on all systems, and if an entropy source is enabled for a
+system on which it is not appropriate (or possible) to use, it may fail
+initialization.  It is not fatal to rngd for any single entropy source to fail
+during startup.  Only a single entropy sources is needed for rngd to operate.
+The following entropy sources are currently defined in rngd
+
+.TP
+.B
+Hardware RNG (hwrng) 
+The Hardware RNG is a generic entropy source that draws entropy from a hardware
+rng attached by default to /dev/hwrng
+
+.TP
+.B
+TPM (tpm) 
+Entropy drawn from on board TPM device.  Note this entropy source is deprecated
+and will be removed soon, as newer tpm devices export entropy via /dev/hwrng,
+which is collected by the hwrng source above
+
+.TP
+.B
+RDRAND/RDSEED (rdrand) 
+Entropy drawn from the RDRAND and RDSEED instructions (x86 only)
+.TP
+Options
+
+\fBuse_aes - \fR select if rdrand is used to seed a cprng to produce entropy, or
+if all entropy is drawn directly from rdrand instruction (default 0)
+
+.TP
+.B
+DARN (darn) 
+Entropy drawn from the DARN instruction (ppc64 only)
+.TP
+Options
+
+\fBuse_aes - \fR select if the power darn instruction is used to directly fill
+the entropy poll, or if it is used as a periodic seed to an aes based cprng
+(default 1)
+
+.TP
+.B
+RNDR (rndr) 
+Entropy drawn from the RNDR instruction (aarch64 only)
+
+.TP
+Options
+
+\fBuse_aes - \fR select if the arm rndr instruction is used to directly fill
+the entropy poll, or if it is used as a periodic seed to an aes based cprng
+(default 0)
+
+.TP
+.B
+NIST Entropy Beacon (nist) 
+Entropy gathered from the NIST network entropy beacon.  Note that this entropy
+source is disabled by default as it should never be used for cryptographic
+purposes, or any use case in which random data should be known only by a single
+entity.
+
+.TP
+.B
+Qrypt Entropy Beacon (qrypt) 
+Entropy gathered from the qrypt entropy beacon.  Note this beacon provides
+entropy to remote clients over a TLS connection.  As such this source should not
+be used for cryptographic operations unless the security of the network can be
+guaranteed against man in the middle and other network based attacks.
+
+.TP
+Options
+\fBtokenfile - \fR Specify the file containing the access token to the Qrypt beacon
+
+\fBdelay - \fR Specify the maximum delay (in seconds) that the source will wait
+when there are temporary conditions preventing entropy retrieval before trying
+to fetch entropy again. The default maximum delay is eight hours, exponentially
+counting up from one second upwards, in powers of two.
+
+.TP
+.B
+JITTER (jitter) 
+Entropy gathered by measuring timing variance of operations on the local cpu
+.TP
+Options
+\fBthread_count - \fR Set the number of threads that the jitter entropy source will spawn
+
+\fBbuffer_size - \fR Set the size of the buffer cache that each thread maintains
+
+\fBrefill_thresh - \fR Set the low watermark for the cache that triggers its corresponding thread to start refill operations
+
+\fBretry_count - \fR If all entropy buffers are empty, retry this many times before giving up.  Note that jitterentropy can take several seconds to refill a buffer, and so retries after a delay may be preferable to repeatedly spining on an empty buffer (default 1)
+
+\fBretry_delay - \fR between each retry for retry_count above, sleep for this many seconds. May also be the special value -1, representing adaptive sleep, where each retry delay will be half the recorded execution time of the last entropy gathering round (default -1)
+
+\fBforce_soft_timer - \fR on platforms with a hardware timer that is too coarse to sample jitter, we can instead use a software based timer loop.  Detection and use of this mechanism is automatic, but this can be useful for testing purposes
+
+.TP
+.B
+PKCS11 (pkcs11) 
+Entropy gathered via the opensc openssl engine, which can extract entropy from
+various smart card readers. Install a package for your distribution containing
+pkcs11 endpoint library to gather smartcard entropy. This is \fBopensc\fR for
+Fedora, \fBopensc-pkcs11\fR for Debian/Ubuntu or another package containing
+opensc-pkcs11.so.
+.TP
+Options
+\fBengine_path - \fR Set the patch for the pkcs11 engine DSO to load
+
+\fBchunk_size - \fR Some pkcs11 engines have restrictions on how much data can
+be requested at a time, this option allows for the request to be subdivided into
+smaller chunks to be satisfied
+
+.TP
+.B
+RTLSDR (rtlsdr) 
+Entropy gathered via the rtl software defined radio library, which can gather
+entropy using various usb software defined radios listening to random radio
+static
+.TP
+Options
+\fBdevid - \fR When multiple devices are available the integer index of the
+device to use
+
+\fBfreq_min - \fR The minimum frequence range to scan in
+
+\fBfreq_max - \fR The maximum frequency range to scan in
+
+\fBsample_min - \fR The minimum sample rate of the radio
+
+\fBsample_max - \fR The maximum sample rate of the radio
+
+.TP
+.B
+Named pipe (namedpipe) 
+Reads entropy from a named pipe (aka FIFO). Another program, for example a 
+driver reading and preparing data from an external hardware RNG, is expected
+to feed entropy into this named pipe. Should the named pipe be closed,
+rngd will try to reopen it.
+.TP
+Options
+\fBpath - \fR Path of the named pipe. Required.
+
+\fBtimeout - \fR Maximum time in seconds rngd waits until a full FIPS test buffer
+of entropy can be read. Defaults to 5.
+
+.SH "نویسندگان (AUTHORS)"
+Philipp Rumpf
+.br
+Jeff Garzik \- jgarzik@pobox.com
+.br
+Matt Sottek
+.br
+Brad Hill
+.br
+Neil Horman - nhorman@tuxdriver.com

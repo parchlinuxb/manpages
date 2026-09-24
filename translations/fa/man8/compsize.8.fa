@@ -1,0 +1,96 @@
+.TH compsize 8 2017-09-04 btrfs btrfs
+.SH "نام (NAME)"
+compsize \- calculate compression ratio of a set of files on btrfs
+.SH "خلاصه دستور (SYNOPSIS)"
+.B compsize
+.I file-or-dir
+[
+.I file-or-dir
+\&... ]
+.SH "توضیحات (DESCRIPTION)"
+.B compsize
+takes a list of files on a btrfs filesystem (recursing directories)
+and measures used compression types and the effective compression ratio.
+Besides compression, \fBcompsize\fR shows the effect of reflinks (\fIcp
+--reflink\fR, snapshots, deduplication), and certain types of btrfs waste.
+.P
+The program gives a report similar to:
+.br
+Processed 90319 files.
+.br
+Type       Perc     Disk Usage   Uncompressed Referenced
+.br
+TOTAL       79%      1.4G         1.8G         1.9G
+.br
+none       100%      1.0G         1.0G         1.0G
+.br
+lzo         53%      446M         833M         843M
+.P
+The fields above are:
+.TP
+.B Type
+compression algorithm
+.TP
+.B Perc
+disk usage/uncompressed (compression ratio)
+.TP
+.B Disk Usage
+blocks on the disk; this is what storing these files actually costs you
+(save for RAID considerations)
+.TP
+.B Uncompressed
+uncompressed extents; what you would need without compression \- includes
+deduplication savings and pinned extent waste
+.TP
+.B Referenced
+apparent file sizes (sans holes); this is what a traditional filesystem
+that supports holes and efficient tail packing, or
+.IR "tar -S" ,
+would need to store these files
+.P
+Let's see this on an example: a file 128K big is stored as a single extent A
+which compressed to a single 4K page.  It then receives a write of 32K at
+offset 32K, which also compressed to a single 4K page, stored as extent B.
+.P
+The file now appears as:
+.br
+         +-------+-------+---------------+
+.br
+extent A | used  | waste | used          |
+.br
+         +-------+-------+---------------+
+.br
+extent B         | used  |
+.br
+                 +-------+
+.P
+The "waste" inside extent A can't be gotten rid until the whole extent is
+rewritten (for example by \fIdefrag\fR).  If compressed, the whole extent
+needs to be read every time that part of the file is being read, thus the
+"waste" is still required.
+.P
+In this case, we have: \fBDisk Usage\fR: 8KB, \fBUncompressed\fR: 160K,
+\fBReferenced\fR: 128K.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.BR -b / --bytes
+Show raw byte counts rather than human-friendly sizes.
+.TP
+.BR -x / --one-file-system
+Skip files and directories on different file systems.
+.SH SIGNALS
+.TP
+.BR USR1
+Displays partial data for files processed so far.
+.SH "هشدارها (CAVEATS)"
+Recently written files may show as not taking any space until they're
+actually allocated and compressed; this happens once they're synced or
+on natural writeout, typically on the order of 30 seconds.
+.P
+The ioctls used by this program require root.
+.P
+Inline extents are considered to be always unique, even if they share
+the same bytes on the disk.
+.P
+This program doesn't currently support filesystems above 8TB on 32-bit
+machines \*- but neither do other btrfs tools.

@@ -1,0 +1,175 @@
+.nh
+.TH podman-system-service 1
+.SH "نام (NAME)"
+podman-system-service \- Run an API service
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman system service\fP [\fIoptions\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+The \fBpodman system service\fP command creates a listening service that answers API calls for Podman.
+The command is available on Linux systems and is usually executed in systemd services.
+The command is not available when the Podman command is executed directly on a Windows or macOS
+host or in other situations where the Podman command is accessing a remote Podman API service.
+
+.PP
+The REST API provided by \fBpodman system service\fP is split into two parts: a compatibility layer offering support for the Docker v1.40 API, and a Podman-native Libpod layer.
+Documentation for the latter is available at \fIhttps://docs.podman.io/en/latest/_static/api.html\fP\&.
+Both APIs are versioned, but the server does not reject requests with an unsupported version set.
+
+.SS Run the command in a systemd service
+The command \fBpodman system service\fP supports systemd socket activation.
+When the command is run in a systemd service, the API service can therefore be provided on demand.
+If the systemd service is not already running, it will be activated as soon as
+a client connects to the listening socket. Systemd then executes the
+\fBpodman system service\fP command.
+After some time of inactivity, as defined by the \fB--time\fP option, the command terminates.
+Systemd sets the \fIpodman.service\fP state as inactive. At this point there is no
+\fBpodman system service\fP process running. No unnecessary compute resources are wasted.
+As soon as another client connects, systemd activates the systemd service again.
+
+.PP
+The systemd unit files that declares the Podman API service for users are
+.IP \(bu 2
+\fI/usr/lib/systemd/user/podman.service\fP
+.IP \(bu 2
+\fI/usr/lib/systemd/user/podman.socket\fP
+
+.PP
+In the file \fIpodman.socket\fP the path of the listening Unix socket is defined by
+
+.EX
+ListenStream=%t/podman/podman.sock
+.EE
+
+.PP
+The path contains the systemd specifier \fB%t\fR which systemd expands to the value of the environment variable
+\fBXDG_RUNTIME_DIR\fR (see systemd specifiers in the \fBsystemd.unit(5)\fP man page).
+
+.PP
+In addition to the systemd user services, there is also a systemd system service \fIpodman.service\fP\&.
+It runs rootful Podman and is accessed from the Unix socket \fI/run/podman/podman.sock\fP\&. See the systemd unit files
+.IP \(bu 2
+\fI/usr/lib/systemd/system/podman.service\fP
+.IP \(bu 2
+\fI/usr/lib/systemd/system/podman.socket\fP
+
+.PP
+The \fBpodman system service\fP command does not support more than one listening socket for the API service.
+
+.PP
+Note: The default systemd unit files (system and user) change the log-level option to \fIinfo\fP from \fIerror\fP\&. This change provides additional information on each API call.
+
+.SS Run the command directly
+To support running an API service without using a systemd service, the command also takes an
+optional endpoint argument for the API in URI form.  For example, \fIunix:///tmp/foobar.sock\fP or \fItcp://localhost:8080\fP\&.
+If no endpoint is provided, defaults is used.  The default endpoint for a rootful
+service is \fIunix:///run/podman/podman.sock\fP and rootless is \fIunix://$XDG_RUNTIME_DIR/podman/podman.sock\fP (for
+example \fIunix:///run/user/1000/podman/podman.sock\fP)
+
+.SS Access the Unix socket from inside a container
+To access the API service inside a container:
+- mount the socket as a volume
+- run the container with \fB--security-opt label=disable\fR
+
+.SS Security
+Please note that the API grants full access to all Podman functionality, and thus allows arbitrary code execution as the user running the API, with no ability to limit or audit this access.
+The API's security model is built upon access via a Unix socket with access restricted via standard file permissions, ensuring that only the user running the service will be able to access it.
+TLS can be used to secure this socket by requiring clients to present a certificate signed by a trusted certificate authority ("CA"), as well as to allow the client to verify the identity of the API.
+We \fIstrongly\fP recommend against making the API socket available via the network (IE, bindings the service to a \fItcp\fP URL) without enabling mutual TLS to authenticate the client.
+Even access via Localhost carries risks - anyone with access to the system will be able to access the API.
+If remote access is required, we instead recommend forwarding the API socket via SSH, and limiting access on the remote machine to the greatest extent possible.
+If a \fItcp\fP URL must be used without TLS, using the \fI--cors\fP option is recommended to improve security.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--cors\fP
+CORS headers to inject to the HTTP response. The default value is empty string which disables CORS headers.
+
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement.
+
+.SS \fB--time\fP, \fB-t\fP
+The time until the session expires in \fIseconds\fP\&. The default is 5
+seconds. A value of \fB0\fR means no timeout, therefore the session does not expire.
+
+.SS \fB--tls-cert\fP=\fIpath\fP
+Path to a PEM file containing the TLS certificate to present to clients. \fB--tls-key\fR must also be provided.
+
+.SS \fB--tls-client-ca\fP=\fIpath\fP
+Path to a PEM file containing the TLS certificate bundle to validate client connections against.
+Connections that present no certificate or a certificate not signed by one of these certificates will be rejected.
+
+.SS \fB--tls-key\fP=\fIpath\fP
+Path to a PEM file containing the private key matching \fB--tls-cert\fR\&. \fB--tls-cert\fR must also be provided.
+
+.PP
+The default timeout can be changed via the \fBservice_timeout=VALUE\fR field in containers.conf.
+See \fBcontainers.conf(5)\fP for more information.
+
+.SH "مثال‌ها (EXAMPLES)"
+Start the user systemd socket for a rootless service.
+
+.EX
+systemctl --user start podman.socket
+.EE
+
+.PP
+Configure DOCKER_HOST environment variable to point to the Podman socket so that
+it can be used via Docker API tools like docker-compose.
+
+.EX
+$ export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
+$ docker-compose up
+.EE
+
+.PP
+Configure the systemd socket to be automatically started after reboots, and run as the specified user.
+
+.EX
+systemctl --user enable podman.socket
+loginctl enable-linger <USER>
+.EE
+
+.PP
+Start the systemd socket for the rootful service.
+
+.EX
+sudo systemctl start podman.socket
+.EE
+
+.PP
+Configure the socket to be automatically started after reboots.
+
+.EX
+sudo systemctl enable podman.socket
+.EE
+
+.PP
+It is possible to run the API without using systemd socket activation.
+In this case the API will not be available on demand because the command will
+stay terminated after the inactivity timeout has passed.
+Run an API with an inactivity timeout of 5 seconds without using socket activation.
+
+.EX
+podman system service --time 5
+.EE
+
+.PP
+The default socket was used as no URI argument was provided.
+
+.PP
+Run an API service with a custom socket path and no timeout:
+
+.EX
+podman system service --time 0 unix:///var/run/mypodman.sock
+.EE
+
+.PP
+This starts the API service listening on the custom socket \fB/var/run/mypodman.sock\fR with no inactivity timeout (runs indefinitely).
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-system-connection(1)\fP, \fBcontainers.conf(5)\fP
+
+.SH "تاریخچه (HISTORY)"
+January 2020, Originally compiled by Brent Baude \fB<bbaude@redhat.com>\fR
+November 2020, Updated by Jhon Honce (jhonce at redhat dot com)

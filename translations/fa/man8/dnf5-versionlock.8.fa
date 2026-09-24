@@ -1,0 +1,182 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "DNF5-VERSIONLOCK" "8" "Sep 06, 2026" "" "dnf5"
+.SH "نام (NAME)"
+dnf5-versionlock \- Versionlock Command
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBdnf5 versionlock <subcommand> <package\-spec\-N>...\fP
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The \fBversionlock\fP command in \fBDNF5\fP takes a set of names and versions for
+packages and excludes all other versions of those packages. This allows you to
+protect packages from being updated by newer versions. Alternately, it accepts
+a specific package version to exclude from updates, e.g. for when it\(aqs
+necessary to skip a specific release of a package that has known issues.
+.sp
+The plugin will walk each entry of the versionlock file, and exclude any
+package of given name that doesn\(aqt match conditions listed within the file.
+This is basically the same as using \fIdnf5 \-\-exclude\fP for the package name itself
+(as you cannot exclude installed packages), but dnf will still see the versions
+you have installed/versionlocked as available so that \fIdnf reinstall\fP will
+still work.
+.sp
+Note the versionlock command does not apply any excludes in non\-transactional
+operations like \fIrepoquery\fP, \fIlist\fP, \fIinfo\fP, etc.
+.SH SUBCOMMANDS
+.INDENT 0.0
+.TP
+.B \fBadd\fP
+.nf
+Add a versionlock for all available packages matching the spec. It means that only versions of packages represented by \fBpackage\-spec\-N\fP are available for transaction operations. The NEVRAs to lock to are first searched among installed packages and then (if none is found) in all currently available packages.
+.fi
+.sp
+.TP
+.B \fBexclude\fP
+.nf
+Add an exclude (within versionlock) for the available packages matching the spec. It means that packages represented by \fBpackage\-spec\-N\fP will be excluded from transaction operations.
+.fi
+.sp
+.TP
+.B \fBclear\fP
+.nf
+Remove all versionlock entries.
+.fi
+.sp
+.TP
+.B \fBdelete\fP
+.nf
+Remove any matching versionlock entries.
+.fi
+.sp
+.TP
+.B \fBlist\fP
+.nf
+List the current versionlock entries.
+.fi
+.sp
+.UNINDENT
+.SH "مثال‌ها (EXAMPLES)"
+.INDENT 0.0
+.TP
+.B \fBdnf5 versionlock add acpi\fP
+.nf
+If acpi package is installed, lock it to currently installed version. If it\(aqs not installed, lock acpi to any of currently available versions.
+.fi
+.sp
+.TP
+.B \fBdnf5 versionlock list\fP
+.nf
+Show current versionlock configuration.
+.fi
+.sp
+.TP
+.B \fBdnf5 versionlock delete acpi\fP
+.nf
+Remove any rules for acpi package.
+.fi
+.sp
+.TP
+.B \fBdnf5 versionlock exclude iftop\-1.2.3\-7.fc38\fP
+.nf
+Exclude iftop\-1.2.3\-7.fc38 release.
+.fi
+.sp
+.UNINDENT
+.SH VERSIONLOCK FILE FORMAT
+.sp
+The versionlock file is a TOML file stored in location \fI/etc/dnf/versionlock.toml\fP\&.
+The file must contain the \fIversion\fP key, currently supported version is \fI1.0\fP\&.
+Then it contains \fIpackages\fP \- a list of locking entries. Each entry consist of the package name and a list of conditions. The package name specification supports the same glob pattern matching as the shell. All the conditions must be true for a package to match (they are combined using logical AND). All entries are then combined together using logical OR operation.
+.SS Example of versionlock file
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+version = \(dq1.0\(dq
+
+# keep package bash on version 0:5.2.15\-5.fc39
+[[packages]]
+name = \(dqbash\(dq               # name of the package
+comment = \(dqdescription\(dq     # optional description of the entry
+[[packages.conditions]]     # conditions for the package \(dqbash\(dq
+key = \(dqevr\(dq                 # epoch, evr, and arch keys are supported
+comparator = \(dq=\(dq            # <, <=, =, >=, >, and != operators are supported
+value = \(dq0:5.2.15\-5.fc39\(dq   # pattern to match
+
+# exclude iftop\-1.2.3\-7.fc38 version (versionlock exclude iftop\-1.2.3\-7.fc38)
+[[packages]]
+name = \(dqiftop\(dq
+[[packages.conditions]]
+key = \(dqevr\(dq
+comparator = \(dq!=\(dq
+value = \(dq0:1.0\-0.31.pre4.fc39\(dq
+
+# keep acpi on major version 3
+[[packages]]
+name = \(dqacpi\(dq
+[[packages.conditions]]
+key = \(dqevr\(dq
+comparator = \(dq<\(dq
+value = \(dq4\(dq
+[[packages.conditions]]
+key = \(dqevr\(dq
+comparator = \(dq>=\(dq
+value = \(dq3\(dq
+
+# keep all *nvidia* packages on version 3:570.*
+[[packages]]
+name = \(dq*nvidia*\(dq
+[[packages.conditions]]
+key = \(dqevr\(dq
+comparator = \(dq>=\(dq
+value = \(dq3:570\(dq
+[[packages.conditions]]
+key = \(dqevr\(dq
+comparator = \(dq<\(dq
+value = \(dq3:571\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.SH "همچنین ببینید (SEE ALSO)"
+.INDENT 0.0
+.INDENT 3.5
+.nf
+\fBdnf5\-specs(7)\fP, Patterns specification \%<#\:specs-misc-ref-label>
+.fi
+.sp
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+See AUTHORS.md in dnf5 source distribution.
+.SH "حق نشر (COPYRIGHT)"
+Contributors to the dnf5 project.
+.\" End of generated man page.

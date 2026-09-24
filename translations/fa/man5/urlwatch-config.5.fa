@@ -1,0 +1,214 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "URLWATCH-CONFIG" "5" "Oct 28, 2024" "urlwatch " "urlwatch  Documentation"
+.SH "نام (NAME)"
+urlwatch-config \- Configuration of urlwatch behavior
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+urlwatch \-\-edit\-config
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The global configuration for urlwatch contains basic settings for the generic
+behavior of urlwatch as well as the \fI\%Reporters\fP\&.
+.SH DISPLAY
+.sp
+In addition to always reporting changes (which is the whole point of urlwatch),
+urlwatch by default reports newly\-added (\fBnew\fP) pages and errors (\fBerror\fP).
+You can change this behavior in the \fBdisplay\fP section of the configuration:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+display:
+  new: true
+  error: true
+  unchanged: false
+  empty\-diff: true
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If you set \fBunchanged\fP to \fBtrue\fP, urlwatch will always report all pages
+that are checked but have not changed.
+.sp
+The \fBempty\-diff\fP settings control what happens if a page is \fBchanged\fP, but
+due to e.g. a \fBdiff_filter\fP the diff is reduced to the empty string. If set
+to \fBtrue\fP, urlwatch will report an (empty) change. If set to \fBfalse\fP, the
+change will not be included in the report.
+.SS Filter changes are not applied for \fBunchanged\fP
+.sp
+Due to the way the filtered output is stored, \fBunchanged\fP will always report
+the old contents with the filters at the time of retrieval, meaning that any
+changes you do to the \fBfilter\fP of a job will not be visible in the
+\fBunchanged\fP report. When the page changes, the new filter will be applied.
+.sp
+For this reason, \fBunchanged\fP cannot be used to test filters, you should use
+the \fB\-\-test\-filter\fP command line option to apply your current filter to the
+current page contents.
+.SH REPORTERS
+.sp
+\(dqReporters\(dq are the modules that deliver notifications through their
+respective medium when they are enabled through the configuration file.
+.sp
+See \fBurlwatch\-reporters(5)\fP for reporter\-specific options.
+.sp
+In addition to the reporter\-specific options, all reporters support these
+options:
+.INDENT 0.0
+.IP \(bu 2
+\fBenabled\fP: \fI[bool]\fP Activate the reporter. (default: False)
+.IP \(bu 2
+\fBseparate\fP: \fI[bool]\fP Send a report for each job rather than a combined
+report for all jobs. (default: False)
+.UNINDENT
+.sp
+Reporters are implemented in a hierarchy, such that these common configuration
+settings will apply to all descendent reporters:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+html
+text
+├───stdout
+├───email
+├───ifttt
+├───webservice
+│   ├───pushover
+│   └───pushbullet
+├───mailgun
+├───telegram
+├───slack
+│   └───mattermost
+├───discord
+├───xmpp
+├───prowl
+└───shell
+markdown
+├───matrix
+└───gotify
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Setting the \fIemail\fP reporter\(aqs \fIhtml\fP option to \fItrue\fP will cause it to
+inherit from the \fIhtml\fP configuration.
+.UNINDENT
+.UNINDENT
+.sp
+Here is an example configuration that reports on standard
+output in color, as well as HTML e\-mail using \fBsendmail\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+report:
+  text:
+    details: true
+    footer: true
+    line_length: 75
+  html:
+    diff: unified
+    separate: true
+  email:
+    enabled: true
+    method: sendmail
+    sendmail:
+        path: /usr/sbin/sendmail
+    from: \(aqurlwatch@example.org\(aq
+    to: \(aqyou@example.org\(aq
+    html: true
+    subject: \(aq{count} changes: {jobs}\(aq
+  stdout:
+    color: true
+    enabled: true
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Any reporter\-specific configuration must be below the \fBreport\fP key
+in the configuration.
+.SH JOB DEFAULTS
+.sp
+If you want to change some settings for all your jobs, edit the
+\fBjob_defaults\fP section in your config file:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+job_defaults:
+  all:
+    diff_tool: wdiff
+  url:
+    ignore_connection_errors: true
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The above config file sets all jobs to use \fBwdiff\fP as diff tool, and all
+\fBurl\fP jobs to ignore connection errors.
+.sp
+The possible sub\-keys to \fBjob_defaults\fP are:
+.INDENT 0.0
+.IP \(bu 2
+\fBall\fP: Applies to all your jobs, independent of its kind
+.IP \(bu 2
+\fBshell\fP: Applies only to \fBshell\fP jobs (with key \fBcommand\fP)
+.IP \(bu 2
+\fBurl\fP: Applies only to \fBurl\fP jobs (with key \fBurl\fP)
+.IP \(bu 2
+\fBbrowser\fP: Applies only to \fBbrowser\fP jobs (with key \fBnavigate\fP)
+.UNINDENT
+.sp
+See \fI\%Jobs\fP about the different job kinds and what the possible keys are.
+.SH "فایل‌ها (FILES)"
+.sp
+\fB$XDG_CONFIG_HOME/urlwatch/urlwatch.yaml\fP
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+\fBurlwatch(1)\fP,
+\fBurlwatch\-reporters(5)\fP,
+\fBurlwatch\-intro(7)\fP,
+\fBurlwatch\-cookbook(7)\fP
+.SH "حق نشر (COPYRIGHT)"
+2024 Thomas Perl
+.\" Generated by docutils manpage writer.
+.

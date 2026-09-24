@@ -1,0 +1,261 @@
+.nh
+.TH podman-volume-create 1
+.SH "نام (NAME)"
+podman-volume-create \- Create a new volume
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman volume create\fP [\fIoptions\fP] [\fIname\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+Creates an empty volume and prepares it to be used by containers. The volume
+can be created with a specific name, if a name is not given a random name is
+generated. You can add metadata to the volume by using the \fB--label\fP flag and
+driver options can be set using the \fB--opt\fP flag.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--driver\fP, \fB-d\fP=\fIdriver\fP
+Specify the volume driver name (default \fBlocal\fP).
+There are two drivers supported by Podman itself: \fBlocal\fP and \fBimage\fP\&.
+
+.PP
+The \fBlocal\fP driver uses a directory on disk as the backend by default, but can also use the \fBmount(8)\fP command to mount a filesystem as the volume if \fB--opt\fP is specified.
+
+.PP
+The \fBimage\fP driver uses an image as the backing store of for the volume.
+An overlay filesystem is created, which allows changes to the volume to be committed as a new layer on top of the image.
+
+.PP
+Using a value other than \fBlocal\fP or \fBimage\fP, Podman attempts to create the volume using a volume plugin with the given name.
+Such plugins must be defined in the \fBvolume_plugins\fP section of the \fBcontainers.conf(5)\fP configuration file.
+
+.SS \fB--gid\fP=\fIgid\fP
+Set the GID that the volume will be created as. Differently than \fB--opt o=gid=*gid*\fR, the specified value is not passed to the mount operation. The specified GID will own the volume's mount point directory and affects the volume chown operation.
+
+.SS \fB--help\fP
+Print usage statement
+
+.SS \fB--ignore\fP
+Don't fail if the named volume already exists, instead just print the name. Note that the new options are not applied to the existing volume.
+
+.SS \fB--label\fP, \fB-l\fP=\fIlabel\fP
+Set metadata for the volume (e.g., \fB--label mykey=value\fR). Can be used multiple times.
+These labels can be viewed in \fBpodman volume inspect\fR or \fBpodman volume ls\fR\&.
+
+.SS \fB--opt\fP, \fB-o\fP=\fIoption\fP
+Set driver specific options.
+For the default driver, \fBlocal\fP, this allows a volume to be configured to mount a filesystem on the host.
+
+.PP
+For the \fBlocal\fR driver the following options are supported: \fBtype\fR, \fBdevice\fR, \fBo\fR, and \fB[no]copy\fR\&.
+.IP \(bu 2
+The \fBtype\fR option sets the type of the filesystem to be mounted, and is equivalent to the \fB-t\fR flag to \fBmount(8)\fP\&.
+.IP \(bu 2
+The \fBdevice\fR option sets the device to be mounted, and is equivalent to the \fBdevice\fR argument to \fBmount(8)\fP\&.
+.IP \(bu 2
+The \fBcopy\fR option enables copying files from the container image path where the mount is created to the newly created volume on the first run.  \fBcopy\fR is the default.
+
+.PP
+The \fBo\fR option sets options for the mount, and is equivalent to the filesystem
+options (also \fB-o\fR) passed to \fBmount(8)\fP with the following exceptions:
+.IP \(bu 2
+The \fBo\fR option supports \fBuid\fR and \fBgid\fR options to set the UID and GID of the created volume that are not normally supported by \fBmount(8)\fP\&.
+.IP \(bu 2
+The \fBo\fR option supports the \fBsize\fR option to set the maximum size of the created volume, the \fBinodes\fR option to set the maximum number of inodes for the volume, and \fBnoquota\fR to completely disable quota support even for tracking of disk usage.
+The \fBsize\fR option is supported on the "tmpfs" and "xfs[note]" file systems.
+The \fBinodes\fR option is supported on the "xfs[note]" file systems.
+Note: xfs filesystems must be mounted with the \fBprjquota\fR flag described in the \fBxfs_quota(8)\fP man page. Podman will throw an error if they're not.
+.IP \(bu 2
+The \fBo\fR option supports using volume options other than the UID/GID options with the \fBlocal\fP driver and requires root privileges.
+.IP \(bu 2
+The \fBo\fR options supports the \fBtimeout\fR option which allows users to set a driver specific timeout in seconds before volume creation fails. For example, \fB--opt=o=timeout=10\fP sets a driver timeout of 10 seconds.
+
+.PP
+\fB\fINote\fP\fP Do not confuse the \fB--opt,-o\fR create option with the \fB-o\fR mount option.  For example, with \fBpodman volume create\fR, use \fB-o=o=uid=1000\fR \fInot\fP \fB-o=uid=1000\fR\&.
+
+.PP
+For the \fBimage\fP driver, the only supported option is \fBimage\fR, which specifies the image the volume is based on.
+This option is mandatory when using the \fBimage\fP driver.
+
+.PP
+When not using the \fBlocal\fP and \fBimage\fP drivers, the given options are passed directly to the volume plugin. In this case, supported options are dictated by the plugin in question, not Podman.
+
+.SS \fB--uid\fP=\fIuid\fP
+Set the UID that the volume will be created as. Differently than \fB--opt o=uid=*uid*\fR, the specified value is not passed to the mount operation. The specified UID will own the volume's mount point directory and affects the volume chown operation.
+
+.SH QUOTAS
+\fBpodman volume create\fR uses \fBXFS project quota controls\fR for controlling the size and the number of inodes of builtin volumes. The directory used to store the volumes must be an \fBXFS\fR file system and be mounted with the \fBpquota\fR option.
+
+.PP
+Example /etc/fstab entry:
+
+.EX
+/dev/podman/podman-var /var xfs defaults,x-systemd.device-timeout=0,pquota 1 2
+.EE
+
+.PP
+Podman generates project IDs for each builtin volume, but these project IDs need to be unique for the XFS file system. These project IDs by default are generated randomly, with a potential for overlap with other quotas on the same file
+system.
+
+.PP
+The xfs_quota tool can be used to assign a project ID to the storage driver directory, e.g.:
+
+.EX
+echo 100000:/var/lib/containers/storage/overlay >> /etc/projects
+echo 200000:/var/lib/containers/storage/volumes >> /etc/projects
+echo storage:100000 >> /etc/projid
+echo volumes:200000 >> /etc/projid
+xfs_quota -x -c 'project -s storage volumes' /<xfs mount point>
+.EE
+
+.PP
+In the example above we are configuring the overlay storage driver for newly
+created containers as well as volumes to use project IDs with a \fBstart offset\fP\&.
+All containers are assigned larger project IDs (e.g. >= 100000).
+All volume assigned project IDs larger project IDs starting with 200000.
+This prevents xfs_quota management conflicts with containers/storage.
+
+.SH "مثال‌ها (EXAMPLES)"
+Create empty volume.
+
+.EX
+$ podman volume create
+.EE
+
+.PP
+Create empty named volume.
+
+.EX
+$ podman volume create myvol
+.EE
+
+.PP
+Create empty named volume with specified label.
+
+.EX
+$ podman volume create --label foo=bar myvol
+.EE
+
+.PP
+Create tmpfs named volume with specified size and mount options.
+
+.EX
+# podman volume create --opt device=tmpfs --opt type=tmpfs --opt o=size=2M,nodev,noexec myvol
+.EE
+
+.PP
+Create tmpfs named volume testvol with specified options.
+
+.EX
+# podman volume create --opt device=tmpfs --opt type=tmpfs --opt o=uid=1000,gid=1000 testvol
+.EE
+
+.PP
+Create volume overriding the owner UID and GID.
+
+.EX
+# podman volume create --uid 1000 --gid 1000 myvol
+.EE
+
+.PP
+Create image named volume using the specified local image in containers/storage.
+
+.EX
+# podman volume create --driver image --opt image=fedora:latest fedoraVol
+.EE
+
+.SH MOUNT EXAMPLES
+\fBpodman volume create\fR allows the \fBtype\fR, \fBdevice\fR, and \fBo\fR options to be passed to \fBmount(8)\fR when using the \fBlocal\fR driver.
+
+.SH s3fs-fuse
+s3fs-fuse or just \fBs3fs\fR, is a fuse filesystem that allows s3 prefixes to be mounted as filesystem mounts.
+
+.PP
+\fBInstalling:\fP
+
+.EX
+$ doas dnf install s3fs-fuse
+.EE
+
+.PP
+\fBSimple usage:\fP
+
+.EX
+$ s3fs --help
+$ s3fs -o use_xattr,endpoint=aq-central-1 bucket:/prefix /mnt
+.EE
+
+.PP
+\fBEquivalent through \fBmount(8)\fR\fP
+
+.EX
+$ mount -t fuse.s3fs -o use_xattr,endpoint=aq-central-1 bucket:/prefix /mnt
+.EE
+
+.PP
+\fBEquivalent through \fBpodman volume create\fR\fP
+
+.EX
+$ podman volume create s3fs-fuse-volume -o type=fuse.s3fs -o device=bucket:/prefix -o o=use_xattr,endpoint=aq-central-1
+.EE
+
+.PP
+\fBThe volume can then be mounted in a container with\fP
+
+.EX
+$ podman run -v s3fs-fuse-volume:/s3:z --rm -it fedora:latest
+.EE
+
+.PP
+Please see the available options on their wiki.
+
+.SS Using with other container users
+The above example works because the volume is mounted as the host user and inside the container \fBroot\fR is mapped to the user in the host.
+
+.PP
+If the mount is accessed by a different user inside the container, a "Permission denied" error will be raised.
+
+.EX
+$ podman run --user bin:bin -v s3fs-fuse-volume:/s3:z,U --rm -it fedora:latest
+$ ls /s3
+# ls: /s3: Permission denied
+.EE
+
+.PP
+In FUSE-land, mounts are protected for the user who mounted them; specify the \fBallow_other\fR mount option if other users need access.
+> Note: This will remove the normal fuse security measures on the mount point, after which, the normal filesystem permissions will have to protect it
+
+.EX
+$ podman volume create s3fs-fuse-other-volume -o type=fuse.s3fs -o device=bucket:/prefix -o o=allow_other,use_xattr,endpoint=aq-central-1
+$ podman run --user bin:bin -v s3fs-fuse-volume:/s3:z,U --rm -it fedora:latest
+$ ls /s3
+.EE
+
+.SS The Prefix must exist
+\fBs3fs\fR will fail to mount if the prefix does not exist in the bucket.
+
+.PP
+Create a s3-directory by putting an empty object at the desired \fBprefix/\fR key
+
+.EX
+$ aws s3api put-object --bucket bucket --key prefix/
+.EE
+
+.PP
+If performance is the priority, please check out the more performant goofys.
+
+.PP
+.RS
+
+.PP
+FUSE filesystems exist for Google Cloud Storage and Azure Blob Storage
+
+.RE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBcontainers.conf(5)\fP, \fBpodman-volume(1)\fP, \fBmount(8)\fP, \fBxfs_quota(8)\fP, \fBxfs_quota(8)\fP, \fBprojects(5)\fP, \fBprojid(5)\fP
+
+.SH "تاریخچه (HISTORY)"
+January 2020, updated with information on volume plugins by Matthew Heon mheon@redhat.com
+\[la]mailto:mheon@redhat.com\[ra]
+November 2018, Originally compiled by Urvashi Mohnani umohnani@redhat.com
+\[la]mailto:umohnani@redhat.com\[ra]

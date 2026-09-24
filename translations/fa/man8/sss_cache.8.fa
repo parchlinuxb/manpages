@@ -1,0 +1,161 @@
+'\" t
+.\"     Title: sss_cache
+.\"    Author: The SSSD upstream - https://github.com/SSSD/sssd/
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 06/09/2026
+.\"    Manual: SSSD Manual pages
+.\"    Source: SSSD
+.\"  Language: English
+.\"
+.TH "SSS_CACHE" "8" "06/09/2026" "SSSD" "SSSD Manual pages"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+sss_cache \- perform cache cleanup
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBsss_cache\fR\ 'u
+\fBsss_cache\fR [\fIoptions\fR]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBsss_cache\fR
+invalidates records in SSSD cache\&. Invalidated records are forced to be reloaded from server as soon as related SSSD backend is online\&. Options that invalidate a single object only accept a single provided argument\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\fB\-E\fR,\fB\-\-everything\fR
+.RS 4
+Invalidate all cached entries\&.
+.RE
+.PP
+\fB\-u\fR,\fB\-\-user\fR \fIlogin\fR
+.RS 4
+Invalidate specific user\&.
+.RE
+.PP
+\fB\-U\fR,\fB\-\-users\fR
+.RS 4
+Invalidate all user records\&. This option overrides invalidation of specific user if it was also set\&.
+.RE
+.PP
+\fB\-g\fR,\fB\-\-group\fR \fIgroup\fR
+.RS 4
+Invalidate specific group\&.
+.RE
+.PP
+\fB\-G\fR,\fB\-\-groups\fR
+.RS 4
+Invalidate all group records\&. This option overrides invalidation of specific group if it was also set\&.
+.RE
+.PP
+\fB\-n\fR,\fB\-\-netgroup\fR \fInetgroup\fR
+.RS 4
+Invalidate specific netgroup\&.
+.RE
+.PP
+\fB\-N\fR,\fB\-\-netgroups\fR
+.RS 4
+Invalidate all netgroup records\&. This option overrides invalidation of specific netgroup if it was also set\&.
+.RE
+.PP
+\fB\-s\fR,\fB\-\-service\fR \fIservice\fR
+.RS 4
+Invalidate specific service\&.
+.RE
+.PP
+\fB\-S\fR,\fB\-\-services\fR
+.RS 4
+Invalidate all service records\&. This option overrides invalidation of specific service if it was also set\&.
+.RE
+.PP
+\fB\-a\fR,\fB\-\-autofs\-map\fR \fIautofs\-map\fR
+.RS 4
+Invalidate specific autofs maps\&.
+.RE
+.PP
+\fB\-A\fR,\fB\-\-autofs\-maps\fR
+.RS 4
+Invalidate all autofs maps\&. This option overrides invalidation of specific map if it was also set\&.
+.RE
+.PP
+\fB\-h\fR,\fB\-\-ssh\-host\fR \fIhostname\fR
+.RS 4
+Invalidate SSH public keys of a specific host\&.
+.RE
+.PP
+\fB\-H\fR,\fB\-\-ssh\-hosts\fR
+.RS 4
+Invalidate SSH public keys of all hosts\&. This option overrides invalidation of SSH public keys of specific host if it was also set\&.
+.RE
+.PP
+\fB\-r\fR,\fB\-\-sudo\-rule\fR \fIrule\fR
+.RS 4
+Invalidate particular sudo rule\&.
+.RE
+.PP
+\fB\-R\fR,\fB\-\-sudo\-rules\fR
+.RS 4
+Invalidate all cached sudo rules\&. This option overrides invalidation of specific sudo rule if it was also set\&.
+.RE
+.PP
+\fB\-d\fR,\fB\-\-domain\fR \fIdomain\fR
+.RS 4
+Restrict invalidation process only to a particular domain\&.
+.RE
+.PP
+\fB\-?\fR,\fB\-\-help\fR
+.RS 4
+Display help message and exit\&.
+.RE
+.SH "EFFECTS ON THE FAST MEMORY CACHE"
+.PP
+\fBsss_cache\fR
+also invalidates the memory cache\&. Since the memory cache is a file which is mapped into the memory of each process which called SSSD to resolve users or groups the file cannot be truncated\&. A special flag is set in the header of the file to indicate that the content is invalid and then the file is unlinked by SSSD\*(Aqs NSS responder and a new cache file is created\&. Whenever a process is now doing a new lookup for a user or a group it will see the flag, close the old memory cache file and map the new one into its memory\&. When all processes which had opened the old memory cache file have closed it while looking up a user or a group the kernel can release the occupied disk space and the old memory cache file is finally removed completely\&.
+.PP
+A special case is long running processes which are doing user or group lookups only at startup, e\&.g\&. to determine the name of the user the process is running as\&. For those lookups the memory cache file is mapped into the memory of the process\&. But since there will be no further lookups this process would never detect if the memory cache file was invalidated and hence it will be kept in memory and will occupy disk space until the process stops\&. As a result calling
+\fBsss_cache\fR
+might increase the disk usage because old memory cache files cannot be removed from the disk because they are still mapped by long running processes\&.
+.PP
+A possible work\-around for long running processes which are looking up users and groups only at startup or very rarely is to run them with the environment variable SSS_NSS_USE_MEMCACHE set to "NO" so that they won\*(Aqt use the memory cache at all and not map the memory cache file into the memory\&. In general a better solution is to tune the cache timeout parameters so that they meet the local expectations and calling
+\fBsss_cache\fR
+is not needed\&.
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBsssd\fR(8),
+\fBsssd.conf\fR(5),
+\fBsssd-ldap\fR(5),
+\fBsssd-ldap-attributes\fR(5),
+\fBsssd-krb5\fR(5),
+\fBsssd-simple\fR(5),
+\fBsssd-ipa\fR(5),
+\fBsssd-ad\fR(5),
+\fBsssd-idp\fR(5),
+\fBsssd-sudo\fR(5),
+\fBsssd-session-recording\fR(5),
+\fBsss_cache\fR(8),
+\fBsss_debuglevel\fR(8),
+\fBsss_obfuscate\fR(8),
+\fBsss_seed\fR(8),
+\fBsssd_krb5_locator_plugin\fR(8),
+\fBsss_ssh_authorizedkeys\fR(1), \fBsss_ssh_knownhosts\fR(1),
+\fBsssd-ifp\fR(5),
+\fBpam_sss\fR(8)\&.
+\fBsss_rpcidmapd\fR(5)
+.SH "نویسندگان (AUTHORS)"
+.PP
+\fBThe SSSD upstream \- https://github\&.com/SSSD/sssd/\fR

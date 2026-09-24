@@ -1,0 +1,237 @@
+.\"
+.\" This file is part of the Detox package.
+.\"
+.\" Copyright (c) Doug Harple <detox.dharple@gmail.com>
+.\"
+.\" For the full copyright and license information, please view the LICENSE
+.\" file that was distributed with this source code.
+.\"
+.Dd February 24, 2021
+.Dt DETOXRC 5
+.Os
+.Sh "نام (NAME)"
+.Nm detoxrc
+.Nd configuration file for
+.Xr detox 1
+.Sh "نمای کلی (OVERVIEW)"
+.Cm detox
+allows for configuration of its sequences through config files.
+This document describes how these files work.
+.Sh IMPORTANT
+When setting up a new set of rules, the
+.Ar safe
+and
+.Ar wipeup
+filters should always be run after a translating filter (or series thereof),
+such as the
+.Ar utf_8
+or the
+.Ar uncgi
+filters.
+Otherwise, the risk of introducing difficult characters into the filename is
+introduced.
+.Sh "سینتکس (SYNTAX)"
+The format of this configuration file is C-like.
+It is based loosely off the configuration files used by
+.Cm named .
+Each statement is semicolon terminated, and modifiers on a particular statement
+are generally contained within braces.
+.Bl -tag -width 0.25i
+.It Cm sequence Qo Ar name Qc Bro Ar sequence; ... Brc ;
+Defines a sequence of filters to run a filename through.
+.Ar name
+specifies how the user will refer to the particular sequence during runtime.
+Quotes around the sequence name are generally optional, but should be used if
+the sequence name does not start with a letter.
+.Pp
+There is a special sequence, named
+.Ar default ,
+which is the default sequence used by
+.Cm detox .
+This can be overridden through the command line option
+.Fl s
+or the environmental variable
+.Ev DETOX_SEQUENCE .
+.Pp
+Sequence names are case sensitive and unique throughout all sequences; that is,
+if a system-wide file defines
+.Ar normal_seq
+and a user has a sequence with the same name in their
+.Pa .detoxrc ,
+the users'
+.Ar normal_seq
+will replace the system-wide version.
+.It Cm ignore Bro Cm filename Qo Ar filename Qc ; ... Brc ;
+Any filename listed here will be ignored during recursion.
+Note that all files beginning with a period, such as
+.Pa .git
+or
+.Pa .config
+will be ignored by
+.Cm detox
+during recursion.
+.It Cm # comments
+Any thing after a # on any line is ignored.
+.El
+.Ss SEQUENCES
+All of these statements occur within a
+.Cm sequence
+block.
+.Bl -tag -width 0.25i
+.It Cm iso8859_1 ;
+.It Cm iso8859_1 Bro Cm builtin Qo Ar name Qc ; Brc ;
+.It Cm iso8859_1 Bro Cm filename Qo Ar /path/to/filename Qc ; Brc ;
+This transcodes ISO-8859-1 characters between 0xA0 and 0xFF into their UTF-8
+equivalents, with a few exceptions.
+The output is not necessarily safe, and should also be run through the
+.Ar safe
+filter.
+.Pp
+If
+.Ar builtin
+is specified, a builtin table with the name specified will be used.
+.Pp
+Under normal circumstances, the filename syntax is not needed.
+.Cm detox
+looks in several locations for a file called
+.Pa iso8859_1.tbl ,
+which is a set of rules defining how an ISO-8859-1 character should be
+translated.
+If
+.Cm detox
+can't find the translation table, it will fall back on the builtin table
+.Pa iso8859_1 .
+.Pp
+You can also download or create your own, and tell
+.Cm detox
+the location of it using the filename syntax shown above.
+.Pp
+You can chain together multiple
+.Ar iso8859_1
+filters, as long as the default value of all but the last one it empty.
+This is explained in
+.Xr detox.tbl 5 .
+.Pp
+This filter is mutually exclusive with the
+.Ar utf_8
+filter.
+.It Cm utf_8 ;
+.It Cm utf_8 Bro Cm builtin Qo Ar name Qc ; Brc ;
+.It Cm utf_8 Bro Cm filename Qo Ar /path/to/filename Qc ; Brc ;
+This filters Unicode control characters, encoded using UTF-8.
+.Pp
+This operates in a manner similar to
+.Ar iso8859_1 ,
+except it looks for a translation table called
+.Pa unicode.tbl .
+.Pp
+Similar to the
+.Ar iso8859_1
+filter, an internal table exists, based on the stock translation table, called
+.Pa unicode .
+.It Cm uncgi ;
+This translates CGI-escaped strings into their ASCII equivalents.
+The output of this is not necessarily safe, and should be run through the
+.Ar safe
+filter, at the least.
+.It Cm safe ;
+.It Cm safe Bro Cm builtin Qo Ar name Qc ; Brc ;
+.It Cm safe Bro Cm filename Qo Ar /path/to/filename Qc ; Brc ;
+This could also be called "safe for Unix-like operating systems".
+It translates characters that are difficult to work with in Unix environments
+into characters that are not.
+.Pp
+Similar to the
+.Ar iso8859_1
+and
+.Ar utf_8
+filters, this can be controlled using a translation table.
+This filter also has an internal version of the translation table, which can be
+accessed via the builtin table
+.Ar safe .
+.It Cm wipeup ;
+.It Cm wipeup Bro Cm remove_trailing ; Brc ;
+Reduces any series of underscores or dashes to a single character.
+The dash takes precedence.
+.Pp
+If
+.Cm remove_trailing
+is set, then periods are added to the set of characters
+to work on.
+The period then takes precedence, followed by the dash.
+.Pp
+If a hash character, underscore, or dash are present at the start of the
+filename, they will be removed.
+.It Cm max_length Bro Cm length Ar value ; Brc ;
+This trims a filename down to the length specified (or less).
+It is conscious of extensions and attempts to preserve anything following the
+last period in a filename.
+.Pp
+For instance, given a max length of 12, and a filename of
+.Pa this_is_my_file.txt ,
+the filter would output
+.Pa this_is_.txt .
+.It Cm lower ;
+This translates uppercase characters into lowercase characters.
+It only works on ASCII characters.
+.El
+.Sh BUILTIN TABLES
+.Bl -tag -width 0.25i
+.It cp1252
+A translation table for transcoding CP-1252 characters to UTF-8, with a few
+exceptions.
+This is no longer a common use case, and has been moved to a separate table.
+.It iso8859_1
+A translation table for transcoding single-byte characters with the high bit
+set from ISO-8859-1 to UTF-8.
+.It safe
+A replacement table for characters that are hard to work with under Unix and
+Unix-like OSs.
+.It unicode
+A translation table for converting multi-byte control characters encoded in
+UTF-8 to safe characters.
+.El
+.Sh "مثال‌ها (EXAMPLES)"
+.Bd -literal
+.\" START SAMPLE
+# filter UTF-8 control characters to ASCII (using chained tables), clean up
+sequence utf8 {
+  utf_8 {
+    filename "/usr/local/share/detox/custom.tbl";
+  };
+  utf_8 {
+    builtin "unicode";
+  };
+  safe {
+    builtin "safe";
+  };
+  wipeup {
+    remove_trailing;
+  };
+  max_length {
+    length 128;
+  };
+};
+# decode CGI, transcode CP-1252 to UTF-8, clean up
+sequence "cgi-cp1252" {
+  uncgi;
+  iso8859_1 {
+    builtin "cp1252";
+  };
+  safe {
+    builtin "safe";
+  };
+};
+.\" END SAMPLE
+.Ed
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr detox 1 ,
+.Xr inline-detox 1 ,
+.Xr detox.tbl 5 ,
+.Xr ascii 7 ,
+.Xr iso_8859-1 7 ,
+.Xr unicode 7 ,
+.Xr utf-8 7
+.Sh "نویسندگان (AUTHORS)"
+detox was written by
+.An "Doug Harple" .

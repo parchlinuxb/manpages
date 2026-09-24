@@ -1,0 +1,226 @@
+.nh
+.TH podman-image-trust 1
+.SH "نام (NAME)"
+podman-image-trust \- Manage container registry image trust policy
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman image trust\fP set|show [\fIoptions\fP] \fIregistry[/repository]\fP
+
+.SH "توضیحات (DESCRIPTION)"
+Manages which registries to trust as a source of container images  based on its location. (This option is not available with the remote Podman client, including Mac and Windows (excluding WSL2) machines)
+
+.PP
+The location is determined
+by the transport and the registry host of the image.  Using this container image \fBdocker://docker.io/library/busybox\fR
+as an example, \fBdocker\fR is the transport and \fBdocker.io\fR is the registry host.
+
+.PP
+Trust is defined in \fB/etc/containers/policy.json\fP and is enforced when a user attempts to pull
+a remote image from a registry.  The trust policy in policy.json describes a registry scope (registry and/or repository) for the trust.  This trust can use public keys for signed images.
+
+.PP
+The scope of the trust is evaluated from most specific to the least specific. In other words, a policy may be:
+.IP \(bu 2
+Defined to an entire registry.
+.IP \(bu 2
+Defined to a particular repository in that registry.
+.IP \(bu 2
+Defined to a specific signed image inside of the registry.
+
+.PP
+The following list are examples of valid scope values used in policy.json from most specific to the least specific:
+
+.PP
+docker.io/library/busybox:notlatest
+
+.PP
+docker.io/library/busybox
+
+.PP
+docker.io/library
+
+.PP
+docker.io
+
+.PP
+If no configuration is found for any of these scopes, the default value (specified by using "default" instead of REGISTRY[/REPOSITORY]) is used.
+
+.PP
+Trust \fBtype\fP provides a way to:
+
+.PP
+Allowlist ("accept") or
+Denylist ("reject") registries or
+Require a simple signing signature (“signedBy”),
+Require a sigstore signature ("sigstoreSigned").
+
+.PP
+Trust may be updated using the command \fBpodman image trust set\fP for an existing trust scope.
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS \fB--help\fP, \fB-h\fP
+Print usage statement.
+
+.SS set OPTIONS
+.SS \fB--pubkeysfile\fP, \fB-f\fP=\fIKEY1\fP
+A path to an exported public key on the local system. Key paths
+  are referenced in policy.json. Any path to a file may be used but locating the file in \fB/etc/pki/containers\fP is recommended. Options may be used multiple times to
+  require an image be signed by multiple keys.  The \fB--pubkeysfile\fP option is required for the \fBsignedBy\fP and \fBsigstoreSigned\fP types.
+
+.SS \fB--signature-policy\fP=\fIpath\fP
+Path to the signature policy file (\fBpolicy.json\fP) that Podman updates. This option is required for \fBset\fP\&.
+
+.SS \fB--type\fP, \fB-t\fP=\fIvalue\fP
+The trust type for this policy entry.
+  Accepted values:
+    \fBsignedBy\fP (default): Require simple signing signatures with corresponding list of
+                        public keys
+    \fBsigstoreSigned\fP: Require sigstore signatures with corresponding list of
+                        public keys
+    \fBaccept\fP: do not require any signatures for this
+            registry scope
+    \fBreject\fP: do not accept images for this registry scope
+
+.SS show OPTIONS
+.SS \fB--json\fP, \fB-j\fP
+Output trust as JSON for machine parsing
+
+.SS \fB--noheading\fP, \fB-n\fP
+Omit the table headings from the listing.
+
+.SS \fB--raw\fP
+Output trust policy file as raw JSON
+
+.SS \fB--signature-policy\fP=\fIpath\fP
+Path to the signature policy file (\fBpolicy.json\fP) to display. When omitted, Podman resolves the policy path from the system configuration the same way it selects a policy for image pulls.
+
+.SH "مثال‌ها (EXAMPLES)"
+Accept all unsigned images from a registry:
+
+.EX
+sudo podman image trust set --signature-policy /etc/containers/policy.json --type accept docker.io
+.EE
+
+.PP
+Modify default trust policy:
+
+.EX
+sudo podman image trust set --signature-policy /etc/containers/policy.json -t reject default
+.EE
+
+.PP
+Display system trust policy:
+
+.EX
+podman image trust show
+TRANSPORT      NAME                        TYPE        ID                   STORE
+all            default                     reject
+repository     docker.io/library           accept
+repository     registry.access.redhat.com  signed      security@redhat.com  https://access.redhat.com/webassets/docker/content/sigstore
+repository     registry.redhat.io          signed      security@redhat.com  https://registry.redhat.io/containers/sigstore
+repository     docker.io                   reject
+docker-daemon                              accept
+.EE
+
+.PP
+Display trust policy file:
+
+.EX
+podman image trust show --raw
+{
+    "default": [
+        {
+            "type": "reject"
+        }
+    ],
+    "transports": {
+        "docker": {
+            "docker.io": [
+                {
+                    "type": "reject"
+                }
+            ],
+            "docker.io/library": [
+                {
+                    "type": "insecureAcceptAnything"
+                }
+            ],
+            "registry.access.redhat.com": [
+                {
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "/etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release"
+                }
+            ],
+            "registry.redhat.io": [
+                {
+                    "type": "signedBy",
+                    "keyType": "GPGKeys",
+                    "keyPath": "/etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release"
+                }
+            ]
+        },
+        "docker-daemon": {
+            "": [
+                {
+                    "type": "insecureAcceptAnything"
+                }
+            ]
+        }
+    }
+}
+.EE
+
+.PP
+Display trust as JSON:
+
+.EX
+podman image trust show --json
+[
+  {
+    "transport": "all",
+    "name": "* (default)",
+    "repo_name": "default",
+    "type": "reject"
+  },
+  {
+    "transport": "repository",
+    "name": "docker.io",
+    "repo_name": "docker.io",
+    "type": "reject"
+  },
+  {
+    "transport": "repository",
+    "name": "docker.io/library",
+    "repo_name": "docker.io/library",
+    "type": "accept"
+  },
+  {
+    "transport": "repository",
+    "name": "registry.access.redhat.com",
+    "repo_name": "registry.access.redhat.com",
+    "sigstore": "https://access.redhat.com/webassets/docker/content/sigstore",
+    "type": "signed",
+    "gpg_id": "security@redhat.com"
+  },
+  {
+    "transport": "repository",
+    "name": "registry.redhat.io",
+    "repo_name": "registry.redhat.io",
+    "sigstore": "https://registry.redhat.io/containers/sigstore",
+    "type": "signed",
+    "gpg_id": "security@redhat.com"
+  },
+  {
+    "transport": "docker-daemon",
+    "type": "accept"
+  }
+]
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBcontainers-policy.json(5)\fP
+
+.SH "تاریخچه (HISTORY)"
+January 2019, updated by Tom Sweeney (tsweeney at redhat dot com)
+December 2018, originally compiled by Qi Wang (qiwan at redhat dot com)

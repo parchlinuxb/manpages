@@ -1,0 +1,96 @@
+'\" t
+.nh
+.TH podman-manifest 1
+.SH "نام (NAME)"
+podman-manifest \- Create and manipulate manifest lists and image indexes
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBpodman manifest\fP \fIsubcommand\fP
+
+.SH "توضیحات (DESCRIPTION)"
+The \fBpodman manifest\fR command provides subcommands which can be used to:
+
+.EX
+* Create a working Docker manifest list or OCI image index.
+.EE
+
+.SH SUBCOMMANDS
+.TS
+allbox;
+l l l 
+l l l .
+\fBCommand\fP	\fBMan Page\fP	\fBDescription\fP
+add	podman-manifest-add(1)	T{
+Add an image or artifact to a manifest list or image index.
+T}
+annotate	podman-manifest-annotate(1)	T{
+Add and update information about an image or artifact in a manifest list or image index.
+T}
+create	podman-manifest-create(1)	T{
+Create a manifest list or image index.
+T}
+exists	podman-manifest-exists(1)	T{
+Check if the given manifest list exists in local storage
+T}
+inspect	podman-manifest-inspect(1)	T{
+Display a manifest list or image index.
+T}
+push	podman-manifest-push(1)	T{
+Push a manifest list or image index to a registry.
+T}
+remove	podman-manifest-remove(1)	T{
+Remove an item from a manifest list or image index.
+T}
+rm	podman-manifest-rm(1)	T{
+Remove manifest list or image index from local storage.
+T}
+.TE
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS Building a multi-arch manifest list from a Containerfile
+Assuming the \fBContainerfile\fR uses \fBRUN\fR instructions, the host needs
+a way to execute non-native binaries.  Configuring this is beyond
+the scope of this example.  Building a multi-arch manifest list
+\fBshazam\fR in parallel across 4-threads can be done like this:
+
+.EX
+    $ platarch=linux/amd64,linux/ppc64le,linux/arm64,linux/s390x
+    $ podman build --jobs=4 --platform=$platarch --manifest shazam .
+.EE
+
+.PP
+\fBNote:\fP The \fB--jobs\fR argument is optional. Do not use the \fBpodman build\fR command's \fB--tag\fR (or \fB-t\fR) option when building a multi-arch manifest list.
+
+.SS Assembling a multi-arch manifest from separately built images
+Assuming \fBexample.com/example/shazam:$arch\fR images are built separately
+on other hosts and pushed to the \fBexample.com\fR registry.  They may
+be combined into a manifest list, and pushed using a simple loop:
+
+.EX
+    $ REPO=example.com/example/shazam
+    $ podman manifest create $REPO:latest
+    $ for IMGTAG in amd64 s390x ppc64le arm64; do   
+              podman manifest add $REPO:latest docker://$REPO:IMGTAG;   
+          done
+    $ podman manifest push --all $REPO:latest
+.EE
+
+.PP
+\fBNote:\fP The \fBadd\fR instruction argument order is \fB<manifest>\fR then \fB<image>\fR\&.
+Also, the \fB--all\fR push option is required to ensure all contents are
+pushed, not just the native platform/arch.
+
+.SS Removing and tagging a manifest list before pushing
+Special care is needed when removing and pushing manifest lists, as opposed
+to the contents.  You almost always want to use the \fBmanifest rm\fR and
+\fBmanifest push --all\fR subcommands.  For example, a rename and push can
+be performed like this:
+
+.EX
+    $ podman tag localhost/shazam example.com/example/shazam
+    $ podman manifest rm localhost/shazam
+    $ podman manifest push --all example.com/example/shazam
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBpodman(1)\fP, \fBpodman-manifest-add(1)\fP, \fBpodman-manifest-annotate(1)\fP, \fBpodman-manifest-create(1)\fP, \fBpodman-manifest-inspect(1)\fP, \fBpodman-manifest-push(1)\fP, \fBpodman-manifest-remove(1)\fP

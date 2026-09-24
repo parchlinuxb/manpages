@@ -1,0 +1,464 @@
+.\" -*- mode: troff; coding: utf-8 -*-
+.TH "" "5" ""
+.SH "نام (NAME)"
+.LP
+\fBvoa\fR \- Configuration file format for VOA technology backends.
+.SH "توضیحات (DESCRIPTION)"
+.LP
+A YAML configuration file that encodes the \fIOS\fR-level and/or \fIcontext\fR-level settings for technology backends used in the \fIFile Hierarchy for the \f(BIV\fIerification of \f(BIO\fIS \f(BIA\fIrtifacts\fR (\fBVOA\fR[1]).
+.PP
+Each configuration file tracks a \fBVOA\fR \fIOS\fR identifier in its file name, (e.g. \(lqarch.yaml\(rq for the \(lqarch\(rq \fIOS\fR, \(lqdebian:13.yaml\(rq for the \(lqdebian:13\(rq \fIOS\fR - refer to the \fBVOA\fR specification for details on the allowed character set).
+.PP
+Each configuration file must be a regular file to be considered.
+.SS
+Directories and precedence
+.LP
+The handling of configuration files is based on the \fBConfiguration Files Specification\fR[2].
+.PP
+For system users \fBvoa\fR files are read from the system \fBVOA\fR directories \(lq/usr/share/voa/\(rq and \(lq/usr/local/share/voa/\(rq, the volatile runtime directory \(lq/run/voa/\(rq and the local administration directory \(lq/etc/voa/\(rq.
+For real users, in addition to the system-wide configuration directories, \fBvoa\fR files are also read from \(lqvoa/\(rq directories in \(lq$XDG_CONFIG_DIRS\(rq and from the \(lqvoa/\(rq directory in \(lq$XDG_CONFIG_HOME\(rq (see \fBXDG Base Directory Specification\fR[3]).
+.PP
+The order of the aforementioned directories describes the order of precedence in increasing priority.
+A file from a directory with higher priority fully replaces one from a directory with lower priority (e.g. \(lq/etc/voa/example.yaml\(rq replaces \(lq/usr/share/voa/example.yaml\(rq, \(lq\(ti/.config/voa/example.yaml\(rq replaces \(lq/etc/voa/example.yaml\(rq).
+.PP
+The \fBvoa\fR configuration file format can also be used in drop-in configuration files.
+A drop-in is created for a specific \fIOS\fR by adding a \fBvoa\fR configuration file in an override directory in one of the configuration directories (e.g. \(lq/etc/voa/example.yaml.d/99-custom-repo.yaml\(rq providing settings for a custom repository on the \(lqexample\(rq \fIOS\fR, which overrides the more generic technology settings of the \fIOS\fR in \(lq/usr/share/voa/example.yaml\(rq).
+Note that drop-in configurations are read in lexicographic order, based on their file name, regardless of the directory precedence of their location.
+.PP
+Each \fBvoa\fR configuration file can be masked by creating a symlink to /dev/null in its place (e.g. \(lq/etc/voa/example.yaml -> /dev/null\(rq will cause the file \(lq/usr/share/voa/example.yaml\(rq to not be considered).
+.SS
+Merging of built-in defaults, OS and context-level settings
+.LP
+When deriving \fIOS\fR or \fIcontext\fR-level technology settings from \fBvoa\fR configuration files, built-in defaults may be considered.
+.PP
+After reading all configuration and drop-in configuration files, the available \fIOS\fR-level technology settings are constructed from them, with unset fields populated using already existing \fIOS\fR-level settings, or built-in defaults.
+.PP
+Eventually, the available \fIcontext\fR-level technology settings are constructed from the configuration and drop-in configuration files, with unset fields populated using - depending on availability - \fIOS\fR-level defaults, or built-in defaults.
+.PP
+\fBNOTE\fR: The following merging logic applies - unless stated otherwise - for all optional fields in the configuration file objects:
+If an optional field is omitted or set to \f(CRnull\fR, a concrete value for it is derived either from \fIOS\fR-level, or if not provided there either, built-in defaults.
+While this allows for rich override and inheritance logic, it also implies the necessity to be explicit where necessary!
+.PP
+If an \fIOS\fR is not covered by a specific configuration or drop-in configuration file, the built-in defaults apply.
+.SH "قالب فایل (FILE FORMAT)"
+.LP
+The file must contain valid YAML data and all of the following described required fields and values must be present.
+Invalid \fBvoa\fR files are ignored.
+.SS
+\(lqdefault_technology_settings\(rq object
+.LP
+The top-level object in the file which contains option objects for each available technology backend used in VOA.
+.PP
+\fBWARNING\fR: For the \fBvoa\fR file as a whole to be considered valid, this object must be defined, if the \fB\(lqcontexts\(rq\fR list is empty!
+.SS
+\(lqopenpgp\(rq object
+.LP
+The object describes the settings for the OpenPGP backend.
+Verification is based on \fBOpenPGP signatures\fR[4] and \fBOpenPGP certificates\fR[5].
+Several verification methods are available.
+.SS
+\(lqnum_data_signatures\(rq number
+.LP
+The \fIoptional\fR number of \fBOpenPGP signatures\fR from individual issuing \fBOpenPGP certificates\fR required for an artifact to be considered verified.
+.PP
+If set, the value must be a non-zero, positive integer (built-in default: \fI1\fR).
+.SS
+\(lqverification_method\(rq object
+.LP
+The method used to verify \fBOpenPGP signatures\fR using \fBOpenPGP certificates\fR.
+The value must be one of the following objects.
+.SS
+\(lqplain\(rq verification method object
+.LP
+The \(lqplain\(rq verification method for \fBOpenPGP signatures\fR is a basic form of verification, that only considers \fIartifact verifiers\fR but no \fItrust anchors\fR.
+With it, one or more of the found \fIartifact verifiers\fR for a verification query must be used to successfully verify one or more \fBOpenPGP signatures\fR.
+.PP
+To constrain the set of \fBOpenPGP certificates\fR allowed as \fIartifact verifiers\fR, it can be filtered by domain name matches against valid \fBOpenPGP User IDs\fR[6] and/or \fBOpenPGP fingerprint\fR[7].
+If no filters are defined, all \fBOpenPGP certificates\fR found in an \fIartifact verifier\fR location of a given \fIcontext\fR are considered as \fIartifact verifiers\fR.
+.SS
+\(lqidentity_domain_matches\(rq set
+.LP
+An \fIoptional\fR set of valid domain names, that is used to filter \fIartifact verifiers\fR.
+.PP
+If the set has entries, a valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a given \fIcontext\fR is only considered if one of its valid \fBOpenPGP User IDs\fR matches one of the domain names.
+.PP
+If the set is empty (the built-in default), no filtering based on domain names occurs and any valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a given \fIcontext\fR is considered (assuming no other filter prevents it).
+.SS
+\(lqfingerprint_matches\(rq set
+.LP
+An \fIoptional\fR set of \fBOpenPGP fingerprints\fR, that is used to filter \fIartifact verifiers\fR.
+.PP
+\fBWARNING\fR: The number of entries in this set must be equal to or greater than the number of required data signatures (see \fB\(lqnum_data_signatures\(rq\fR) for the verification method as a whole to be considered valid!
+.PP
+If the set has entries, a valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a given \fIcontext\fR is only considered if its \fBOpenPGP fingerprint\fR matches one of the fingerprints from the set.
+.PP
+If the set is empty (the built-in default), no filtering based on fingerprints occurs and any valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a given \fIcontext\fR is considered (assuming no other filter prevents it).
+.SS
+\(lqtrust_anchor\(rq verification method object
+.LP
+The \(lqtrust anchor\(rq verification method for \fBOpenPGP signatures\fR is a basic form of \fItrust anchor\fR based verification, that considers both \fIartifact verifiers\fR and \fItrust anchors\fR when verifying a signature.
+With it, each \fIartifact verifier\fR must be certified by a specific number of the available \fItrust anchors\fR to be considered for the verification of \fBOpenPGP signatures\fR.
+.PP
+To constrain the set of valid \fBOpenPGP certificates\fR allowed as \fIartifact verifier\fR, it can be filtered by domain name matches against valid \fBOpenPGP User IDs\fR.
+To constrain the set of valid \fBOpenPGP certificates\fR allowed as \fItrust anchor\fR, it can be filtered by \fBOpenPGP fingerprints\fR.
+.SS
+\(lqrequired_certifications\(rq number
+.LP
+The \fIoptional\fR number of \fBOpenPGP third-party certifications\fR[8] of \fItrust anchors\fR on \fIartifact verifiers\fR for an \fIartifact verifier\fR to be considered fully trusted.
+If set, the value must be a non-zero, positive integer (built-in default: \fI3\fR).
+.SS
+\(lqartifact_verifier_identity_domain_matches\(rq set
+.LP
+An \fIoptional\fR set of valid domain names, that is used to filter \fIartifact verifiers\fR.
+.PP
+If the set has entries, a valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a given \fIcontext\fR is only considered if one of its valid \fBOpenPGP User IDs\fR matches one of the domain names from the set and it has the required amount of \fBOpenPGP third-party certifications\fR from valid \fItrust anchors\fR.
+.PP
+If the set is empty (the built-in default), no filtering based on domain names occurs and any valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location which has at least one \fBOpenPGP User ID\fR with the required amount of \fBOpenPGP third-party certifications\fR from valid \fItrust anchors\fR is considered.
+.SS
+\(lqtrust_anchor_fingerprint_matches\(rq set
+.LP
+An \fIoptional\fR set of \fBOpenPGP fingerprints\fR, that is used to filter \fItrust anchors\fR.
+.PP
+\fBWARNING\fR: The number of entries in this set must be equal to or greater than the number of required certifications (see \fB\(lqrequired_certifications\(rq\fR) for the verification method as a whole to be considered valid!
+.PP
+If the set has entries, a valid \fBOpenPGP certificate\fR found in the \fItrust anchor\fR location of a given \fIcontext\fR is only considered if its \fBOpenPGP fingerprint\fR matches one of the fingerprints from the set.
+.PP
+If the set is empty (the built-in default), no filtering based on fingerprints occurs and any valid \fBOpenPGP certificate\fR found in the \fItrust anchor\fR location of a given \fIcontext\fR is considered.
+.SS
+\(lqweb_of_trust\(rq verification method object
+.LP
+The \fBWeb of Trust\fR[9] verification method for \fBOpenPGP signatures\fR is a flexible form of trust based verification, which relies on the \fBBerblom algorithm\fR[10].
+It considers both \fIartifact verifiers\fR and \fItrust anchors\fR.
+With it, each \fIartifact verifier\fR must reach a configurable amount of trust to be considered for the verification of \fBOpenPGP signatures\fR.
+Here, the trust amount is calculated by a \(lqWeb of Trust\(rq network, which relies on implicit or explicit trust roots and configurable trust amounts for partially trusted introducers in the network.
+.PP
+To constrain the set of valid \fBOpenPGP certificates\fR allowed as \fIartifact verifier\fR, it can be filtered by domain name matches against valid \fBOpenPGP User IDs\fR.
+To constrain the set of valid \fBOpenPGP certificates\fR allowed as \fItrust anchor\fR, it can be filtered by \fBOpenPGP fingerprints\fR.
+.SS
+\(lqflow_amount\(rq number
+.LP
+The \fIoptional\fR trust amount required for a flow in a \(lqWeb of Trust\(rq network to be considered \(lqfully trusted\(rq.
+This signifies the target trust amount that an \fIartifact verifier\fR must reach for it to be considered for the verification of \fBOpenPGP signatures\fR.
+.PP
+If set, the value must be a non-zero, positive integer (built-in default: \fI120\fR).
+.SS
+\(lqpartial_amount\(rq number
+.LP
+The \fIoptional\fR trust amount for a partially trusted introducer in a \(lqWeb of Trust\(rq network.
+This signifies the trust amount of an \fBOpenPGP certificate\fR considered on a path between \fItrust anchor\fR and \fIartifact verifier\fR.
+.PP
+If set, the value must be an integer between \fI1\fR and \fI120\fR (built-in default: \fI40\fR).
+.SS
+\(lqroots\(rq set of objects
+.LP
+An set of trust roots for the \(lqWeb of Trust.
+Each object in this set signifies an \fBOpenPGP certificate\fR that is considered as \fItrust root\fR, alongside its specific \fItrust amount\fR.
+.PP
+Each trust root is an object with the following two fields:
+.IP "\(bu" 3
+\fB\(lqfingerprint\(rq\fR: An \fBOpenPGP fingerprint\fR.
+.IP "\(bu" 3
+\fB\(lqamount\(rq\fR: The \fIoptional\fR trust amount assigned to the trust root.
+If set, the value must be an integer between \fI1\fR and \fI120\fR (built-in default: \fI120\fR).
+.IP
+\fBNOTE\fR: If this field is omitted, a concrete value is derived from built-in defaults.
+.LP
+If the set has entries, a valid \fBOpenPGP certificate\fR found in the \fItrust anchor\fR location of the VOA hierarchy for a given \fIcontext\fR is considered as \fItrust root\fR with the specific \fItrust amount\fR if its \fBOpenPGP fingerprint\fR matches that of a \fB\(lqfingerprint\(rq\fR in the set.
+.PP
+If the set is empty, any valid \fBOpenPGP certificate\fR found in the \fItrust anchor\fR location of the VOA hierarchy for a given \fIcontext\fR is considered as \fItrust root\fR with a \fItrust amount\fR of \fI120\fR.
+.SS
+\(lqartifact_verifier_identity_domain_matches\(rq set
+.LP
+An \fIoptional\fR set of valid domain names, that is used to filter \fIartifact verifiers\fR.
+.PP
+If the set has entries, a valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a given \fIcontext\fR is only considered if one of its valid \fBOpenPGP User IDs\fR matches one of the domain names from the set and it has the required target trust amount (see \fB\(lqflow_amount\(rq\fR).
+.PP
+If the set is empty, no filtering based on domain names occurs and any valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location which has at least one \fBOpenPGP User ID\fR with the required target trust amount (see \fB\(lqflow_amount\(rq\fR) is considered.
+.SS
+\(lqcontexts\(rq list of objects
+.LP
+A list of zero or more objects, that each provide a \fIcontext\fR-level override to the technology settings imposed by the \fIOS\fR (if any) or the built-in defaults.
+.PP
+\fBWARNING\fR: For the \fBvoa\fR file as a whole to be considered valid, the \fB\(lqdefault_technology_settings\(rq\fR object must be defined, if this list is empty or the field is not set!
+.SS
+\(lqpurpose\(rq string
+.LP
+The \fBVOA\fR \fIpurpose\fR of the \fIOS\fR, that is targeted.
+Refer to the VOA specification for details on the allowed character set.
+.SS
+\(lqcontext\(rq string
+.LP
+The \fBVOA\fR \fIcontext\fR of the \fIOS\fR, that is targeted.
+Refer to the VOA specification for details on the allowed character set.
+.SS
+\(lqtechnology_settings\(rq object
+.LP
+Technology settings for the \fB\(lqpurpose\(rq\fR and \fB\(lqcontext\(rq\fR of the \fIOS\fR targeted by the configuration file name (or drop-in directory name).
+.PP
+The settings in this object override the less specific \fIOS\fR-level or built-in technology settings.
+Refer to the \fB\(lqdefault_technology_settings\(rq\fR section for an overview of the expected object.
+.SH "مثال‌ها (EXAMPLES)"
+.SS
+Defaults
+.LP
+The below represents the built-in defaults for technology settings.
+.LP
+.EX
+default_technology_settings:
+  openpgp:
+    num_data_signatures: 1
+    verification_method:
+      trust_anchor:
+        required_certifications: 3
+        artifact_verifier_identity_domain_matches:
+        trust_anchor_fingerprint_matches:
+.EE
+.PP
+The configuration targets the basic \(lqtrust anchor\(rq method for OpenPGP, requiring a single data signature for artifacts and at least three certifications on \fIartifact verifiers\fR from \fItrust anchors\fR.
+.PP
+The set of domain name matches for \fIartifact verifiers\fR and OpenPGP fingerprint matches for \fItrust anchors\fR are left empty on purpose, which means that no specific restrictions on those verifiers are imposed.
+.SS
+OpenPGP \(lqplain\(rq verification method
+.LP
+The following configuration example targets the \(lqplain\(rq verification method for OpenPGP.
+.LP
+.EX
+default_technology_settings:
+  openpgp:
+    num_data_signatures: 1
+    verification_method:
+      plain:
+        identity_domain_matches:
+          - example.org
+          - sub.example.org
+        fingerprint_matches:
+          - d3b0f7c0b825ecbb0f0d7398072947e7b1537b6f
+          - e242ed3bffccdf271b7fbaf34ed72d089537b42f
+          - f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
+.EE
+.PP
+Assuming that the above contents reside in the file \(lq/usr/share/voa/example.yaml\(rq, for the \fIOS\fR \(lqexample\(rq the following verification rules apply:
+.PP
+A single data signature from a valid \fIartifact verifier\fR is required for artifacts to be verified.
+Further, the following restrictions are imposed on OpenPGP certificates found in the \fIartifact verifier\fR location of a specific \fIcontext\fR to be considered valid:
+.IP "\(bu" 3
+A valid \fBOpenPGP User ID\fR must match either the domain \(lqexample.org\(rq or \(lqsub.example.org\(rq.
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.IP "\(bu" 3
+The \fBOpenPGP fingerprint\fR must match \(lqd3b0f7c0b825ecbb0f0d7398072947e7b1537b6f\(rq, \(lqe242ed3bffccdf271b7fbaf34ed72d089537b42f\(rq, or \(lqf1d2d2f924e986ac86fdf7b36c94bcdf32beec15\(rq
+.SS
+OpenPGP basic \(lqtrust anchor\(rq verification method
+.LP
+The following configuration example targets the basic \(lqtrust anchor\(rq verification method for OpenPGP.
+.LP
+.EX
+default_technology_settings:
+  openpgp:
+    num_data_signatures: 1
+    verification_method:
+      trust_anchor:
+        required_certifications: 3
+        artifact_verifier_identity_domain_matches:
+          - example.org
+          - sub.example.org
+        trust_anchor_fingerprint_matches:
+          - d3b0f7c0b825ecbb0f0d7398072947e7b1537b6f
+          - e242ed3bffccdf271b7fbaf34ed72d089537b42f
+          - f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
+.EE
+.PP
+Assuming that the above contents reside in the file \(lq/usr/share/voa/example.yaml\(rq, for the \fIOS\fR \(lqexample\(rq the following verification rules apply:
+.PP
+A single data signature from a valid \fIartifact verifier\fR is required for artifacts to be verified.
+Each \fIartifact verifier\fR must be certified by three \fItrust anchors\fR.
+.PP
+A valid \fBOpenPGP User ID\fR of a valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a specific \fIcontext\fR must match either the domain \(lqexample.org\(rq or \(lqsub.example.org\(rq for the certificate to be considered as \fIartifact verifier\fR.
+.PP
+The \fBOpenPGP fingerprint\fR of a valid \fBOpenPGP certificate\fR found in the \fItrust anchor\fR location of a specific \fIcontext\fR must match either \(lqd3b0f7c0b825ecbb0f0d7398072947e7b1537b6f\(rq, \(lqe242ed3bffccdf271b7fbaf34ed72d089537b42f\(rq, or \(lqf1d2d2f924e986ac86fdf7b36c94bcdf32beec15\(rq for the certificate to be considered as \fItrust anchor\fR.
+.SS
+OpenPGP \(lqWeb of Trust\(rq verification method
+.LP
+The following configuration example targets the \(lqWeb of Trust\(rq verification method for OpenPGP.
+.LP
+.EX
+default_technology_settings:
+  openpgp:
+    num_data_signatures: 1
+    verification_method:
+      web_of_trust:
+        flow_amount: 120
+        partial_amount: 40
+        roots:
+          - fingerprint: d3b0f7c0b825ecbb0f0d7398072947e7b1537b6f
+            amount: 120
+          - fingerprint: e242ed3bffccdf271b7fbaf34ed72d089537b42f
+            amount: 120
+          - fingerprint: f1d2d2f924e986ac86fdf7b36c94bcdf32beec15
+            amount: 120
+        artifact_verifier_identity_domain_matches:
+          - example.org
+          - sub.example.org
+.EE
+.PP
+Assuming that the above contents reside in the file \(lq/usr/share/voa/example.yaml\(rq, for the \fIOS\fR \(lqexample\(rq the following verification rules apply:
+.PP
+A single data signature from a valid \fIartifact verifier\fR is required for artifacts to be verified.
+.PP
+Each partially trusted introducer in the \(lqWeb of Trust\(rq network is assigned a trust amount of 40.
+The trust amount required for a valid \fBOpenPGP certificate\fR found in the \fIartifact verifier\fR location of a given \fIcontext\fR to be considered \(lqfully trusted\(rq and thus for it to be considered as \fIartifact verifier\fR is 120.
+.PP
+The \fBOpenPGP fingerprint\fR of a valid \fBOpenPGP certificate\fR found in the \fItrust anchor\fR location of a specific \fIcontext\fR must match either \(lqd3b0f7c0b825ecbb0f0d7398072947e7b1537b6f\(rq, \(lqe242ed3bffccdf271b7fbaf34ed72d089537b42f\(rq, or \(lqf1d2d2f924e986ac86fdf7b36c94bcdf32beec15\(rq for the certificate to be considered as \fItrust anchor\fR.
+Each of these matching \fItrust anchors\fR is assigned a trust amount of 120.
+.SS
+OS-level and context-level
+.LP
+The below represents an example of \fIOS\fR and \fIcontext\fR-level technology settings relying on the basic \(lqtrust anchor\(rq verification method for OpenPGP.
+It is assumed that the contents reside in the file \(lq/usr/share/voa/example.yaml\(rq, thus targeting the \fIOS\fR \(lqexample\(rq.
+.LP
+.EX
+default_technology_settings:
+  openpgp:
+    num_data_signatures: 2
+    verification_method:
+      trust_anchor:
+        artifact_verifier_identity_domain_matches:
+          - example.org
+        trust_anchor_fingerprint_matches:
+          - 6132b58967cf1ebc05062492c17145e5ee9f82a8
+          - 6eadeac2dade6347e87c0d24fd455feffa7069f0
+          - b787a81c32997fd39a5f4c0188363902d3586e7b
+          - d3b0f7c0b825ecbb0f0d7398072947e7b1537b6f
+          - e242ed3bffccdf271b7fbaf34ed72d089537b42f
+contexts:
+  - purpose: package
+    context: default
+    technology_settings:
+      openpgp:
+        verification_method:
+          trust_anchor:
+            required_certifications: 4
+            artifact_verifier_identity_domain_matches:
+              - packages.example.org
+  - purpose: image
+    context: installation-medium
+    technology_settings:
+      openpgp:
+        num_data_signatures: 1
+        verification_method:
+          trust_anchor:
+            artifact_verifier_identity_domain_matches:
+              - install.example.org
+.EE
+.PP
+If a system using this configuration file does not have any other \fBvoa\fR file, the built-in defaults apply for any unset fields in the \fIOS\fR-level technology settings and the \fIOS\fR-level technology settings apply for any unset fields in the \fIcontext\fR-level technology settings.
+.PP
+The above example illustrates, how \fIOS\fR-level defaults are handed down, if they are not set in the more specific \fIcontext\fR-level settings.
+For example, the \fB\(lqtrust_anchor_fingerprint_matches\(rq\fR in the \fIOS\fR-level defaults also apply to the \fIcontext\fR-level technology settings.
+.PP
+Relatedly, fields in \fIcontext\fR-level technology settings can override \fIOS\fR-level defaults.
+In the above example, the \fB\(lqnum_data_signatures\(rq\fR are set to \fI2\fR on the \fIOS\fR level, but one of the \fIcontexts\fR overrides it to require only \fI1\fR.
+Similarly, the \fB\(lqrequired_certifications\(rq\fR in one of the \fIcontexts\fR is overridden to \fI4\fR instead of the \fIOS\fR-level value of \fI3\fR (itself derived from the built-in defaults).
+.SS
+Drop-ins for context-level overrides
+.LP
+When only providing \fIcontext\fR-level settings, the top-level \fB\(lqdefault_technology_settings\(rq\fR key can be omitted.
+.PP
+The following configuration example targets the \(lqplain\(rq verification method for OpenPGP.
+It is assumed that the contents reside in the file \(lq/etc/voa/example.yaml.d/90-my-repo.yaml\(rq, targeting the \fIOS\fR \(lqexample\(rq.
+.LP
+.EX
+contexts:
+  - purpose: package
+    context: my-repo
+    technology_settings:
+      openpgp:
+        num_data_signatures: 1
+        verification_method:
+          plain:
+            identity_domain_matches:
+              - other.org
+            fingerprint_matches:
+              - bea43e7033e19327183416f23fe2ee1b64c25f4a
+.EE
+.PP
+Assuming that also the configuration described in the \fBOS-level and context-level\fR example is present on the system, this configuration describes a specialization for a single package repository named \(lqmy-repo\(rq.
+Technology settings enforced by the \fIOS\fR \(lqexample\(rq are overridden and a different set of verification rules apply:
+.IP "\(bu" 3
+Only one data signature from valid \fIartifact verifiers\fR is required for each artifact.
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.IP "\(bu" 3
+The following restrictions are imposed by filters on the verifiers:
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.RS
+.IP "\(bu" 3
+Valid \fBOpenPGP certificates\fR found in relevant locations are only considered as \fIartifact verifiers\fR, if their \fBOpenPGP fingerprint\fR matches \(lqbea43e7033e19327183416f23fe2ee1b64c25f4a\(rq.
+.if n \
+.sp -1
+.if t \
+.sp -0.25v
+.IP "\(bu" 3
+Valid \fBOpenPGP certificates\fR found in relevant locations are only considered as \fIartifact verifiers\fR, if one of their valid \fBOpenPGP User IDs\fR matches the domain name \(lqother.org\(rq.
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.LP
+\fBvoa\fR(1)
+.SH "نکات (NOTES)"
+.IP "1." 4
+\fBVOA\fR
+.IP
+.UR https://uapi-group.org/specifications/specs/file_hierarchy_for_the_verification_of_os_artifacts/
+.UE
+.IP "2." 4
+\fBConfiguration Files Specification\fR
+.IP
+.UR https://uapi-group.org/specifications/specs/configuration_files_specification/
+.UE
+.IP "3." 4
+\fBXDG Base Directory Specification\fR
+.IP
+.UR https://specifications.freedesktop.org/basedir/latest/
+.UE
+.IP "4." 4
+\fBOpenPGP signature\fR
+.IP
+.UR https://openpgp.dev/book/signatures.html
+.UE
+.IP "5." 4
+\fBOpenPGP certificate\fR
+.IP
+.UR https://openpgp.dev/book/certificates.html
+.UE
+.IP "6." 4
+\fBOpenPGP User ID\fR
+.IP
+.UR https://openpgp.dev/book/certificates.html#user-ids
+.UE
+.IP "7." 4
+\fBOpenPGP fingerprint\fR
+.IP
+.UR https://openpgp.dev/book/certificates.html#fingerprint
+.UE
+.IP "8." 4
+\fBOpenPGP third-party certifications\fR
+.IP
+.UR https://openpgp.dev/book/signing_components.html#third-party-certifications
+.UE
+.IP "9." 4
+\fBWeb of Trust\fR
+.IP
+.UR https://codeberg.org/openpgp/wot
+.UE
+.IP "10." 4
+\fBBerblom algorithm\fR
+.IP
+.UR https://codeberg.org/Nukesor/berblom
+.UE

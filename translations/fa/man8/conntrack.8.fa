@@ -1,10 +1,10 @@
-.TH CONNTRACK 8 "Aug 9, 2019" "" ""
+.TH CONNTRACK 8 "2019-08-09" "" "دستورات مدیریت سیستم"
 
 .\" Man page written by Harald Welte <laforge@netfilter.org (Jun 2005)
 .\" Maintained by Pablo Neira Ayuso <pablo@netfilter.org (May 2007)
 
 .SH "نام (NAME)"
-conntrack \- command line interface for netfilter connection tracking
+conntrack \- رابط خط فرمان برای سامانه ردیابی اتصالات netfilter
 .SH "خلاصه دستور (SYNOPSIS)"
 .BR "conntrack -L [table] [options] [-z]"
 .br
@@ -28,410 +28,376 @@ conntrack \- command line interface for netfilter connection tracking
 .br
 .BR "conntrack -R file"
 .SH "توضیحات (DESCRIPTION)"
-The \fBconntrack\fP utility provides a full\-featured userspace interface to the
-Netfilter connection tracking system that is intended to replace the old
-/proc/net/ip_conntrack interface. This tool can be used to search, list,
-inspect and maintain the connection tracking subsystem of the Linux kernel.
+ابزار
+\fBconntrack\fP
+یک رابط کاربری کامل در فضای کاربری (userspace) برای سامانه ردیابی اتصالات Netfilter ارائه می‌دهد که هدف آن جایگزینی رابط قدیمی
+/proc/net/ip_conntrack
+است. از این ابزار می‌توان برای جستجو، فهرست‌بندی، بازرسی و نگهداری زیرسیستم ردیابی اتصالات در هسته لینوکس استفاده کرد.
+.PP
+با استفاده از
+\fBconntrack\fP
+می‌توانید فهرستی از تمامی اتصالات تحت ردیابی فعلی (یا مجموعه‌ای فیلترشده از آن‌ها) را استخراج کنید، اتصالاتی را از جدول وضعیت حذف کنید و حتی اتصالات جدیدی بیفزایید.
+.PP
+علاوه بر این، می‌توانید رویدادهای ردیابی اتصالات را نیز پایش کنید، به عنوان مثال نمایش یک پیام رویداد (تک‌خطی) به ازای هر اتصال تازه ایجادشده.
 
-Using \fBconntrack\fP, you can dump a list of all (or a filtered selection of)
-currently tracked connections, delete connections from the state table, and
-even add new ones.
-
-In addition, you can also monitor connection tracking events, e.g. show an
-event message (one line) per newly established connection.
-
-.SH TABLES
-The connection tracking subsystem maintains several internal tables:
+.SH "جداول (TABLES)"
+زیرسیستم ردیابی اتصالات چندین جدول داخلی را نگهداری می‌کند:
 .TP
 .BR "conntrack" :
-This is the default table.  It contains a list of all currently tracked
-connections through the system.  If you don't use connection tracking
-exemptions (NOTRACK iptables target), this means all connections that go
-through the system.
+این جدول پیش‌فرض است. شامل فهرستی از تمام اتصالات جاری است که توسط سیستم ردیابی می‌شوند. اگر از معافیت‌های ردیابی اتصالات (هدف NOTRACK در iptables) استفاده نکنید، این شامل تمامی اتصالاتی است که از سیستم عبور می‌کنند.
 .TP
 .BR "expect" :
-This is the table of expectations.  Connection tracking expectations are the
-mechanism used to "expect" \fBRELATED\fP connections to existing ones.
-Expectations are generally used by "connection tracking helpers" (sometimes
-called application level gateways [ALGs]) for more complex protocols such as
-FTP, SIP or H.323.
+این جدول انتظارات (expectations) است. انتظارات ردیابی اتصالات سازوکاری است که برای «پیش‌بینی و انتظار» اتصالات مرتبط
+(\fBRELATED\fP)
+با اتصالات موجود استفاده می‌شود. انتظارات معمولاً توسط «کمک‌کننده‌های ردیابی اتصال» (گاهی درگاه‌های سطح برنامه یا ALG نامیده می‌شوند) برای پروتکل‌های پیچیده‌تر مانند FTP،‏ SIP یا H.323 استفاده می‌شوند.
 .TP
 .BR "dying" :
-This table shows the conntrack entries, that have expired and that have been
-destroyed by the connection tracking system itself, or via the \fBconntrack\fP
-utility.
+.br
+این جدول ورودی‌های conntrack را نشان می‌دهد که منقضی شده‌اند و توسط خود سامانه ردیابی اتصالات یا از طریق ابزار
+\fBconntrack\fP
+از بین رفته‌اند.
 .TP
 .BR "unconfirmed" :
-This table shows new entries, that are not yet inserted into the conntrack
-table. These entries are attached to packets that are traversing the stack,
-but did not reach the confirmation point at the postrouting hook.
-
-The tables "dying" and "unconfirmed" are basically only useful for debugging
-purposes. Under normal operation, it is hard to see entries in any of them.
-There are corner cases, where it is valid to see entries in the
-unconfirmed table, eg. when packets that are enqueued via nfqueue, and
-the dying table, eg. when \fBconntrackd(8)\fP runs in event reliable mode.
+این جدول ورودی‌های جدیدی را نشان می‌دهد که هنوز در جدول conntrack درج نشده‌اند. این ورودی‌ها به بسته‌هایی متصل هستند که در حال پیمایش پشته شبکه هستند، اما هنوز به نقطه تایید در قلاب postrouting نرسیده‌اند.
+.PP
+جداول "dying" و "unconfirmed" اساساً تنها برای اهداف اشکال‌زدایی مفید هستند. در شرایط عادی عملیاتی، مشاهده ورودی‌ها در هر یک از آن‌ها دشوار است. موارد خاصی وجود دارد که دیدن ورودی‌ها در جدول unconfirmed مجاز و معتبر است، مانند بسته‌هایی که از طریق nfqueue در صف قرار گرفته‌اند؛ همچنین در جدول dying، به عنوان مثال زمانی که
+\fBconntrackd(8)\fP
+در حالت رویداد مطمئن (event reliable mode) اجرا می‌شود.
 
 .SH "گزینه‌ها (OPTIONS)"
-The options recognized by \fBconntrack\fP can be divided into several different
-groups.
+گزینه‌های شناسایی‌شده توسط
+\fBconntrack\fP
+را می‌توان به چندین گروه مختلف تقسیم کرد.
 
-.SS COMMANDS
-These options specify the particular operation to perform.  Only one of them
-can be specified at any given time.
+.SS "دستورات (COMMANDS)"
+این گزینه‌ها عملیات خاصی را که باید انجام شود مشخص می‌کنند. در هر زمان تنها یکی از آن‌ها می‌تواند مشخص شود.
 .TP
 .BI "-L --dump "
-List connection tracking or expectation table
+فهرست کردن جدول ردیابی اتصالات یا جدول انتظارات.
 .TP
 .BI "-G, --get "
-Search for and show a particular (matching) entry in the given table.
+جستجو و نمایش یک ورودی خاص (منطبق) در جدول داده‌شده.
 .TP
 .BI "-D, --delete "
-Delete an entry from the given table.
+حذف یک ورودی از جدول داده‌شده.
 .TP
 .BI "-I, --create "
-Create a new entry from the given table, it fails if it already exists.
+ایجاد یک ورودی جدید در جدول داده‌شده؛ در صورتی که ورودی از قبل وجود داشته باشد ناموفق خواهد بود.
 .TP
 .BI "-A, --add "
-Add a new entry from the given table.
+افزودن یک ورودی جدید به جدول داده‌شده.
 .TP
 .BI "-U, --update "
-Update an entry from the given table.
+به‌روزرسانی یک ورودی در جدول داده‌شده.
 .TP
 .BI "-E, --event "
-Display a real-time event log.
+نمایش گزارش رویدادها به صورت بلادرنگ (real-time).
 .TP
 .BI "-F, --flush "
-Flush the whole given table
+تخلیه کامل جدول داده‌شده.
 .TP
 .BI "-C, --count "
-Show the table counter.
+نمایش شمارنده جدول.
 .TP
 .BI "-S, --stats "
-Show the in-kernel connection tracking system statistics.
+نمایش آمارهای سامانه ردیابی اتصالات درون هسته.
 .TP
 .BI "-R, --load-file "
-Load entries from a given file. To read from stdin, "\-" should be specified.
+بارگذاری ورودی‌ها از یک فایل مشخص. برای خواندن از ورودی استاندارد (stdin)، باید "\-" مشخص شود.
 
-.SS PARAMETERS
+.SS "پارامترها (PARAMETERS)"
 .TP
 .BI "-z, --zero "
-Atomically zero counters after reading them.  This option is only valid in
-combination with the "\-L, \-\-dump" command options.
+صفر کردن اتمیک شمارنده‌ها پس از خواندن آن‌ها. این گزینه فقط در ترکیب با گزینه‌های دستوری "\-L, \-\-dump" معتبر است.
 .TP
 .BI "-o, --output [extended,xml,save,timestamp,id,ktimestamp,labels] "
-Display output in a certain format. With the extended output option, this tool
-displays the layer 3 information. With ktimestamp, it displays the in-kernel
-timestamp available since 2.6.38 (you can enable it via the \fBsysctl(8)\fP
-key \fBnet.netfilter.nf_conntrack_timestamp\fP).
-The labels output option tells \fBconntrack\fP to show the names of connection
-tracking labels that might be present.
-The userspace output option tells if the event has been triggered by a process.
+نمایش خروجی در یک قالب مشخص. با گزینه خروجی extended، این ابزار اطلاعات لایه ۳ را نمایش می‌دهد. با ktimestamp، برچسب زمانی درون هسته را که از نسخه 2.6.38 در دسترس است نشان می‌دهد (می‌توانید آن را از طریق کلید
+\fBsysctl(8)\fP
+با نام
+\fBnet.netfilter.nf_conntrack_timestamp\fP
+فعال کنید).
+گزینه خروجی labels به
+\fBconntrack\fP
+می‌گوید که نام برچسب‌های ردیابی اتصال را که ممکن است وجود داشته باشند نمایش دهد.
+گزینه خروجی userspace مشخص می‌کند که آیا رویداد توسط یک فرآیند ایجاد شده است یا خیر.
 .TP
 .BI "-e, --event-mask " "[ALL|NEW|UPDATES|DESTROY][,...]"
-Set the bitmask of events that are to be generated by the in-kernel ctnetlink
-event code.  Using this parameter, you can reduce the event messages generated
-by the kernel to the types that you are actually interested in.
+تنظیم ماسک بیتی رویدادهایی که قرار است توسط کد رویداد ctnetlink درون هسته تولید شوند. با استفاده از این پارامتر، می‌توانید پیام‌های رویداد تولیدشده توسط هسته را به انواعی که واقعاً به آن‌ها نیاز دارید کاهش دهید.
 .
-This option can only be used in conjunction with "\-E, \-\-event".
+این گزینه فقط در ترکیب با "\-E, \-\-event" قابل استفاده است.
 .TP
 .BI "-b, --buffer-size " "value"
-Set the Netlink socket buffer size in bytes. This option is useful if the
-command line tool reports ENOBUFS errors. If you do not pass this option, the
-default value available at \fBsysctl(8)\fP key \fBnet.core.rmem_default\fP is
-used. The tool reports this problem if your process is too slow to handle all
-the event messages or, in other words, if the amount of events is big enough
-to overrun the socket buffer. Note that using a big buffer reduces the chances
-to hit ENOBUFS, however, this results in more memory consumption.
+تنظیم اندازه بافر سوکت Netlink بر حسب بایت. این گزینه زمانی مفید است که ابزار خط فرمان خطاهای ENOBUFS را گزارش کند. اگر این گزینه را ارسال نکنید، مقدار پیش‌فرض موجود در کلید
+\fBsysctl(8)\fP
+با نام
+\fBnet.core.rmem_default\fP
+استفاده می‌شود. اگر فرآیند شما برای مدیریت تمام پیام‌های رویداد بیش از حد کند باشد، یا به عبارت دیگر، حجم رویدادها به اندازه‌ای زیاد باشد که باعث سرریز شدن بافر سوکت شود، ابزار این مشکل را گزارش می‌دهد. توجه داشته باشید که استفاده از یک بافر بزرگ احتمال برخورد با ENOBUFS را کاهش می‌دهد، اما منجر به مصرف بیشتر حافظه خواهد شد.
 .
-This option can only be used in conjunction with "\-E, \-\-event".
+این گزینه فقط در ترکیب با "\-E, \-\-event" قابل استفاده است.
 
-.SS FILTER PARAMETERS
+.SS "پارامترهای فیلتر (FILTER PARAMETERS)"
 .TP
 .BI "-s, --src, --orig-src " IP_ADDRESS
-Match only entries whose source address in the original direction equals the
-one specified as argument. Implies "--mask-src" when CIDR notation is used.
+فقط تطبیق با ورودی‌هایی که آدرس مبدأ آن‌ها در جهت اولیه برابر با مقدار مشخص‌شده به عنوان آرگومان باشد. در صورت استفاده از نشانه‌گذاری CIDR، به طور ضمنی شامل "--mask-src" می‌شود.
 .TP
 .BI "-d, --dst, --orig-dst " IP_ADDRESS
-Match only entries whose destination address in the original direction equals
-the one specified as argument. Implies "--mask-dst" when CIDR notation is used.
+فقط تطبیق با ورودی‌هایی که آدرس مقصد آن‌ها در جهت اولیه برابر با مقدار مشخص‌شده به عنوان آرگومان باشد. در صورت استفاده از نشانه‌گذاری CIDR، به طور ضمنی شامل "--mask-dst" می‌شود.
 .TP
 .BI "-r, --reply-src " IP_ADDRESS
-Match only entries whose source address in the reply direction equals the one
-specified as argument.
+فقط تطبیق با ورودی‌هایی که آدرس مبدأ آن‌ها در جهت پاسخ برابر با مقدار مشخص‌شده به عنوان آرگومان باشد.
 .TP
 .BI "-q, --reply-dst " IP_ADDRESS
-Match only entries whose destination address in the reply direction equals the
-one specified as argument.
+فقط تطبیق با ورودی‌هایی که آدرس مقصد آن‌ها در جهت پاسخ برابر با مقدار مشخص‌شده به عنوان آرگومان باشد.
 .TP
 .BI "-p, --proto " "PROTO "
-Specify layer four (TCP, UDP, ...) protocol.
+مشخص کردن پروتکل لایه چهار (TCP،‏ UDP و...).
 .TP
 .BI "-f, --family " "PROTO"
-Specify layer three (ipv4, ipv6) protocol.
-This option is only required in conjunction with "\-L, \-\-dump". If this
-option is not passed, the default layer 3 protocol will be IPv4.
+مشخص کردن پروتکل لایه سه (ipv4،‏ ipv6).
+این گزینه فقط در ترکیب با "\-L, \-\-dump" لازم است. اگر این گزینه مشخص نشود، پروتکل پیش‌فرض لایه ۳ برابر با IPv4 خواهد بود.
 .TP
 .BI "-t, --timeout " "TIMEOUT"
-Specify the timeout.
+مشخص کردن مهلت زمانی (timeout).
 .TP
 .BI "-m, --mark " "MARK[/MASK]"
-Specify the conntrack mark.  Optionally, a mask value can be specified.
-In "\-\-update" mode, this mask specifies the bits that should be zeroed before
-XORing the MARK value into the ctmark.
-Otherwise, the mask is logically ANDed with the existing mark before the
-comparison. In "\-\-create" mode, the mask is ignored.
+مشخص کردن علامت (mark) در conntrack. به صورت اختیاری، می‌توان مقدار ماسک را نیز تعیین کرد.
+در حالت "\-\-update"، این ماسک بیت‌هایی را مشخص می‌کند که باید پیش از اعمال عملگر XOR روی مقدار MARK در ctmark صفر شوند.
+در غیر این صورت، ماسک پیش از مقایسه به صورت منطقی با علامت موجود AND می‌شود. در حالت "\-\-create"، ماسک نادیده گرفته می‌شود.
 .TP
 .BI "-l, --label " "LABEL"
-Specify a conntrack label.
-This option is only available in conjunction with "\-L, \-\-dump",
-"\-E, \-\-event", "\-U \-\-update" or "\-D \-\-delete".
-Match entries whose labels include those specified as arguments.
-Use multiple \-l options to specify multiple labels that need to be set.
+مشخص کردن یک برچسب (label) در conntrack.
+این گزینه فقط در ترکیب با "\-L, \-\-dump"،‏ "\-E, \-\-event"،‏ "\-U \-\-update" یا "\-D \-\-delete" در دسترس است.
+تطبیق با ورودی‌هایی که برچسب‌های آن‌ها شامل موارد مشخص‌شده به عنوان آرگومان باشد.
+برای تعیین چندین برچسب که باید تنظیم شوند، از چندین گزینه \-l استفاده کنید.
 .TP
 .BI "--labelmap " "PATH"
-Specify the path to a connlabel.conf file to load instead of the default one.
-This option is only available in conjunction with "\-L, \-\-dump", "\-E,
-\-\-event", "\-U \-\-update" or "\-D \-\-delete".
+مشخص کردن مسیر یک فایل connlabel.conf برای بارگذاری به جای فایل پیش‌فرض.
+این گزینه فقط در ترکیب با "\-L, \-\-dump"،‏ "\-E, \-\-event"،‏ "\-U \-\-update" یا "\-D \-\-delete" در دسترس است.
 .TP
 .BI "--label-add " "LABEL"
-Specify the conntrack label to add to the selected conntracks.
-This option is only available in conjunction with "\-I, \-\-create",
-"\-A, \-\-add" or "\-U, \-\-update".
-As a rule of thumb, you must use either the 'connlabel' match in your iptables
-ruleset or the 'ct label' statement in your nftables ruleset, this turns on the
-ct label support in the kernel and it allows you to update labels via
-"\-U, \-\-update", otherwise label updates are ignored.
+مشخص کردن برچسب conntrack جهت افزودن به اتصالات انتخاب‌شده.
+این گزینه فقط در ترکیب با "\-I, \-\-create"،‏ "\-A, \-\-add" یا "\-U, \-\-update" در دسترس است.
+.PP
+به عنوان یک قاعده کلی، باید از تطبیق 'connlabel' در مجموعه قوانین iptables خود یا از گزاره 'ct label' در مجموعه قوانین nftables خود استفاده کنید؛ این کار پشتیبانی از ct label را در هسته فعال می‌کند و به شما اجازه می‌دهد برچسب‌ها را از طریق "\-U, \-\-update" به‌روزرسانی کنید، در غیر این صورت به‌روزرسانی‌های برچسب نادیده گرفته می‌شوند.
 .TP
 .BI "--label-del " "[LABEL]"
-Specify the conntrack label to delete from the selected conntracks.
-If no label is given, all labels are deleted.
-This option is only available in conjunction with "\-U, \-\-update".
+مشخص کردن برچسب conntrack جهت حذف از اتصالات انتخاب‌شده.
+اگر هیچ برچسبی داده نشود، تمام برچسب‌ها حذف می‌شوند.
+این گزینه فقط در ترکیب با "\-U, \-\-update" در دسترس است.
 .TP
 .BI "-c, --secmark " "SECMARK"
-Specify the conntrack selinux security mark.
+مشخص کردن علامت امنیتی selinux در conntrack.
 .TP
 .BI "-u, --status " "[ASSURED|SEEN_REPLY|FIXED_TIMEOUT|EXPECTED|OFFLOAD|UNSET][,...]"
-Specify the conntrack status.
+مشخص کردن وضعیت conntrack.
 .TP
 .BI "-n, --src-nat "
-Filter source NAT connections.
+فیلتر کردن اتصالات NAT مبدأ (Source NAT).
 .TP
 .BI "-g, --dst-nat "
-Filter destination NAT connections.
+فیلتر کردن اتصالات NAT مقصد (Destination NAT).
 .TP
 .BI "-j, --any-nat "
-Filter any NAT connections.
+فیلتر کردن هرگونه اتصالات NAT.
 .TP
 .BI "-w, --zone "
-Filter by conntrack zone. See iptables CT target for more information.
+فیلتر کردن بر اساس ناحیه (zone) در conntrack. برای اطلاعات بیشتر هدف CT در iptables را ببینید.
 .TP
 .BI "--orig-zone "
-Filter by conntrack zone in original direction.
-See iptables CT target for more information.
+فیلتر کردن بر اساس ناحیه conntrack در جهت اولیه (مبدأ).
+برای اطلاعات بیشتر هدف CT در iptables را ببینید.
 .TP
 .BI "--reply-zone "
-Filter by conntrack zone in reply direction.
-See iptables CT target for more information.
+فیلتر کردن بر اساس ناحیه conntrack در جهت پاسخ (reply).
+برای اطلاعات بیشتر هدف CT در iptables را ببینید.
 .TP
 .BI "--tuple-src " IP_ADDRESS
-Specify the tuple source address of an expectation.
-Implies "--mask-src" when CIDR notation is used.
+مشخص کردن آدرس مبدأ چندتایی (tuple) یک انتظار.
+در صورت استفاده از نشانه‌گذاری CIDR، به طور ضمنی شامل "--mask-src" می‌شود.
 .TP
 .BI "--tuple-dst " IP_ADDRESS
-Specify the tuple destination address of an expectation.
-Implies "--mask-dst" when CIDR notation is used.
+مشخص کردن آدرس مقصد چندتایی (tuple) یک انتظار.
+در صورت استفاده از نشانه‌گذاری CIDR، به طور ضمنی شامل "--mask-dst" می‌شود.
 .TP
 .BI "--mask-src " IP_ADDRESS
-Specify the source address mask.
-For conntracks this option is only available in conjunction with
-"\-L, \-\-dump", "\-E, \-\-event", "\-U \-\-update" or "\-D \-\-delete".
-For expectations this option is only available in conjunction with
-"\-I, \-\-create".
+مشخص کردن ماسک آدرس مبدأ.
+برای اتصالات conntrack این گزینه فقط در ترکیب با "\-L, \-\-dump"،‏ "\-E, \-\-event"،‏ "\-U \-\-update" یا "\-D \-\-delete" در دسترس است.
+برای انتظارات (expectations) این گزینه فقط در ترکیب با "\-I, \-\-create" در دسترس است.
 .TP
 .BI "--mask-dst " IP_ADDRESS
-Specify the destination address mask.
-Same limitations as for "--mask-src".
+مشخص کردن ماسک آدرس مقصد.
+همان محدودیت‌های ذکرشده برای "--mask-src".
 
-.SS PROTOCOL FILTER PARAMETERS
+.SS "پارامترهای فیلتر پروتکل (PROTOCOL FILTER PARAMETERS)"
 .TP
-TCP-specific fields:
+فیلدهای ویژه TCP:
 .TP
 .BI "--sport, --orig-port-src " "PORT"
-Source port in original direction
+درگاه مبدأ در جهت اولیه
 .TP
 .BI "--dport, --orig-port-dst " "PORT"
-Destination port in original direction
+درگاه مقصد در جهت اولیه
 .TP
 .BI "--reply-port-src " "PORT"
-Source port in reply direction
+درگاه مبدأ در جهت پاسخ
 .TP
 .BI "--reply-port-dst " "PORT"
-Destination port in reply direction
+درگاه مقصد در جهت پاسخ
 .TP
 .BI "--state " "state"
-TCP state, one of NONE, SYN_SENT, SYN_RECV, ESTABLISHED, FIN_WAIT, CLOSE_WAIT,
-LAST_ACK, TIME_WAIT, CLOSE or LISTEN.
+وضعیت TCP؛ یکی از مقادیر NONE،‏ SYN_SENT،‏ SYN_RECV،‏ ESTABLISHED،‏ FIN_WAIT،‏ CLOSE_WAIT،‏ LAST_ACK،‏ TIME_WAIT،‏ CLOSE یا LISTEN.
 
 .TP
-UDP-specific fields:
+فیلدهای ویژه UDP:
 .TP
 .BI "--sport, --orig-port-src " "PORT"
-Source port in original direction
+درگاه مبدأ در جهت اولیه
 .TP
 .BI "--dport, --orig-port-dst " "PORT"
-Destination port in original direction
+درگاه مقصد در جهت اولیه
 .TP
 .BI "--reply-port-src " "PORT"
-Source port in reply direction
+درگاه مبدأ در جهت پاسخ
 .TP
 .BI "--reply-port-dst " "PORT"
-Destination port in reply direction
+درگاه مقصد در جهت پاسخ
 
 .TP
-ICMP-specific fields:
+فیلدهای ویژه ICMP:
 .TP
 .BI "--icmp-type " "TYPE"
-ICMP Type. Has to be specified numerically.
+نوع ICMP. باید به صورت عددی مشخص شود.
 .TP
 .BI "--icmp-code " "CODE"
-ICMP Code. Has to be specified numerically.
+کد ICMP. باید به صورت عددی مشخص شود.
 .TP
 .BI "--icmp-id " "ID"
-ICMP Id. Has to be specified numerically (non-mandatory)
+شناسه ICMP. باید به صورت عددی مشخص شود (اختیاری).
 
 .TP
-UDPlite-specific fields:
+فیلدهای ویژه UDPlite:
 .TP
 .BI "--sport, --orig-port-src " "PORT"
-Source port in original direction
+درگاه مبدأ در جهت اولیه
 .TP
 .BI "--dport, --orig-port-dst " "PORT"
-Destination port in original direction
+درگاه مقصد در جهت اولیه
 .TP
 .BI "--reply-port-src " "PORT"
-Source port in reply direction
+درگاه مبدأ در جهت پاسخ
 .TP
 .BI "--reply-port-dst " "PORT"
-Destination port in reply direction
+درگاه مقصد در جهت پاسخ
 
 .TP
-SCTP-specific fields:
+فیلدهای ویژه SCTP:
 .TP
 .BI "--sport, --orig-port-src " "PORT"
-Source port in original direction
+درگاه مبدأ در جهت اولیه
 .TP
 .BI "--dport, --orig-port-dst " "PORT"
-Destination port in original direction
+درگاه مقصد در جهت اولیه
 .TP
 .BI "--reply-port-src " "PORT"
-Source port in reply direction
+درگاه مبدأ در جهت پاسخ
 .TP
 .BI "--reply-port-dst " "PORT"
-Destination port in reply direction
+درگاه مقصد در جهت پاسخ
 .TP
 .BI "--state " "state"
-SCTP state, one of NONE, CLOSED, COOKIE_WAIT, COOKIE_ECHOED, ESTABLISHED,
-SHUTDOWN_SENT, SHUTDOWN_RECD, SHUTDOWN_ACK_SENT.
+وضعیت SCTP؛ یکی از مقادیر NONE،‏ CLOSED،‏ COOKIE_WAIT،‏ COOKIE_ECHOED،‏ ESTABLISHED،‏ SHUTDOWN_SENT،‏ SHUTDOWN_RECD یا SHUTDOWN_ACK_SENT.
 .TP
 .BI "--orig-vtag " "value"
-Verification tag (32-bits value) in the original direction
+برچسب اعتبارسنجی (مقدار ۳۲ بیتی) در جهت اولیه
 .TP
 .BI "--reply-vtag " "value"
-Verification tag (32-bits value) in the reply direction
+برچسب اعتبارسنجی (مقدار ۳۲ بیتی) در جهت پاسخ
 
 .TP
-DCCP-specific fields (needs Linux >= 2.6.30):
+فیلدهای ویژه DCCP (نیازمند لینوکس >= 2.6.30):
 .TP
 .BI "--sport, --orig-port-src " "PORT"
-Source port in original direction
+درگاه مبدأ در جهت اولیه
 .TP
 .BI "--dport, --orig-port-dst " "PORT"
-Destination port in original direction
+درگاه مقصد در جهت اولیه
 .TP
 .BI "--reply-port-src " "PORT"
-Source port in reply direction
+درگاه مبدأ در جهت پاسخ
 .TP
 .BI "--reply-port-dst " "PORT"
-Destination port in reply direction
+درگاه مقصد در جهت پاسخ
 .TP
 .BI "--state " "state"
-DCCP state, one of NONE, REQUEST, RESPOND, PARTOPEN, OPEN, CLOSEREQ, CLOSING,
-TIMEWAIT.
+وضعیت DCCP؛ یکی از مقادیر NONE،‏ REQUEST،‏ RESPOND،‏ PARTOPEN،‏ OPEN،‏ CLOSEREQ،‏ CLOSING یا TIMEWAIT.
 .TP
 .BI "--role " "[client|server]"
-Role that the original conntrack tuple is tracking
+نقشی که چندتایی (tuple) اولیه conntrack در حال ردیابی آن است
 
 .TP
-GRE-specific fields:
+فیلدهای ویژه GRE:
 .TP
 .BI "--srckey, --orig-key-src " "KEY"
-Source key in original direction (in hexadecimal or decimal)
+کلید مبدأ در جهت اولیه (به مبنای ۱۶ یا ۱۰)
 .TP
 .BI "--dstkey, --orig-key-dst " "KEY"
-Destination key in original direction (in hexadecimal or decimal)
+کلید مقصد در جهت اولیه (به مبنای ۱۶ یا ۱۰)
 .TP
 .BI "--reply-key-src " "KEY"
-Source key in reply direction (in hexadecimal or decimal)
+کلید مبدأ در جهت پاسخ (به مبنای ۱۶ یا ۱۰)
 .TP
 .BI "--reply-key-dst " "KEY"
-Destination key in reply direction (in hexadecimal or decimal)
+کلید مقصد در جهت پاسخ (به مبنای ۱۶ یا ۱۰)
 
-.SH "عیب‌یابی (DIAGNOSTICS)"
-The exit code is 0 for correct function.  Errors which appear to be caused by
-invalid command line parameters cause an exit code of 2.  Any other errors
-cause an exit code of 1.
+.SH "کدهای خروجی و عیب‌یابی (DIAGNOSTICS)"
+کد خروج در صورت عملکرد صحیح 0 است. خطاهایی که ناشی از پارامترهای نامعتبر خط فرمان باشند باعث کد خروج 2 می‌شوند. هرگونه خطای دیگر منجر به کد خروج 1 خواهد شد.
 
 .SH "مثال‌ها (EXAMPLES)"
 .TP
 .B conntrack \-L
-Show the connection tracking table in /proc/net/ip_conntrack format
+نمایش جدول ردیابی اتصالات در قالب /proc/net/ip_conntrack
 .TP
 .B conntrack \-L -o extended
-Show the connection tracking table in /proc/net/nf_conntrack format, with
-additional information.
+نمایش جدول ردیابی اتصالات در قالب /proc/net/nf_conntrack همراه با اطلاعات تکمیلی.
 .TP
 .B conntrack \-L \-o xml
-Show the connection tracking table in XML
+نمایش جدول ردیابی اتصالات در قالب XML
 .TP
 .B conntrack \-L \-o save
-Show the connection tracking table in conntrack syntax format
+نمایش جدول ردیابی اتصالات در قالب ساختار نحوی conntrack
 .TP
 .B conntrack \-L -f ipv6 -o extended
-Only dump IPv6 connections in /proc/net/nf_conntrack format, with
-additional information.
+فقط استخراج اتصالات IPv6 در قالب /proc/net/nf_conntrack همراه با اطلاعات تکمیلی.
 .TP
 .B conntrack \-L --src-nat
-Show source NAT connections
+نمایش اتصالات NAT مبدأ
 .TP
 .B conntrack \-E \-o timestamp
-Show connection events together with the timestamp
+نمایش رویدادهای اتصال به همراه برچسب زمانی
 .TP
 .B conntrack \-D \-s 1.2.3.4
-Delete all flows whose source address is 1.2.3.4
+حذف تمامی جریان‌هایی که آدرس مبدأ آن‌ها 1.2.3.4 است
 .TP
 .B conntrack \-U \-s 1.2.3.4 \-m 1
-Set connmark to 1 of all the flows whose source address is 1.2.3.4
+تنظیم مقدار connmark برابر با 1 برای تمام جریان‌هایی که آدرس مبدأ آن‌ها 1.2.3.4 است
 .TP
 .B conntrack -L -w 11 -o save | sed "s/-w 11/-w 12/g" | conntrack --load-file -
-Copy all entries from ct zone 11 to ct zone 12
+کپی کردن تمام ورودی‌ها از ناحیه 11 به ناحیه 12 در ct
 
 .SH "اشکالات (BUGS)"
-Please, report them to netfilter-devel@vger.kernel.org or file a bug in
-Netfilter's bugzilla (https://bugzilla.netfilter.org).
+لطفاً اشکالات را به netfilter-devel@vger.kernel.org گزارش دهید یا در سامانه‌ی باگزیلای Netfilter ثبت کنید (https://bugzilla.netfilter.org).
 
 .SH "همچنین ببینید (SEE ALSO)"
-.BR nftables (8), iptables (8), conntrackd(8)
+.BR nftables (8),
+.BR iptables (8),
+.BR conntrackd (8)
 .br
-See
+مشاهده وبگاه رسمی:
 .BR "http://conntrack-tools.netfilter.org"
 
 .SH "نویسندگان (AUTHORS)"
-Jay Schulist, Patrick McHardy, Harald Welte and Pablo Neira Ayuso wrote the
-kernel-level "ctnetlink" interface that is used by the conntrack tool.
+جی شولیست (Jay Schulist)، پاتریک مک‌هاردی (Patrick McHardy)، هارالد ولته (Harald Welte) و پابلو نیرا آیوسو (Pablo Neira Ayuso) رابط سطح هسته "ctnetlink" را نوشتند که توسط ابزار conntrack استفاده می‌شود.
 .PP
-Pablo Neira Ayuso wrote and maintains the conntrack tool, Harald Welte added
-support for conntrack\-based accounting counters.
+پابلو نیرا آیوسو ابزار conntrack را نوشت و نگهداری می‌کند، و هارالد ولته پشتیبانی از شمارنده‌های محاسباتی مبتنی بر conntrack را اضافه کرد.
 .PP
-Man page written by Harald Welte <laforge@netfilter.org> and
-Pablo Neira Ayuso <pablo@netfilter.org>.
+صفحه راهنما توسط هارالد ولته <laforge@netfilter.org> و پابلو نیرا آیوسو <pablo@netfilter.org> نوشته شده است.

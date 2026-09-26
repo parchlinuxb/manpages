@@ -1,180 +1,162 @@
 .TH gtlsshd 8 01/02/19  "Server for shell over TLS"
 
 .SH "نام (NAME)"
-gtlsshd \- Server for shell over TLS
+gtlsshd \- سرور اجرای پوسته بر بستر TLS
 
 .SH "خلاصه دستور (SYNOPSIS)"
-.B gtlsshd [options]
+.B gtlsshd
+[\fIگزینه‌ها\fR]
 
 .SH "توضیحات (DESCRIPTION)"
-The
+برنامه
 .BR gtlsshd
-program receives connections from gtlssh, authenticates the
-connections, and connects them to a shell or a program as requested.
+اتصالات را از
+.BR gtlssh
+دریافت می‌کند، اتصالات را احراز هویت می‌نماید و بنا بر درخواست، آن‌ها را به یک پوسته یا برنامه متصل می‌سازد.
+.PP
+.BR gtlsshd
+به صورت پیش‌فرض، مگر خلاف آن مشخص شده باشد، روی هر دو سوکت TCP و SCTP گوش فرامی‌دهد.
+.PP
+.BR gtlsshd
+از احراز هویت مبتنی بر گواهی کلید عمومی OpenSSL در هر دو جهت استفاده می‌کند. هنگامی که اتصالی برقرار می‌شود، با استفاده از فایل‌های کلید و گواهی ارائه‌شده و با به‌کارگیری رفتار استاندارد SSL، هویت خود را برای کاربر اعتبارسنجی می‌کند.
+.PP
+هنگامی که SSL وظیفه خود را انجام داد، پروتکل احراز هویت کاربر را بر بستر اتصال SSL اجرا می‌کند. کاربر نام کاربری را ارسال کرده و
+.BR gtlsshd
+از دایرکتوری
+.B $HOME/.gtlssh/allowed_certs
+برای احراز هویت گواهی ارائه‌شده توسط کاربر استفاده خواهد کرد. اگر کاربر گواهی منطبق با گواهی ارائه‌شده نداشته باشد،
+.BR gtlsshd
+در صورت فعال بودن، ورود عادی با گذرواژه را امتحان خواهد کرد.
 
-.BR gtlsshd
-will listen on both SCTP and TCP sockets unless told otherwise.
+.SH "ترفندهای ویندوز (WINDOWS HACKS)"
+برای اطلاعات درباره پیکربندی ویژه ویندوز، بخش «ترفندهای ویندوز» را در صفحه راهنمای
+.BR gtlssh\-keygen (1)
+ببینید.
 
+.SH "احراز هویت دومرحله‌ای (TWO-FACTOR AUTHENTICATION)"
 .BR gtlsshd
-uses openssl public key certificate authentication both
-directions.  When something connections, it uses standard SSL handling
-to validate itself to the user with the given key and certificate
-files.
-
-On SSL does its job, it then runs an authentication protocol for the
-user on top of the SSL connection.  The user sends the username, and
-gtlsshd will use the $HOME/.gtlssh/allowed_certs directory to
-authenticate a certificate the user presents.  If the user doesn't
-have a certificate that matches the presented certificate,
+از احراز هویت دومرحله‌ای به چندین روش پشتیبانی می‌کند.
+gensio
+در certauth از ارسال توکن احراز هویت دوم پشتیبانی می‌کند؛ در صورتی که PAM آن را بخواهد،
 .BR gtlsshd
-will attempt a normal password login if that is enabled.
-.SH WINDOWS HACKS
-See "WINDOWS HACKS" in the gtlssh-keygen.1 man page for information
-about special windows configuration.
-.SH TWO-FACTOR AUTHENTICATION
-.BR gtlsshd
-supports two-factor authentication in a number of ways.  The certauth
-gensio supports sending a second authentication token, gtlsshd will
-pick that up and use it if PAM asks for it.  If it's not there but PAM
-asks for it, it will interactively prompt the user for the token
-unless
+آن را دریافت کرده و به کار می‌برد. اگر توکن ارسال نشده باشد اما PAM آن را درخواست کند، به صورت تعاملی توکن را از کاربر درخواست خواهد کرد، مگر آنکه گزینه
 .I \-\-nointeractive
-is specified.
-
-This requires, of course, proper PAM setup.  It also direclty supports
-second authentication tokens with certificates.  You can specify a
-different PAM authentication script for logins done with certificates
-using
+مشخص شده باشد.
+.PP
+البته این مورد نیازمند پیکربندی مناسب PAM است. همچنین این برنامه مستقیماً از توکن‌های احراز هویت دوم همراه با گواهی‌ها پشتیبانی می‌کند. می‌توانید با استفاده از گزینه
 .I \-\-pam\-cert\-auth
-to allow a second factor to be added for just certificate
-authentications.
-
-You can request that the other end prompt for a second-factor
-authentication token and send it along with the password by adding the
+یک اسکریپت احراز هویت PAM متفاوت را برای ورودهای مبتنی بر گواهی تعیین کنید تا اضافه شدن عامل دوم تنها به احراز هویت‌های مبتنی بر گواهی محدود شود.
+.PP
+همچنین می‌توانید با افزودن گزینه
 .I \-\-do\-2fa
-option.  This will cause the other end to always ask for a second
-factor.
+درخواست کنید که طرف مقابل توکن احراز هویت عامل دوم را از کاربر درخواست کرده و همراه با گذرواژه ارسال نماید. این گزینه موجب می‌شود که طرف مقابل همواره عامل دوم را درخواست کند.
 
 .SH "گزینه‌ها (OPTIONS)"
 .TP
 .I \-p|\-\-port port
-Use the given port instead of the default port.
+استفاده از درگاه (پورت) مشخص‌شده به جای درگاه پیش‌فرض.
 .TP
 .I \-h|\-\-keyfile file
-Use the given file for the key instead of the default.  Defaults to
-sysconfidr/gtlssh/gtlsshd.key.  On unix sysconfdir is generally /etc.
-On Windows it is one directory up from the executable with /etc appended.
+استفاده از فایل داده‌شده برای کلید به جای فایل پیش‌فرض. مقدار پیش‌فرض
+.B sysconfdir/gtlssh/gtlsshd.key
+است. در یونیکس،
+sysconfdir
+عموماً
+.B /etc
+می‌باشد. در ویندوز، یک پوشه بالاتر از فایل اجرایی به همراه
+.B /etc
+است.
 .TP
 .I \-c|\-\-certfile file
-Set the certificate to use.  Defaults to sysconfdir/gtlssh/gtlsshd.crt.
-On unix sysconfdir is generally /etc.  On Windows it is one directory up
-from the executable with /etc appended.
+تنظیم گواهی مورد استفاده. مقدار پیش‌فرض
+.B sysconfdir/gtlssh/gtlsshd.crt
+است. در یونیکس،
+sysconfdir
+عموماً
+.B /etc
+می‌باشد. در ویندوز، یک پوشه بالاتر از فایل اجرایی به همراه
+.B /etc
+است.
 .TP
 .I \-\-permit\-root
-Allow root logins.  Otherwise root or uid=0 is denied.
+اجازه ورود به کاربر ریشه (root). در غیر این صورت، ورود کاربر ریشه یا کاربری با
+uid=0
+رد می‌شود.
 .TP
 .I \-\-allow\-password
-Allow password logins.  By default only certificate-based logins
-are allowed.  Passwords are much less secure than certificate
-logins, so their use is discouraged.
+اجازه ورود با گذرواژه. به طور پیش‌فرض فقط ورود مبتنی بر گواهی مجاز است. گذرواژه‌ها بسیار ناامن‌تر از ورود با گواهی هستند، بنابراین استفاده از آن‌ها توصیه نمی‌شود.
 .TP
 .I \-\-require\-password
-Require a password in addition to certificate logins.  This is
-primarily for Windows systems that really need a password to be able
-to log in properly.
+الزام به گذرواژه علاوه بر ورود با گواهی. این گزینه عمدتاً برای سیستم‌های ویندوزی است که برای ورود صحیح حتماً به گذرواژه نیاز دارند.
 
-On Unix system, you generally use PAM for this, but if you set up PAM
-to require passwords even with certificates, you should also set this
-option so the password is transferred as part of the authentication
-protocol and not interactively.
+در سیستم‌های یونیکس، معمولاً برای این کار از PAM استفاده می‌کنید، اما اگر PAM را طوری پیکربندی کنید که حتی در صورت استفاده از گواهی باز هم گذرواژه بخواهد، باید این گزینه را نیز فعال کنید تا گذرواژه به عنوان بخشی از پروتکل احراز هویت منتقل شود و نه به صورت تعاملی.
 .TP
 .I \-\-do\-2fa
-Enable 2-factor authentication.  This means that 2-factor
-authentication is enabled in PAM for gtlssh.  This will cause the
-client end to request 2-factor data and transmit it over along with
-the password.  During authentication, it is expected that PAM will
-request two authentication tokens and the first will be the password
-(if certificate failed).  Note that this is not required to do
-2-factor auth, but is useful to allow gtlssh to read the 2-factor data
-and transfer it as part of the login data.
+فعال‌سازی احراز هویت دومرحله‌ای. این به این معنی است که احراز هویت دومرحله‌ای در PAM برای gtlssh فعال شده است. این امر باعث می‌شود که کلاینت داده‌های دومرحله‌ای را درخواست کند و آن‌ها را به همراه گذرواژه ارسال نماید. در حین احراز هویت، انتظار می‌رود که PAM دو توکن احراز هویت درخواست کند که اولی گذرواژه خواهد بود (در صورتی که گواهی ناموفق باشد). توجه داشته باشید که این گزینه برای انجام احراز هویت دومرحله‌ای اجباری نیست، اما به gtlssh امکان می‌دهد داده‌های دومرحله‌ای را بخواند و به عنوان بخشی از اطلاعات ورود ارسال کند.
 .TP
 .I \-\-pam\-cert\-auth <name>
-If the connection is authorized with a certificate, still do a PAM
-authentication, but use the given name as the program name for PAM to
-use to find the rules.  This will allow 2-factor auth to be done on a
-certificate login, as the given set of rules can be written to only
-do the second factor authentication part.
+اگر اتصال با گواهی احراز هویت شد، همچنان احراز هویت PAM را انجام بده، اما از نام مشخص‌شده به عنوان نام برنامه برای PAM جهت یافتن قوانین استفاده کن. این کار اجازه می‌دهد احراز هویت دومرحله‌ای روی ورود مبتنی بر گواهی نیز انجام پذیرد، زیرا می‌توان قوانین مشخص‌شده را طوری نوشت که فقط بخش احراز هویت مرحله دوم را انجام دهند.
 .TP
 .I \-\-pam\-service <name>
-Use the given name for the pam service, instead of using the program's name.
+استفاده از نام مشخص‌شده برای سرویس PAM، به جای استفاده از نام برنامه.
 .TP
 .I \-\-use\-login, \-\-no\-use\-login
-Use or do not use the login program to log the user in.  Some systems
-work better with login, others work fine to directly execute the
-shell.  The default depends on the system and should be best.
+استفاده یا عدم استفاده از برنامه login برای ورود کاربر به سیستم. برخی سیستم‌ها با login بهتر کار می‌کنند، در حالی که در دیگر سیستم‌ها اجرای مستقیم پوسته به خوبی کار می‌کند. مقدار پیش‌فرض وابسته به سیستم است و بهترین حالت انتخاب خواهد شد.
 .TP
 .I \-\-oneshot
-Do not fork the program at the beginning or when a connection is
-received.  This allows easier debugging of the program.
+عدم انشعاب (fork نکردن) برنامه در شروع کار یا هنگام دریافت یک اتصال. این گزینه امکان اشکال‌زدایی آسان‌تر برنامه را فراهم می‌کند.
 .TP
 .I \-\-nodaemon
-Do not daemonize (double fork) the program.
+برنامه را به صورت دیمن (انشعاب دوگانه / double fork) درنیاور.
 .TP
 .I \-\-nointeractive
-Disable interactive logins.  All authentication information must be
-passed in via the protocol.  This is different than gtlssh's view of
-interactive, which affects how I/O is done.  This only affects
-prompting for credentials interactively.
+غیرفعال کردن ورودهای تعاملی. تمام اطلاعات احراز هویت باید از طریق پروتکل ارسال شوند. این مورد با مفهوم تعاملی در gtlssh که بر نحوه ورودی/خروجی تأثیر می‌گذارد متفاوت است. این گزینه فقط بر درخواست تعاملی اطلاعات کاربری اثر می‌گذارد.
 .TP
 .I \-\-sctp
-Enable SCTP support.
+فعال کردن پشتیبانی از پروتکل SCTP.
 .TP
 .I \-\-notcp
-Disable TCP support
+غیرفعال کردن پشتیبانی از پروتکل TCP.
 .TP
 .I \-\-other_acc <accepter>
-Enable the given accepter to receive connections for gtlsshd.  This
-does not disable TCP or SCTP.
+فعال‌سازی پذیرنده (accepter) مشخص‌شده برای دریافت اتصالات gtlsshd. این گزینه TCP یا SCTP را غیرفعال نمی‌کند.
 .TP
 .I \-P|\-\-pidfile file
-Create a standard pidfile using the given filename.
+ایجاد یک فایل شناسه فرایند (pidfile) استاندارد با نام داده‌شده.
 .TP
 .I \-4
-Do IPv4 only.
+فقط استفاده از IPv4.
 .TP
 .I \-6
-Do IPv6 only.
+فقط استفاده از IPv6.
 .TP
 .I \-m, \-\-enable\-mdns
-Enable MDNS service for this device.  This allows gtlssh to find this with
-"gtlssh -m <name>".
+فعال‌سازی سرویس mDNS برای این دستگاه. این قابلیت به gtlssh امکان می‌دهد آن را با
+.B "gtlssh \-m <name>"
+پیدا کند.
 .TP
 .I \-\-mdns\-name <name>
-Sets the name used for finding this connection with mdns.  The default
-is the first part of the hostname, before the first '.', if any.
+تنظیم نام مورد استفاده برای یافتن این اتصال از طریق mDNS. مقدار پیش‌فرض، بخش اول نام میزبان قبل از نخستین نویسه «.» (در صورت وجود) است.
 .TP
 .I \-\-startup\-retries
-The number of times gtlsshd will retry creating the accepter.  It
-retries once a second. Generally, if creating the accepter fails, that
-means the nameserver is not yet operational and converting the local
-name to an address fails, so this can help with the resolver not being
-ready when gtlsshd starts.  Default is 30.
+تعداد دفعاتی که gtlsshd برای ایجاد پذیرنده تلاش مجدد می‌کند. تلاش مجدد یک بار در هر ثانیه انجام می‌شود. معمولاً در صورت ناموفق بودن ایجاد پذیرنده، به این معنی است که کارساز نام (nameserver) هنوز در دسترس نیست و تبدیل نام محلی به آدرس با خطا مواجه می‌شود؛ بنابراین این گزینه می‌تواند در شرایطی که تحلیل‌گر نام (resolver) هنگام شروع کار gtlsshd آماده نیست، مفید باشد. مقدار پیش‌فرض ۳۰ است.
 .TP
 .I \-d|\-\-debug
-Generate debugging output.  Specifying more than once increases the output.
-This also causes syslog output to go to standard error.
+تولید خروجی اشکال‌زدایی. مشخص کردن بیش از یک بار، میزان خروجی را افزایش می‌دهد. همچنین باعث می‌شود خروجی syslog به خروجی خطای استاندارد (stderr) ارسال گردد.
 .TP
 .I \-\-version
-Print the version number and exit.
+چاپ شماره نسخه و خروج.
 .TP
 .I \-h|\-\-help
-Help output
+نمایش پیام راهنما.
 
 .SH "همچنین ببینید (SEE ALSO)"
-gensio(5), gtlssh(1), gtlssh-keygen(1)
+.BR gensio (5),
+.BR gtlssh (1),
+.BR gtlssh\-keygen (1)
 
-.SH "KNOWN PROBLEMS"
-None.
+.SH "مشکلات شناخته‌شده (KNOWN PROBLEMS)"
+هیچ موردی گزارش نشده است.
 
 .SH "نویسنده (AUTHOR)"
 .PP

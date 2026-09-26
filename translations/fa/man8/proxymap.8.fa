@@ -1,244 +1,200 @@
-.TH PROXYMAP 8 
+" t
+.TH PROXYMAP 8 "" "" "راهنمای Postfix"
 .ad
 .fi
 .SH "نام (NAME)"
-proxymap
-\-
-Postfix lookup table proxy server
+proxymap \- سرور پراکسی جدول‌های جستجوی Postfix
 .SH "خلاصه دستور (SYNOPSIS)"
 .na
 .nf
-\fBproxymap\fR [generic Postfix daemon options]
+\fBproxymap\fR [گزینه‌های عمومی دیمن Postfix]
 .SH "توضیحات (DESCRIPTION)"
 .ad
 .fi
-The \fBproxymap\fR(8) server provides read\-only or read\-write
-table lookup service to Postfix processes. These services are
-implemented with distinct service names: \fBproxymap\fR and
-\fBproxywrite\fR, respectively. The purpose of these services is:
+سرور \fBproxymap\fR(8) خدمات جستجوی جدول فقط‌خواندنی یا خواندنی-نوشتنی را به
+فرآیندهای Postfix ارائه می‌دهد. این خدمات به ترتیب با نام‌های سرویس مجزای
+\fBproxymap\fR و \fBproxywrite\fR پیاده‌سازی شده‌اند. هدف از این خدمات عبارت است از:
 .IP \(bu
-To overcome chroot restrictions. For example, a chrooted SMTP
-server needs access to the system passwd file in order to
-reject mail for non\-existent local addresses, but it is not
-practical to maintain a copy of the passwd file in the chroot
-jail.  The solution:
+غلبه بر محدودیت‌های chroot. برای نمونه، یک سرور SMTP در محیط chroot برای رد
+نامه‌های مربوط به نشانی‌های محلی ناموجود نیازمند دسترسی به فایل passwd سیستم است،
+اما نگهداری نسخه‌ای از فایل passwd در زندان chroot کاربردی و عملی نیست. راهکار:
 .sp
 .nf
 local_recipient_maps =
-    proxy:unix:passwd.byname $alias_maps
+    proxy:unix:passwd.byname 
 .fi
 .IP \(bu
-To consolidate the number of open lookup tables by sharing
-one open table among multiple processes. For example, making
-mysql connections from every Postfix daemon process results
-in "too many connections" errors. The solution:
+تجمیع تعداد جدول‌های جستجوی باز از طریق اشتراک‌گذاری یک جدول باز میان چندین
+فرآیند. برای نمونه، برقراری اتصالات mysql از سوی تک‌تک فرآیندهای دیمن Postfix منجر
+به خطای "too many connections" می‌شود. راهکار:
 .sp
 .nf
 virtual_alias_maps =
     proxy:mysql:/etc/postfix/virtual_alias.cf
 .fi
 .sp
-The total number of connections is limited by the number of
-proxymap server processes.
+تعداد کل اتصالات با تعداد فرآیندهای سرور proxymap محدود می‌شود.
 .IP \(bu
-To provide single\-updater functionality for lookup tables
-that do not reliably support multiple writers (i.e. all
-file\-based tables that are not based on \fBlmdb\fR).
+ارائه قابلیت به‌روزرسانی منفرد (single-updater) برای جدول‌های جستجویی که به‌طور
+قابل اتکا از چندین نویسنده همزمان پشتیبانی نمی‌کنند (یعنی تمام جدول‌های مبتنی بر
+فایل که بر پایه \fBlmdb\fR نیستند).
 .PP
-The \fBproxymap\fR(8) server implements the following requests:
+سرور \fBproxymap\fR(8) درخواست‌های زیر را پیاده‌سازی می‌کند:
 .IP "\fBopen\fR \fImaptype:mapname instance\-flags\fR"
-Open the table with type \fImaptype\fR and name \fImapname\fR,
-with initial dictionary flags \fIinstance\-flags\fR. The reply
-contains the actual dictionary flags (for example, to distinguish
-a fixed\-string table from a regular\-expression table).
+باز کردن جدول با نوع \fImaptype\fR و نام \fImapname\fR، با پرچم‌های اولیه
+دیکشنری \fIinstance\-flags\fR. پاسخ شامل پرچم‌های واقعی دیکشنری است (برای نمونه
+جهت تمایز میان جدول رشته ثابت و جدول عبارات باقاعده).
 .IP "\fBlookup\fR \fImaptype:mapname instance\-flags request\-flags key\fR"
-Look up the data stored under the requested key using the
-dictionary flags in \fIrequest\-flags\fR.
-The reply contains the request completion status code, the
-resulting dictionary flags, and the lookup result value.
-The \fImaptype:mapname\fR and \fIinstance\-flags\fR are the same
-as with the \fBopen\fR request.
+جستجوی داده ذخیره‌شده ذیل کلید درخواستی با استفاده از پرچم‌های دیکشنری در
+\fIrequest\-flags\fR. پاسخ شامل کد وضعیت تکمیل درخواست، پرچم‌های حاصل، و مقدار
+نتیجه جستجو است. \fImaptype:mapname\fR و \fIinstance\-flags\fR مشابه درخواست
+\fBopen\fR هستند.
 .IP "\fBupdate\fR \fImaptype:mapname instance\-flags request\-flags key value\fR"
-Update the data stored under the requested key using the
-dictionary flags in \fIrequest\-flags\fR.
-The reply contains the request completion status code and the
-resulting dictionary flags.
-The \fImaptype:mapname\fR and \fIinstance\-flags\fR are the same
-as with the \fBopen\fR request.
+به‌روزرسانی داده‌های ذخیره‌شده ذیل کلید درخواستی با استفاده از پرچم‌های دیکشنری در
+\fIrequest\-flags\fR. پاسخ شامل کد وضعیت تکمیل درخواست و پرچم‌های حاصل است.
+\fImaptype:mapname\fR و \fIinstance\-flags\fR مشابه درخواست \fBopen\fR هستند.
 .sp
-To implement single\-updater maps, specify a process limit
-of 1 in the master.cf file entry for the \fBproxywrite\fR
-service.
+جهت پیاده‌سازی نقشه‌های با تک‌به‌روزرسان، محدودیت فرآیند (process limit) را روی 1 در
+ورودی فایل master.cf برای سرویس \fBproxywrite\fR مشخص نمایید.
 .sp
-This request is supported in Postfix 2.5 and later.
+این درخواست در پُست‌فیکس نسخه 2.5 و بالاتر پشتیبانی می‌شود.
 .IP "\fBdelete\fR \fImaptype:mapname instance\-flags request\-flags key\fR"
-Delete the data stored under the requested key, using the
-dictionary flags in \fIrequest\-flags\fR.
-The reply contains the request completion status code and the
-resulting dictionary flags.
-The \fImaptype:mapname\fR and \fIinstance\-flags\fR are the same
-as with the \fBopen\fR request.
+حذف داده‌های ذخیره‌شده ذیل کلید درخواستی، با استفاده از پرچم‌های دیکشنری در
+\fIrequest\-flags\fR. پاسخ شامل کد وضعیت تکمیل درخواست و پرچم‌های حاصل است.
+\fImaptype:mapname\fR و \fIinstance\-flags\fR مشابه درخواست \fBopen\fR هستند.
 .sp
-This request is supported in Postfix 2.5 and later.
+این درخواست در پُست‌فیکس نسخه 2.5 و بالاتر پشتیبانی می‌شود.
 .IP "\fBsequence\fR \fImaptype:mapname instance\-flags request\-flags function\fR"
-Iterate over the specified database, using the dictionary flags
-in \fIrequest\-flags\fR. The \fIfunction\fR is either
-DICT_SEQ_FUN_FIRST or DICT_SEQ_FUN_NEXT.
-The reply contains the request completion status code, the
-resulting dictionary flags, and a lookup key and result value
-if found.
-The \fImaptype:mapname\fR and \fIinstance\-flags\fR are the same
-as with the \fBopen\fR request.
+پیمایش روی پایگاه‌داده مشخص‌شده با استفاده از پرچم‌های دیکشنری در
+\fIrequest\-flags\fR. آرگومان \fIfunction\fR برابر DICT_SEQ_FUN_FIRST یا
+DICT_SEQ_FUN_NEXT است. پاسخ شامل کد وضعیت تکمیل درخواست، پرچم‌های حاصل، و کلید جستجو
+و مقدار نتیجه در صورت یافت شدن است. \fImaptype:mapname\fR و \fIinstance\-flags\fR
+مشابه درخواست \fBopen\fR هستند.
 .sp
-This request is supported in Postfix 2.9 and later.
-.IP "Not implemented: close"
-There is no \fBclose\fR request, nor are tables implicitly closed
-when a client disconnects. The purpose is to share tables among
-multiple client processes. Due to the absence of an explicit or
-implicit \fBclose\fR, updates are forced to be synchronous.
+این درخواست در پُست‌فیکس نسخه 2.9 و بالاتر پشتیبانی می‌شود.
+.IP "پیاده‌سازی‌نشده: close"
+هیچ درخواست \fBclose\fR وجود ندارد و هنگام قطع ارتباط کلاینت نیز جدول‌ها به‌طور
+ضمنی بسته نمی‌شوند. هدف اشتراک‌گذاری جدول‌ها میان چندین فرآیند کلاینت است. به دلیل
+عدم وجود بستن صریح یا ضمنی، به‌روزرسانی‌ها به اجبار همگام (synchronous) هستند.
 .PP
-The request completion status is one of OK, RETRY, NOKEY
-(lookup failed because the key was not found), BAD (malformed
-request) or DENY (the table is not approved for proxy read
-or update access).
-.SH "SERVER PROCESS MANAGEMENT"
+وضعیت تکمیل درخواست یکی از موارد OK، RETRY، NOKEY (جستجو ناموفق بود چون کلید یافت نشد)،
+BAD (درخواست ناقص) یا DENY (جدول برای دسترسی خواندن یا به‌روزرسانی پراکسی تأیید
+نشده است) می‌باشد.
+.SH "مدیریت فرآیند سرور (SERVER PROCESS MANAGEMENT)"
 .na
 .nf
 .ad
 .fi
-\fBproxymap\fR(8) servers run under control by the Postfix
-\fBmaster\fR(8)
-server.  Each server can handle multiple simultaneous connections.
-When all servers are busy while a client connects, the \fBmaster\fR(8)
-creates a new \fBproxymap\fR(8) server process, provided that the
-process limit is not exceeded.
-Each server terminates after serving at least \fB$max_use\fR clients
-or after \fB$max_idle\fR seconds of idle time.
-.SH "SECURITY"
+سرورهای \fBproxymap\fR(8) تحت کنترل سرور \fBmaster\fR(8) پُست‌فیکس اجرا می‌شوند. هر
+سرور می‌تواند چندین اتصال همزمان را مدیریت کند. هنگامی که تمامی سرورها در زمان
+اتصال کلاینت مشغول باشند، \fBmaster\fR(8) فرآیند سرور جدیدی از \fBproxymap\fR(8)
+ایجاد می‌نماید، به شرط آنکه از سقف فرآیندها فراتر نرود. هر سرور پس از سرویس‌دهی به
+حداقل \fB\fR کلاینت یا پس از \fB\fR ثانیه زمان بیکاری خاتمه می‌یابد.
+.SH "امنیت (SECURITY)"
 .na
 .nf
 .ad
 .fi
-The \fBproxymap\fR(8) server opens only tables that are
-approved via the \fBproxy_read_maps\fR or \fBproxy_write_maps\fR
-configuration parameters, does not talk to
-users, and can run at fixed low privilege, chrooted or not.
-However, running the proxymap server chrooted severely limits
-usability, because it can open only chrooted tables.
+سرور \fBproxymap\fR(8) تنها جدول‌هایی را باز می‌کند که از طریق پارامترهای
+پیکربندی \fBproxy_read_maps\fR یا \fBproxy_write_maps\fR تأیید شده باشند، با
+کاربران تعامل ندارد، و می‌تواند با سطح دسترسی پایین، در محیط chroot یا خارج از آن
+اجرا شود. با این حال اجرای سرور proxymap در chroot کارایی آن را به شدت محدود
+می‌کند، زیرا تنها قادر به باز کردن جدول‌های داخل chroot خواهد بود.
 
-The \fBproxymap\fR(8) server is not a trusted daemon process, and must
-not be used to look up sensitive information such as UNIX user or
-group IDs, mailbox file/directory names or external commands.
+سرور \fBproxymap\fR(8) یک فرآیند دیمن مورد اعتماد نیست و نباید برای جستجوی
+اطلاعات حساس نظیر شناسه‌های کاربری یا گروهی یونیکس، نام فایل‌ها/دایرکتوری‌های
+صندوق پستی یا دستورات خارجی به کار رود.
 
-In Postfix version 2.2 and later, the proxymap client recognizes
-requests to access a table for security\-sensitive purposes,
-and opens the table directly. This allows the same main.cf
-setting to be used by sensitive and non\-sensitive processes.
+در نسخه 2.2 پُست‌فیکس و بالاتر، کلاینت proxymap درخواست‌های دسترسی به جدول برای مقاصد
+حساس امنیتی را شناسایی کرده و جدول را مستقیماً باز می‌کند.
 
-Postfix\-writable data files should be stored under a dedicated
-directory that is writable only by the Postfix mail system,
-such as the Postfix\-owned \fBdata_directory\fR.
+فایل‌های داده قابل نوشتن توسط پُست‌فیکس باید در یک دایرکتوری اختصاصی ذخیره شوند
+که تنها برای سیستم پستی پُست‌فیکس قابل نوشتن باشد، مانند \fBdata_directory\fR متعلق
+به پُست‌فیکس.
 
-In particular, Postfix\-writable files should never exist
-in root\-owned directories. That would open up a particular
-type of security hole where ownership of a file or directory
-does not match the provider of its content.
+به‌ویژه، فایل‌های قابل نوشتن توسط پُست‌فیکس هرگز نباید در دایرکتوری‌های متعلق به root
+قرار گیرند.
 .SH "عیب‌یابی (DIAGNOSTICS)"
 .ad
 .fi
-Problems and transactions are logged to \fBsyslogd\fR(8)
-or \fBpostlogd\fR(8).
+مشکلات و تراکنش‌ها در \fBsyslogd\fR(8) یا \fBpostlogd\fR(8) ثبت می‌شوند.
 .SH "اشکالات (BUGS)"
 .ad
 .fi
-The \fBproxymap\fR(8) server provides service to multiple clients,
-and must therefore not be used for tables that have high\-latency
-lookups.
+سرور \fBproxymap\fR(8) به چندین کلاینت خدمات ارائه می‌دهد و بنابراین نباید برای
+جدول‌هایی با تأخیر جستجوی بالا به کار گرفته شود.
 
-The \fBproxymap\fR(8) read\-write service does not explicitly
-close lookup tables (even if it did, this could not be relied on,
-because the process may be terminated between table updates).
-The read\-write service should therefore not be used with tables that
-leave persistent storage in an inconsistent state between
-updates (for example, CDB). Tables that support "sync on
-update" should be safe (for example, Berkeley DB) as should
-tables that are implemented by a real DBMS.
-.SH "CONFIGURATION PARAMETERS"
+سرویس خواندنی-نوشتنی \fBproxymap\fR(8) به صراحت جدول‌های جستجو را نمی‌بندد (حتی
+اگر می‌بست نیز نمی‌شد به آن اتکا کرد، چرا که ممکن است فرآیند میان به‌روزرسانی‌های
+جدول خاتمه یابد). بنابراین سرویس خواندنی-نوشتنی نباید برای جدول‌هایی به کار رود
+که ذخیره‌سازی پایدار را میان به‌روزرسانی‌ها در وضعیت ناسازگار رها می‌کنند (برای
+نمونه CDB). جدول‌هایی که از "همگام‌سازی در زمان به‌روزرسانی (sync on update)"
+پشتیبانی می‌کنند باید ایمن باشند (مانند Berkeley DB)، همان‌طور که جدول‌های
+پیاده‌سازی‌شده با یک پایگاه‌داده واقعی (DBMS) ایمن هستند.
+.SH "پارامترهای پیکربندی (CONFIGURATION PARAMETERS)"
 .na
 .nf
 .ad
 .fi
-On busy mail systems a long time may pass before
-\fBproxymap\fR(8) relevant
-changes to \fBmain.cf\fR are picked up. Use the command
-"\fBpostfix reload\fR" to speed up a change.
+در سیستم‌های پستی شلوغ ممکن است زمان زیادی بگذرد تا تغییرات مربوط به
+\fBproxymap\fR(8) در \fBmain.cf\fR اعمال شوند. برای تسریع این امر از دستور
+"\fBpostfix reload\fR" استفاده کنید.
 
-The text below provides only a parameter summary. See
-\fBpostconf\fR(5) for more details including examples.
-.IP "\fBconfig_directory (see 'postconf -d' output)\fR"
-The default location of the Postfix main.cf and master.cf
-configuration files.
-.IP "\fBdata_directory (see 'postconf -d' output)\fR"
-The directory with Postfix\-writable data files (for example:
-caches, pseudo\-random numbers).
+متن زیر تنها خلاصه‌ای از پارامترها را ارائه می‌دهد. برای جزئیات بیشتر شامل مثال‌ها
+به \fBpostconf\fR(5) مراجعه فرمایید.
+.IP "\fBconfig_directory (خروجی 'postconf -d' را ببینید)\fR"
+مکان پیش‌فرض فایل‌های پیکربندی main.cf و master.cf پُست‌فیکس.
+.IP "\fBdata_directory (خروجی 'postconf -d' را ببینید)\fR"
+دایرکتوری فایل‌های داده قابل نوشتن توسط پُست‌فیکس (مانند کش‌ها، اعداد شبه‌تصادفی).
 .IP "\fBdaemon_timeout (18000s)\fR"
-How much time a Postfix daemon process may take to handle a
-request before it is terminated by a built\-in watchdog timer.
+حداکثر زمانی که فرآیند دیمن پُست‌فیکس می‌تواند صرف رسیدگی به یک درخواست کند
+پیش از آنکه توسط تایمر دیده‌بان داخلی خاتمه داده شود.
 .IP "\fBipc_timeout (3600s)\fR"
-The time limit for sending or receiving information over an internal
-communication channel.
+مهلت زمانی برای ارسال یا دریافت اطلاعات روی کانال ارتباطی داخلی.
 .IP "\fBmax_idle (100s)\fR"
-The maximum amount of time that an idle Postfix daemon process waits
-for an incoming connection before terminating voluntarily.
+حداکثر مدت زمانی که فرآیند دیمن بیکار پُست‌فیکس در انتظار اتصال ورودی می‌ماند پیش
+از آنکه داوطلبانه خاتمه یابد.
 .IP "\fBmax_use (100)\fR"
-The maximal number of incoming connections that a Postfix daemon
-process will service before terminating voluntarily.
-.IP "\fBprocess_id (read\-only)\fR"
-The process ID of a Postfix command or daemon process.
-.IP "\fBprocess_name (read\-only)\fR"
-The process name of a Postfix command or daemon process.
-.IP "\fBproxy_read_maps (see 'postconf -d' output)\fR"
-The lookup tables that the \fBproxymap\fR(8) server is allowed to
-access for the read\-only service.
+حداکثر تعداد اتصالات ورودی که فرآیند دیمن پُست‌فیکس پیش از خروج داوطلبانه سرویس‌دهی می‌کند.
+.IP "\fBprocess_id (فقط‌خواندنی)\fR"
+شناسه فرآیند (PID) دستور یا دیمن پُست‌فیکس.
+.IP "\fBprocess_name (فقط‌خواندنی)\fR"
+نام فرآیند دستور یا دیمن پُست‌فیکس.
+.IP "\fBproxy_read_maps (خروجی 'postconf -d' را ببینید)\fR"
+جدول‌های جستجویی که سرور \fBproxymap\fR(8) مجاز به دسترسی به آن‌ها برای سرویس فقط‌خواندنی است.
 .PP
-Available in Postfix 2.5 and later:
-.IP "\fBdata_directory (see 'postconf -d' output)\fR"
-The directory with Postfix\-writable data files (for example:
-caches, pseudo\-random numbers).
-.IP "\fBproxy_write_maps (see 'postconf -d' output)\fR"
-The lookup tables that the \fBproxymap\fR(8) server is allowed to
-access for the read\-write service.
+موجود در Postfix 2.5 و بالاتر:
+.IP "\fBproxy_write_maps (خروجی 'postconf -d' را ببینید)\fR"
+جدول‌های جستجویی که سرور \fBproxymap\fR(8) مجاز به دسترسی به آن‌ها برای سرویس خواندنی-نوشتنی است.
 .PP
-Available in Postfix 3.3 and later:
-.IP "\fBservice_name (read\-only)\fR"
-The master.cf service name of a Postfix daemon process.
+موجود در Postfix 3.3 و بالاتر:
+.IP "\fBservice_name (فقط‌خواندنی)\fR"
+نام سرویس master.cf برای یک فرآیند دیمن Postfix.
 .SH "همچنین ببینید (SEE ALSO)"
 .na
 .nf
-postconf(5), configuration parameters
-master(5), generic daemon options
-.SH "README FILES"
+postconf(5), پارامترهای پیکربندی
+master(5), گزینه‌های عمومی دیمن
+.SH "فایل‌های راهنما (README FILES)"
 .na
 .nf
 .ad
 .fi
-Use "\fBpostconf readme_directory\fR" or
-"\fBpostconf html_directory\fR" to locate this information.
+برای یافتن این اطلاعات از "\fBpostconf readme_directory\fR" یا
+"\fBpostconf html_directory\fR" استفاده کنید.
 .na
 .nf
-DATABASE_README, Postfix lookup table overview
+DATABASE_README, مروری بر جدول‌های جستجوی Postfix
 .SH "مجوز (LICENSE)"
 .na
 .nf
 .ad
 .fi
-The Secure Mailer license must be distributed with this software.
+مجوز Secure Mailer باید همراه با این نرم‌افزار توزیع شود.
 .SH "تاریخچه (HISTORY)"
 .ad
 .fi
-.ad
-.fi
-The proxymap service was introduced with Postfix 2.0.
+سرویس proxymap در Postfix نسخه 2.0 معرفی گردید.
 .SH "نویسندگان (AUTHORS)"
 .na
 .nf

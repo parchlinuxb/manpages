@@ -1,176 +1,192 @@
 .\" sysstat manual page - (C) 2020 Sebastien Godard (sysstat <at> orange.fr)
 .TH SYSSTAT 5 "AUGUST 2023" Linux "Linux User's Manual" -*- nroff -*-
 .SH "نام (NAME)"
-sysstat \- sysstat configuration file.
+sysstat \- فایل پیکربندی sysstat
 
 .SH "توضیحات (DESCRIPTION)"
-This file is read by
-.BR "sa1" "(8) and " "sa2" "(8) shell scripts from the sysstat's set of tools."
-It consists of a sequence of shell variable assignments used to
-configure sysstat logging.
-The variables and their meanings are:
+این فایل توسط اسکریپت‌های شل
+.BR sa1 (8)
+و
+.BR sa2 (8)
+از مجموعه ابزارهای sysstat خوانده می‌شود. این فایل شامل توالی از مقداردهی‌ها به متغیرهای شل است که برای پیکربندی ثبت گزارش‌های sysstat به کار می‌روند.
+متغیرها و معانی آن‌ها به شرح زیر است:
 .TP
 .B COMPRESSAFTER
-Number of days after which daily data files are to be compressed.
-The compression program is given in the
-.BR "ZIP " "variable."
+تعداد روزهایی که پس از آن، فایل‌های داده‌های روزانه فشرده می‌شوند. برنامه فشرده‌سازی در متغیر
+.B ZIP
+تعیین می‌شود.
 .TP
 .B DELAY_RANGE
-.RB "Tell " "sa2"
-script to wait for a random delay in the indicated range before running.
-This delay is expressed in seconds, and is aimed at preventing a massive I/O burst
-at the same time on VM sharing the same storage area.
-.RB "A value of 0 means that " "sa2"
-script will generate its reports files immediately.
+به اسکریپت
+.B sa2
+اعلام می‌کند که پیش از اجرا، به میزان یک تاخیر تصادفی در بازه مشخص‌شده منتظر بماند. این تاخیر بر حسب ثانیه بیان می‌شود و هدف آن جلوگیری از هجوم سنگین ورودی/خروجی (I/O burst) همزمان روی ماشین‌های مجازی (VM) است که از فضای ذخیره‌سازی مشترک استفاده می‌کنند. مقدار 0 به این معنی است که اسکریپت
+.B sa2
+فایل‌های گزارش خود را بلافاصله تولید خواهد کرد.
 .TP
 .B HISTORY
-The number of days during which a daily data file or a report
-should be kept. Data files or reports older than this number of
-days will be removed by the
-.BR "sa2" "(8) shell script."
-Data files and reports are normally saved in the /var/log/sa directory,
-under the name
-.IR "saDD " "(for data files) or " "sarDD " "(for reports), where the " "DD"
-parameter indicates the current day.
-
-The number of files actually kept in the /var/log/sa directory may be
-slightly higher than the
-.BR "HISTORY " "value due to the way the " "sa2"
-script figures out which files are to be removed (see below "How the
-.BR "sa2" "(8) script applies " "HISTORY"
-value"). Using a value of 28 keeps a whole month's worth of data. If you set
+تعداد روزهایی که یک فایل داده روزانه یا گزارش باید نگهداری شود. فایل‌های داده یا گزارش‌های قدیمی‌تر از این تعداد روز، توسط اسکریپت شل
+.BR sa2 (8)
+حذف خواهند شد. فایل‌های داده و گزارش‌ها معمولاً در دایرکتوری /var/log/sa با نام‌های
+.IR saDD
+(برای فایل‌های داده) یا
+.IR sarDD
+(برای گزارش‌ها) ذخیره می‌شوند که در آن‌ها پارامتر
+.I DD
+نشان‌دهنده روز جاری است.
+.PP
+تعداد فایل‌هایی که در عمل در دایرکتوری /var/log/sa نگهداری می‌شوند ممکن است کمی بیشتر از مقدار
 .B HISTORY
-to a value greater than 28 then you should consider using
-.BR "sadc" "'s option " "\-D"
-to prevent older data files from being overwritten (see
-.BR "sadc" "(8)"
-manual page). In this latter case data files are named
-.IR "saYYYYMMDD " "and reports " "sarYYYYMMDD" ", where"
-.IR "YYYY " "stands for the current year, " "MM " "for the current month and " "DD"
-for the current day.
-
-How the
-.BR "sa2" "(8) script applies " "HISTORY " "value"
-
-.RB "The " "sa2"
-script uses the
-.BR "find " "command with the " "\-mtime " "option to figure"
-out which files are to be removed. The
-.BR "find " "command interprets this value"
-as "N 24 hour periods", ignoring any fractional part. This means that the
-last modified time of a given
-.IR "sa[r]DD " "data or report file, using a"
-.B HISTORY
-of 1, has to have been modified at least two days ago before it will be
-removed. And for a
-.BR "HISTORY " "of 28 that would mean 29 days ago."
-
-.RB "To figure out how a " "HISTORY"
-of 28 is applied in practice, we need to consider that the
-.BR "sa2 " "script that issues the " "find " "command to remove the"
-old files typically runs just before midnight on a given system, and since
-the first record from
-.B sadc
-can also be written to the previous day's data file
-(thereby moving its modification time up a bit), the
+باشد، به دلیل روشی که اسکریپت
 .B sa2
-script will leave
-30 files untouched. So for a setting of 28, and counting the data file of
-the current day, there will always be 31 files (or 30 files, depending on the
-number of days in a month) in the /var/log/sa directory during the majority
-of a given day.  E.g.:
-
-April 30th: 31 files (Apr 30th-1st, Mar 31th)
+برای تشخیص فایل‌های قابل حذف به کار می‌برد (بخش زیر با عنوان «نحوه اعمال مقدار
+.B HISTORY
+توسط اسکریپت
+.BR sa2 (8)»
+را ببینید). استفاده از مقدار 28، داده‌های مربوط به یک ماه کامل را نگه می‌دارد. اگر مقدار
+.B HISTORY
+را بزرگ‌تر از 28 تنظیم کنید، باید استفاده از گزینه
+.B \-D
+دستور
+.B sadc
+را در نظر بگیرید تا از بازنویسی فایل‌های داده قدیمی‌تر جلوگیری شود (صفحه راهنمای
+.BR sadc (8)
+را ببینید). در این حالت، فایل‌های داده با الگوی
+.IR saYYYYMMDD
+و گزارش‌ها با الگوی
+.IR sarYYYYMMDD
+نام‌گذاری می‌شوند که در آن‌ها
+.I YYYY
+نشان‌دهنده سال جاری،
+.I MM
+نشان‌دهنده ماه جاری و
+.I DD
+نشان‌دهنده روز جاری است.
+.PP
+نحوه اعمال مقدار
+.B HISTORY
+توسط اسکریپت
+.BR sa2 (8):
+.PP
+اسکریپت
+.B sa2
+از دستور
+.B find
+همراه با گزینه
+.B \-mtime
+استفاده می‌کند تا تشخیص دهد چه فایل‌هایی باید حذف شوند. دستور
+.B find
+این مقدار را به عنوان «N دوره ۲۴ ساعته» تفسیر کرده و هرگونه بخش اعشاری را نادیده می‌گیرد. این بدان معنی است که برای حذف یک فایل داده یا گزارش
+.IR sa[r]DD
+با مقدار
+.B HISTORY
+برابر با ۱، زمان آخرین تغییر آن باید حداقل متعلق به دو روز پیش باشد. و برای مقدار
+.B HISTORY
+برابر با ۲۸، این به معنی ۲۹ روز پیش خواهد بود.
+.PP
+برای درک چگونگی اعمال مقدار
+.B HISTORY
+برابر با ۲۸ در عمل، باید در نظر داشت که اسکریپت
+.B sa2
+که دستور
+.B find
+را برای حذف فایل‌های قدیمی صادر می‌کند، معمولاً درست قبل از نیمه‌شب روی یک سیستم اجرا می‌شود؛ و از آنجا که اولین رکورد از
+.B sadc
+می‌تواند در فایل داده روز قبل نیز نوشته شود (که زمان تغییر آن را کمی جلوتر می‌برد)، اسکریپت
+.B sa2
+تعداد ۳۰ فایل را دست‌نخورده باقی می‌گذارد. بنابراین با تنظیم روی ۲۸، و با احتساب فایل داده روز جاری، در اکثر ساعات یک روز معین همیشه ۳۱ فایل (یا ۳۰ فایل، بسته به تعداد روزهای ماه) در دایرکتوری /var/log/sa وجود خواهد داشت. برای مثال:
+.PP
+۳۰ آوریل: ۳۱ فایل (۳۰ تا ۱ آوریل، ۳۱ مارس)
 .br
-May 1st: 30 files (May 1st, Apr 30th-2nd)
-
-Yet we can note the following exceptions (as inspected at Noon of the given day):
-
-February 28th: 31 files (Feb 28th-1st, Jan 31st, 30th & 29th)
+۱ مه: ۳۰ فایل (۱ مه، ۳۰ تا ۲ آوریل)
+.PP
+با این حال، می‌توان موارد استثنای زیر را مشاهده کرد (بررسی‌شده در ظهر روز مربوطه):
+.PP
+۲۸ فوریه: ۳۱ فایل (۲۸ تا ۱ فوریه، ۳۱، ۳۰ و ۲۹ ژانویه)
 .br
-March 1st: 30 files (Mar 1st, Feb 28th-2nd, Jan 31st & 30th)
+۱ مارس: ۳۰ فایل (۱ مارس، ۲۸ تا ۲ فوریه، ۳۱ و ۳۰ ژانویه)
 .br
-March 2nd: 29 files (Mar 1st & 2nd, Feb 28th-3rd, Jan. 31st)
+۲ مارس: ۲۹ فایل (۱ و ۲ مارس، ۲۸ تا ۳ فوریه، ۳۱ ژانویه)
 .br
-March 3rd: 28 files (Mar 1st-3rd, Feb 28th-4th)
+۳ مارس: ۲۸ فایل (۱ تا ۳ مارس، ۲۸ تا ۴ فوریه)
 .br
-March 4th - March 28th: 28 files
+۴ تا ۲۸ مارس: ۲۸ فایل
 .br
-March 29th: 29 files
+۲۹ مارس: ۲۹ فایل
 .br
-March 30th: 30 files
+۳۰ مارس: ۳۰ فایل
 .br
-March 31st: 31 files
-
-(Determining the number of files in March on a leap year is left as an
-exercise for the reader).
-
-Things are simpler if you use the
-.IR "sa[r]YYYYMMDD " "name format."
-Apply the same logic as above in this case and you will find that there
-are always
-.BR "HISTORY " "+ 3 files in the"
-.IR /var/log/sa
-directory during the majority of a given day.
+۳۱ مارس: ۳۱ فایل
+.PP
+(تعیین تعداد فایل‌ها در ماه مارس سال کبیسه به عنوان تمرین به خواننده واگذار می‌شود).
+.PP
+اگر از قالب نام‌گذاری
+.I sa[r]YYYYMMDD
+استفاده کنید، شرایط ساده‌تر است. با اعمال همان منطق بالا در این حالت، خواهید دید که در اکثر ساعات یک روز مشخص همواره
+.B HISTORY + 3
+فایل در دایرکتوری
+.I /var/log/sa
+وجود دارد.
 .TP
 .B REPEAT_HEADER
-Maximum number of lines after which a header will be inserted in the report
-generated by
-.BR "sa2" " script. By default there is only a header at the beginning of"
-each report and it is not repeated afterwards.
+حداکثر تعداد خطوطی که پس از آن، یک سربرگ در گزارش تولیدشده توسط اسکریپت
+.B sa2
+درج می‌شود. به طور پیش‌فرض فقط یک سربرگ در ابتدای هر گزارش وجود دارد و پس از آن تکرار نمی‌شود.
 .TP
 .B REPORTS
-Set this variable to
-.BR "false " "to prevent the " "sa2"
-script from generating reports (the
-.IR "sarDD " "files)."
+این متغیر را روی
+.B false
+تنظیم کنید تا از تولید گزارش‌ها (فایل‌های
+.IR sarDD )
+توسط اسکریپت
+.B sa2
+جلوگیری شود.
 .TP
 .B SA_DIR
-Directory where the standard system activity daily data and report files
-are saved. Its default value is
-.IR "/var/log/sa" "."
+دایرکتوری محل ذخیره فایل‌های گزارش و داده‌های روزانه استاندارد فعالیت سیستم. مقدار پیش‌فرض آن
+.I /var/log/sa
+است.
 .TP
 .B SADC_OPTIONS
-Options that should be passed to
-.BR "sadc" "(8)."
-With these options (see
-.BR "sadc" "(8)"
-manual page), you can select some additional data which are going to be saved in
-daily data files.
-These options are used only when a new data file is created. They will be
-ignored with an already existing one.
+گزینه‌هایی که باید به
+.BR sadc (8)
+پاس داده شوند. با این گزینه‌ها (صفحه راهنمای
+.BR sadc (8)
+را ببینید)، می‌توانید داده‌های اضافی دیگری را که قرار است در فایل‌های داده روزانه ذخیره شوند انتخاب کنید. این گزینه‌ها فقط زمانی استفاده می‌شوند که یک فایل داده جدید ایجاد شود، و برای فایل‌های از قبل موجود نادیده گرفته خواهند شد.
 .TP
 .B UMASK
-.RB "The " "sa1" " and " "sa2"
-scripts generate system activity data and report files in the
-.IR /var/log/sa
-directory. By default the files are created with umask 0022
-and are therefore readable for all users. Change this variable to restrict
-the permissions on the files (e.g. use 0027 to adhere to more strict
-security standards).
+اسکریپت‌های
+.B sa1
+و
+.B sa2
+فایل‌های داده و گزارش فعالیت سیستم را در دایرکتوری
+.I /var/log/sa
+تولید می‌کنند. به طور پیش‌فرض، فایل‌ها با umask 0022 ایجاد می‌شوند و بنابراین برای همه کاربران قابل خواندن هستند. این متغیر را تغییر دهید تا مجوزهای دسترسی به فایل‌ها محدود شود (برای مثال، استفاده از 0027 جهت رعایت استانداردهای امنیتی سخت‌گیرانه‌تر).
 .TP
 .B YESTERDAY
-.RB "By default " "sa2"
-script generates yesterday's summary, since the
-.BR "cron " "job"
-usually runs right after midnight. If you want
+به طور پیش‌فرض، اسکریپت
 .B sa2
-to generate the summary of the same day (for example when cron
-job runs at 23:53) set this variable to
-.BR "no" "."
+خلاصه روز قبل را تولید می‌کند، زیرا کار زمان‌بندی‌شده
+.B cron
+معمولاً بلافاصله پس از نیمه‌شب اجرا می‌شود. اگر می‌خواهید
+.B sa2
+خلاصه همان روز را تولید کند (برای مثال زمانی که کار cron در ساعت 23:53 اجرا می‌شود)، این متغیر را روی
+.B no
+تنظیم کنید.
 .TP
 .B ZIP
-Program used to compress data and report files.
+برنامه مورد استفاده برای فشرده‌سازی فایل‌های داده و گزارش.
 
-.SH FILE
+.SH "فایل‌ها (FILES)"
 .I /etc/conf.d/sysstat
 
 .SH "نویسنده (AUTHOR)"
 Sebastien Godard (sysstat <at> orange.fr)
 
 .SH "همچنین ببینید (SEE ALSO)"
-.BR "sadc" "(8), " "sa1" "(8), " "sa2" "(8)"
+.BR sadc (8),
+.BR sa1 (8),
+.BR sa2 (8)
 .PP
 .I https://github.com/sysstat/sysstat
 .br
-.I https://sysstat.github.io/
+.I https://sysstat.github.io

@@ -1,96 +1,86 @@
 .TH compsize 8 2017-09-04 btrfs btrfs
 .SH "نام (NAME)"
-compsize \- calculate compression ratio of a set of files on btrfs
+compsize \- محاسبه نسبت فشرده‌سازی مجموعه‌ای از فایل‌ها در سیستم‌فایل btrfs
 .SH "خلاصه دستور (SYNOPSIS)"
 .B compsize
-.I file-or-dir
+.I file\-or\-dir
 [
-.I file-or-dir
+.I file\-or\-dir
 \&... ]
 .SH "توضیحات (DESCRIPTION)"
 .B compsize
-takes a list of files on a btrfs filesystem (recursing directories)
-and measures used compression types and the effective compression ratio.
-Besides compression, \fBcompsize\fR shows the effect of reflinks (\fIcp
---reflink\fR, snapshots, deduplication), and certain types of btrfs waste.
-.P
-The program gives a report similar to:
-.br
+فهرستی از فایل‌ها را روی یک سیستم‌فایل btrfs دریافت می‌کند (با پیمایش بازگشتی در دایرکتوری‌ها) و نوع فشرده‌سازی‌های به‌کاررفته و نسبت فشرده‌سازی مؤثر را اندازه می‌گیرد.
+علاوه بر فشرده‌سازی،
+.B compsize
+اثر بازپیوندها (reflinkها مانند
+.IR "cp \-\-reflink" ،
+اسنپ‌شات‌ها و deduplication) و انواع مشخصی از اتلاف فضا در btrfs را نمایش می‌دهد.
+.PP
+این برنامه گزارشی مشابه زیر ارائه می‌دهد:
+.PP
+.nf
 Processed 90319 files.
-.br
 Type       Perc     Disk Usage   Uncompressed Referenced
-.br
 TOTAL       79%      1.4G         1.8G         1.9G
-.br
 none       100%      1.0G         1.0G         1.0G
-.br
 lzo         53%      446M         833M         843M
-.P
-The fields above are:
+.fi
+.PP
+فیلدهای بالا عبارتند از:
 .TP
 .B Type
-compression algorithm
+الگوریتم فشرده‌سازی.
 .TP
 .B Perc
-disk usage/uncompressed (compression ratio)
+میزان مصرف دیسک تقسیم بر حجم فشرده‌نشده (نسبت فشرده‌سازی).
 .TP
 .B Disk Usage
-blocks on the disk; this is what storing these files actually costs you
-(save for RAID considerations)
+بلاک‌های روی دیسک؛ هزینه واقعی ذخیره‌سازی این فایل‌ها روی دیسک (بدون در نظر گرفتن ملاحظات RAID).
 .TP
 .B Uncompressed
-uncompressed extents; what you would need without compression \- includes
-deduplication savings and pinned extent waste
+اکستنت‌های فشرده‌نشده؛ فضایی که بدون فشرده‌سازی نیاز داشتید \- شامل صرفه‌جویی ناشی از یکسان‌سازی (deduplication) و اتلاف فضا در اکستنت‌های سنجاق‌شده (pinned).
 .TP
 .B Referenced
-apparent file sizes (sans holes); this is what a traditional filesystem
-that supports holes and efficient tail packing, or
-.IR "tar -S" ,
-would need to store these files
-.P
-Let's see this on an example: a file 128K big is stored as a single extent A
-which compressed to a single 4K page.  It then receives a write of 32K at
-offset 32K, which also compressed to a single 4K page, stored as extent B.
-.P
-The file now appears as:
-.br
+اندازه ظاهری فایل‌ها (بدون در نظر گرفتن حفره‌ها یا holes)؛ فضایی که یک سیستم‌فایل سنتی با پشتیبانی از حفره‌ها و بسته‌بندی کارآمد دنباله‌ها (tail packing) یا دستور
+.IR "tar \-S"
+برای ذخیره‌سازی این فایل‌ها نیاز دارد.
+.PP
+بیایید این مورد را با یک مثال بررسی کنیم: فایلی به حجم ۱۲۸ کیلوبایت به‌صورت یک اکستنت تکی A ذخیره می‌شود که پس از فشرده‌سازی به یک صفحه ۴ کیلوبایتی تبدیل شده است. سپس یک عملیات نوشتن ۳۲ کیلوبایتی در افست ۳۲ کیلوبایت دریافت می‌کند که آن هم به یک صفحه ۴ کیلوبایتی فشرده شده و به‌عنوان اکستنت B ذخیره می‌شود.
+.PP
+اکنون فایل به این صورت دیده می‌شود:
+.PP
+.nf
          +-------+-------+---------------+
-.br
 extent A | used  | waste | used          |
-.br
          +-------+-------+---------------+
-.br
 extent B         | used  |
-.br
                  +-------+
-.P
-The "waste" inside extent A can't be gotten rid until the whole extent is
-rewritten (for example by \fIdefrag\fR).  If compressed, the whole extent
-needs to be read every time that part of the file is being read, thus the
-"waste" is still required.
-.P
-In this case, we have: \fBDisk Usage\fR: 8KB, \fBUncompressed\fR: 160K,
+.fi
+.PP
+اتلاف فضا (waste) درون اکستنت A تا زمانی که کل اکستنت بازنویسی نشود (برای نمونه با
+.IR defrag )
+از بین نمی‌رود. در صورت فشرده‌سازی، هر بار که آن بخش از فایل خوانده می‌شود باید کل اکستنت خوانده شود، بنابراین فضای اتلاف‌شده همچنان مورد نیاز است.
+.PP
+در این حالت داریم:
+\fBDisk Usage\fR: 8KB،
+\fBUncompressed\fR: 160K،
 \fBReferenced\fR: 128K.
 .SH "گزینه‌ها (OPTIONS)"
 .TP
-.BR -b / --bytes
-Show raw byte counts rather than human-friendly sizes.
+.BR \-b " / " \-\-bytes
+نمایش تعداد خام بایت‌ها به‌جای اندازه‌های خوانا برای انسان.
 .TP
-.BR -x / --one-file-system
-Skip files and directories on different file systems.
-.SH SIGNALS
+.BR \-x " / " \-\-one\-file\-system
+نادیده گرفتن فایل‌ها و دایرکتوری‌های موجود روی سیستم‌فایل‌های دیگر.
+.SH "سیگنال‌ها (SIGNALS)"
 .TP
-.BR USR1
-Displays partial data for files processed so far.
+.B USR1
+نمایش داده‌های جزئی برای فایل‌هایی که تا این لحظه پردازش شده‌اند.
 .SH "هشدارها (CAVEATS)"
-Recently written files may show as not taking any space until they're
-actually allocated and compressed; this happens once they're synced or
-on natural writeout, typically on the order of 30 seconds.
-.P
-The ioctls used by this program require root.
-.P
-Inline extents are considered to be always unique, even if they share
-the same bytes on the disk.
-.P
-This program doesn't currently support filesystems above 8TB on 32-bit
-machines \*- but neither do other btrfs tools.
+فایل‌هایی که به‌تازگی نوشته شده‌اند ممکن است تا زمانی که واقعاً تخصیص نیافته و فشرده نشده‌اند، فضایی اشغال‌نکرده نشان داده شوند؛ این امر پس از همگام‌سازی (sync) یا در زمان خروج طبیعی داده‌ها به دیسک رخ می‌دهد که معمولاً در حدود ۳۰ ثانیه است.
+.PP
+فراخوانی‌های سیستمی (ioctls) مورد استفاده این برنامه به دسترسی ریشه (root) نیاز دارند.
+.PP
+اکستنت‌های درون‌خطی (Inline extents) همیشه یکتا در نظر گرفته می‌شوند، حتی اگر بایت‌های یکسانی روی دیسک داشته باشند.
+.PP
+این برنامه اکنون از سیستم‌فایل‌های بزرگ‌تر از ۸ ترابایت روی ماشین‌های ۳۲ بیتی پشتیبانی نمی‌کند \- البته سایر ابزارهای btrfs نیز پشتیبانی نمی‌کنند.

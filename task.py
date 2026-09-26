@@ -23,7 +23,7 @@ CSV_PATH = os.path.join(BASE_DIR, "progress.csv")
 PORTAL_URL_PREFIX = "https://man.vilix.org/man"
 
 KNOWN_USERS = ["debian", "ahoura", "parviz", "sasiohae", "jobin"]
-ADMIN_USERS = ["root", "debian"]
+ADMIN_USERS = ["root", "debian", "ahoura"]
 
 
 def get_current_system_user():
@@ -171,7 +171,7 @@ def export_db_to_csv(conn, csv_path=CSV_PATH):
     )
     rows = cursor.fetchall()
 
-    temp_path = f"{csv_path}.tmp"
+    temp_path = f"{csv_path}.{os.getpid()}.tmp"
     with open(temp_path, mode="w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, lineterminator="\r\n")
         writer.writerow(["command", "section", "package", "priority", "user", "status", "file_path"])

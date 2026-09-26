@@ -3,669 +3,527 @@
 .\" Subject to the GPL, version 2.
 .TH NETSNIFF-NG 8 "03 March 2013" "Linux" "netsniff-ng toolkit"
 .SH "نام (NAME)"
-netsniff-ng \- the packet sniffing beast
+netsniff-ng \- ابزار پرقدرت اسنیف و تحلیل بسته‌های شبکه
 .PP
 .SH "خلاصه دستور (SYNOPSIS)"
 .PP
-\fBnetsniff-ng\fP { [\fIoptions\fP] [\fIfilter-expression\fP] }
+\fBnetsniff-ng\fP { [\fIگزینه‌ها\fP] [\fIعبارت\-فیلتر\fP] }
 .PP
 .SH "توضیحات (DESCRIPTION)"
 .PP
-netsniff-ng is a fast, minimal tool to analyze network packets, capture
-pcap files, replay pcap files, and redirect traffic between interfaces
-with the help of zero-copy packet(7) sockets. netsniff-ng uses both Linux
-specific RX_RING and TX_RING interfaces to perform zero-copy. This is to avoid
-copy and system call overhead between kernel and user address space. When we
-started working on netsniff-ng, the pcap(3) library did not use this
-zero-copy facility.
+دستور
+.B netsniff-ng
+ابزاری سریع و کم‌حجم برای تحلیل بسته‌های شبکه، ضبط فایل‌های pcap، بازپخش فایل‌های pcap و بازهدایت ترافیک میان رابط‌های شبکه به کمک سوکت‌های صفر\-کپی
+.BR packet (7)
+است. این ابزار از هر دو رابط اختصاصی لینوکس یعنی RX_RING و TX_RING برای دستیابی به عملکرد صفر\-کپی (zero-copy) بهره می‌برد. هدف از این کار، جلوگیری از سربار کپی داده‌ها و فراخوانی‌های سیستمی بین فضای آدرس هسته و فضای کاربری است. هنگامی که توسعه
+.B netsniff-ng
+آغاز شد، کتابخانه
+.BR pcap (3)
+از این قابلیت صفر\-کپی پشتیبانی نمی‌کرد.
 .PP
-netsniff-ng is Linux specific, meaning there is no support for other
-operating systems. Therefore we can keep the code footprint quite minimal and to
-the point. Linux packet(7) sockets and its RX_RING and TX_RING interfaces
-bypass the normal packet processing path through the networking stack.
-This is the fastest capturing or transmission performance one can get from user
-space out of the box, without having to load unsupported or non-mainline
-third-party kernel modules. We explicitly refuse to build netsniff-ng on top of
-ntop/PF_RING. Not because we do not like it (we do find it interesting), but
-because of the fact that it is not part of the mainline kernel. Therefore, the
-ntop project has to maintain and sync out-of-tree drivers to adapt them to their
-DNA. Eventually, we went for untainted Linux kernel, since its code has a higher
-rate of review, maintenance, security and bug fixes.
+ابزار
+.B netsniff-ng
+مختص لینوکس است؛ بدین معنا که از سایر سیستم‌عامل‌ها پشتیبانی نمی‌کند. از این رو کد منبع آن بسیار سبک، متمرکز و بهینه باقی مانده است. سوکت‌های
+.BR packet (7)
+لینوکس و رابط‌های RX_RING و TX_RING آن، مسیر عادی پردازش بسته‌ها در پشته شبکه را دور می‌زنند. این روش بالاترین نرخ عملکرد در ضبط یا ارسال بسته‌ها را به‌صورت پیش‌فرض از فضای کاربری فراهم می‌کند، بدون اینکه نیازی به بارگذاری ماژول‌های متفرقه، پشتیبانی‌نشده یا خارج از درخت هسته (out-of-tree) باشد. ما صراحتاً از توسعه
+.B netsniff-ng
+بر بستر ntop/PF_RING خودداری کرده‌ایم؛ نه به این دلیل که به آن علاقه‌ای نداریم (اتفاقاً جالب است)، بلکه به این دلیل که بخشی از هسته رسمی (mainline) لینوکس نیست. در نتیجه، پروژه ntop ناچار است درایورهای خارج از هسته را مدام نگهداری و همگام کند تا با ساختار آن‌ها منطبق شود. در نهایت، ما استفاده از هسته دست‌نخورده لینوکس را برگزیدیم، زیرا کد آن نرخ بالاتری از بازبینی، نگهداری، امنیت و رفع اشکال دارد.
 .PP
-netsniff-ng also supports early packet filtering in the kernel. It has support
-for low-level and high-level packet filters that are translated into Berkeley
-Packet Filter instructions.
+همچنین
+.B netsniff-ng
+از فیلترسازی زودهنگام بسته‌ها درون هسته پشتیبانی می‌کند. این ابزار از فیلترهای سطح پایین و سطح بالا که به دستورالعمل‌های BPF (فیلتر بسته برکلی) ترجمه می‌شوند، پشتیبانی به عمل می‌آورد.
 .PP
-netsniff-ng can capture pcap files in several different pcap formats that
-are interoperable with other tools. The following pcap I/O methods are supported
-for efficient to-disc capturing: scatter-gather,
-.BR mmap (2),
-.BR read (2),
-and
+ابزار
+.B netsniff-ng
+می‌تواند فایل‌های pcap را در چندین قالب مختلف ذخیره کند که با سایر ابزارها کاملاً سازگار هستند. روش‌های ورودی/خروجی زیر برای ذخیره‌سازی کارآمد روی دیسک پشتیبانی می‌شوند:
+پراکنده\-گردآوری (scatter-gather)،
+.BR mmap (2)،
+.BR read (2)
+و
 .BR write (2).
-netsniff-ng is also able to rotate pcap files based on data size or time
-intervals, thus, making it a useful backend tool for subsequent traffic
-analysis.
+همچنین
+.B netsniff-ng
+قادر است فایل‌های pcap را بر اساس اندازه داده یا بازه‌های زمانی چرخش (rotate) دهد و از این طریق به ابزاری پایه‌ای و بسیار مفید برای تحلیل‌های ترافیکی بعدی تبدیل شود.
 .PP
-netsniff-ng itself also supports analysis, replaying, and dumping of raw 802.11
-frames. For online or offline analysis, netsniff-ng has a built-in packet
-dissector for the current 802.3 (Ethernet), 802.11* (WLAN), ARP, MPLS, 802.1Q
-(VLAN), 802.1QinQ, LLDP, IPv4, IPv6, ICMPv4, ICMPv6, IGMP, TCP and UDP,
-including GeoIP location analysis. Since netsniff-ng does not establish any
-state or perform reassembly during packet dissection, its memory footprint is quite
-low, thus, making netsniff-ng quite efficient for offline analysis of large
-pcap files as well.
+همچنین
+.B netsniff-ng
+از تحلیل، بازپخش و ثبت فریم‌های خام 802.11 پشتیبانی می‌کند. برای تحلیل آنلاین یا آفلاین، این ابزار دارای یک تفکیک‌کننده بسته (dissector) داخلی برای پروتکل‌های 802.3 (اترنت)، *802.11 (شبکه بی‌سیم)، ARP، MPLS، 802.1Q (VLAN)، 802.1QinQ، LLDP، IPv4، IPv6، ICMPv4، ICMPv6، IGMP، TCP و UDP همراه با تحلیل موقعیت جغرافیایی GeoIP است. از آنجا که
+.B netsniff-ng
+در هنگام تفکیک بسته‌ها هیچ وضعیتی (state) ذخیره نمی‌کند و عملیات بازترکیب (reassembly) انجام نمی‌دهد، مصرف حافظه آن بسیار اندک است؛ ویژگی‌ای که آن را برای تحلیل آفلاین فایل‌های حجیم pcap نیز بسیار کارآمد می‌سازد.
 .PP
-Note that netsniff-ng is currently not multithreaded. However, this does not
-prevent you from starting multiple netsniff-ng instances that are pinned to
-different, non-overlapping CPUs and f.e. have different BPF filters attached.
-Likely that at some point in time your harddisc might become a bottleneck
-assuming you do not rotate such pcaps in ram (and from there periodically
-scheduled move to slower medias). You can then use
+توجه داشته باشید که
+.B netsniff-ng
+در حال حاضر چندنخی (multithreaded) نیست. با این وجود، این امر مانع از اجرای چندین نمونه از
+.B netsniff-ng
+نمی‌شود؛ به‌طوری‌که هر نمونه به پردازنده‌های مجزا و غیرهم‌پوشان اختصاص یابد (pinned) و به عنوان مثال فیلترهای BPF متفاوتی به آن‌ها متصل گردد. در صورتی که این فایل‌های pcap را در حافظه رم چرخش ندهید (و از آنجا در زمان‌بندی‌های مشخص به رسانه‌های ذخیره‌سازی کندتر منتقل نکنید)، دیسک سخت شما در نهایت به گلوگاه تبدیل خواهد شد. در مرحله بعد می‌توانید با استفاده از
 .BR mergecap (1)
-to transform all pcap files into a single large pcap file. Thus, netsniff-ng
-then works multithreaded eventually.
+تمام فایل‌های pcap را در یک فایل واحد بزرگ ادغام کنید. بدین ترتیب،
+.B netsniff-ng
+در عمل عملکردی چندنخی پیدا می‌کند.
 .PP
-netsniff-ng can also be used to debug netlink traffic.
+همچنین می‌توان از
+.B netsniff-ng
+برای اشکال‌زدایی ترافیک netlink استفاده کرد.
 .PP
 .SH "گزینه‌ها (OPTIONS)"
 .TP
 .B -i <dev|pcap|->, -d <dev|pcap|->, --in <dev|pcap|->, --dev <dev|pcap|->
-Defines an input device. This can either be a networking device, a pcap file
-or stdin (\[lq]\-\[rq]). In case of a pcap file, the pcap type (\fB\-D\fP
-option) is determined automatically by the pcap file magic. In case of stdin,
-it is assumed that the input stream is a pcap file. If the pcap link type is
-Netlink and pcap type is default format (usec or nsec), then each packet will
-be wrapped with pcap cooked header [2].
+دستگاه یا منبع ورودی را تعیین می‌کند. این مقدار می‌تواند یک کارت شبکه، یک فایل pcap یا ورودی استاندارد stdin (به‌صورت \[lq]\-\[rq]) باشد. در صورت استفاده از فایل pcap، نوع قالب pcap (گزینه \fB\-D\fP) به‌طور خودکار بر اساس امضای فایل (magic) تعیین می‌شود. در حالت stdin، فرض بر این است که جریان ورودی یک فایل pcap است. اگر نوع پیوند (link type) فایل pcap از نوع Netlink باشد و نوع pcap در قالب پیش‌فرض (میکروثانیه یا نانوثانیه) باشد، هر بسته در هدر پخته (cooked header) لینوکس [2] محصور خواهد شد.
 .TP
 .B -o <dev|pcap|dir|cfg|->, --out <dev|pcap|dir|cfg|->
-Defines the output device. This can either be a networking device, a pcap file,
-a folder, a
+دستگاه یا مقصد خروجی را تعیین می‌کند. این مقدار می‌تواند یک کارت شبکه، یک فایل pcap، یک پوشه، یک فایل پیکربندی
 .BR trafgen (8)
-configuration file or stdout (\[lq]-\[rq]). If the output device is a pcap or
+یا خروجی استاندارد stdout (به‌صورت \[lq]\-\[rq]) باشد. اگر خروجی یک فایل pcap یا فایل پیکربندی
 .BR trafgen (8)
-configuration file, it may include a time format as defined by
-.BR strfime (3).
-If used in conjunction with the \fB-F\fP option, each rotated file will have a
-unique time stamp. In the case of a pcap file that should not have the default
-pcap type (0xa1b2c3d4), the additional option \fB\-T\fP must be provided. If a
-directory is given, then, instead of a single pcap file, multiple pcap files are
-generated with rotation based on maximum file size or a given interval
-(\fB\-F\fP option). Optionally, sending the SIGHUP signal to the netsniff-ng
-process causes a premature rotation of the file. A trafgen configuration file
-can currently only be specified if the input device is a pcap file. To specify a
-pcap file as the output device, the file name must have \[lq].pcap\[rq] as its
-extension. If stdout is given as a device, then a trafgen configuration will be
-written to stdout if the input device is a pcap file, or a pcap file if the
-input device is a networking device. If the input device is a Netlink monitor
-device and pcap type is default (usec or nsec) then each packet will be wrapped
-with pcap cooked header [2] to keep Netlink family number (Kuznetzov's and
-netsniff-ng pcap types already contain family number in protocol number field).
+باشد، نام آن می‌تواند شامل قالب زمان بر اساس
+.BR strftime (3)
+باشد. در صورت استفاده همزمان با گزینه \fB\-F\fP، هر فایل حاصل از چرخش دارای برچسب زمانی یکتایی خواهد بود. در صورتی که فایل pcap نباید قالب پیش‌فرض (0xa1b2c3d4) را داشته باشد، باید گزینه اضافی \fB\-T\fP نیز مشخص شود. اگر یک دایرکتوری داده شود، به جای یک فایل pcap منفرد، چندین فایل pcap با چرخش بر اساس حداکثر اندازه فایل یا بازه زمانی مشخص (گزینه \fB\-F\fP) ایجاد می‌شوند. همچنین ارسال سیگنال SIGHUP به فرایند
+.B netsniff-ng
+موجب چرخش زودهنگام فایل خواهد شد. تعیین فایل کانفیگ trafgen در حال حاضر تنها در صورتی مجاز است که ورودی یک فایل pcap باشد. برای مشخص کردن فایل pcap به عنوان خروجی، نام فایل باید حتماً دارای پسوند \[lq].pcap\[rq] باشد. اگر stdout داده شود، در صورتی که ورودی فایل pcap باشد کانفیگ trafgen در stdout نوشته می‌شود، و اگر ورودی کارت شبکه باشد داده‌های pcap به stdout ارسال می‌گردد. اگر ورودی یک دستگاه مانیتور Netlink باشد و نوع pcap پیش‌فرض (میکروثانیه یا نانوثانیه) باشد، هر بسته با هدر پخته pcap [2] کپسوله‌سازی می‌شود تا شماره خانواده Netlink حفظ شود (قالب‌های pcap کوزنتسوف و netsniff-ng هم‌اکنون حاوی شماره خانواده در فیلد پروتکل هستند).
 .TP
 .B -C <id>, --fanout-group <id>
-If multiple netsniff-ng instances are being started that all have the same packet
-fanout group id, then the ingress network traffic being captured is being
-distributed/load-balanced among these group participants. This gives a much better
-scaling than running multiple netsniff-ng processes without a fanout group parameter
-in parallel, but only with a BPF filter attached as a packet would otherwise need
-to be delivered to all such capturing processes, instead of only once to such a
-fanout member. Naturally, each fanout member can have its own BPF filters attached.
+اگر چندین نمونه از
+.B netsniff-ng
+با شناسه گروه توزیع بسته (fanout group id) یکسان اجرا شوند، ترافیک ورودی دریافتی میان اعضای این گروه توزیع و متعادل‌سازی بار (load-balance) می‌شود. این ویژگی مقیاس‌پذیری بسیار بهتری نسبت به اجرای موازی چند فرایند بدون پارامتر گروه توزیع ارائه می‌دهد؛ البته به شرطی که فیلتر BPF ضمیمه شده باشد، چرا که در غیر این صورت هر بسته باید به جای تحویل به یک عضو، به تمامی فرایندهای شنود تحویل داده شود. طبیعتاً هر عضو گروه می‌تواند فیلترهای BPF اختصاصی خود را داشته باشد.
 .TP
 .B -K <hash|lb|cpu|rnd|roll|qm>, --fanout-type <hash|lb|cpu|rnd|roll|qm>
-This parameter specifies the fanout discipline, in other words, how the captured
-network traffic is dispatched to the fanout group members. Options are to distribute
-traffic by the packet hash (\[lq]hash\[rq]), in a round-robin manner (\[lq]lb\[rq]),
-by CPU the packet arrived on (\[lq]cpu\[rq]), by random (\[lq]rnd\[rq]), by rolling
-over sockets (\[lq]roll\[rq]) which means if one socket's queue is full, we move on
-to the next one, or by NIC hardware queue mapping (\[lq]qm\[rq]).
+این پارامتر انضباط توزیع (fanout discipline) را تعیین می‌کند؛ به بیان دیگر نحوه ارسال ترافیک ضبط‌شده به اعضای گروه توزیع را مشخص می‌سازد. گزینه‌های ممکن عبارتند از: توزیع بر اساس هش بسته (\[lq]hash\[rq])، روش نوبت‌گردشی (\[lq]lb\[rq])، بر اساس هسته پردازنده‌ای که بسته روی آن دریافت شده (\[lq]cpu\[rq])، تصادفی (\[lq]rnd\[rq])، سرریز سوکت (\[lq]roll\[rq] بدین معنا که در صورت پر بودن صف یک سوکت به سوکت بعدی منتقل می‌شود)، یا بر اساس نگاشت صف سخت‌افزاری کارت شبکه (\[lq]qm\[rq]).
 .TP
 .B -L <defrag|roll>, --fanout-opts <defrag|roll>
-Defines some auxiliary fanout options to be used in addition to a given fanout type.
-These options apply to any fanout type. In case of \[lq]defrag\[rq], the kernel is
-being told to defragment packets before delivering to user space, and \[lq]roll\[rq]
-provides the same roll-over option as the \[lq]roll\[rq] fanout type, so that on any
-different fanout type being used (e.g. \[lq]qm\[rq]) the socket may temporarily roll
-over to the next fanout group member in case the original one's queue is full.
+گزینه‌های کمکی توزیع را برای استفاده در کنار نوع توزیع مشخص‌شده تعیین می‌کند. این گزینه‌ها برای هر نوع توزیعی قابل اعمال هستند. در حالت \[lq]defrag\[rq]، به هسته دستور داده می‌شود که بسته‌ها را پیش از تحویل به فضای کاربری دی‌فرگمنت (یکپارچه‌سازی قطعات) کند؛ و گزینه \[lq]roll\[rq] همان سازوکار سرریز سوکت را فراهم می‌کند تا در صورت استفاده از سایر روش‌ها (مانند \[lq]qm\[rq])، چنانچه صف سوکت اصلی پر شد، ترافیک موقتاً به عضو بعدی گروه توزیع سرریز شود.
 .TP
 .B -f, --filter <bpf-file|-|expr>
-Specifies to not dump all traffic, but to filter the network packet haystack.
-As a filter, either a
+به جای ذخیره تمام ترافیک، بسته‌های شبکه را فیلتر می‌کند. به عنوان فیلتر می‌توان فایل یا ورودی استاندارد کامپایل‌شده توسط
 .BR bpfc (8)
-compiled file/stdin can be passed as a parameter or a
-.BR tcpdump (1)-like
-filter expression in quotes. For details regarding the bpf-file have a look at
-.BR bpfc (8),
-for details regarding a
-.BR tcpdump (1)-like
-filter have a look at section \[lq]filter example\[rq] or at
-.BR pcap-filter (7).
-A filter expression may also be passed to netsniff-ng without option \fB-f\fP in
-case there is no subsequent option following after the command-line filter
-expression.
+یا یک عبارت فیلتر مشابه
+.BR tcpdump (1)
+در میان گیومه را پاس داد. برای جزئیات مربوط به فایل bpf به صفحه راهنمای
+.BR bpfc (8)
+و برای جزئیات فیلترهای مشابه
+.BR tcpdump (1)
+به بخش \[lq]مثال‌های فیلتر (FILTER EXAMPLE)\[rq] یا
+.BR pcap-filter (7)
+مراجعه کنید. همچنین در صورتی که پس از عبارت فیلتر گزینه دیگری در خط فرمان نیامده باشد، می‌توان عبارت فیلتر را بدون گزینه \fB\-f\fP نیز به
+.B netsniff-ng
+پاس داد.
 .TP
 .B -t, --type <type>
-This defines some sort of filtering mechanisms in terms of addressing. Possible
-values for type are \[lq]host\[rq] (to us), \[lq]broadcast\[rq] (to all), \[lq]multicast\[rq] (to
-group), \[lq]others\[rq] (promiscuous mode) or \[lq]outgoing\[rq] (from us).
+نوعی سازوکار فیلترسازی بر اساس آدرس‌دهی را مشخص می‌کند. مقادیر مجاز عبارتند از: \[lq]host\[rq] (بسته‌های ارسالی به خود ما)، \[lq]broadcast\[rq] (پخش همگانی به همه)، \[lq]multicast\[rq] (چندپخشی به گروه)، \[lq]others\[rq] (حالت بی‌قاعده/promiscuous) یا \[lq]outgoing\[rq] (بسته‌های خروجی از ما).
 .TP
 .B -F, --interval <size|time>
-If the output device is a folder, with \[lq]\-F\[rq], it is possible to define the pcap
-file rotation interval either in terms of size or time. Thus, when the interval
-limit has been reached, a new pcap file will be started. As size parameter, the
-following values are accepted \[lq]<num>KiB/MiB/GiB\[rq]; As time parameter,
-it can be \[lq]<num>s/sec/min/hrs\[rq].
+اگر مقصد خروجی یک پوشه باشد، با گزینه \[lq]\-F\[rq] می‌توان بازه چرخش فایل pcap را بر اساس اندازه یا زمان تعیین کرد. بدین ترتیب پس از رسیدن به حد تعیین‌شده، فایل pcap جدیدی ایجاد می‌شود. برای پارامتر اندازه، مقادیر \[lq]<num>KiB/MiB/GiB\[rq] و برای پارامتر زمان، مقادیر \[lq]<num>s/sec/min/hrs\[rq] پذیرفته می‌شوند.
 .TP
 .B -J, --jumbo-support
-By default, in pcap replay or redirect mode, netsniff-ng's ring buffer frames
-are a fixed size of 2048 bytes. This means that if you are expecting jumbo
-frames or even super jumbo frames to pass through your network, then you need
-to enable support for that by using this option. However, this has the
-disadvantage of performance degradation and a bigger memory footprint for the
-ring buffer. Note that this doesn't affect (pcap) capturing mode, since tpacket
-in version 3 is used!
+به‌طور پیش‌فرض در حالت بازپخش یا هدایت ترافیک، فریم‌های بافر حلقه‌ای (ring buffer) در
+.B netsniff-ng
+دارای اندازه ثابت ۲۰۴۸ بایت هستند. بدین معنا که اگر انتظار عبور فریم‌های بزرگ (jumbo frames) یا بسیار بزرگ (super jumbo) را در شبکه دارید، باید با استفاده از این گزینه پشتیبانی از آن‌ها را فعال کنید. البته این امر موجب کاهش کارایی و افزایش مصرف حافظه بافر حلقه‌ای خواهد شد. توجه داشته باشید که این موضوع بر حالت ضبط بسته‌ها تأثیری ندارد، زیرا در آن حالت از tpacket نسخه ۳ استفاده می‌شود!
 .TP
 .B -R, --rfraw
-In case the input or output networking device is a wireless device, it is
-possible with netsniff-ng to turn this into monitor mode and create a mon<X>
-device that netsniff-ng will be listening on instead of wlan<X>, for instance.
-This enables netsniff-ng to analyze, dump, or even replay raw 802.11 frames.
+در صورتی که کارت شبکه ورودی یا خروجی یک دستگاه بی‌سیم باشد، با استفاده از این گزینه می‌توان آن را به حالت پایش (monitor mode) برده و دستگاهی به نام mon<X> ایجاد کرد تا
+.B netsniff-ng
+به جای wlan<X> روی آن به شنود بپردازد. این قابلیت به
+.B netsniff-ng
+امکان تحلیل، ذخیره و حتی بازپخش فریم‌های خام 802.11 را می‌دهد.
 .TP
 .B -n <0|uint>, --num <0|uint>
-Process a number of packets and then exit. If the number of packets is 0, then
-this is equivalent to infinite packets resp. processing until interrupted.
-Otherwise, a number given as an unsigned integer will limit processing.
+تعداد مشخصی از بسته‌ها را پردازش کرده و سپس خارج می‌شود. اگر تعداد بسته‌ها برابر با ۰ باشد، به معنی پردازش نامحدود بسته‌ها تا زمان توقف دستی برنامه است. در غیر این صورت، یک عدد صحیح مثبت سقف پردازش را مشخص خواهد کرد.
 .TP
 .B -O <N>, --overwrite <N>
-A number from 0 to N-1 will be used in the file name instead of a Unix
-timestamp. The previous file will be overwritten when number wraps around. The
-maximum value is 2^32 - 1. Intended for rotating capture files when used
-with options \fB\-F\fP and \fB\-P\fP.
+عددی بین ۰ تا N\-1 در نام فایل به جای برچسب زمانی یونیکس استفاده می‌شود. پس از پر شدن دور شمارنده و بازگشت به صفر، فایل‌های قبلی بازنویسی خواهند شد. حداکثر مقدار برابر با 2^32 \- 1 است. این گزینه برای چرخش فایل‌های ضبط ترافیک همراه با گزینه‌های \fB\-F\fP و \fB\-P\fP طراحی شده است.
 .TP
 .B -P <name>, --prefix <name>
-When dumping pcap files into a folder, a file name prefix can be defined with
-this option. If not otherwise specified, the default prefix is \[lq]dump\-\[rq]
-followed by a Unix timestamp. Use \[lq]\-\-prefex ""\[rq] to set filename as
-seconds since the Unix Epoch e.g. 1369179203.pcap
+هنگام ذخیره فایل‌های pcap در یک پوشه، می‌توان پیشوند نام فایل را با این گزینه تعیین کرد. در صورت عدم تعیین، پیشوند پیش‌فرض \[lq]dump\-\[rq] به همراه برچسب زمانی یونیکس خواهد بود. استفاده از \[lq]\-\-prefix ""\[rq] نام فایل را فقط به ثانیه‌های سپری‌شده از مبدأ یونیکس تبدیل می‌کند (مانند 1369179203.pcap).
 .TP
 .B -T <pcap-magic>, --magic <pcap-magic>
-Specify a pcap type for storage. Different pcap types with their various meta
-data capabilities are shown with option \fB\-D\fP. If not otherwise
-specified, the pcap-magic 0xa1b2c3d4, also known as a standard tcpdump-capable
-pcap format, is used. Pcap files with swapped endianness are also supported.
+نوع قالب pcap را برای ذخیره‌سازی تعیین می‌کند. انواع مختلف قالب‌های pcap به همراه قابلیت‌های متادیتای آن‌ها با گزینه \fB\-D\fP نمایش داده می‌شوند. در صورت عدم تعیین، امضای جادویی 0xa1b2c3d4 که به عنوان قالب استاندارد pcap سازگار با tcpdump شناخته می‌شود به کار می‌رود. فایل‌های pcap با ترتیب بایت معکوس (swapped endianness) نیز پشتیبانی می‌شوند.
 .TP
 .B -D, --dump-pcap-types
-Dump all available pcap types with their capabilities and magic numbers that
-can be used with option \[lq]\-T\[rq] to stdout and exit.
+فهرست تمامی قالب‌های pcap موجود را به همراه قابلیت‌ها و اعداد جادویی آن‌ها (که در گزینه \[lq]\-T\[rq] کاربرد دارند) در خروجی استاندارد چاپ کرده و خارج می‌شود.
 .TP
 .B -B, --dump-bpf
-If a Berkeley Packet Filter is given, for example via option \[lq]\-f\[rq], then
-dump the BPF disassembly to stdout during ring setup. This only serves for informative
-or verification purposes.
+در صورت ارائه یک فیلتر BPF (مثلاً با گزینه \[lq]\-f\[rq])، خروجی دی‌اسمبلی BPF را در طول راه‌اندازی بافر حلقه‌ای در خروجی استاندارد نمایش می‌دهد. این گزینه صرفاً کاربرد اطلاعاتی یا اعتبارسنجی دارد.
 .TP
 .B -r, --rand
-If the input and output device are both networking devices, then this option will
-randomize packet order in the output ring buffer.
+در صورتی که هر دو رابط ورودی و خروجی کارت شبکه باشند، این گزینه ترتیب بسته‌ها را در بافر حلقه‌ای خروجی تصادفی می‌سازد.
 .TP
 .B -M, --no-promisc
-The networking interface will not be put into promiscuous mode. By default,
-promiscuous mode is turned on.
+رابط شبکه را در حالت بی‌قاعده (promiscuous mode) قرار نمی‌دهد. به‌طور پیش‌فرض، حالت بی‌قاعده فعال است.
 .TP
 .B -N, --no-hwtimestamp
-Disable taking hardware time stamps for RX packets. By default, if the network
-device supports hardware time stamping, the hardware time stamps will be used
-when writing packets to pcap files. This option disables this behavior and
-forces (kernel based) software time stamps to be used, even if hardware time
-stamps are available.
+ثبت برچسب زمانی سخت‌افزاری برای بسته‌های دریافتی (RX) را غیرفعال می‌کند. به‌طور پیش‌فرض اگر کارت شبکه از ثبت زمان سخت‌افزاری پشتیبانی کند، این برچسب‌ها هنگام نوشتن بسته‌ها در فایل pcap استفاده می‌شوند. این گزینه این رفتار را غیرفعال کرده و استفاده از برچسب‌های زمانی نرم‌افزاری (مبتنی بر هسته) را اجباری می‌سازد، حتی اگر برچسب سخت‌افزاری در دسترس باشد.
 .TP
 .B -A, --no-sock-mem
-On startup and shutdown, netsniff-ng tries to increase socket read and
-write buffers if appropriate. This option will prevent netsniff-ng from doing
-so.
+هنگام راه‌اندازی و خروج،
+.B netsniff-ng
+تلاش می‌کند در صورت نیاز اندازه بافرهای خواندن و نوشتن سوکت را افزایش دهد. این گزینه مانع از انجام این کار می‌شود.
 .TP
 .B -m, --mmap
-Use
+استفاده از
 .BR mmap (2)
-as pcap file I/O. This is the default when replaying pcap files.
+برای ورودی/خروجی فایل pcap. این حالت پیش‌فرض هنگام بازپخش فایل‌های pcap است.
 .TP
 .B -G, --sg
-Use scatter-gather as pcap file I/O. This is the default when capturing
-pcap files.
+استفاده از پراکنده\-گردآوری (scatter-gather) برای ورودی/خروجی فایل pcap. این حالت پیش‌فرض هنگام ضبط فایل‌های pcap است.
 .TP
 .B -c, --clrw
-Use slower
+استفاده از ورودی/خروجی کندتر
 .BR read (2)
-and
-.BR write (2)
-I/O. This is not the default case anywhere, but in
-some situations it could be preferred as it has a lower latency on write-back
-to disc.
+و
+.BR write (2).
+این روش در هیچ حالتی پیش‌فرض نیست، اما در برخی شرایط به دلیل تأخیر کمتر در بازنویسی روی دیسک ممکن است ترجیح داده شود.
 .TP
 .B -S <size>, --ring-size <size>
-Manually define the RX_RING resp. TX_RING size in \[lq]<num>KiB/MiB/GiB\[rq]. By
-default, the size is determined based on the network connectivity rate.
+تعیین دستی اندازه بافرهای RX_RING یا TX_RING در قالب \[lq]<num>KiB/MiB/GiB\[rq]. به‌طور پیش‌فرض، اندازه بر اساس سرعت اتصال شبکه تعیین می‌شود.
 .TP
 .B -k <uint>, --kernel-pull <uint>
-Manually define the interval in micro-seconds where the kernel should be triggered
-to batch process the ring buffer frames. By default, it is every 10us, but it can
-manually be prolonged, for instance.
+تعیین دستی بازه زمانی (به میکروثانیه) برای تحریک هسته جهت پردازش دسته‌ای فریم‌های بافر حلقه‌ای. مقدار پیش‌فرض هر ۱۰ میکروثانیه است، اما می‌توان آن را به صورت دستی افزایش داد.
 .TP
 .B -b <cpu>, --bind-cpu <cpu>
-Pin netsniff-ng to a specific CPU and also pin resp. migrate the NIC's IRQ
-CPU affinity to this CPU. This option should be preferred in combination with
-\fB\-s\fP in case a middle to high packet rate is expected.
+اختصاص دادن (pin) فرایند
+.B netsniff-ng
+به یک هسته پردازنده خاص و همچنین انتقال همبستگی IRQ کارت شبکه به همان پردازنده. این گزینه در ترکیب با
+\fB\-s\fP
+در مواقعی که نرخ بسته‌ها متوسط تا بالا باشد قویاً پیشنهاد می‌شود.
 .TP
 .B -u <uid>, --user <uid> resp. -g <gid>, --group <gid>
-After ring setup drop privileges to a non-root user/group combination.
+پس از راه‌اندازی بافر حلقه‌ای، دسترسی‌های ریشه (root) به کاربر و گروه غیرریشه مشخص‌شده تقلیل می‌یابد.
 .TP
 .B -H, --prio-high
-Set this process as a high priority process in order to achieve a higher
-scheduling rate resp. CPU time. This is however not the default setting, since
-it could lead to starvation of other processes, for example low priority kernel
-threads.
+تنظیم این فرایند به عنوان یک فرایند با اولویت بالا جهت دستیابی به زمان‌بندی سریع‌تر و زمان بیشتر CPU. این حالت پیش‌فرض نیست، زیرا ممکن است به گرسنگی (starvation) سایر فرایندها، مثلاً رشته‌های کم‌اولویت هسته بینجامد.
 .TP
 .B -Q, --notouch-irq
-Do not reassign the NIC's IRQ CPU affinity settings.
+تنظیمات همبستگی IRQ کارت شبکه با پردازنده را تغییر نمی‌دهد.
 .TP
 .B -s, --silent
-Do not enter the packet dissector at all and do not print any packet information
-to the terminal. Just shut up and be silent. This option should be preferred in
-combination with pcap recording or replay, since it will not flood your terminal
-which causes a significant performance degradation.
+وارد ماژول تفکیک بسته نمی‌شود و هیچ اطلاعاتی از بسته‌ها را در ترمینال چاپ نمی‌کند (حالت بی‌صدا). این گزینه در ترکیب با ضبط یا بازپخش pcap به شدت توصیه می‌شود، چرا که ارسال حجم بالای خروجی به ترمینال موجب افت چشمگیر کارایی خواهد شد.
 .TP
 .B -q, --less
-Print a less verbose one-line information for each packet to the terminal.
+چاپ اطلاعات خلاصه و تک‌خطی برای هر بسته در ترمینال.
 .TP
 .B -X, --hex
-Only dump packets in hex format to the terminal.
+نمایش بسته‌ها فقط در قالب شانزده‌شانزدهی (hex) در ترمینال.
 .TP
 .B -l, --ascii
-Only display ASCII printable characters.
+فقط کاراکترهای قابل چاپ اسکی (ASCII) را نمایش می‌دهد.
 .TP
 .B -U, --update
-If geographical IP location is used, the built-in database update
-mechanism will be invoked to get Maxmind's latest database. To configure
-search locations for databases, the file /etc/netsniff-ng/geoip.conf contains
-possible addresses. Thus, to save bandwidth or for mirroring of Maxmind's
-databases (to bypass their traffic limit policy), different hosts or IP
-addresses can be placed into geoip.conf, separated by a newline.
+در صورت استفاده از موقعیت‌یابی جغرافیایی IP، سازوکار داخلی به‌روزرسانی برای دریافت جدیدترین پایگاه داده MaxMind فراخوانی می‌شود. فایل /etc/netsniff-ng/geoip.conf شامل نشانی‌های مربوط به دریافت پایگاه داده است. از این رو برای صرفه‌جویی در پهنای باند یا استفاده از آینه‌های محلی (برای دور زدن محدودیت ترافیک MaxMind)، می‌توان میزبان‌ها یا نشانی‌های IP گوناگون را با خطوط جداگانه در geoip.conf قرار داد.
 .TP
 .B -w, --cooked
-Replace each frame link header with Linux "cooked" header [3] which keeps info
-about link type and protocol. It allows to dump and dissect frames captured
-from different link types when -i "any" was specified, for example.
+هدر پیوند هر فریم را با هدر پخته لینوکس (cooked header) [3] جایگزین می‌کند که اطلاعات مربوط به نوع پیوند و پروتکل را نگهداری می‌کند. این قابلیت امکان ذخیره و تفکیک فریم‌های ضبط‌شده از انواع مختلف پیوندها را فراهم می‌سازد (مثلاً زمانی که گزینه \-i "any" تعیین شده باشد).
 .TP
 .B -V, --verbose
-Be more verbose during startup i.e. show detailed ring setup information.
+نمایش جزئیات بیشتر در حین راه‌اندازی، مانند اطلاعات دقیق تنظیمات بافر حلقه‌ای.
 .TP
 .B -v, --version
-Show version information and exit.
+نمایش اطلاعات نسخه و خروج.
 .TP
 .B -h, --help
-Show user help and exit.
+نمایش راهنمای کاربری و خروج.
 .PP
-.SH USAGE EXAMPLE
+.SH "مثال‌های کاربردی (USAGE EXAMPLES)"
 .TP
 .B netsniff-ng
-The most simple command is to just run \[lq]netsniff-ng\[rq]. This will start
-listening on all available networking devices in promiscuous mode and dump
-the packet dissector output to the terminal. No files will be recorded.
+ساده‌ترین دستور اجرای مستقیم \[lq]netsniff-ng\[rq] است. این دستور شنود را روی تمامی کارت‌های شبکه موجود در حالت بی‌قاعده (promiscuous) آغاز کرده و خروجی تفکیک بسته‌ها را در ترمینال نمایش می‌دهد. هیچ فایلی ذخیره نخواهد شد.
 .TP
 .B netsniff-ng --in eth0 --out dump.pcap -s -T 0xa1e2cb12 -b 0 tcp or udp
-Capture TCP or UDP traffic from the networking device eth0 into the pcap file
-named dump.pcap, which has netsniff-ng specific pcap extensions (see
-\[lq]netsniff-ng \-D\[rq] for capabilities). Also, do not print the content to
-the terminal and pin the process and NIC IRQ affinity to CPU 0. The pcap write
-method is scatter-gather I/O.
+ضبط ترافیک TCP یا UDP از رابط شبکه eth0 در یک فایل pcap به نام dump.pcap با پسوندهای اختصاصی netsniff-ng (برای مشاهده قابلیت‌ها به \[lq]netsniff-ng \-D\[rq] مراجعه کنید). همچنین محتوا در ترمینال چاپ نمی‌شود و فرایند و همبستگی IRQ کارت شبکه به هسته پردازنده 0 متصل می‌گردند. روش نوشتن pcap ورودی/خروجی پراکنده\-گردآوری است.
 .TP
 .B netsniff-ng --in wlan0 --rfraw --out dump.pcap --silent --bind-cpu 0
-Put the wlan0 device into monitoring mode and capture all raw 802.11 frames
-into the file dump.pcap. Do not dissect and print the content to the terminal
-and pin the process and NIC IRQ affinity to CPU 0. The pcap write method is
-scatter-gather I/O.
+قرار دادن رابط wlan0 در حالت پایش (monitor mode) و ضبط تمام فریم‌های خام 802.11 در فایل dump.pcap. بسته‌ها تفکیک و در ترمینال چاپ نمی‌شوند و فرایند و همبستگی IRQ به هسته پردازنده 0 متصل می‌شوند. روش نوشتن pcap ورودی/خروجی پراکنده\-گردآوری است.
 .TP
 .B netsniff-ng --in dump.pcap --mmap --out eth0 -k1000 --silent --bind-cpu 0
-Replay the pcap file dump.pcap which is read through
+بازپخش فایل pcap با نام dump.pcap که از طریق ورودی/خروجی
 .BR mmap (2)
-I/O and send the packets out via the eth0 networking device. Do not dissect and
-print the content to the terminal and pin the process and NIC IRQ affinity to
-CPU 0.  Also, trigger the kernel every 1000us to traverse the TX_RING instead of
-every 10us. Note that the pcap magic type is detected automatically from the
-pcap file header.
+خوانده می‌شود و ارسال بسته‌ها به بیرون از طریق رابط شبکه eth0. محتوا تفکیک و در ترمینال چاپ نمی‌شود و فرایند و همبستگی IRQ به هسته پردازنده 0 اختصاص می‌یابد. همچنین هسته هر ۱۰۰۰ میکروثانیه (به جای ۱۰ میکروثانیه) برای پیمایش TX_RING تحریک می‌شود. توجه داشته باشید که نوع قالب pcap به‌طور خودکار از هدر فایل شناسایی می‌شود.
 .TP
 .B netsniff-ng --in eth0 --out eth1 --silent --bind-cpu 0 --type host -r
-Redirect network traffic from the networking device eth0 to eth1 for traffic
-that is destined for our host, thus ignore broadcast, multicast and promiscuous
-traffic. Randomize the order of packets for the outgoing device and do not
-print any packet contents to the terminal. Also, pin the process and NIC IRQ
-affinity to CPU 0.
+هدایت ترافیک از کارت شبکه eth0 به eth1 برای ترافیکی که مقصد آن میزبان خود ما است؛ بدین ترتیب ترافیک‌های همگانی، چندپخشی و بی‌قاعده نادیده گرفته می‌شوند. ترتیب بسته‌ها برای دستگاه خروجی تصادفی شده و هیچ محتوایی در ترمینال چاپ نمی‌شود. همچنین فرایند و همبستگی IRQ به پردازنده 0 اختصاص می‌یابد.
 .TP
 .B netsniff-ng --in team0 --out /opt/probe/ -s -m --interval 100MiB -b 0
-Capture on an aggregated team0 networking device and dump packets into multiple
-pcap files that are split into 100MiB each. Use
+ضبط ترافیک روی رابط تجمیع‌شده team0 و ذخیره بسته‌ها در چندین فایل pcap با تفکیک ۱۰۰ مگابایتی برای هر فایل. استفاده از ورودی/خروجی
 .BR mmap (2)
-I/O as a pcap write method, support for super jumbo frames is built-in (does not
-need to be configured here), and do not print the captured data to the terminal.
-Pin netsniff-ng and NIC IRQ affinity to CPU 0. The default pcap magic type is
-0xa1b2c3d4 (tcpdump-capable pcap).
+به عنوان روش نوشتن pcap؛ پشتیبانی از فریم‌های بسیار بزرگ (super jumbo) به صورت داخلی فعال است (نیازی به تنظیم در اینجا ندارد) و داده‌های ضبط‌شده در ترمینال چاپ نمی‌شوند. فرایند و همبستگی IRQ به پردازنده 0 اختصاص می‌یابد. قالب پیش‌فرض pcap امضای 0xa1b2c3d4 (قالب سازگار با tcpdump) است.
 .TP
 .B netsniff-ng --in vlan0 --out dump.pcap -c -u `id -u bob` -g `id -g bob`
-Capture network traffic on device vlan0 into a pcap file called dump.pcap
-by using normal
-.BR read (2),
+ضبط ترافیک روی رابط vlan0 در فایل pcap به نام dump.pcap با استفاده از ورودی/خروجی معمولی
+.BR read (2)
+و
 .BR write (2)
-I/O for the pcap file (slower but less latency). Also, after setting up the
-RX_RING for capture, drop privileges from root to the user and group
-\[lq]bob\[rq]. Invoke the packet dissector and print packet contents to the
-terminal for further analysis.
+برای فایل pcap (کندتر اما با تأخیر کمتر). همچنین پس از راه‌اندازی RX_RING برای ضبط، دسترسی‌های ریشه به کاربر و گروه \[lq]bob\[rq] تقلیل می‌یابد. ماژول تفکیک بسته فعال شده و محتوای بسته‌ها برای تحلیل بیشتر در ترمینال چاپ می‌شود.
 .TP
 .B netsniff-ng --in any --filter http.bpf -B --ascii -V
-Capture from all available networking interfaces and install a low-level
-filter that was previously compiled by
+ضبط از تمامی رابط‌های شبکه موجود و نصب یک فیلتر سطح پایین که قبلاً توسط
 .BR bpfc (8)
-into http.bpf in order to filter HTTP traffic. Super jumbo frame support is
-automatically enabled and only print human readable packet data to the terminal,
-and also be more verbose during setup phase. Moreover, dump a BPF disassembly of
-http.bpf.
+در فایل http.bpf کامپایل شده است تا ترافیک HTTP فیلتر شود. پشتیبانی از فریم‌های بسیار بزرگ به صورت خودکار فعال شده و فقط داده‌های متنی خوانا برای انسان در ترمینال چاپ می‌شوند؛ همچنین جزئیات بیشتری در مرحله راه‌اندازی نمایش داده شده و کد دی‌اسمبلی BPF فایل http.bpf نیز نمایش می‌یابد.
 .TP
 .B netsniff-ng --in dump.pcap --out dump.cfg --silent
-Convert the pcap file dump.pcap into a
+تبدیل فایل pcap با نام dump.pcap به فایل پیکربندی
 .BR trafgen (8)
-configuration file dump.cfg. Do not print pcap contents to the terminal.
+با نام dump.cfg. محتوای pcap در ترمینال چاپ نمی‌شود.
 .TP
 .B netsniff-ng -i dump.pcap -f beacon.bpf -o -
-Convert the pcap file dump.pcap into a
+تبدیل فایل pcap به نام dump.pcap به یک فایل پیکربندی
 .BR trafgen (8)
-configuration file and write it to stdout. However, do not dump all of its
-content, but only the one that passes the low-level filter for raw 802.11 from
-beacon.bpf. The BPF engine here is invoked in user space inside of netsniff-ng,
-so Linux extensions are not available.
+و ارسال آن به خروجی استاندارد stdout. البته تمام محتوا استخراج نمی‌شود، بلکه تنها بخش‌هایی که از فیلتر سطح پایین فریم‌های خام 802.11 در beacon.bpf عبور کنند منتقل می‌شوند. موتور BPF در اینجا در فضای کاربری درون
+.B netsniff-ng
+اجرا می‌شود، بنابراین افزونه‌های لینوکس در دسترس نخواهند بود.
 .TP
 .B cat foo.pcap | netsniff-ng -i - -o -
-Read a pcap file from stdin and convert it into a
+خواندن فایل pcap از ورودی استاندارد stdin و تبدیل آن به فایل پیکربندی
 .BR trafgen (8)
-configuration
-file to stdout.
+در خروجی استاندارد stdout.
 .TP
 .B netsniff-ng -i nlmon0 -o dump.pcap -s
-Capture netlink traffic to a pcap file. This command needs a netlink monitoring
-device to be set up beforehand using the follwing commands using
+ضبط ترافیک netlink در یک فایل pcap. این دستور نیازمند آن است که پیش‌تر یک کارت شبکه پایش netlink با استفاده از دستور
 .BR ip (1)
-from the iproute2 utility collection:
-
+از مجموعه ابزارهای iproute2 راه‌اندازی شده باشد:
+.PP
+.nf
   modprobe nlmon
   ip link add type nlmon
   ip link set nlmon0 up
-
-To tear down the \fBnlmon0\fP device, use the following commands:
-
+.fi
+.PP
+برای برچیدن دستگاه \fBnlmon0\fP از دستورات زیر استفاده کنید:
+.PP
+.nf
   ip link set nlmon0 down
   ip link del dev nlmon0
   rmmod nlmon
+.fi
 .TP
 .B netsniff-ng --fanout-group 1 --fanout-type cpu --fanout-opts defrag --bind-cpu 0 --notouch-irq --silent --in em1 --out /var/cap/cpu0/ --interval 120sec
-Start two netsniff-ng fanout instances. Both are assigned into the same fanout
-group membership and traffic is splitted among them by incoming cpu. Furthermore,
-the kernel is supposed to defragment possible incoming fragments. First instance
-is assigned to CPU 0 and the second one to CPU 1, IRQ bindings are not altered as
-they might have been adapted to this scenario by the user a-priori, and traffic
-is captured on interface em1, and written out in 120 second intervals as pcap
-files into /var/cap/cpu0/. Tools like mergecap(1) will be able to merge the cpu0/1
-split back together if needed.
+اجرای دو نمونه از
+.B netsniff-ng
+در حالت توزیع (fanout). هر دو نمونه به یک گروه توزیع مشترک اختصاص می‌یابند و ترافیک بر اساس پردازنده دریافت‌کننده بین آن‌ها تقسیم می‌شود. علاوه بر این، هسته باید قطعات احتمالی بسته‌ها را یکپارچه‌سازی (defragment) کند. نمونه اول به پردازنده 0 و نمونه دوم به پردازنده 1 اختصاص می‌یابد؛ انتساب IRQ دست‌نخورده باقی می‌ماند چرا که ممکن است کاربر از پیش آن را برای این سناریو تنظیم کرده باشد. ترافیک روی رابط em1 ضبط شده و در بازه‌های ۱۲۰ ثانیه‌ای به صورت فایل‌های pcap در مسیر /var/cap/cpu0/ ذخیره می‌شود. ابزارهایی مانند
+.BR mergecap (1)
+می‌توانند در صورت نیاز این فایل‌های تفکیک‌شده بین پردازنده‌های 0 و 1 را مجدداً با هم ادغام کنند.
 .PP
-.SH CONFIG FILES
+.SH "فایل‌های پیکربندی (CONFIG FILES)"
 .PP
-Files under /etc/netsniff-ng/ can be modified to extend netsniff-ng's
-functionality:
+فایل‌های موجود در مسیر /etc/netsniff-ng/ را می‌توان برای گسترش قابلیت‌های
+.B netsniff-ng
+ویرایش کرد:
 .PP
-    * oui.conf - OUI/MAC vendor database
-    * ether.conf - Ethernet type descriptions
-    * tcp.conf - TCP port/services map
-    * udp.conf - UDP port/services map
-    * geoip.conf - GeoIP database mirrors
+.nf
+    * oui.conf \- پایگاه داده سازندگان OUI/MAC
+    * ether.conf \- توضیحات انواع اترنت (Ethernet types)
+    * tcp.conf \- نگاشت پورت‌ها و سرویس‌های TCP
+    * udp.conf \- نگاشت پورت‌ها و سرویس‌های UDP
+    * geoip.conf \- سرورهای آینه پایگاه داده GeoIP
+.fi
 .PP
-.SH FILTER EXAMPLE
+.SH "مثال‌های فیلتر (FILTER EXAMPLE)"
 .PP
-netsniff-ng supports both, low-level and high-level filters that are
-attached to its
+ابزار
+.B netsniff-ng
+از هر دو نوع فیلتر سطح پایین و سطح بالا که به سوکت
 .BR packet (7)
-socket. Low-level filters are described in the
+آن متصل می‌شوند پشتیبانی می‌کند. فیلترهای سطح پایین در صفحه راهنمای
 .BR bpfc (8)
-man page.
+شرح داده شده‌اند.
 .PP
-Low-level filters can be used with netsniff-ng in the following way:
+فیلترهای سطح پایین را می‌توان به روش‌های زیر با
+.B netsniff-ng
+به کار برد:
 .PP
+.nf
     1. bpfc foo > bar
     2. netsniff-ng \-f bar
     3. bpfc foo | netsniff-ng -i nlmon0 -f -
+.fi
 .PP
-Here, foo is the bpfc program that will be translated into a netsniff-ng
-readable \[lq]opcodes\[rq] file and passed to netsniff-ng through the \-f
-option.
+در اینجا foo برنامه bpfc است که به فایلی از کدهای عملیاتی (opcodes) خوانا برای
+.B netsniff-ng
+تبدیل شده و از طریق گزینه \-f به
+.B netsniff-ng
+داده می‌شود.
 .PP
-Similarly, high-level filter can be either passed through the \fB\-f\fP option,
-e.g. \-f "tcp or udp" or at the end of all options without the \[lq]\-f\[rq].
+به همین ترتیب، فیلتر سطح بالا را می‌توان از طریق گزینه \fB\-f\fP (مانند \-f "tcp or udp") یا در پایان تمام گزینه‌ها بدون ذکر \[lq]\-f\[rq] ارائه داد.
 .PP
-The filter syntax is the same as in
-.BR tcpdump (8),
-which is described in the man page
-.BR pcap-filter (7).
-Just to quote some examples:
+سینتکس فیلتر دقیقاً مشابه
+.BR tcpdump (8)
+است که در صفحه راهنمای
+.BR pcap-filter (7)
+توضیح داده شده است. به عنوان نمونه:
 .TP
 .B host sundown
-To select all packets arriving at or departing from sundown.
+انتخاب تمام بسته‌هایی که مقصد یا مبدأ آن‌ها میزبان sundown است.
 .TP
 .B host helios and (hot or ace)
-To select traffic between helios and either hot or ace.
+انتخاب ترافیک بین helios و یکی از میزبان‌های hot یا ace.
 .TP
 .B ip host ace and not helios
-To select all IP packets between ace and any host except helios.
+انتخاب تمام بسته‌های IP بین ace و هر میزبانی به جز helios.
 .TP
 .B net ucb-ether
-To select all traffic between local hosts and hosts at Berkeley.
+انتخاب تمام ترافیک بین میزبان‌های محلی و میزبان‌های دانشگاه برکلی.
 .TP
 .B gateway snup and (port ftp or ftp-data)
-To select all FTP traffic through Internet gateway snup.
+انتخاب تمام ترافیک FTP که از درگاه (gateway) اینترنتی snup عبور می‌کند.
 .TP
 .B ip and not net localnet
-To select traffic neither sourced from, nor destined for, local hosts. If you
-have a gateway to another network, this traffic should never make it onto
-your local network.
+انتخاب ترافیکی که مبدأ و مقصد آن شبکه محلی نیست. اگر به شبکه دیگری گیت‌وی دارید، این ترافیک هرگز نباید به شبکه محلی شما وارد شود.
 .TP
 .B tcp[tcpflags] & (tcp-syn|tcp-fin) != 0 and not src and dst net localnet
-To select the start and end packets (the SYN and FIN packets) of each TCP
-conversation that involve a non-local host.
+انتخاب بسته‌های شروع و پایان (بسته‌های SYN و FIN) در هر ارتباط TCP که شامل یک میزبان غیرمحلی است.
 .TP
 .B tcp port 80 and (((ip[2:2] - ((ip[0]&0xf)<<2)) - ((tcp[12]&0xf0)>>2)) != 0)
-To select all IPv4 HTTP packets to and from port 80, that is to say, print only packets
-that contain data, not, for example, SYN and FIN packets and ACK-only packets.
-(IPv6 is left as an exercise for the reader.)
+انتخاب تمام بسته‌های IPv4 پروتکل HTTP مربوط به پورت 80؛ یعنی فقط بسته‌هایی که حاوی داده هستند نمایش داده شوند، نه به عنوان مثال بسته‌های SYN، FIN یا بسته‌های فقط ACK. (نسخه IPv6 به عنوان تمرین به خواننده واگذار می‌شود.)
 .TP
 .B gateway snup and ip[2:2] > 576
-To select IP packets longer than 576 bytes sent through gateway snup.
+انتخاب بسته‌های IP بزرگتر از ۵۷۶ بایت که از گیت‌وی snup عبور می‌کنند.
 .TP
 .B ether[0] & 1 = 0 and ip[16] >= 224
-To select IP broadcast or multicast packets that were not sent via Ethernet
-broadcast or multicast.
+انتخاب بسته‌های پخش همگانی یا چندپخشی IP که از طریق پخش همگانی یا چندپخشی اترنت ارسال نشده‌اند.
 .TP
 .B icmp[icmptype] != icmp-echo and icmp[icmptype] != icmp-echoreply
-To select all ICMP packets that are not echo requests or replies
-(that is to say, not "ping" packets).
+انتخاب تمام بسته‌های ICMP که درخواست یا پاسخ echo نیستند (یعنی بسته‌های غیر "ping").
 .PP
-.SH PCAP FORMATS:
+.SH "قالب‌های پی‌کپ (PCAP FORMATS)"
 .PP
-netsniff-ng supports a couple of pcap formats, visible through ``netsniff-ng \-D'':
+ابزار
+.B netsniff-ng
+از چندین قالب pcap پشتیبانی می‌کند که با اجرای دستور
+\[lq]netsniff-ng \-D\[rq]
+قابل مشاهده هستند:
 .TP
 .B tcpdump-capable pcap (default)
-Pcap magic number is encoded as 0xa1b2c3d4 resp. 0xd4c3b2a1. As packet meta data
-this format contains the timeval in microseconds, the original packet length and
-the captured packet length.
+قالب pcap سازگار با tcpdump (پیش‌فرض). عدد جادویی آن به صورت 0xa1b2c3d4 یا 0xd4c3b2a1 کدگذاری شده است. این قالب به عنوان متادیتای بسته شامل timeval به میکروثانیه، طول اصلی بسته و طول بسته ضبط‌شده است.
 .TP
 .B tcpdump-capable pcap with ns resolution
-Pcap magic number is encoded as 0xa1b23c4d resp. 0x4d3cb2a1. As packet meta data
-this format contains the timeval in nanoseconds, the original packet length and
-the captured packet length.
+قالب pcap سازگار با tcpdump با دقت نانوثانیه. عدد جادویی آن به صورت 0xa1b23c4d یا 0x4d3cb2a1 کدگذاری شده است. این قالب به عنوان متادیتای بسته شامل timeval به نانوثانیه، طول اصلی بسته و طول بسته ضبط‌شده است.
 .TP
 .B Alexey Kuznetzov's pcap
-Pcap magic number is encoded as 0xa1b2cd34 resp. 0x34cdb2a1. As packet meta data
-this format contains the timeval in microseconds, the original packet length,
-the captured packet length, the interface index (sll_ifindex), the packet's
-protocol (sll_protocol), and the packet type (sll_pkttype).
+قالب pcap الکسی کوزنتسوف (Alexey Kuznetzov). عدد جادویی آن به صورت 0xa1b2cd34 یا 0x34cdb2a1 کدگذاری شده است. این قالب به عنوان متادیتای بسته شامل timeval به میکروثانیه، طول اصلی بسته، طول بسته ضبط‌شده، شاخص رابط (sll_ifindex)، پروتکل بسته (sll_protocol) و نوع بسته (sll_pkttype) است.
 .TP
 .B netsniff-ng pcap
-Pcap magic number is encoded as 0xa1e2cb12 resp. 0x12cbe2a1. As packet meta data
-this format contains the timeval in nanoseconds, the original packet length,
-the captured packet length, the timestamp hw/sw source, the interface index
-(sll_ifindex), the packet's protocol (sll_protocol), the packet type (sll_pkttype)
-and the hardware type (sll_hatype).
+قالب pcap اختصاصی netsniff-ng. عدد جادویی آن به صورت 0xa1e2cb12 یا 0x12cbe2a1 کدگذاری شده است. این قالب به عنوان متادیتای بسته شامل timeval به نانوثانیه، طول اصلی بسته، طول بسته ضبط‌شده، منبع برچسب زمانی سخت‌افزاری/نرم‌افزاری، شاخص رابط (sll_ifindex)، پروتکل بسته (sll_protocol)، نوع بسته (sll_pkttype) و نوع سخت‌افزار (sll_hatype) است.
 .PP
-For further implementation details or format support in your application,
-have a look at pcap_io.h in the netsniff-ng sources.
+برای جزئیات بیشتر در مورد پیاده‌سازی یا پشتیبانی از این قالب‌ها در برنامه‌های خود، به فایل pcap_io.h در کدهای منبع netsniff-ng مراجعه کنید.
 .PP
-.SH "نکته (NOTE)"
-To avoid confusion, it should be noted that there is another network
-analyzer with a similar name, called NetSniff, that is unrelated to
-the netsniff-ng project.
+.SH "نکات (NOTES)"
+برای جلوگیری از سردرگمی، لازم به ذکر است که یک تحلیل‌گر شبکه دیگر با نام مشابه بنام NetSniff وجود دارد که ارتباطی با پروژه netsniff-ng ندارد.
 .PP
-For introducing bit errors, delays with random variation and more
-while replaying pcaps, make use of
+برای ایجاد خطاهای بیتی، تأخیرهای با تغییرات تصادفی و موارد دیگر در حین بازپخش فایل‌های pcap، از ابزار
 .BR tc (8)
-with its disciplines such as netem.
+با انضباط‌هایی نظیر netem استفاده کنید.
 .PP
-netsniff-ng does only some basic, architecture generic tuning on
-startup. If you are considering to do high performance capturing,
-you need to carefully tune your machine, both hardware and software.
-Simply letting netsniff-ng run without thinking about your underlying
-system might not necessarily give you the desired performance. Note
-that tuning your system is always a tradeoff and fine-grained
-balancing act (throughput versus latency). You should know what
-you are doing!
+ابزار
+.B netsniff-ng
+هنگام راه‌اندازی تنها برخی تنظیمات اولیه و عمومی معماری را انجام می‌دهد. اگر قصد دارید ضبط بسته‌ها را با کارایی بسیار بالا انجام دهید، باید سیستم خود را از نظر سخت‌افزاری و نرم‌افزاری با دقت بهینه‌سازی (tune) کنید. اجرای ساده
+.B netsniff-ng
+بدون توجه به ساختار زیرین سیستم لزوماً کارایی مورد نظر را به شما نخواهد داد. توجه داشته باشید که بهینه‌سازی سیستم همواره یک موازنه و تعادل دقیق بین توان عملیاتی (throughput) و زمان تأخیر (latency) است. باید دقیقاً بدانید چه کاری انجام می‌دهید!
 .PP
-One recommendation for software-based tuning is
-.BR tuned (8).
-Besides that, there are many other things to consider. Just to throw you
-a few things that you might want to look at: NAPI networking drivers,
-tickless kernel, I/OAT DMA engine, Direct Cache Access, RAM-based
-file systems, multi-queues, and many more things. Also, you might
-want to read the kernel's Documentation/networking/scaling.txt file
-regarding technologies such as RSS, RPS, RFS, aRFS and XPS. Also
-check your ethtool(8) settings, for example regarding offloading or
-Ethernet pause frames.
+یک پیشنهاد برای بهینه‌سازی نرم‌افزاری استفاده از
+.BR tuned (8)
+است. علاوه بر این، موارد بسیار دیگری نیز وجود دارد که باید در نظر گرفته شوند؛ از جمله: درایورهای شبکه NAPI، هسته بدون تیک (tickless kernel)، موتور DMA از نوع I/OAT، دسترسی مستقیم به حافظه موقت (Direct Cache Access)، سیستم‌های فایل مبتنی بر رم، صف‌های چندگانه (multi-queues) و موارد بسیار دیگر. همچنین مطالعه مستندات هسته لینوکس در فایل Documentation/networking/scaling.txt در رابطه با فناوری‌هایی مانند RSS، RPS، RFS، aRFS و XPS توصیه می‌شود. به علاوه تنظیمات
+.BR ethtool (8)
+را نیز برای مواردی نظیر تخلیه بار (offloading) یا فریم‌های مکث اترنت (Ethernet pause frames) بررسی کنید.
 .PP
-Moreover, to get a deeper understanding of netsniff-ng internals
-and how it interacts with the Linux kernel, the kernel documentation
-under Documentation/networking/{packet_mmap.txt, filter.txt,
-multiqueue.txt} might be of interest.
+علاوه بر این، برای درک عمیق‌تر از ساختار داخلی
+.B netsniff-ng
+و نحوه تعامل آن با هسته لینوکس، مستندات هسته در مسیر Documentation/networking/{packet_mmap.txt, filter.txt, multiqueue.txt} می‌تواند مفید باشد.
 .PP
-How do you sniff in a switched environment? I rudely refer to dSniff's
-documentation that says:
+چگونه در یک محیط سوئیچ‌شده شنود (sniff) انجام دهیم؟ با صراحت به مستندات ابزار dSniff اشاره می‌کنیم که می‌گوید:
 .PP
-The easiest route is simply to impersonate the local gateway, stealing
-client traffic en route to some remote destination. Of course, the traffic
-must be forwarded by your attacking machine, either by enabling kernel IP
-forwarding or with a userland program that accomplishes the same
-(fragrouter \-B1).
+ساده‌ترین راه، جعل هویت گیت‌وی محلی و سرقت ترافیک کلاینت در مسیر مقصد دوردست است. البته این ترافیک باید توسط دستگاه حمله‌کننده بازهدایت شود؛ خواه از طریق فعال‌سازی فورواردینگ IP در هسته، خواه با یک برنامه در فضای کاربری که همین کار را انجام دهد (مانند fragrouter \-B1).
 .PP
-Several people have reportedly destroyed connectivity on their LAN to the
-outside world by ARP spoofing the gateway, and forgetting to enable IP
-forwarding on the attacking machine. Do not do this. You have been warned.
+بر اساس گزارش‌ها، افراد متعددی با جعل ARP روی گیت‌وی و فراموش کردن فعال‌سازی بازهدایت IP روی دستگاه مهاجم، اتصال شبکه محلی (LAN) خود به دنیای بیرون را به طور کامل قطع کرده‌اند. این کار را انجام ندهید. به شما هشدار داده شد.
 .PP
-A safer option than ARP spoofing would be to use a "port mirror" function
-if your switch hardware supports it and if you have access to the switch.
+گزینه بسیار امن‌تر از جعل ARP، استفاده از قابلیت پایش پورت (port mirror) است؛ البته در صورتی که سخت‌افزار سوئیچ شما از آن پشتیبانی کند و به سوئیچ دسترسی داشته باشید.
 .PP
-If you do not need to dump all possible traffic, you have to consider
-running netsniff-ng with a BPF filter for the ingress path. For that
-purpose, read the
+اگر نیازی به ثبت تمامی ترافیک عبوری ندارید، بهتر است
+.B netsniff-ng
+را همراه با یک فیلتر BPF برای مسیر ورودی اجرا کنید. به این منظور صفحه راهنمای
 .BR bpfc (8)
-man page.
+را بخوانید.
 .PP
-Also, to aggregate multiple NICs that you want to capture on, you
-should consider using team devices, further explained in libteam resp.
-.BR teamd (8).
+همچنین برای تجمیع چند کارت شبکه که قصد شنود روی آن‌ها را دارید، استفاده از دستگاه‌های team را در نظر بگیرید که توضیحات بیشتر آن در libteam و
+.BR teamd (8)
+آمده است.
 .PP
-The following netsniff-ng pcap magic numbers are compatible with other
-tools, at least tcpdump or Wireshark:
+اعداد جادویی pcap زیر در
+.B netsniff-ng
+با سایر ابزارها، دست‌کم tcpdump یا Wireshark سازگار هستند:
 .PP
-    0xa1b2c3d4 (tcpdump-capable pcap)
-    0xa1b23c4d (tcpdump-capable pcap with ns resolution)
-    0xa1b2cd34 (Alexey Kuznetzov's pcap)
+.nf
+    0xa1b2c3d4 (قالب pcap سازگار با tcpdump)
+    0xa1b23c4d (قالب pcap سازگار با tcpdump با دقت نانوثانیه)
+    0xa1b2cd34 (قالب pcap الکسی کوزنتسوف)
+.fi
 .PP
-Pcap files with different meta data endianness are supported by netsniff-ng
-as well.
+فایل‌های pcap با ترتیب بایت متادیتای متفاوت نیز توسط
+.B netsniff-ng
+پشتیبانی می‌شوند.
 .PP
 .SH "اشکالات (BUGS)"
 .PP
-When replaying pcap files, the timing information from the pcap packet
-header is currently ignored.
+هنگام بازپخش فایل‌های pcap، اطلاعات زمان‌بندی موجود در هدر بسته pcap در حال حاضر نادیده گرفته می‌شود.
 .PP
-Also, when replaying pcap files, demultiplexing traffic among multiple
-networking interfaces does not work. Currently, it is only sent via the
-interface that is given by the \-\-out parameter.
+همچنین هنگام بازپخش فایل‌های pcap، تفکیک ترافیک (demultiplexing) میان چند رابط شبکه کار نمی‌کند. در حال حاضر ترافیک تنها از طریق رابطی ارسال می‌شود که با پارامتر
+.B \-\-out
+مشخص شده است.
 .PP
-When performing traffic capture on the Ethernet interface, the pcap file
-is created and packets are received but without a 802.1Q header. When one
-uses tshark, all headers are visible, but netsniff-ng removes 802.1Q
-headers. Is that normal behavior?
+هنگام ضبط ترافیک روی رابط اترنت، فایل pcap ایجاد شده و بسته‌ها دریافت می‌شوند اما فاقد هدر 802.1Q هستند. هنگامی که از tshark استفاده می‌شود تمام هدرها قابل مشاهده‌اند، اما
+.B netsniff-ng
+هدرهای 802.1Q را حذف می‌کند. آیا این یک رفتار عادی است؟
 .PP
-Yes and no. The way VLAN headers are handled in PF_PACKET sockets by the
-kernel is somewhat \[lq]problematic\[rq] [1]. The problem in the Linux kernel
-is that some drivers already handle VLANs, others do not. Those who handle it
-can have different implementations, such as hardware acceleration and so on.
-So in some cases the VLAN tag is even stripped before entering the protocol
-stack, in some cases probably not. The bottom line is that a "hack" was
-introduced in PF_PACKET so that a VLAN ID is visible in some helper data
-structure that is accessible from the RX_RING.
+پاسخ هم بله است و هم خیر. شیوه مدیریت هدرهای VLAN در سوکت‌های PF_PACKET توسط هسته تا حدی \[lq]مسئله‌ساز\[rq] است [1]. مشکل در هسته لینوکس این است که برخی درایورها از قبل VLANها را مدیریت می‌کنند و برخی دیگر خیر. آن‌هایی هم که آن را پردازش می‌کنند پیاده‌سازی‌های متفاوتی دارند، مانند شتاب‌دهی سخت‌افزاری و غیره. بنابراین در برخی موارد برچسب VLAN حتی پیش از ورود به پشته پروتکل حذف می‌شود و در برخی موارد احتمالاً خیر. نکته اساسی این است که یک راهکار موقت (hack) در PF_PACKET معرفی شد تا شناسه VLAN در یک ساختار داده کمکی که از طریق RX_RING قابل دسترسی است، قابل مشاهده باشد.
 .PP
-Then it gets really messy in the user space to artificially put the VLAN
-header back into the right place. Not to mention the resulting performance
-implications on all of libpcap(3) tools since parts of the packet need to
-be copied for reassembly via memmove(3).
+سپس در فضای کاربری برای قرار دادن ساختگی هدر VLAN در جایگاه درست خود، اوضاع بسیار پیچیده و آشفته می‌شود. بماند که این امر چه تبعات عملکردی منفی بر تمامی ابزارهای مبتنی بر
+.BR libpcap (3)
+می‌گذارد، چرا که بخش‌هایی از بسته برای بازترکیب مجدد باید با
+.BR memmove (3)
+کپی شوند.
 .PP
-A user reported the following, just to demonstrate this mess: some tests were
-made with two machines, and it seems that results depend on the driver ...
+کاربری برای نشان دادن این آشفتگی گزارش زیر را ارسال کرد؛ برخی آزمایش‌ها روی دو دستگاه انجام شد و به نظر می‌رسد نتایج کاملاً به درایور بستگی دارد:
 .PP
+.nf
     AR8131:
-      ethtool \-k eth0 gives "rx-vlan-offload: on"
-      - wireshark gets the vlan header
-      - netsniff-ng doesn't get the vlan header
-      ethtool \-K eth0 rxvlan off
-      - wireshark gets a QinQ header even though no one sent QinQ
-      - netsniff-ng gets the vlan header
-.PP
+      دستور ethtool \-k eth0 خروجی "rx-vlan-offload: on" را می‌دهد
+      - برنامه wireshark هدر vlan را دریافت می‌کند
+      - ابزار netsniff-ng هدر vlan را دریافت نمی‌کند
+      دستور ethtool \-K eth0 rxvlan off
+      - برنامه wireshark هدر QinQ دریافت می‌کند با این که هیچ‌کس QinQ ارسال نکرده بود
+      - ابزار netsniff-ng هدر vlan را دریافت می‌کند
+
     RTL8111/8168B:
-      ethtool \-k eth0 gives "rx-vlan-offload: on"
-      - wireshark gets the vlan header
-      - netsniff-ng doesn't get the vlan header
-      ethtool \-K eth0 rxvlan off
-      - wireshark gets the vlan header
-      - netsniff-ng doesn't get the vlan header
+      دستور ethtool \-k eth0 خروجی "rx-vlan-offload: on" را می‌دهد
+      - برنامه wireshark هدر vlan را دریافت می‌کند
+      - ابزار netsniff-ng هدر vlan را دریافت نمی‌کند
+      دستور ethtool \-K eth0 rxvlan off
+      - برنامه wireshark هدر vlan را دریافت می‌کند
+      - ابزار netsniff-ng هدر vlan را دریافت نمی‌کند
+.fi
 .PP
-Even if we agreed on doing the same workaround as libpcap, we still will
-not be able to see QinQ, for instance, due to the fact that only one VLAN tag
-is stored in the kernel helper data structure. We think that there should be
-a good consensus on the kernel space side about what gets transferred to
-userland first.
+حتی اگر توافق می‌کردیم که از همان راهکار موقت libpcap استفاده کنیم، باز هم به عنوان مثال به دلیل این که تنها یک برچسب VLAN در ساختار داده کمکی هسته ذخیره می‌شود، قادر به دیدن QinQ نبودیم. ما بر این باوریم که در سمت هسته باید اجماع مناسبی بر سر این که چه داده‌ای ابتدا به فضای کاربری منتقل شود، شکل بگیرد.
 .PP
-Update (28.11.2012): the Linux kernel and also
+به‌روزرسانی (28.11.2012): هسته لینوکس و همچنین
 .BR bpfc (8)
-has built-in support for hardware accelerated VLAN filtering, even though tags
-might not be visible in the payload itself as reported here. However, the
-filtering for VLANs works reliable if your NIC supports it. See
+دارای پشتیبانی داخلی برای فیلترسازی شتاب‌یافته سخت‌افزاری VLAN هستند، هرچند ممکن است برچسب‌ها همان‌طور که در اینجا گزارش شد در بار داده (payload) خود بسته دیده نشوند. با این حال، اگر کارت شبکه شما از آن پشتیبانی کند فیلتر کردن برای VLANها به صورت قابل اعتماد کار می‌کند. برای مشاهده مثال به
 .BR bpfc (8)
-for an example.
+مراجعه کنید.
 .PP
+.nf
    [1] http://lkml.indiana.edu/hypermail/linux/kernel/0710.3/3816.html
    [2] http://www.tcpdump.org/linktypes/LINKTYPE_NETLINK.html
    [3] http://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL.html
+.fi
 .PP
-.SH LEGAL
-netsniff-ng is licensed under the GNU GPL version 2.0.
+.SH "مجوز و شرایط قانونی (LEGAL)"
+ابزار
+.B netsniff-ng
+تحت مجوز گنو جی‌پی‌ال نسخه ۲.۰ (GNU GPL version 2.0) منتشر شده است.
 .PP
 .SH "تاریخچه (HISTORY)"
 .B netsniff-ng
-was originally written for the netsniff-ng toolkit by Daniel Borkmann. Bigger
-contributions were made by Emmanuel Roullit, Markus Amend, Tobias Klauser and
-Christoph Jaeger. It is currently maintained by Tobias Klauser
-<tklauser@distanz.ch> and Daniel Borkmann <dborkma@tik.ee.ethz.ch>.
+در ابتدا توسط دانیل بورکمن (Daniel Borkmann) برای مجموعه ابزارهای netsniff-ng نوشته شد. مشارکت‌های بزرگی توسط امانوئل رولیت (Emmanuel Roullit)، مارکوس آمند (Markus Amend)، توبیاس کلاوزر (Tobias Klauser) و کریستوف یاگر (Christoph Jaeger) انجام گرفت. این پروژه در حال حاضر توسط توبیاس کلاوزر
+<tklauser@distanz.ch>
+و دانیل بورکمن
+<dborkma@tik.ee.ethz.ch>
+نگهداری می‌شود.
 .PP
 .SH "همچنین ببینید (SEE ALSO)"
 .BR trafgen (8),
@@ -677,8 +535,9 @@ Christoph Jaeger. It is currently maintained by Tobias Klauser
 .BR curvetun (8)
 .PP
 .SH "نویسنده (AUTHOR)"
-Manpage was written by Daniel Borkmann.
+این صفحه راهنما توسط دانیل بورکمن (Daniel Borkmann) نوشته شده است.
 .PP
-.SH COLOPHON
-This page is part of the Linux netsniff-ng toolkit project. A description of the project,
-and information about reporting bugs, can be found at http://netsniff-ng.org/.
+.SH "اطلاعات تکمیلی (COLOPHON)"
+این صفحه بخشی از پروژه مجموعه ابزارهای netsniff-ng لینوکس است. توضیحات مربوط به این پروژه و اطلاعات گزارش باگ‌ها را می‌توانید در نشانی
+<http://netsniff-ng.org>
+بیابید.

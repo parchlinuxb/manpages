@@ -1,17 +1,17 @@
-.\" dictd.8 -- 
+.\" dictd.8 --
 .\" Created: Mon Mar 10 16:10:03 1997 by faith@dict.org
 .\" Copyright 1997, 1998, 2002 Rickard E. Faith (faith@dict.org)
 .\" Copyright 2002-2008 Aleksey Cheusov (vle@gmx.net)
-.\" 
+.\"
 .\" Permission is granted to make and distribute verbatim copies of this
 .\" manual provided the copyright notice and this permission notice are
 .\" preserved on all copies.
-.\" 
+.\"
 .\" Permission is granted to copy and distribute modified versions of this
 .\" manual under the conditions for verbatim copying, provided that the
 .\" entire resulting derived work is distributed under the terms of a
 .\" permission notice identical to this one
-.\" 
+.\"
 .\" Since the Linux kernel and libraries are constantly changing, this
 .\" manual page may be incorrect or out-of-date.  The author(s) assume no
 .\" responsibility for errors or omissions, or for damages resulting from
@@ -19,1140 +19,886 @@
 .\" have taken the same level of care in the production of this manual,
 .\" which is licensed free of charge, as they might when working
 .\" professionally.
-.\" 
+.\"
 .\" Formatted or processed versions of this manual, if unaccompanied by
 .\" the source, must acknowledge the copyright and authors of this work.
-.\" 
+.\"
 .TH DICTD 8 "29 March 2002" "" ""
 .SH "نام (NAME)"
-dictd \- a dictionary database server
+dictd \- سرور پایگاه‌داده واژه‌نامه
 .SH "خلاصه دستور (SYNOPSIS)"
 .nf
-.BI dictd " [options]"
+.BI dictd " [گزینه‌ها]"
 .fi
 .SH "توضیحات (DESCRIPTION)"
 .B dictd
-is a server for the Dictionary Server Protocol (DICT), a TCP transaction
-based query/response protocol that allows a client to access dictionary
-definitions from a set of natural language dictionary databases.
+یک سرور برای پروتکل سرور واژه‌نامه (DICT) است؛ یک پروتکل پرس‌وجو/پاسخ مبتنی بر تراکنش‌های TCP که به کلاینت امکان می‌دهد به تعاریف واژگان از مجموعه‌ای از پایگاه‌های داده لغت‌نامه زبان طبیعی دسترسی داشته باشد.
 .P
-For security reasons, dictd drops root permissions after startup.  If
-user
+به دلایل امنیتی،
 .B dictd
-exists on the system, the daemon will run as that user, group
-.BR dictd ", otherwise it will run as user 
-.BR nobody ", group" 
-.BR nobody " or " nogroup
-(depending on the operating system distribution).
-.P
-Since startup time is significant, the server is designed to run
-continuously, and should
-.I not
-be run from
-.BR inetd (8).
-(However, with a fast processor, it is feasible to do so.)
-.P
-Databases are distributed separately from the server.
-.P
-By default, 
+پس از راه‌اندازی، دسترسی‌های کاربر ریشه (root) را رها می‌کند. اگر کاربر
 .B dictd
-assumes that the index files are sorted alphabetically, and only
-alphanumeric characters from the 7-bit ASCII character set are used
-for search.  This default may be overridden by a header in the data
-file.  The only such features implemented at this time are the headers
-"00-database-allchars" which tells
-.B dictd 
-that non-alphanumeric characters may also be used for search, the
-header "00-database-utf8" which indicates that the database uses utf8
-encoding, and the "00-database-8bit-new" which indicates that the database
-is encoded and sorted according to a locale that uses an 8-bit
-encoding.
-.SH "BACKGROUND"
-For many years, the Internet community has relied on the "webster" protocol
-for access to natural language definitions.  The webster protocol supports
-access to a single dictionary and (optionally) to a single thesaurus.  In
-recent years, the number of publicly available webster servers on the
-Internet has dramatically decreased.
+روی سیستم وجود داشته باشد، دیمن تحت عنوان آن کاربر و گروه
+.BR dictd " اجرا خواهد شد، در غیر این صورت تحت عنوان کاربر"
+.BR nobody " و گروه"
+.BR nobody " یا " nogroup
+(بسته به توزیع سیستم‌عامل) اجرا می‌شود.
 .P
-Fortunately, several freely-distributable dictionaries and lexicons have
-recently become available on the Internet.  However, these
-freely-distributable databases are not accessible via a uniform interface,
-and are not accessible from a single site.  They are often small and
-incomplete individually, but would collectively provide an interesting and
-useful database of English words.  Examples include the Jargon file, the
-WordNet database, MICRA's version of the 1913 Webster's Revised Unabridged
-Dictionary, and the Free Online Dictionary of Computing.  (See the DICT
-protocol specification (RFC) for references.)  Translating and non-English
-dictionaries are also becoming available (for example, the FOLDOC
-dictionary is being translated into Spanish).
+از آنجا که زمان راه‌اندازی اولیه قابل توجه است، این سرور به گونه‌ای طراحی شده است که به صورت مداوم اجرا شود و
+.I نباید
+از طریق
+.BR inetd (8)
+اجرا گردد. (با این حال، در صورت استفاده از پردازنده‌ای سریع، انجام این کار امکان‌پذیر است.)
 .P
-The webster protocol is not suitable for providing access to a large
-number of separate dictionary databases, and extensions to the current
-webster protocol were not felt to be a clean solution to the
-dictionary database problem.
+پایگاه‌های داده به صورت جداگانه از سرور توزیع می‌شوند.
 .P
-The DICT protocol is designed to provide access to multiple databases.
-Word definitions can be requested, the word index can be searched
-(using an easily extended set of algorithms), information about the
-server can be provided (e.g., which index search strategies are
-supported, or which databases are available), and information about a
-database can be provided (e.g., copyright, citation, or distribution
-information).  Further, the DICT protocol has hooks that can be used
-to restrict access to some or all of the databases.
+به طور پیش‌فرض،
+.B dictd
+فرض می‌کند که فایل‌های نمایه (index) به ترتیب حروف الفبا مرتب شده‌اند و تنها نویسه‌های حرفی‌عددی از مجموعه نویسه‌های اسکی ۷-بیتی (7-bit ASCII) برای جستجو استفاده می‌شوند. این پیش‌فرض می‌تواند توسط یک هدر در فایل داده لغو شود. تنها ویژگی‌هایی از این دست که در حال حاضر پیاده‌سازی شده‌اند، هدر "00-database-allchars" است که به
+.B dictd
+اعلام می‌کند نویسه‌های غیر حرفی‌عددی نیز ممکن است برای جستجو استفاده شوند، هدر "00-database-utf8" که نشان می‌دهد پایگاه‌داده از کدگذاری utf8 استفاده می‌کند، و هدر "00-database-8bit-new" که نشان می‌دهد پایگاه‌داده طبق یک محلی‌سازی (locale) که از کدگذاری ۸-بیتی استفاده می‌کند، کدگذاری و مرتب‌سازی شده است.
+.SH "پیش‌زمینه (BACKGROUND)"
+سال‌های متمادی، جامعه اینترنت برای دسترسی به تعاریف زبان طبیعی به پروتکل «webster» متکی بود. پروتکل webster از دسترسی به یک لغت‌نامه منفرد و (به صورت اختیاری) یک اصطلاح‌نامه (thesaurus) پشتیبانی می‌کرد. در سال‌های اخیر، تعداد سرورهای webster که به صورت عمومی روی اینترنت در دسترس هستند به شدت کاهش یافته است.
+.P
+خوشبختانه اخیراً چندین لغت‌نامه و فرهنگ واژگان با قابلیت توزیع آزاد بر روی اینترنت در دسترس قرار گرفته‌اند. با این حال، این پایگاه‌های داده با توزیع آزاد از طریق یک رابط یکپارچه قابل دسترسی نیستند و از یک سایت واحد در دسترس قرار ندارند. آن‌ها اغلب به صورت انفرادی کوچک و ناکامل هستند، اما در کنار یکدیگر می‌توانند یک پایگاه‌داده کاربردی و ارزشمند از واژگان انگلیسی را فراهم آورند. به عنوان نمونه می‌توان به فایل Jargon، پایگاه‌داده WordNet، نسخه سال ۱۹۱۳ وبستر از MICRA (لغت‌نامه بازبینی‌شده و کامل وبستر) و Free Online Dictionary of Computing اشاره کرد. (برای مراجع، به مشخصات پروتکل DICT در RFC مراجعه فرمایید.) لغت‌نامه‌های ترجمه و غیرانگلیسی نیز در حال در دسترس قرار گرفتن هستند (برای مثال، لغت‌نامه FOLDOC در حال ترجمه به زبان اسپانیایی است).
+.P
+پروتکل webster برای فراهم آوردن دسترسی به تعداد زیادی از پایگاه‌های داده واژه‌نامه مجزا مناسب نیست و افزودن افزونه‌ها به پروتکل فعلی webster راه‌حلی تمیز برای مسئله پایگاه‌داده واژه‌نامه به شمار نمی‌رفت.
+.P
+پروتکل DICT برای فراهم آوردن دسترسی به چندین پایگاه‌داده طراحی شده است. تعاریف کلمات را می‌توان درخواست کرد، نمایه کلمات را می‌توان جستجو نمود (با استفاده از مجموعه‌ای از الگوریتم‌ها که به راحتی قابل گسترش هستند)، اطلاعات مربوط به سرور را می‌توان دریافت کرد (مثلاً اینکه کدام راهبردهای جستجوی نمایه پشتیبانی می‌شوند یا کدام پایگاه‌های داده در دسترس هستند) و اطلاعات مربوط به یک پایگاه‌داده را می‌توان به دست آورد (مانند کپی‌رایت، ارجاع، یا اطلاعات توزیع). علاوه بر این، پروتکل DICT دارای قلاب‌هایی (hooks) است که می‌توان از آن‌ها برای محدود کردن دسترسی به برخی یا همه پایگاه‌های داده استفاده کرد.
 .P
 .BR dictd (8)
-is a server that implements the DICT protocol.  Bret Martin implemented
-another server, and several people (including Bret and myself) have
-implemented clients in a variety of languages.
+سروری است که پروتکل DICT را پیاده‌سازی می‌کند. برت مارتین (Bret Martin) سرور دیگری را پیاده‌سازی کرده است و چندین نفر (از جمله برت و من) کلاینت‌هایی را به زبان‌های گوناگون پیاده‌سازی کرده‌اند.
 .SH "گزینه‌ها (OPTIONS)"
 .TP
-.BR \-V " or " \-\-version
-Display version information.
+.BR \-V " یا " \-\-version
+نمایش اطلاعات نسخه.
 .TP
 .B \-\-license
-Display copyright and license information.
+نمایش اطلاعات کپی‌رایت و مجوز.
 .TP
-.BR \-h " or " \-\-help
-Display help information.
+.BR \-h " یا " \-\-help
+نمایش اطلاعات راهنما.
 .TP
-.BR \-v " or " \-\-verbose " or " " \-dverbose"
-Be verbose.
+.BR \-v " یا " \-\-verbose " یا " " \-dverbose"
+حالت پرگو (نمایش اطلاعات با جزئیات بیشتر).
 .TP
-.BI \-c " file\fR or "  \-\-config " file"
-Specify configuration file.  The default is
+.BI \-c " file\fR یا "  \-\-config " file"
+مشخص کردن فایل پیکربندی. مقدار پیش‌فرض
 .I /etc/dict/dictd.conf
-, but may be changed in the
+است، اما می‌تواند هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICTD_CONFIG_FILE).
+تغییر کند (DICTD_CONFIG_FILE).
 .TP
-.BI \-p " port\fR or " \-\-port " port"
-Overrides the keyword
+.BI \-p " port\fR یا " \-\-port " port"
+کلیدواژه
 .B port
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو (override) می‌کند.
 .TP
-.BR \-i " or " \-\-inetd
-Communicate on standard input/output, suitable for use from inetd.
-Although, due to its rather large startup time, this daemon was not
-intended to run from inetd, with a fast processor it is feasible to do
-so. This option also implies \-\-fast-start.
+.BR \-i " یا " \-\-inetd
+برقراری ارتباط از طریق ورودی/خروجی استاندارد، مناسب برای استفاده از طریق inetd. اگرچه با توجه به زمان راه‌اندازی نسبتاً طولانی، این دیمن برای اجرا از طریق inetd طراحی نشده است، اما با یک پردازنده سریع انجام این کار امکان‌پذیر است. این گزینه همچنین به صورت ضمنی شامل \-\-fast-start نیز می‌شود.
 .TP
 .BI \-\-pp " prog"
-Sets a preprocessor for configuration file.
-like
+یک پیش‌پردازنده برای فایل پیکربندی تعیین می‌کند؛ مانند
 .I " m4"
-or
-.I " cpp".
-See examples/dictd_complex.conf file
-from distribution. By default configuration file is parsed without
-preprocessor.
+یا
+.IR " cpp" .
+فایل examples/dictd_complex.conf را در بسته توزیع‌شده ببینید. به طور پیش‌فرض، فایل پیکربندی بدون پیش‌پردازنده تجزیه می‌شود.
 .TP
 .BI \-\-depth " length"
-Overrides the keyword
+کلیدواژه
 .B depth
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .BI \-\-delay " seconds"
-Overrides the keyword
+کلیدواژه
 .B delay
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .BI \-\-facility " facility"
-The same as
+معادل کلیدواژه
 .B syslog_facility
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
-.BR \-f " or " \-\-force
-Force the daemon to start even if an instance of the daemon is already
-running.  (This is of little value unless a non-default port is
-specified with
-.BR \-p ,
-since, if one instance is bound to a port, the second one fails when it
-can not bind to the port.)
+.BR \-f " یا " \-\-force
+وادار کردن دیمن به راه‌اندازی، حتی اگر نمونه دیگری از دیمن در حال اجرا باشد. (این گزینه کاربرد چندانی ندارد مگر اینکه یک درگاه غیر پیش‌فرض با
+.B \-p
+مشخص شده باشد؛ چرا که اگر یک نمونه به درگاه متصل شده باشد، نمونه دوم هنگامی که نتواند به درگاه متصل شود با خطا مواجه خواهد شد.)
 .TP
 .BI \-\-limit " children"
-Overrides the keyword
+کلیدواژه
 .B limit
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .BI \-\-listen\-to " host"
-Overrides the keyword
+کلیدواژه
 .B listen\_to
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .BI \-\-address\-family " family"
-Overrides the keyword
+کلیدواژه
 .B address\_family
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .BI \-\-locale " locale"
-Overrides the keyword
+کلیدواژه
 .B locale
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .B \-s
-The same as
+معادل کلیدواژه
 .B syslog
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
-.BI \-L " file\fR or " \-\-logfile " file"
-The same as
+.BI \-L " file\fR یا " \-\-logfile " file"
+معادل کلیدواژه
 .B log_file
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
 .BI \-\-pid\-file " file"
-The same as
+معادل کلیدواژه
 .B pid_file
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
-.BI \-m  " minutes \fR or "\-\-mark " minutes"
-Overrides the keyword
+.BI \-m  " minutes \fR یا "\-\-mark " minutes"
+کلیدواژه
 .B timestamp
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .BI \-\-default\-strategy " strategy"
-Overrides the keyword
+کلیدواژه
 .B default_strategy
-in
-.I Global Settings Specification
-section of configuration file.
+را در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل پیکربندی لغو می‌کند.
 .TP
 .BI \-\-without-strategy " strat1,strat2,..."
-The same as
+معادل کلیدواژه
 .B without_strategy
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
 .BI \-\-add-strategy " strategy_name:description"
-The same as
+معادل کلیدواژه
 .B add_strategy
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
 .BI \-\-fast-start
-The same as
+معادل کلیدواژه
 .B fast_start
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
 .B \-\-without-mmap
-The same as
+معادل کلیدواژه
 .B without_mmap
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
 .BR \-\-stdin2stdout
-When applied with \-\-inetd, each command obtained from stdin is output
-to stdout. This option is useful for debugging.
+هنگامی که همراه با \-\-inetd به کار رود، هر دستوری که از ورودی استاندارد (stdin) دریافت شود در خروجی استاندارد (stdout) نیز چاپ می‌گردد. این گزینه برای اشکال‌زدایی سودمند است.
 .TP
-.BI \-l " option\fR or " \-\-log " option"
-The same as
+.BI \-l " option\fR یا " \-\-log " option"
+معادل کلیدواژه
 .B log_option
-keyword in
-.I Global Settings Specification
-of configuration files.
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
 .TP
 .BI \-d " option"
-The same as
+معادل کلیدواژه
 .B debug_option
-keyword in
-.I Global Settings Specification
-of configuration files.
-.RE
-.SH "CONFIGURATION FILE"
+در بخش
+.I مشخصات تنظیمات سراسری (Global Settings Specification)
+فایل‌های پیکربندی است.
+.SH "فایل پیکربندی (CONFIGURATION FILE)"
 .TP
-.B Introduction
-The configuration file defaults to
-.I /etc/dict/dictd.conf 
-but can be specified on the command line with the
+.B مقدمه
+مسیر پیش‌فرض فایل پیکربندی
+.I /etc/dict/dictd.conf
+است، اما می‌توان آن را در خط فرمان با گزینه
 .B \-c
-option (see above).
+(به بالا رجوع شود) مشخص کرد.
 .RS
 .P
-The configuration file is read into memory at startup, and is not
-referenced again by
+فایل پیکربندی در زمان راه‌اندازی در حافظه بارگذاری می‌شود و دیگر توسط
 .B dictd
-unless a signal 1 
+مورد ارجاع قرار نمی‌گیرد مگر اینکه سیگنال ۱
 .B (SIGHUP)
-is received, which will cause 
-.B dictd 
-to reread the configuration file.
+دریافت شود؛ این سیگنال موجب می‌شود
+.B dictd
+فایل پیکربندی را دوباره بخواند.
 .P
-The file is divided into sections.  The Access Section should come
-first, followed by the Database Section, and the
-User Section.  The Database Section is required; the others are
-optional, but they must be in the order listed here.
+این فایل به بخش‌های مختلفی تقسیم شده است. بخش دسترسی (Access Section) باید در ابتدا قرار گیرد و پس از آن بخش پایگاه‌داده (Database Section) و سپس بخش کاربران (User Section) می‌آیند. بخش پایگاه‌داده الزامی است؛ بخش‌های دیگر اختیاری هستند، اما باید به ترتیبی که در اینجا فهرست شده است قرار گیرند.
 .RE
 .TP
-.B Syntax
-The following keywords are valid in a configuration file: access,
-allow, deny, group, database, data, index, filter, prefilter,
-postfilter, name, include, user, authonly, site.  Keywords are case
-sensitive.  String arguments that contain spaces should be surrounded
-by double quotes.  Without quoting, strings may contain alphanumeric
-characters and _, -, ., and *, but not spaces.  Strings can be
-continued between lines.  \\", \\\\, \\n, \\<NL> are treated as double
-quote, backslash, new line and no symbol respectively.  Comments start
-with # and extend to the end of the line.
+.B نحو و ساختار (Syntax)
+کلیدواژه‌های زیر در فایل پیکربندی معتبر هستند: access، allow، deny، group، database، data، index، filter، prefilter، postfilter، name، include، user، authonly، site. این کلیدواژه‌ها به حروف بزرگ و کوچک حساس هستند. آرگومان‌های رشته‌ای که حاوی فاصله هستند باید درون علامت نقل‌قول جفتی قرار گیرند. بدون استفاده از نقل‌قول، رشته‌ها می‌توانند حاوی نویسه‌های حرفی‌عددی و _، -، . و * باشند، اما فاصله مجاز نیست. رشته‌ها می‌توانند در چندین خط ادامه یابند. \\"، \\\\، \\n و \\<NL> به ترتیب به عنوان علامت نقل‌قول، بک‌اسلش، خط جدید و بدون نماد در نظر گرفته می‌شوند. توضیحات با # آغاز شده و تا انتهای خط ادامه می‌یابند.
 .TP
-.B Global Settings Section
+.B بخش تنظیمات سراسری (Global Settings Section)
 .RS
 .TP
-.BI "global {" " global settings specification " "}"
-Used to set global
+.BI "global {" " مشخصات تنظیمات سراسری " "}"
+برای اعمال تنظیمات سراسری
 .B dictd
-setting such as log file, syslog facility, locale and so on.
+مانند فایل ثبت گزارش (log file)، امکانات syslog، محلی‌سازی (locale) و مواردی از این دست استفاده می‌شود.
 .TP
-.B EXAMPLE:
-See
+.B مثال:
+فایل
 .I examples/dictd4.conf
-file from the distribution.
+موجود در بسته توزیع را مشاهده کنید.
 .RE
 .TP
-.B Access Section
+.B بخش دسترسی (Access Section)
 .RS
 .TP
-.BI "access {" " access specification " "}"
-This section contains access
-restrictions for the server and all of the databases collectively.
-Per-database control is specified in the Database Section.
+.BI "access {" " مشخصات دسترسی " "}"
+این بخش حاوی محدودیت‌های دسترسی به سرور و کلیه پایگاه‌های داده به صورت مشترک است. کنترل دسترسی به ازای هر پایگاه‌داده به طور مجزا، در بخش پایگاه‌داده مشخص می‌شود.
 .TP
-.B EXAMPLE:
-See
+.B مثال:
+فایل
 .I examples/dictd3.conf
-file from the distribution.
+موجود در بسته توزیع را مشاهده کنید.
 .RE
 .TP
-.B Database Section
+.B بخش پایگاه‌داده (Database Section)
 .RS
 .TP
-.BI database " string " "{ " "database specification " "}"
-The string specifies the name of the database
-(e.g., wn or web1913).  (This is an arbitrary name selected by the
-administrator, and is not necessarily related to the file name or any
-name listed in the data file.  A short, easy to type name is often
-selected for easy use with 
-.BR "dict -d".)
+.BI database " string " "{ " "مشخصات پایگاه‌داده " "}"
+رشته (string) نام پایگاه‌داده را مشخص می‌کند (مانند wn یا web1913). (این یک نام اختیاری و دلخواه است که توسط مدیر سیستم انتخاب می‌شود و الزاماً با نام فایل یا هر نامی که در فایل داده آمده ارتباطی ندارد. اغلب یک نام کوتاه با تایپ آسان برای استفاده راحت‌تر با
+.BR "dict -d"
+انتخاب می‌شود.)
 .P
 .RS
-.B EXAMPLE:
-See
+.B مثال:
+فایل‌های
 .I examples/dictd*.conf
-files from the distribution.
+موجود در بسته توزیع را مشاهده کنید.
 .RE
 .RS
 .P
-.B NOTE:
-If the files specified in the database specification do not exist on the
-system, dictd may silently fail.
+.B نکته:
+اگر فایل‌های مشخص‌شده در تعاریف پایگاه‌داده روی سیستم وجود نداشته باشند، dictd ممکن است بدون هیچ پیامی با خطا متوقف شود.
 .RE
 .TP
-.BI database_virtual " string " "{ " "virtual database specification " "}"
-This section specifies the virtual database.
-The
+.BI database_virtual " string " "{ " "مشخصات پایگاه‌داده مجازی " "}"
+این بخش پایگاه‌داده مجازی را مشخص می‌کند.
 .I string
-specifies the name of the database (e.g., en-ru or fren).
+نام پایگاه‌داده را مشخص می‌نماید (مانند en-ru یا fren).
 .P
 .RS
-.B EXAMPLE:
-See
+.B مثال:
+فایل‌های
 .I examples/dictd_virtual.conf
-or
+یا
 .I examples/dictd_complex.conf
-files from the distribution.
+موجود در بسته توزیع را مشاهده کنید.
 .RE
 .TP
-.BI database_plugin " string " "{ " "plugin specification " "}"
-This section specifies the plugin.
-The
+.BI database_plugin " string " "{ " "مشخصات افزونه " "}"
+این بخش افزونه را مشخص می‌کند.
 .I string
-specifies the name of the database.
+نام پایگاه‌داده را مشخص می‌نماید.
 .P
 .RS
-.B EXAMPLE:
-See
+.B مثال:
+فایل‌های
 .I examples/dictd_plugin_dbi.conf
-or
+یا
 .I examples/dictd_complex.conf
-files from the distribution.
+موجود در بسته توزیع را مشاهده کنید.
 .RE
 .TP
-.BI database_mime " string " "{ " "mime specification " "}"
-Traditionally, databases created for
+.BI database_mime " string " "{ " "مشخصات mime " "}"
+به طور سنتی، پایگاه‌های داده ایجاد شده برای
 .I dictd
-contained plain text only because
+تنها حاوی متن ساده بودند، زیرا نسخه‌های
 .B dictd
-releases before 1.10.0 didn't have full support of
+پیش از 1.10.0 از گزینه
 .I OPTION MIME
-option (consult with RFC-2229).
-This section describes the special database which behaves
-differently depending on whether
+به طور کامل پشتیبانی نمی‌کردند (به RFC-2229 رجوع کنید). این بخش پایگاه‌داده ویژه‌ای را شرح می‌دهد که رفتار آن بسته به اینکه دستور
 .I OPTION MIME
-command was received from client or was not,
-i.e. the database created by this section
-allows to return to the client either a plain text or
-specially formatted content depending on whether DICT client supports
-(or wants to receive) MIMEized content or doesn't.
-The
+از کلاینت دریافت شده باشد یا خیر، متفاوت خواهد بود؛ به این معنا که پایگاه‌داده ایجاد شده در این بخش امکان بازگرداندن متن ساده یا محتوای با قالب‌بندی ویژه به کلاینت را بسته به اینکه کلاینت DICT از محتوای MIME پشتیبانی می‌کند (یا مایل به دریافت آن است) یا خیر فراهم می‌سازد.
 .I string
-specifies the name of the database.
+نام پایگاه‌داده را مشخص می‌کند.
 .RS
 .P
-.B NOTE:
-All this is about
+.B نکته:
+تمام این موارد صرفاً مربوط به دستور
 .I DEFINE
-command only.
-.I MATCH, SHOW DB, SHOW STRAT, SHOW INFO, SHOW SERVER and HELP
-commands return texts prepended with empty line only.
+است. دستورات
+.I MATCH, SHOW DB, SHOW STRAT, SHOW INFO, SHOW SERVER
+و
+.I HELP
+متن‌ها را تنها با یک خط خالی در ابتدا برمی‌گردانند.
 .RE
 .P
 .RS
-.B EXAMPLE:
-See
+.B مثال:
+فایل
 .I examples/dictd_mime.conf
-file from the distribution.
+موجود در بسته توزیع را مشاهده کنید.
 .RE
 .TP
 .BI database_exit
-Excludes following databases from the '*' database.
-By default '*' means all databases available.
-Look at 'examples/dictd_virtual.conf' file for example configuration.
+پایگاه‌های داده پس از خود را از پایگاه‌داده '*' مستثنی می‌کند. به طور پیش‌فرض، '*' به معنای تمام پایگاه‌های داده موجود است. برای مشاهده نمونه پیکربندی به فایل 'examples/dictd_virtual.conf' مراجعه کنید.
 .RS
 .P
-.B NOTE:
-If you use 'virtual' dictionaries, you should use this directive,
-otherwise you will search the same dictionary twice.
+.B نکته:
+اگر از واژه‌نامه‌های مجازی استفاده می‌کنید، باید از این دستورالعمل استفاده کنید؛ در غیر این صورت یک واژه‌نامه را دو بار جستجو خواهید کرد.
 .RE
 .TP
-.B User Section
+.B بخش کاربران (User Section)
 .RS
 .TP
 .BI user " string" " string"
-The first string specifies the username, and the second string specifies
-the shared secret for this username.  When the AUTH command is used, the
-client will provide the username and a hashed version of the shared
-secret.  If the shared secret matches, the user is said to have
-authenticated, and will have access to databases whose access
-specifications allow that user (by name, or by wildcard).  If present, this
-section must appear last in the configuration file.  There may be many user
-entries.  The shared secret should be kept secret, as anyone who has access
-to it can access the shared databases (assuming access is not denied by
-domain name).
+رشته اول نام کاربری را مشخص می‌کند و رشته دوم رمز مشترک (shared secret) برای این نام کاربری را تعیین می‌نماید. هنگامی که از دستور AUTH استفاده می‌شود، کلاینت نام کاربری و نسخه درهم‌سازی‌شده (hashed) رمز مشترک را ارسال می‌کند. اگر رمز مشترک مطابقت داشته باشد، کاربر احراز هویت شده تلقی می‌شود و به پایگاه‌های داده‌ای که مشخصات دسترسی آن‌ها به آن کاربر اجازه می‌دهد (بر اساس نام یا با نویسه‌های عام) دسترسی خواهد داشت. در صورت وجود، این بخش باید به عنوان آخرین بخش در فایل پیکربندی قرار گیرد. ورودی‌های متعددی از کاربر می‌تواند وجود داشته باشد. رمز مشترک باید محرمانه بماند، زیرا هر کسی که به آن دسترسی داشته باشد می‌تواند به پایگاه‌های داده مشترک دسترسی پیدا کند (به شرطی که دسترسی بر اساس نام دامنه مسدود نشده باشد).
 .RE
 .TP
-.B Access Specification
+.B مشخصات دسترسی (Access Specification)
 .RS
-Access specifications may occur in the Access Section or in the Database
-Section.  The access specification will be described here.
+مشخصات دسترسی ممکن است در بخش دسترسی (Access Section) یا در بخش پایگاه‌داده (Database Section) قرار گیرند. مشخصات دسترسی در اینجا شرح داده می‌شوند.
 .P
-For allow, deny, and authonly, a star (*) may be used as a wild card that
-matches any number of characters.  A question mark (?) may be used as a
-wildcard that matches a single character.  For example, 10.0.0.* and *.edu
-are valid strings.
+برای دستورات allow، deny و authonly، می‌توان از ستاره (*) به عنوان نویسه عام برای تطبیق با هر تعداد نویسه استفاده کرد. علامت سوال (؟) می‌تواند به عنوان نویسه عام برای تطبیق با یک نویسه منفرد استفاده شود. برای مثال، 10.0.0.* و *.edu رشته‌های معتبری هستند.
 .P
-Further, a range of IP addresses and an IP address followed by a netmask
-may be specified.  For example, 10.0.0.0:10.0.0.255, 10.0.0.0/24, and
-10.0.0.* all specify the same range of IP numbers.  Notation cannot be
-combined on the same line.  If the notation does not make sense, access
-will be denied by default.  Use the
+علاوه بر این، می‌توان محدوده‌ای از آدرس‌های IP و یک آدرس IP به همراه ماسک شبکه (netmask) را مشخص کرد. به عنوان مثال، 10.0.0.0:10.0.0.255، 10.0.0.0/24 و 10.0.0.* همگی دامنه یکسانی از شماره‌های IP را مشخص می‌کنند. این نمادها نمی‌توانند در یک خط با یکدیگر ترکیب شوند. اگر نمادگذاری نامفهوم باشد، دسترسی به طور پیش‌فرض رد خواهد شد. برای اشکال‌زدایی مشکلات مربوطه از گزینه
 .I "--debug auth"
-option to debug related problems.
+استفاده کنید.
 .P
-Note that these specifications take only one string per specification
-line.  However, you can have multiple lines of each type.
+توجه داشته باشید که این تعاریف در هر خط مشخصات فقط یک رشته می‌پذیرند. با این وجود، می‌توانید خطوط متعددی از هر نوع داشته باشید.
 .P
-The syntax is as follows:
+نحو و ساختار به شرح زیر است:
 .TP
 .BI allow " string"
-The string specifies a domain name or IP address which is allowed access
-to the server (in the Access Section) or to a database (in the Database
-Section).  Note that more than one string is not permitted for a single
-"allow" line, but more than one "allow" lines are permitted in the
-configuration file.
+این رشته نام دامنه یا آدرس IP مجاز برای دسترسی به سرور (در بخش Access) یا به یک پایگاه‌داده (در بخش Database) را مشخص می‌کند. توجه داشته باشید که بیش از یک رشته در یک خط "allow" مجاز نیست، اما خطوط متعدد "allow" در فایل پیکربندی مجاز هستند.
 .TP
 .BI deny " string"
-The string specifies a domain name or IP address which is denied access to
-the server (in the Access Section) or to a database (in the Database
-Section).  Note that if reverse DNS is not working, then only the IP number
-will be checked.  Therefore, it is essential to deny networks based on IP
-number, since a denial based on domain name may not always be checked.
+این رشته نام دامنه یا آدرس IP مسدودشده برای دسترسی به سرور (در بخش Access) یا به یک پایگاه‌داده (در بخش Database) را مشخص می‌کند. توجه داشته باشید که اگر DNS معکوس کار نکند، تنها شماره IP بررسی خواهد شد. بنابراین، ضروری است که مسدودسازی شبکه‌ها بر اساس شماره IP انجام شود، زیرا مسدودسازی بر اساس نام دامنه ممکن است همیشه قابل بررسی نباشد.
 .TP
 .BI authonly " string"
-This form is only useful in the Access Section.  The string specifies a
-domain name or IP address which is allowed access to the server but not to
-any of the databases.  All commands are valid except DEFINE, MATCH, and
-SHOW DB.  More specifically AUTH is a valid command, and commands which
-access the databases are not allowed.
+این حالت فقط در بخش Access کاربرد دارد. این رشته نام دامنه یا آدرس IP را مشخص می‌کند که مجاز به دسترسی به سرور است اما اجازه دسترسی به هیچ‌یک از پایگاه‌های داده را ندارد. تمام دستورات به جز DEFINE، MATCH و SHOW DB معتبر هستند. به طور مشخص‌تر، AUTH دستوری معتبر است و دستوراتی که به پایگاه‌های داده دسترسی دارند مجاز نیستند.
 .TP
 .BI user " string"
-This form is only useful in the Database Section.  The string specifies a
-username that is allowed to access this database after a successful AUTH
-command is executed.
+این حالت فقط در بخش Database کاربرد دارد. این رشته نام کاربری را مشخص می‌کند که پس از اجرای موفقیت‌آمیز دستور AUTH، مجاز به دسترسی به این پایگاه‌داده است.
 .RE
 .RE
 .TP
-.B Global Settings Specification
+.B مشخصات تنظیمات سراسری (Global Settings Specification)
 .RS
-This section describes the following parameters:
+این بخش پارامترهای زیر را شرح می‌دهد:
 .TP
 .BI port " string\_or\_number"
-Specifies the port or service name (e.g., 2628).
-The default is 2628, as specified in the DICT Protocol RFC, but may be
-changed in the
+درگاه یا نام سرویس را مشخص می‌کند (مانند 2628). مقدار پیش‌فرض طبق RFC پروتکل DICT برابر با 2628 است، اما می‌تواند هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_DEFAULT_SERVICE).
+تغییر داده شود (DICT_DEFAULT_SERVICE).
 .TP
 .BI site " string"
-Used to specify the filename for the site information file, a flat text
-file which will be displayed in response to the SHOW SERVER command.
+برای مشخص کردن نام فایل مربوط به اطلاعات سایت (site information file) به کار می‌رود؛ یک فایل متنی ساده که در پاسخ به دستور SHOW SERVER نمایش داده خواهد شد.
 .RS
 .P
-.B EXAMPLE:
-See
+.B مثال:
+فایل
 .I examples/dictd4.conf
-file from the distribution.
+موجود در بسته توزیع را مشاهده کنید.
 .RE
 .TP
 .BI site_no_banner " boolean"
-By default SHOW SERVER command outputs information about
+به طور پیش‌فرض، دستور SHOW SERVER اطلاعات مربوط به نسخه
 .I dictd
-version and an operating system type.
-This option disables this.
+و نوع سیستم‌عامل را خروجی می‌دهد. این گزینه این قابلیت را غیرفعال می‌کند.
 .TP
 .BI site_no_uptime " boolean"
-By default SHOW SERVER command outputs information about
-uptime of
-.I dictd
-, a number of forks since startup and forks per hour.
-This option disables this.
+به طور پیش‌فرض، دستور SHOW SERVER اطلاعاتی در مورد مدت‌زمان بالا بودن (uptime) سرور
+.IR dictd ،
+تعداد فورک‌ها (forks) از زمان راه‌اندازی و تعداد فورک‌ها در ساعت را خروجی می‌دهد. این گزینه این قابلیت را غیرفعال می‌کند.
 .TP
 .BI site_no_dblist " boolean"
-By default SHOW SERVER command outputs internal information about
-databases, such as a number of headwords, index size and so on.
-This option disables this.
+به طور پیش‌فرض، دستور SHOW SERVER اطلاعات داخلی مربوط به پایگاه‌های داده مانند تعداد سرواژه‌ها (headwords)، اندازه نمایه و غیره را خروجی می‌دهد. این گزینه این قابلیت را غیرفعال می‌کند.
 .TP
 .BI delay " number"
-Specifies the number of seconds a client may be idle before the server will
-close the connection.  Idle time is defined to be the time the server is
-waiting for input and does not include the time the server spends searching
-the database. The default is 0 seconds (no limit),
-but may be changed in the
+مدت‌زمانی (بر حسب ثانیه) که یک کلاینت می‌تواند غیرفعال (idle) بماند تا سرور اتصال را قطع کند مشخص می‌کند. زمان بیکاری به عنوان زمانی تعریف می‌شود که سرور منتظر دریافت ورودی است و شامل زمانی که سرور صرف جستجو در پایگاه‌داده می‌کند نمی‌شود. مقدار پیش‌فرض 0 ثانیه (بدون محدودیت) است، اما می‌تواند هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_DEFAULT_DELAY).
+تغییر یابد (DICT_DEFAULT_DELAY).
 .P
 .RS
-.B NOTE:
-Setting
+.B نکته:
+تنظیم گزینه
 .I delay
-option disables
+موجب غیرفعال شدن گزینه
 .I limit_time
-option. Only one of them (last specified in
+می‌شود. تنها یکی از آن‌ها (آخرین موردی که در
 .B dictd.conf
-) is in effect.
+مشخص شده باشد) اعمال خواهد شد.
 .P
-.B NOTE:
-Connections are closed without warning since no provision
-for premature connection termination is specified in the DICT protocol
-RFC.
+.B نکته:
+اتصال‌ها بدون هشدار قبلی بسته می‌شوند، زیرا هیچ تدبیری برای خاتمه زودهنگام اتصال در RFC پروتکل DICT پیش‌بینی نشده است.
 .RE
 .TP
 .BI depth " number"
-Specify the queue length for
-.BR listen (2).
-Specifies the number of pending socket connections which are queued by the
-operating system.  Some operating systems may silently limit this value to
-5 (older BSD systems) or 128 (Linux).  The default is 10 but may be changed
-in the
+طول صف را برای
+.BR listen (2)
+مشخص می‌کند. این مقدار بیانگر تعداد اتصالات سوکت در انتظار است که توسط سیستم‌عامل در صف قرار می‌گیرند. برخی سیستم‌های عامل ممکن است این مقدار را به ۵ (سیستم‌های قدیمی‌تر BSD) یا ۱۲۸ (لینوکس) محدود کنند. مقدار پیش‌فرض 10 است اما می‌تواند هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_QUEUE_DEPTH).
+تغییر کند (DICT_QUEUE_DEPTH).
 .TP
 .BI limit_childs " number"
-Specifies the number of daemons that may be running simultaneously.  Each
-daemon services a single connection.  If the limit is exceeded, a
-(serialized) connection will be made by the server process, and a response
-code 420 (server temporarily unavailable) will be sent to the client.  This
-parameter should be adjusted to prevent the server machine from being
-overloaded by dict clients, but should not be set so low that many clients
-are denied useful connections. The default is 100, but may be changed in
-the
+تعداد دیمن‌هایی را که می‌توانند به طور همزمان اجرا شوند مشخص می‌کند. هر دیمن به یک اتصال پاسخ می‌دهد. اگر از این حد فراتر رود، یک اتصال (سریال‌سازی‌شده) توسط فرآیند سرور برقرار می‌شود و کد پاسخ ۴۲۰ (سرور موقتاً در دسترس نیست) به کلاینت ارسال خواهد شد. این پارامتر باید به گونه‌ای تنظیم شود که از تحمیل بار اضافی بر ماشین سرور توسط کلاینت‌های dict جلوگیری شود، اما نباید آن‌قدر پایین تنظیم شود که بسیاری از کلاینت‌ها از برقراری اتصالات مفید محروم شوند. مقدار پیش‌فرض ۱۰۰ است، اما می‌تواند هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_DAEMON_LIMIT_CHILDS).
+تغییر یابد (DICT_DAEMON_LIMIT_CHILDS).
 .TP
 .BI limit " number"
-Synonym for
-.B limit_childs.
-For backward compatibility only.
+مترادفی برای
+.BR limit_childs .
+صرفاً جهت سازگاری با گذشته.
 .TP
 .BI limit_matches " number"
-Specifies the maximum number of matches that can be returned
-by MATCH query. Zero means no limit. The default is 2000.
+حداکثر تعداد تطابق‌هایی را که می‌توانند توسط پرس‌وجوی MATCH بازگردانده شوند تعیین می‌کند. صفر به معنای عدم محدودیت است. مقدار پیش‌فرض ۲۰۰۰ است.
 .TP
 .BI limit_definitions " number"
-Specifies the maximum number of definitions that can be returned
-by DEFINE query. Zero means no limit. The default is 200.
+حداکثر تعداد تعاریفی را که می‌توانند توسط پرس‌وجوی DEFINE بازگردانده شوند تعیین می‌کند. صفر به معنای عدم محدودیت است. مقدار پیش‌فرض ۲۰۰ است.
 .TP
 .BI limit_time " number"
-Specifies the number of seconds a client may talk to the server
-before the server will close the connection.
-The default is 600 seconds (10 minutes), but may be changed in the
+مدت‌زمانی (بر حسب ثانیه) که یک کلاینت می‌تواند با سرور گفتگو کند قبل از اینکه سرور اتصال را ببندد مشخص می‌کند. مقدار پیش‌فرض ۶۰۰ ثانیه (۱۰ دقیقه) است، اما می‌تواند هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_DEFAULT_LIMIT_TIME).
+تغییر یابد (DICT_DEFAULT_LIMIT_TIME).
 .RS
 .P
-.B NOTE:
-Setting
+.B نکته:
+تنظیم گزینه
 .I limit_time
-option disables
+موجب غیرفعال شدن گزینه
 .I delay
-option. Only one of them (last specified in
+می‌شود. تنها یکی از آن‌ها (آخرین موردی که در
 .B dictd.conf
-) is in effect.
+مشخص شده باشد) اعمال خواهد شد.
 .P
-.B NOTE:
-Connections are closed without warning since no provision
-for premature connection termination is specified in the DICT protocol
-RFC.
+.B نکته:
+اتصال‌ها بدون هشدار قبلی بسته می‌شوند، زیرا هیچ تدبیری برای خاتمه زودهنگام اتصال در RFC پروتکل DICT پیش‌بینی نشده است.
 .RE
 .TP
 .BI limit_queries " number"
-Specifies the number of queries (MATCH, DEFINE, SHOW DB etc.)
-that client may send to the server
-before the server will close the connection.
-Zero means no limit.
-The default is 2000, but may be changed in the
+تعداد پرس‌وجوهایی (MATCH، DEFINE، SHOW DB و غیره) را که کلاینت می‌تواند قبل از قطع ارتباط توسط سرور ارسال کند مشخص می‌نماید. صفر به معنای بدون محدودیت است. مقدار پیش‌فرض ۲۰۰۰ است، اما می‌تواند هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_DEFAULT_LIMIT_QUERIES).
+تغییر کند (DICT_DEFAULT_LIMIT_QUERIES).
 .TP
 .BI timestamp " number"
-How often a timestamp should be logged (int minutes).
-(This is effective only if
-logging has been enabled with the \-s or \-L option, or with a debugging
-option.)
+فاصله زمانی ثبت برچسب زمان (timestamp) در گزارش‌ها (به دقیقه). (این گزینه فقط در صورتی موثر است که ثبت وقایع با گزینه \-s یا \-L یا با یکی از گزینه‌های اشکال‌زدایی فعال شده باشد.)
 .TP
 .BI log_option " option"
-Specify a logging option.  This is effective only if logging has been
-enabled with the
-.BR \-s " or " \-L
-option or in configuration file, or logging
-to the console has been activated with a debugging
-option (e.g.,
-.BR "\-\-debug nodetach" .
-Only one option may be set with each invocation of this option; however,
-multiple invocations of this option may be made in configuration file
-or dictd command
-line.  For instance:
+مشخص کردن یک گزینه ثبت وقایع. این تنظیم تنها در صورتی موثر است که ثبت گزارش با گزینه‌های
+.BR \-s " یا " \-L
+یا در فایل پیکربندی فعال شده باشد، یا اینکه ثبت گزارش در کنسول با یک گزینه اشکال‌زدایی فعال شده باشد (مانند
+.BR "\-\-debug nodetach" ).
+با هر بار استفاده از این گزینه تنها می‌توان یک مورد را تنظیم کرد؛ با این حال، می‌توان از این گزینه چندین بار در فایل پیکربندی یا در خط فرمان dictd استفاده نمود. برای نمونه:
 .br
 dictd -s --log stats --log found --log notfound
 .br
-is a valid command line, and sets three logging options.
+یک خط فرمان معتبر است و سه گزینه ثبت گزارش را فعال می‌کند.
 .RS
 .P
-Some of the more verbose logging options are used primarily for
-debugging the server code, and are not practical for normal use.
+برخی از گزینه‌های پرجزئیات‌تر ثبت وقایع عمدتاً برای اشکال‌زدایی کد سرور استفاده می‌شوند و برای کاربردهای عادی چندان کاربردی نیستند.
 .TP
 .B server
-Log server diagnostics.  This is extremely verbose.
+ثبت اطلاعات تشخیصی سرور در گزارش. بسیار پرجزئیات است.
 .TP
 .B connect
-Log all connections.
+ثبت کلیه اتصالات در گزارش.
 .TP
 .B stats
-Log all children terminations.
+ثبت اتمام کار تمام فرآیندهای فرزند در گزارش.
 .TP
 .B command
-Log all commands.  This is extremely verbose.
+ثبت کلیه دستورات در گزارش. بسیار پرجزئیات است.
 .TP
 .B client
-Log results of CLIENT command.
+ثبت نتایج دستور CLIENT در گزارش.
 .TP
 .B found
-Log all words found in the databases.
+ثبت تمامی کلمات یافت‌شده در پایگاه‌های داده در گزارش.
 .TP
 .B notfound
-Log all words not found in the databases.
+ثبت تمامی کلمات یافت‌نشده در پایگاه‌های داده در گزارش.
 .TP
 .B timestamp
-When logging to a file, use a full timestamp like that which syslog would
-produce.  Otherwise, no timestamp is made, making the files shorter.
+هنگام ثبت گزارش در یک فایل، از یک برچسب زمان کامل شبیه به خروجی syslog استفاده می‌کند. در غیر این صورت، برچسب زمانی درج نمی‌شود که موجب کوتاه‌تر شدن حجم فایل‌ها خواهد شد.
 .TP
 .B host
-Log name of foreign host.
+ثبت نام میزبان کلاینت در گزارش.
 .TP
 .B auth
-Log authentication failures.
+ثبت خطاهای احراز هویت در گزارش.
 .TP
 .B min
-Set a minimal number of options.  If logging is activated (to a file, or
-via syslog), and no options are set, then the minimal set of options will
-be used.  If options are set, then only those options specified will be
-used.
+تنظیم حداقل تعداد گزینه‌ها. اگر ثبت گزارش (در فایل یا از طریق syslog) فعال شده باشد و هیچ گزینه‌ای تنظیم نشده باشد، حداقل مجموعه گزینه‌ها استفاده خواهد شد. اگر گزینه‌هایی تنظیم شده باشند، تنها گزینه‌های مشخص‌شده اعمال می‌شوند.
 .TP
 .B all
-Set all of the options.
+تنظیم تمام گزینه‌ها.
 .TP
 .B none
-Clear all of the options.
+پاک کردن تمام گزینه‌ها.
 .P
-To facilitate location of interesting information in the log file, entries
-are marked with initial letters indicating the class of the line being
-logged:
+جهت تسهیل مکان‌یابی اطلاعات مورد نظر در فایل گزارش، ورودی‌ها با حروف ابتدایی مشخص‌کننده دسته خط ثبت‌شده نشانه‌گذاری می‌شوند:
 .TP
 .B I
-Information about the server, connections, or termination statistics.
-These lines are generally not designed to be parsed automatically.
+اطلاعات مربوط به سرور، اتصالات، یا آمار پایان کار فرآیندها. این خطوط معمولاً برای تجزیه خودکار طراحی نشده‌اند.
 .TP
 .B E
-Error messages.
+پیام‌های خطا.
 .TP
 .B C
-CLIENT command information.
+اطلاعات دستور CLIENT.
 .TP
 .B D
-Definitions found in the databases searched.
+تعاریف یافت‌شده در پایگاه‌های داده جستجوشده.
 .TP
 .B M
-Matches found in the database searched.
+تطابق‌های یافت‌شده در پایگاه‌داده جستجوشده.
 .TP
 .B N
-Matches which were not found in the databases searched.
+تطابق‌هایی که در پایگاه‌های داده جستجوشده یافت نشدند.
 .TP
 .B T
-Trace of exact line sent by client.
+ردیابی دقیق خط ارسال‌شده توسط کلاینت.
 .TP
 .B A
-Authentication information.
+اطلاعات احراز هویت.
 .P
-To preserve anonymity of the client, do
-.I not
-use the
+برای حفظ گمنامی کلاینت، از گزینه‌های
 .B connect
-or
+یا
 .B host
-options.  Clients may or may not send host information using the CLIENT
-command, but this should be an option that is selectable on the client
-side.
+استفاده
+.I نکنید.
+کلاینت‌ها ممکن است اطلاعات میزبان را با استفاده از دستور CLIENT ارسال کنند یا نکنند، اما این باید گزینه‌ای باشد که در سمت کلاینت قابل انتخاب باشد.
 .RE
 .TP
 .BI debug_option " string"
-Activate a debugging option.  There are several, all of which are only
-useful to developers.  They are documented here for completeness.  A list
-can be obtained interactively by using
+فعال کردن یک گزینه اشکال‌زدایی. گزینه‌های متعددی وجود دارد که همگی تنها برای توسعه‌دهندگان سودمند هستند. این موارد صرفاً جهت کامل بودن مستندات در اینجا ذکر شده‌اند. فهرستی از آن‌ها را می‌توان با استفاده از
 .B \-d
-with an illegal option.
+به همراه یک گزینه غیرمجاز به صورت تعاملی مشاهده کرد.
 .RS
 .TP
 .B verbose
-The same as
-.BR \-v " or " \-\-verbose .
-Adds verbosity to other options.
+معادل
+.BR \-v " یا " \-\-verbose .
+جزئیات بیشتری به سایر گزینه‌ها می‌افزاید.
 .TP
 .B scan
-Debug the scanner for the configuration file.
+اشکال‌زدایی اسکنر مربوط به فایل پیکربندی.
 .TP
 .B parse
-Debug the parser for the configuration file.
+اشکال‌زدایی تجزیه‌کننده (parser) مربوط به فایل پیکربندی.
 .TP
 .B search
-Debug the character folding and binary search routines.
+اشکال‌زدایی تبدیل نویسه‌ها (character folding) و روال‌های جستجوی دودویی.
 .TP
 .B init
-Report database initialization.
+گزارش مقداردهی اولیه پایگاه‌داده.
 .TP
 .B port
-Log client-side port number to the log file.
+ثبت شماره درگاه سمت کلاینت در فایل گزارش.
 .TP
 .B lev
-Debug Levenshtein search algorithm.
+اشکال‌زدایی الگوریتم جستجوی لون‌اشتاین (Levenshtein).
 .TP
 .B auth
-Debug the authorization routines.
+اشکال‌زدایی روال‌های احراز هویت.
 .TP
 .B nodetach
-Do not detach as a background process.  Implies that a copy of the log
-file will appear on the standard output.
+جدا نشدن از ترمینال به عنوان فرآیند پس‌زمینه. متضمن این است که رونوشتی از فایل گزارش در خروجی استاندارد چاپ خواهد شد.
 .TP
 .B nofork
-Do not fork daemons to service requests.  Be a single-threaded server.
-This option implies
-.BR nodetach ,
-and is most useful for using a debugger to find the point at which daemon
-processes are dumping core.
+انشعاب (fork) نکردن دیمن‌ها برای پاسخ به درخواست‌ها. به عنوان یک سرور تک‌نخی عمل می‌کند. این گزینه متضمن
+.B nodetach
+است و بیش از همه برای استفاده از یک دیباگر جهت یافتن نقطه‌ای که فرآیندهای دیمن دچار تخلیه حافظه (core dump) می‌شوند مفید است.
 .TP
 .B alt
-Debugs
+اشکال‌زدایی تابع
 .B altcompare
-in
+در
 .IR index.c .
 .RE
 .TP
 .BI locale " string"
-Specifies the locale used for searching.  If no locale is specified, the
-"C" locale is used.  The locale used for the server should be the same
-as that used for dictfmt when the database was built (specifically, the
-locale under which the index was sorted). The locale should be specified
-for both 8-bit and UTF-8 formats. If locale contains utf8 or utf-8
-substring, UTF-8 format is expected.
-Note that if your database is not in ASCII7 or UTF-8 format,
-then the dictd server will not be compliant to RFC 2229.
+محلی‌سازی (locale) مورد استفاده برای جستجو را تعیین می‌کند. در صورت عدم تعیین، از محلی‌سازی "C" استفاده می‌شود. محلی‌سازی سرور باید با موردی که در زمان ساخت پایگاه‌داده برای dictfmt استفاده شده بود (به ویژه محلی‌سازی که نمایه تحت آن مرتب شده است) یکسان باشد. محلی‌سازی باید برای هر دو فرمت ۸-بیتی و UTF-8 مشخص شود. اگر رشته locale حاوی زیررشته utf8 یا utf-8 باشد، فرمت UTF-8 مورد انتظار خواهد بود. توجه داشته باشید که اگر پایگاه‌داده شما در فرمت ASCII7 یا UTF-8 نباشد، سرور dictd با استانداردهای RFC 2229 سازگار نخواهد بود.
 .RS
 .P
-.BI NOTE 
-If utf-8 or 8-bit dictionaries are included in the configuration file,
-and the appropriate --locale has not been specified,
+.BI نکته:
+اگر واژه‌نامه‌های utf-8 یا ۸-بیتی در فایل پیکربندی گنجانده شده باشند و گزینه مناسب \-\-locale مشخص نشده باشد،
 .B dictd
-will fail to start.  This implies that
-.B dictd 
-will not run with both utf-8 and 8-bit dictionaries in the
-configuration file.
+شروع به کار نخواهد کرد. این بدان معناست که
+.B dictd
+نمی‌تواند به طور همزمان با واژه‌نامه‌های utf-8 و ۸-بیتی در فایل پیکربندی اجرا شود.
 .RE
 .TP
 .BI add_strategy " strategy_name" "" " description"
-Adds strategy
+افزودن راهبرد جستجوی
 .I strategy_name
-with the description
-.I description.
-This new search strategy may be implemented with a help of plugins.
-Both
+با توضیحات
+.IR description .
+این راهبرد جستجوی جدید ممکن است با کمک افزونه‌ها پیاده‌سازی شود. هر دو پارامتر
 .I strategy_name
-and
+و
 .I description
-are
-.I strings.
+به صورت
+.I رشته
+هستند.
 .TP
 .BI default_strategy " string"
-Set the server's default search strategy for MATCH search type.
-The compiled-in default is 'lev'.
-It is also possible to set default strategy per database.
-See
+تنظیم راهبرد جستجوی پیش‌فرض سرور برای نوع جستجوی MATCH. مقدار پیش‌فرض کامپایل‌شده 'lev' است. همچنین می‌توان راهبرد پیش‌فرض را به ازای هر پایگاه‌داده نیز تنظیم کرد. کلیدواژه
 .I default_strategy
-keyword in
-.I Database specification
-section.
+را در بخش
+.I مشخصات پایگاه‌داده (Database specification)
+ببینید.
 .TP
 .BI disable_strategy " string"
-Disable specified strategies.
-By default all implemented search strategies are enabled.
-It is also possible to disable strategies per database.
-See
+غیرفعال کردن راهبردهای مشخص‌شده. به طور پیش‌فرض تمام راهبردهای جستجوی پیاده‌سازی‌شده فعال هستند. همچنین می‌توان راهبردها را به ازای هر پایگاه‌داده غیرفعال کرد. کلیدواژه
 .I disable_strategy
-keyword in
-.I Database specification
-section.
+را در بخش
+.I مشخصات پایگاه‌داده (Database specification)
+ببینید.
 .TP
 .BI listen_to " host"
-Local host name or IP address for bind.  If unspecified or
-.IR * ,
-dictd will bind to all interfaces.  Otherwise, dictd
-will bind to this address only.
+نام میزبان محلی یا آدرس IP برای bind شدن. در صورت عدم تعیین یا استفاده از
+.IR * ،
+برنامه dictd به تمام رابط‌های شبکه متصل خواهد شد. در غیر این صورت، dictd تنها به همین آدرس متصل می‌شود.
 .TP
 .BI address_family " family"
-If
-.IR 4 ,
-address family is IPv4 (the default), if
-.IR 6 ,
-address family is IPv6.
+اگر برابر با
+.I 4
+باشد، خانواده آدرس IPv4 (پیش‌فرض) و اگر
+.I 6
+باشد، خانواده آدرس IPv6 خواهد بود.
 .TP
 .BI syslog " string"
-Log using the
-.BR syslog (3)
-facility.
+ثبت گزارش با استفاده از سرویس
+.BR syslog (3).
 .TP
 .BI syslog_facility " string"
-Specifies the syslog facility to use.  The use of this option implies the
+امکانات (facility) مورد استفاده برای syslog را تعیین می‌کند. استفاده از این گزینه به صورت ضمنی شامل گزینه
 .B \-s
-option to turn on logging via syslog.  When the operating system
-libraries support SYSLOG_NAMES, the names used for this option should be
-those listed in
-.BR syslog.conf (5).
-Otherwise, the following names are used (assuming the particular
-facility is defined in the header files): auth, authpriv, cron, daemon,
-ftp, kern, lpr, mail, news, syslog, user, uucp, local0, local1, local2,
-local3, local4, local5, local6, and local7.
+برای فعال کردن ثبت وقایع از طریق syslog است. هنگامی که کتابخانه‌های سیستم‌عامل از SYSLOG_NAMES پشتیبانی می‌کنند، نام‌های مورد استفاده برای این گزینه باید همان مواردی باشند که در
+.BR syslog.conf (5)
+فهرست شده‌اند. در غیر این صورت، نام‌های زیر استفاده می‌شوند (به این فرض که امکانات مورد نظر در فایل‌های هدر تعریف شده باشند): auth، authpriv، cron، daemon، ftp، kern، lpr، mail، news، syslog، user، uucp، local0، local1، local2، local3، local4، local5، local6 و local7.
 .TP
 .BI log_file " string"
-Specify the file for logging.  The filename specified is recomputed on
-each use using the
+فایل را برای ثبت وقایع مشخص می‌کند. نام فایل مشخص‌شده در هر بار استفاده با فراخوانی
 .BR strftime (3)
-call.  For example, a filename ending in ".%Y%m%d" will write to log
-files ending in the year, month, and date that the log entry was
-written.
+مجدداً محاسبه می‌شود. برای مثال، نام فایلی که به ".%Y%m%d" ختم می‌شود، در فایل‌های گزارشی می‌نویسد که به سال، ماه و تاریخی که ورودی گزارش در آن ثبت شده ختم می‌شوند.
 .RS
-.B NOTE:
-If
+.B نکته:
+اگر
 .B dictd
-does not have write permission for this file, it will silently fail.
+دسترسی نوشتن در این فایل را نداشته باشد، بدون نمایش خطا متوقف خواهد شد.
 .RE
 .TP
 .BI pid_file " string"
-The specified filename will be created to contain
-the process id of the main
+نام فایل مشخص‌شده برای نگهداری شناسه فرآیند (pid) فرآیند اصلی
 .B dictd
-process. The default is
+ایجاد خواهد شد. مقدار پیش‌فرض
 .I /var/run/dictd.pid
+است.
 .TP
 .BI fast\_start
-By default, dictd creates (in memory) additional index
-to make the search faster.
-This option disables this behaviour and makes startup faster.
+به طور پیش‌فرض، dictd یک نمایه اضافی (در حافظه) ایجاد می‌کند تا جستجو سریع‌تر شود. این گزینه این رفتار را غیرفعال کرده و راه‌اندازی را سریع‌تر می‌نماید.
 .TP
 .BI without\_mmap
-do not use the mmap(2) function and read entire files into memory instead.
-Use this option, if you know exactly what you are doing.
+از تابع mmap(2) استفاده نکرده و به جای آن تمام فایل‌ها را در حافظه بارگذاری می‌کند. تنها در صورتی از این گزینه استفاده کنید که دقیقاً می‌دانید چه کاری انجام می‌دهید.
 .RE
 .TP
-.B Database Specification
+.B مشخصات پایگاه‌داده (Database Specification)
 .RS
-The database specification describes the database:
+مشخصات پایگاه‌داده جزئیات پایگاه‌داده را شرح می‌دهد:
 .TP
 .BI data " string"
-Specifies the filename for the flat text database.
-If the filename does not begin with '.' or '/', it is prepended with
-$datadir/. It is a compile time option. You can change this behaviour
-by editing Makefile or running ./configure --datadir=...
+نام فایل مربوط به پایگاه‌داده متنی ساده را مشخص می‌کند. اگر نام فایل با '.' یا '/' آغاز نشود، پیشوند $datadir/ به آن اضافه می‌شود. این یک گزینه زمان کامپایل است. می‌توانید این رفتار را با ویرایش Makefile یا اجرای configure \-\-datadir=.../. تغییر دهید.
 .TP
 .BI index " string"
-Specifies the filename for the index file.
-Path matter is similar to that described above in "data" option .
+نام فایل مربوط به فایل نمایه (index) را مشخص می‌کند. نحوه تعیین مسیر مشابه موردی است که در گزینه "data" در بالا شرح داده شد.
 .TP
 .BI index_suffix " string"
-This is optional index file to make 'suffix'
-search strategy faster (binary search).
-It is generated by 'dictfmt_index2suffix'. Run "dictfmt_index2suffix --help"
-for more information.
-Path matter is similar to that described above in "data" option .
+این یک فایل نمایه اختیاری برای افزایش سرعت راهبرد جستجوی 'suffix' (جستجوی دودویی) است. این فایل توسط 'dictfmt_index2suffix' ایجاد می‌شود. برای اطلاعات بیشتر دستور "dictfmt_index2suffix \-\-help" را اجرا کنید. نحوه تعیین مسیر مشابه موردی است که در گزینه "data" در بالا شرح داده شد.
 .TP
 .BI index_word " string"
-This is optional index file to make 'word'
-search strategy faster (binary search).
-It is generated by 'dictfmt_index2word'. Run "dictfmt_index2word --help"
-for more information.
-Path matter is similar to that described above in "data" option .
+این یک فایل نمایه اختیاری برای افزایش سرعت راهبرد جستجوی 'word' (جستجوی دودویی) است. این فایل توسط 'dictfmt_index2word' ایجاد می‌شود. برای اطلاعات بیشتر دستور "dictfmt_index2word \-\-help" را اجرا کنید. نحوه تعیین مسیر مشابه موردی است که در گزینه "data" در بالا شرح داده شد.
 .TP
 .BI prefilter " string"
-Specifies the  prefilter command.  When  a chunk of the compressed database
-is  read, it will be filtered  with  this filter before being decompressed.
-This may be  used to provide  some additional compression  that knows about
-the data and can provide better compression than the LZ77 algorithm used by
-zlib.
+دستور پیش‌فیلتر (prefilter) را مشخص می‌کند. هنگامی که تکه‌ای از پایگاه‌داده فشرده‌شده خوانده می‌شود، قبل از خارج شدن از حالت فشرده، با این فیلتر پالایش خواهد شد. این گزینه ممکن است برای اعمال نوعی فشرده‌سازی اضافی که از ساختار داده آگاه است و می‌تواند فشرده‌سازی بهتری نسبت به الگوریتم LZ77 مورد استفاده در zlib ارائه دهد، استفاده شود.
 .TP
 .BI postfilter " string"
-Specifies the postfilter command.  When a chunk of the compressed database
-is read, it will be filtered with this filter before the offset and length
-for the entry are used to access data.  This is provided for symmetry with
-the prefilter command, and may also be useful for providing additional
-database compression.
+دستور پس‌فیلتر (postfilter) را مشخص می‌کند. هنگامی که تکه‌ای از پایگاه‌داده فشرده‌شده خوانده می‌شود، قبل از اینکه از آفست و طول مدخل برای دسترسی به داده استفاده شود، با این فیلتر پالایش خواهد شد. این گزینه برای تقارن با دستور پیش‌فیلتر ارائه شده است و همچنین ممکن است برای ارائه فشرده‌سازی اضافی پایگاه‌داده مفید باشد.
 .TP
 .BI filter " string"
-Specifies the filter command.  After the entry is extracted from the
-database, it will be filtered with this filter.  This may be used to
-provide formatting for the entry (e.g., for html).
+دستور فیلتر را مشخص می‌کند. پس از استخراج مدخل از پایگاه‌داده، با این فیلتر پالایش خواهد شد. این گزینه ممکن است برای قالب‌بندی مدخل (برای مثال تبدیل به html) استفاده شود.
 .TP
 .BI name " string"
-Specifies the short name of the database (e.g., "1913 Webster's").  If the
-string begins with @, then it specifies the headword to look up in the
-dictionary to find the short name of the database.  The default is
-"@00-database-short", but this may be changed in the
+نام کوتاه پایگاه‌داده را مشخص می‌کند (مانند "1913 Webster's"). اگر رشته با علامت @ شروع شود، سرواژه‌ای را مشخص می‌کند که باید در واژه‌نامه جستجو شود تا نام کوتاه پایگاه‌داده به دست آید. مقدار پیش‌فرض "@00-database-short" است، اما می‌توان آن را هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_SHORT_ENTRY_NAME).
+تغییر داد (DICT_SHORT_ENTRY_NAME).
 .TP
 .BI info " string"
-Specifies the information about database.  If the
-string begins with @, then it specifies the headword to look up in the
-dictionary to find information.  The default is
-"@00-database-info", but this may be changed in the
+اطلاعات مربوط به پایگاه‌داده را مشخص می‌کند. اگر رشته با علامت @ شروع شود، سرواژه‌ای را مشخص می‌کند که باید در واژه‌نامه جستجو شود تا اطلاعات مربوطه به دست آید. مقدار پیش‌فرض "@00-database-info" است، اما می‌توان آن را هنگام کامپایل در فایل
 .I defs.h
-file at compile time (DICT_INFO_ENTRY_NAME).
+تغییر داد (DICT_INFO_ENTRY_NAME).
 .TP
 .BI invisible
-Makes dictionary invisible to the clients i.e. this dictionary
-will not be recognized or shown by DEFINE, MATCH, SHOW INFO, SHOW SERVER and
-SHOW DB commands. If some definitions or matches are found in invisible
-dictionary,
-the name of the upper visible virtual dictionary is returned.
-Dictionaries '*' and '!' don't include invisible ones.
-.B NOTE:
-Invisible dictionaries are completely
-inaccessible (and invisible) to the client
-unless they are included
-to the virtual or MIME dictionary
-(See
+واژه‌نامه را از دید کلاینت‌ها پنهان می‌سازد؛ یعنی این واژه‌نامه توسط دستورات DEFINE، MATCH، SHOW INFO، SHOW SERVER و SHOW DB شناخته نشده و نمایش داده نمی‌شود. اگر برخی از تعاریف یا تطابق‌ها در یک واژه‌نامه نامرئی یافت شوند، نام واژه‌نامه مجازی مرئی بالادستی بازگردانده می‌شود. واژه‌نامه‌های '*' و '!' شامل واژه‌نامه‌های نامرئی نمی‌شوند.
+.B نکته:
+واژه‌نامه‌های نامرئی کاملاً برای کلاینت غیرقابل دسترس (و نامرئی) هستند، مگر اینکه در یک واژه‌نامه مجازی یا MIME گنجانده شده باشند (بخش‌های پایگاه‌داده
 .I database_virtual
-or
+یا
 .I database_mime
-database sections).
+را ببینید).
 .TP
 .BI disable_strategy " string"
-Disables the specified strategy for database.
-This may be useful for slow dictionaries (plugins)
-or for dictionaries included to virtual ones.
-For an example see file examples/dictd_complex.conf.
+راهبرد مشخص‌شده را برای پایگاه‌داده غیرفعال می‌کند. این گزینه می‌تواند برای واژه‌نامه‌های کند (افزونه‌ها) یا برای واژه‌نامه‌های گنجانده‌شده در واژه‌نامه‌های مجازی سودمند باشد. برای مشاهده نمونه به فایل examples/dictd_complex.conf مراجعه فرمایید.
 .TP
 .BI default_strategy " string"
-Specifies the strategy which will be used
-if the database is accessed using the strategy '.'.
-I.e. this directive is the way to set the preferred search strategy
-per database. For example, instead of strategy
+راهبردی را مشخص می‌کند که در صورت دسترسی به پایگاه‌داده با استفاده از راهبرد '.' به کار گرفته خواهد شد؛ به این معنا که این دستورالعمل روشی برای تعیین راهبرد جستجوی ترجیحی به ازای هر پایگاه‌داده است. برای مثال، به جای راهبرد
 .I lev
-, the strategy
+ممکن است راهبرد
 .I word
-may be preferred for databases mainly containing
-the multiword phrases but the single words.
+برای پایگاه‌های داده‌ای که عمدتاً شامل عبارات چندکلمه‌ای هستند ترجیح داده شود.
 .RE
 .TP
-.B Virtual Database Specification
+.B مشخصات پایگاه‌داده مجازی (Virtual Database Specification)
 .RS
-The virtual database specification describes the virtual database:
+مشخصات پایگاه‌داده مجازی جزئیات پایگاه‌داده مجازی را شرح می‌دهد:
 .TP
 .BI database_list " string"
-Specifies a list of databases which are included into the virtual database.
-Database names are in the string and are separated by comma.
+فهرستی از پایگاه‌های داده را مشخص می‌کند که در پایگاه‌داده مجازی گنجانده شده‌اند. نام پایگاه‌های داده در این رشته با کاما از یکدیگر جدا می‌شوند.
 .TP
 .BI name " string"
-Specifies the short name of the database. See
-.I database specification
+نام کوتاه پایگاه‌داده را مشخص می‌کند. به
+.I مشخصات پایگاه‌داده
+مراجعه فرمایید.
 .TP
 .BI info " string"
-Specifies the information about database. See
-.I database specification
+اطلاعات مربوط به پایگاه‌داده را مشخص می‌کند. به
+.I مشخصات پایگاه‌داده
+مراجعه فرمایید.
 .TP
 .BI invisible
-Makes dictionary invisible to the clients. See
-.I database specification
+واژه‌نامه را از دید کلاینت‌ها پنهان می‌سازد. به
+.I مشخصات پایگاه‌داده
+مراجعه فرمایید.
 .TP
 .BI disable_strategy " string"
-Disables the specified strategy for database.
-See
-.I database specification
+راهبرد مشخص‌شده را برای پایگاه‌داده غیرفعال می‌کند. به
+.I مشخصات پایگاه‌داده
+مراجعه فرمایید.
 .RE
 .TP
-.B Plugin Specification
+.B مشخصات افزونه (Plugin Specification)
 .RS
 .TP
 .BI plugin " string"
-Specifies a filename of the plugin.
+نام فایل افزونه را مشخص می‌کند.
 .TP
 .BI data " string"
-Specifies data for initializing plugin.
+داده‌های مورد نیاز برای مقداردهی اولیه افزونه را مشخص می‌نماید.
 .TP
 .BI name " string"
-Specifies the short name of the database.
-See
-.I Database Specification
-for more information.
+نام کوتاه پایگاه‌داده را مشخص می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI info " string"
-Specifies the information about database.
-See
-.I Database Specification
-for more information.
+اطلاعات مربوط به پایگاه‌داده را مشخص می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI invisible
-Makes dictionary invisible to the clients.
-See
-.I Database Specification
-for more information.
+واژه‌نامه را از دید کلاینت‌ها پنهان می‌سازد. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI disable_strategy " string"
-Disables the specified strategy for database.
-See
-.I Database Specification
-for more information.
+راهبرد مشخص‌شده را برای پایگاه‌داده غیرفعال می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI default_strategy " string"
-Sets the default search strategy for database.
-See
-.I Database Specification
-for more information.
+راهبرد جستجوی پیش‌فرض را برای پایگاه‌داده تنظیم می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .RE
 
-.B Mime Specification
+.B مشخصات MIME (Mime Specification)
 .RS
 .TP
 .BI dbname_nomime " string"
-Specifies the real database name which is used
-in case
+نام پایگاه‌داده واقعی را مشخص می‌کند که در صورتی به کار می‌رود که دستور
 .I OPTION MIME
-command was NOT received from a client.
+از کلاینت دریافت نشده باشد.
 .TP
 .BI dbname_mime " string"
-Specifies the real database name which is used
-in case
+نام پایگاه‌داده واقعی را مشخص می‌کند که در صورتی به کار می‌رود که دستور
 .I OPTION MIME
-command WAS received from a client.
-A necessary MIME header is set while creating a database.
-See
+از کلاینت دریافت شده باشد. یک هدر ضروری MIME در زمان ایجاد پایگاه‌داده تنظیم می‌شود. برای گزینه
+.I \-\-mime-header
+به
 .I dictfmt(1)
-for option
-.I --mime-header.
+مراجعه کنید.
 .TP
 .BI name " string"
-Specifies the short name of the database.
-See
-.I Database Specification
-for more information.
+نام کوتاه پایگاه‌داده را مشخص می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI info " string"
-Specifies the information about database.
-See
-.I Database Specification
-for more information.
+اطلاعات مربوط به پایگاه‌داده را مشخص می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI invisible
-Makes dictionary invisible to the clients.
-See
-.I Database Specification
-for more information.
+واژه‌نامه را از دید کلاینت‌ها پنهان می‌سازد. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI disable_strategy " string"
-Disables the specified strategy for database.
-See
-.I Database Specification
-for more information.
+راهبرد مشخص‌شده را برای پایگاه‌داده غیرفعال می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .TP
 .BI default_strategy " string"
-Sets the default search strategy for database.
-See
-.I Database Specification
-for more information.
+راهبرد جستجوی پیش‌فرض را برای پایگاه‌داده تنظیم می‌کند. برای اطلاعات بیشتر به
+.I مشخصات پایگاه‌داده
+مراجعه کنید.
 .RE
 .TP
 .BI include " string"
-The text of the file "string" (usually a database specification)
-will be read as if it appeared at this location in the configuration file.
-Nested includes are not permitted.
-.SH "DETERMINATION OF ACCESS LEVEL"
-When a client connects, the global access specification is scanned, in
-order, until a specification matches.  If no access specification exists,
-all access is allowed (e.g., the action is the same as if "allow *" was the
-only item in the specification).  For each item, both the hostname and IP
-are checked. For example, consider the following access specification:
+متن فایل "string" (معمولاً یک مشخصات پایگاه‌داده) به گونه‌ای خوانده می‌شود که گویی در همین مکان در فایل پیکربندی قرار گرفته است. استفاده از include تودرتو مجاز نیست.
+.SH "تعیین سطح دسترسی (DETERMINATION OF ACCESS LEVEL)"
+هنگامی که یک کلاینت متصل می‌شود، مشخصات دسترسی سراسری به ترتیب بررسی می‌شوند تا زمانی که یک مشخصه مطابقت پیدا کند. اگر هیچ مشخصه دسترسی وجود نداشته باشد، تمام دسترسی‌ها مجاز خواهند بود (به عنوان مثال، رفتار سرور مشابه حالتی است که "allow *" تنها مورد در مشخصات دسترسی باشد). برای هر مورد، هم نام میزبان و هم آدرس IP بررسی می‌شوند. برای مثال، مشخصات دسترسی زیر را در نظر بگیرید:
 .RS
 allow 10.42.*
 .br
@@ -1160,19 +906,9 @@ authonly *.edu
 .br
 deny *
 .RE
-With this specification, all clients in the 10.42 network will be allowed
-access to unrestricted databases; all clients from *.edu sites will be
-allowed to authenticate, but will be denied access to all databases, even
-those which are otherwise unrestricted; and all other clients will have
-their connection terminated immediately.  The 10.42 network clients can
-send an AUTH command and gain access to restricted databases.  The *.edu
-clients must send an AUTH command to gain access to any databases,
-restricted or unrestricted.
+با این مشخصات، به تمام کلاینت‌های موجود در شبکه 10.42 اجازه دسترسی به پایگاه‌های داده بدون محدودیت داده می‌شود؛ به تمام کلاینت‌های سایت‌های edu.* اجازه احراز هویت داده می‌شود، اما دسترسی آن‌ها به تمام پایگاه‌های داده، حتی پایگاه‌هایی که در حالت عادی بدون محدودیت هستند، رد خواهد شد؛ و اتصال سایر کلاینت‌ها بلافاصله قطع می‌شود. کلاینت‌های شبکه 10.42 می‌توانند یک دستور AUTH ارسال کنند و به پایگاه‌های داده محدودشده دسترسی پیدا نمایند. کلاینت‌های edu.* برای دسترسی به هر پایگاه‌داده‌ای (اعم از محدود یا نامحدود) باید دستور AUTH را ارسال کنند.
 .P
-When the AUTH command is sent, the access list for each database is
-scanned, in order, just as the global access list is scanned.  However,
-after authentication, the client has an associated username.  For example,
-consider the following access specification:
+هنگامی که دستور AUTH ارسال می‌شود، فهرست دسترسی هر پایگاه‌داده به ترتیب بررسی می‌شود؛ دقیقاً همان‌طور که فهرست دسترسی سراسری بررسی می‌شد. با این حال، پس از احراز هویت، کلاینت دارای یک نام کاربری مرتبط خواهد بود. به عنوان مثال، مشخصات دسترسی زیر را در نظر بگیرید:
 .RS
 user u1
 .br
@@ -1182,299 +918,185 @@ user u2
 .br
 allow *
 .RE
-If the client authenticated as u1, then the client will have access to this
-database, even if the client comes from a *.com site.  In contrast, if the
-client authenticated as u2, the client will only have access if it does not
-come from a *.com site.  In this case, the "user u2" is redundant, since
-that client would also match "allow *".
+اگر کلاینت با عنوان u1 احراز هویت شده باشد، به این پایگاه‌داده دسترسی خواهد داشت، حتی اگر از یک سایت com.* متصل شده باشد. در مقابل، اگر کلاینت با عنوان u2 احراز هویت شده باشد، تنها در صورتی دسترسی خواهد داشت که از یک سایت com.* نیامده باشد. در این حالت، عبارت "user u2" اضافی است، زیرا آن کلاینت با "allow *" نیز مطابقت پیدا می‌کرد.
 .P
-.B Warning:
-Checks are performed for domain names and for IP addresses.  However, if
-reverse DNS for a specific site is not working, it is possible that a
-domain name may not be available for checking.  Make sure that all denials
-use IP addresses.  (And consider a future enhancement: if a domain name is
-not available, should denials that depend on a domain name match anything?
-This is the more conservative viewpoint, but it is not currently
-implemented.)
-.SH "SEARCH ALGORITHMS"
-The DICT standard specifies a few search algorithms that must be
-implemented, and permits others to be supported on a server-dependent
-basis.  The following search strategies are supported by this server.  Note
-that
-.I all
-strategies are case insensitive.  Most ignore non-alphanumeric,
-non-whitespace characters.
+.B هشدار:
+بررسی‌ها برای نام‌های دامنه و آدرس‌های IP انجام می‌شوند. با این حال، اگر DNS معکوس برای یک سایت خاص کار نکند، این احتمال وجود دارد که نام دامنه برای بررسی در دسترس نباشد. اطمینان حاصل کنید که تمام محدودیت‌ها و مسدودسازی‌ها از آدرس‌های IP استفاده می‌کنند. (و این بهبود را برای آینده در نظر بگیرید: اگر یک نام دامنه در دسترس نباشد، آیا مسدودسازی‌هایی که وابسته به نام دامنه هستند باید با هر چیزی مطابقت یابند؟ این دیدگاهی محافظه‌کارانه‌تر است، اما در حال حاضر پیاده‌سازی نشده است.)
+.SH "الگوریتم‌های جستجو (SEARCH ALGORITHMS)"
+استاندارد DICT چند الگوریتم جستجو را مشخص می‌کند که باید پیاده‌سازی شوند و اجازه می‌دهد الگوریتم‌های دیگر بسته به سرور پشتیبانی شوند. راهبردهای جستجوی زیر توسط این سرور پشتیبانی می‌شوند. توجه داشته باشید که
+.I تمام
+راهبردها به بزرگی و کوچکی حروف حساس نیستند. اکثر آن‌ها نویسه‌های غیر حرفی‌عددی و غیرفاصله را نادیده می‌گیرند.
 .TP
 .B exact
-An exact match.  This algorithm uses a binary search and is one of the
-fastest search algorithms available.
+تطابق دقیق. این الگوریتم از جستجوی دودویی استفاده می‌کند و یکی از سریع‌ترین الگوریتم‌های جستجوی موجود است.
 .TP
 .B lev
-The Levenshtein algorithm (string edit distance of one).  This algorithm
-searches for all words which are within an edit distance of one from the
-target word.  An "edit" means an insertion, deletion, or transposition.
-This is a rapid algorithm for correcting spelling errors, since many
-spelling errors are within a Levenshtein distance of one from the original
-word.
+الگوریتم لون‌اشتاین (فاصله ویرایشی رشته برابر با یک). این الگوریتم تمام کلماتی را که فاصله ویرایشی آن‌ها از کلمه هدف یک است جستجو می‌کند. یک «ویرایش» به معنای درج، حذف یا جابه‌جایی نویسه است. این یک الگوریتم سریع برای اصلاح خطاهای املایی است، زیرا بسیاری از خطاهای املایی در فاصله لون‌اشتاین یک نسبت به کلمه اصلی قرار دارند.
 .TP
 .B prefix
-Prefix match.  This algorithm also uses a binary search and is very fast.
+تطابق پیشوند. این الگوریتم نیز از جستجوی دودویی استفاده می‌کند و بسیار سریع است.
 .TP
 .B nprefix
-Like
+مشابه
 .I prefix
-but returns the specified range of matches. For example,
-when
+اما محدوده مشخص‌شده‌ای از تطابق‌ها را بازمی‌گرداند. برای مثال، هنگامی که راهبرد
 .I prefix
-strategy returns 1000 matches,
-you can get only 100 ones skipping the first 800 matches.
-This is made by specified these limits in a query like this:
-800#100#app, where 800 is skip count, 100 is a number of matches
-you want to get and "app" is your query.
-This strategy allows to implement DICT client with fast autocompletion
-(although it is not trivial)
-just like many standalone dictionary programs do.
+تعداد ۱۰۰۰ تطابق را بازمی‌گرداند، شما می‌توانید تنها ۱۰۰ مورد را با صرف‌نظر از ۸۰۰ تطابق اول دریافت کنید. این کار با مشخص کردن این محدودیت‌ها در یک پرس‌وجو به این شکل انجام می‌شود:
+800#100#app که در آن 800 تعداد موارد نادیده‌گرفته‌شده، 100 تعداد تطابق‌های درخواستی و "app" عبارت جستجوی شماست. این راهبرد امکان پیاده‌سازی یک کلاینت DICT با تکمیل خودکار سریع را (اگرچه ساده نیست) دقیقاً مانند بسیاری از برنامه‌های واژه‌نامه مستقل فراهم می‌سازد.
 .P
 .RS
-.B NOTE:
-If you access the dictionary "*" (or virtual one) with
+.B نکته:
+اگر با راهبرد
 .I nprefix
-strategy,
-the same range is set for each database in it,
-but globally for all matches found in all databases.
+به واژه‌نامه "*" (یا یک واژه‌نامه مجازی) دسترسی پیدا کنید، محدوده یکسانی برای هر پایگاه‌داده درون آن تنظیم می‌شود، اما در سطح سراسری برای تمام تطابق‌های یافت‌شده در کلیه پایگاه‌های داده اعمال می‌گردد.
 .RE
 .P
 .RS
-.B NOTE:
-In case you access non-english dictionary the returned matches
-may be (and mostly will be) NOT ordered in alphabetic order.
+.B نکته:
+در صورتی که به یک واژه‌نامه غیرانگلیسی دسترسی داشته باشید، تطابق‌های بازگردانده‌شده ممکن است (و در اغلب موارد نیز چنین است) به ترتیب حروف الفبا مرتب نباشند.
 .RE
 .TP
 .B re
-POSIX 1003.2 (modern) regular expression search.  Modern regular
-expressions are the ones used by
-.BR egrep (1).
-These regular expressions allow predefined character classes (e.g.,
-[[:alnum:]], [[:alpha:]], [[:digit:]], and [[:xdigit:]] are useful for this
-application); uses * to match a sequence 0 or more matches of the previous
-atom; uses + to match a sequence of 1 or more matches of the previous atom;
-uses ? to match a sequence of 0 or 1 matches of the previous atom; used ^ to
-match the beginning of a word, uses $ to match the end of a word, and
-allows nested subexpression and alternation with () and |.  For example,
-"(foo|bar)" matches all words that contain either "foo" or "bar".  To match
-these special characters, they must be quoted with two backslashes (due to
-the quoting characteristics of the server).
-.B Warning:
-Regular expression matches can take 10 to 300 times longer than substring
-matches.  On a busy server, with many databases, this can required more
-than 5 minutes of waiting time, depending on the complexity of the regular
-expression.
+جستجوی عبارات باقاعده مدرن بر اساس POSIX 1003.2. عبارات باقاعده مدرن همان مواردی هستند که توسط
+.BR egrep (1)
+استفاده می‌شوند. این عبارات باقاعده از کلاس‌های نویسه پیش‌تعریف‌شده پشتیبانی می‌کنند (برای مثال [[:alnum:]]، [[:alpha:]]، [[:digit:]] و [[:xdigit:]] برای این کاربرد مفید هستند)؛ از * برای تطابق با دنباله‌ای از ۰ یا چند تطابق از عنصر قبلی استفاده می‌شود؛ از + برای تطابق با دنباله‌ای از ۱ یا چند تطابق از عنصر قبلی استفاده می‌شود؛ از ? برای تطابق با دنباله‌ای از ۰ یا ۱ تطابق از عنصر قبلی استفاده می‌شود؛ از ^ برای تطابق با ابتدای کلمه و از $ برای تطابق با انتهای کلمه استفاده می‌گردد و امکان استفاده از زیرعبارات تودرتو و گزینش با () و | را فراهم می‌سازد. برای مثال، "(foo|bar)" با تمام کلماتی که شامل "foo" یا "bar" هستند تطابق پیدا می‌کند. برای تطابق با این نویسه‌های خاص، آن‌ها باید با دو اسلش وارونه اسکیپ شوند (به دلیل ویژگی‌های نقل‌قول در سرور).
+.B هشدار:
+تطابق با عبارات باقاعده می‌تواند بین ۱۰ تا ۳۰۰ برابر بیشتر از تطابق زیررشته زمان ببرد. در یک سرور شلوغ با پایگاه‌های داده متعدد، این امر ممکن است بسته به پیچیدگی عبارت باقاعده به بیش از ۵ دقیقه زمان انتظار نیاز داشته باشد.
 .TP
 .B regexp
-Old (basic) regular expressions.  These regular expressions don't support
-|, +, or ?.  Groups use escaped parentheses.  While modern regular
-expressions are generally easier to use, basic regular expressions have a
-back reference feature.  This can be used to match a second occurrence of
-something that was already matched.  For example, the following expression
-finds all words that begin and end with the same three letters:
+عبارات باقاعده قدیمی (پایه). این عبارات باقاعده از |، + یا ? پشتیبانی نمی‌کنند. گروه‌ها از پرانتزهای اسکیپ‌شده استفاده می‌کنند. در حالی که عبارات باقاعده مدرن معمولاً کاربرد آسان‌تری دارند، عبارات باقاعده پایه دارای قابلیت ارجاع به گذشته (back reference) هستند. این قابلیت می‌تواند برای تطابق با تکرار دوم موردی که قبلاً تطابق یافته استفاده شود. برای مثال، عبارت زیر تمام کلماتی را می‌یابد که با سه حرف یکسان شروع شده و پایان می‌یابند:
 .RS
 .nf
-    ^\\\\(...\\\\).*\\\\1$
+    ^\\(...\\).*\\1$
 .fi
 .P
-Note the use of the double backslashes to escape the special characters.
-This is required by the DICT protocol string specification (a single
-backslash quotes the next character -- we use two to get a single backslash
-through to the regular expression engine).
-.B Warning:
-Note that the use of backtracking is even slower than the use of general
-regular expressions.
+به استفاده از اسلش‌های وارونه دوتایی برای اسکیپ کردن نویسه‌های خاص توجه کنید. این کار به دلیل مشخصات رشته در پروتکل DICT الزامی است (یک بک‌اسلش نویسه بعدی را اسکیپ می‌کند -- ما از دو تا استفاده می‌کنیم تا یک بک‌اسلش منفرد به موتور عبارت باقاعده برسد).
+.B هشدار:
+توجه داشته باشید که استفاده از عقب‌گرد (backtracking) حتی از عبارات باقاعده عمومی نیز کندتر است.
 .RE
 .TP
 .B soundex
-The Soundex algorithm, a classic algorithm for finding words that sound
-similar to each other.  The algorithm encodes each word using the first
-letter of the word and up to three digits.  Since the first letter is
-known, this search is relatively fast, and it sometimes good for correcting
-spelling errors when the Levenshtein algorithm doesn't help.
+الگوریتم ساوندکس (Soundex)، الگوریتمی کلاسیک برای یافتن کلماتی که تلفظی شبیه به یکدیگر دارند. این الگوریتم هر کلمه را با استفاده از اولین حرف کلمه و تا حداکثر سه رقم کدگذاری می‌کند. از آنجا که حرف اول مشخص است، این جستجو نسبتاً سریع است و گاهی برای اصلاح خطاهای املایی در زمانی که الگوریتم لون‌اشتاین کمکی نمی‌کند، مناسب است.
 .TP
 .B substring
-Match a substring anywhere in the headword.  This search strategy uses a
-modified Boyer-Moore-Horspool algorithm.  Since it must search the whole
-index file, it is not as fast as the exact and prefix matches.
+تطابق یک زیررشته در هر کجای سرواژه. این راهبرد جستجو از الگوریتم اصلاح‌شده بویر-مور-هورزپول (Boyer-Moore-Horspool) استفاده می‌کند. از آنجا که این الگوریتم باید تمام فایل نمایه را جستجو کند، به سرعت تطابق دقیق و تطابق پیشوند نیست.
 .TP
 .B suffix
-Suffix match.  This search strategy also uses a modified
-Boyer-Moore-Horspool algorithm, and is as fast as the substring
-search.  If the optional index_suffix string file is listed in the
-configuration file this search is much faster.
+تطابق پسوند. این راهبرد جستجو نیز از الگوریتم اصلاح‌شده بویر-مور-هورزپول استفاده می‌کند و سرعتی مشابه جستجوی زیررشته دارد. اگر فایل رشته‌ای اختیاری index_suffix در فایل پیکربندی ذکر شده باشد، این جستجو بسیار سریع‌تر خواهد بود.
 .TP
 .B word
-Match any single word, even if part of a multi-word entry.  If the
-optional index_word string file is listed in the configuration file
-this search strategy works much faster.
+تطابق هر تک‌کلمه، حتی اگر بخشی از یک مدخل چندکلمه‌ای باشد. اگر فایل اختیاری index_word در فایل پیکربندی ذکر شده باشد، این راهبرد جستجو بسیار سریع‌تر عمل می‌کند.
 .TP
 .B first
-Match the first word that begins a multi-word entry.
+تطابق اولین کلمه‌ای که یک مدخل چندکلمه‌ای با آن آغاز می‌شود.
 .TP
 .B last
-Match the last word that ends a multi-word entry.
-If the optional index_suffix string file is listed in the configuration file
-this search strategy works much faster.
-.SH "DATABASE FORMAT"
-Databases for
+تطابق آخرین کلمه‌ای که یک مدخل چندکلمه‌ای با آن پایان می‌یابد. اگر فایل رشته‌ای اختیاری index_suffix در فایل پیکربندی ذکر شده باشد، این راهبرد جستجو بسیار سریع‌تر عمل می‌کند.
+.SH "فرمت پایگاه‌داده (DATABASE FORMAT)"
+پایگاه‌های داده برای
 .B dictd
-are distributed separately.  A database consists of two files.  One is a
-flat text file, the other is the index.
+به صورت جداگانه توزیع می‌شوند. یک پایگاه‌داده از دو فایل تشکیل شده است: یکی فایل متنی ساده (flat text) و دیگری فایل نمایه (index).
 .P
-The flat text file contains dictionary entries (or any other suitable
-data), and the index contains tab-delimited tuples consisting of the
-headword, the byte offset at which this entry begins in the flat text file,
-and the length of the entry in bytes.  The offset and length are encoded
-using base 64 encoding using the 64-character subset of International
-Alphabet IA5 discussed in RFC 1421 (printable encoding) and RFC 1522
-(base64 MIME).  Encoding the offsets in base 64 saves considerable space
-when compared with the usual base 10 encoding, while still permitting tab
-characters (ASCII 9) to be used for delimiting fields in a record.  Each
-record ends with a newline (ASCII 10), so the index file is human readable.
+فایل متنی ساده حاوی مدخل‌های واژه‌نامه (یا هر داده مناسب دیگر) است و فایل نمایه حاوی چندتایی‌های جداشده با نویسه Tab است که شامل سرواژه (headword)، آفست بایت شروع این مدخل در فایل متنی و طول مدخل بر حسب بایت می‌باشد. آفست و طول با استفاده از کدگذاری پایه ۶۴ (base 64) و با زیرمجموعه ۶۴-نویسه‌ای الفبای بین‌المللی IA5 که در RFC 1421 (کدگذاری قابل چاپ) و RFC 1522 (کدگذاری base64 MIME) مورد بحث قرار گرفته‌اند، کدگذاری می‌شوند. کدگذاری آفست‌ها در مبنای ۶۴ در مقایسه با مبنای معمول ۱۰ باعث صرفه‌جویی قابل توجهی در فضای دیسک می‌شود، در حالی که همچنان اجازه می‌دهد از نویسه Tab (کد اسکی ۹) برای جداسازی فیلدها در یک رکورد استفاده شود. هر رکورد با یک خط جدید (کد اسکی ۱۰) خاتمه می‌یابد، به طوری که فایل نمایه برای انسان خوانا است.
 .P
-Some headwords are used by
+برخی سرواژه‌ها به صورت ویژه توسط
 .I dictd
-especially
+استفاده می‌شوند:
 .P
 .BI 00-database-info
-Containts the information about database
-which is 
-returned by SHOW INFO command,
-unless it is specified in the configuration file.
+حاوی اطلاعات مربوط به پایگاه‌داده است که توسط دستور SHOW INFO بازگردانده می‌شود، مگر اینکه در فایل پیکربندی مشخص شده باشد.
 .P
 .BI 00-database-short
-Containts the short name of the database
-which is
-returned by SHOW DB command,
-unless it is specified in the configuration file.
-See dictfmt -s.
+حاوی نام کوتاه پایگاه‌داده است که توسط دستور SHOW DB بازگردانده می‌شود، مگر اینکه در فایل پیکربندی مشخص شده باشد. گزینه dictfmt \-s را ببینید.
 .P
 .BI 00-database-url
-URL where original dictionary sources were obtained from.
-See dictfmt -u.
-This headword is not used by
+نشانی URL که منابع اصلی واژه‌نامه از آن دریافت شده است. گزینه dictfmt \-u را ببینید. این سرواژه توسط
 .I dictd
+استفاده نمی‌شود.
 .P
 .BI 00-database-utf8
-Presents if dictionary is encoded using UTF-8.
-See dictfmt --utf8
+در صورتی وجود دارد که واژه‌نامه با استفاده از UTF-8 کدگذاری شده باشد. گزینه dictfmt \-\-utf8 را ببینید.
 .P
 .BI 00-database-8bit-new
-Presents if dictionary is encoded using 8-BIT character set
-(not ASCII and not UTF8).
-See dictfmt --locale.
+در صورتی وجود دارد که واژه‌نامه با استفاده از مجموعه نویسه‌های ۸-بیتی (غیر اسکی و غیر UTF-8) کدگذاری شده باشد. گزینه dictfmt \-\-locale را ببینید.
 .P
-The flat text file may be compressed using
+فایل متنی ساده ممکن است با استفاده از
 .BR gzip (1)
-(not recommended) or
+(توصیه نمی‌شود) یا
 .BR dictzip (1)
-(highly recommended).  Optimal speed will be obtained using an uncompressed
-file.  However, the
+(اکیداً توصیه می‌شود) فشرده‌سازی شود. سرعت بهینه با استفاده از یک فایل فشرده‌نشده به دست می‌آید. با این حال، الگوریتم فشرده‌سازی
 .B gzip
-compression algorithm works very well on plain text, and can result in
-space savings typically between 60 and 80%.  Using a file compressed with
+بر روی متن ساده بسیار خوب کار می‌کند و می‌تواند منجر به صرفه‌جویی در فضا به میزان معمول بین ۶۰ تا ۸۰ درصد شود. اما استفاده از فایلی که با
 .BR gzip (1)
-is not recommended, however, because random access on the file can only be
-accomplished by serially decompressing the whole file, a process which is
-prohibitively slow.
+فشرده شده باشد توصیه نمی‌شود، زیرا دسترسی تصادفی به فایل تنها با خارج کردن متوالی کل فایل از حالت فشرده امکان‌پذیر است؛ فرآیندی که به طور غیرقابل قبولی کند است.
 .BR dictzip (1)
-uses the same compression algorithm and file format as does
-.BR gzip (1),
-but provides a table that can be used to randomly access compressed blocks
-in the file.  The use of 50-64kB blocks for compression typically degrades
-compression by less than 10%, while maintaining acceptable random access
-capabilities for all data in the file.  As an added benefit, files
-compressed with
-.BR dictzip (1)
-can be decompressed with
+از همان الگوریتم فشرده‌سازی و فرمت فایلی استفاده می‌کند که
 .BR gzip (1)
-or
-.BR zcat (1).
-(Note: recompressing a
-.BR dictzip 'd
-file using, for example,
+استفاده می‌نماید، اما جدولی فراهم می‌سازد که می‌توان از آن برای دسترسی تصادفی به بلوک‌های فشرده‌شده در فایل استفاده کرد. استفاده از بلوک‌های ۵۰ تا ۶۴ کیلوبایتی برای فشرده‌سازی معمولاً میزان فشرده‌سازی را کمتر از ۱۰ درصد کاهش می‌دهد، در حالی که قابلیت‌های دسترسی تصادفی قابل قبولی را برای تمام داده‌های موجود در فایل حفظ می‌کند. به عنوان یک مزیت اضافی، فایل‌های فشرده‌شده با
+.BR dictzip (1)
+را می‌توان با
+.BR gzip (1)
+یا
+.BR zcat (1)
+از حالت فشرده خارج کرد. (نکته: فشرده‌سازی مجدد یک فایل
+.BR dictzip
+با ابزارهایی مانند
 .BR znew (1)
-will destroy the random access characteristics of the file.  Always
-compress data files using
-.BR dictzip (1).)
-.SH "SIGNALS"
-.P
+ویژگی‌های دسترسی تصادفی فایل را از بین خواهد برد. همواره فایل‌های داده را با استفاده از
+.BR dictzip (1)
+فشرده‌سازی کنید.)
+.SH "سیگنال‌ها (SIGNALS)"
 .B SIGHUP
-causes dictd to reread configuration file and reinitialize databases.
+موجب می‌شود dictd فایل پیکربندی را دوباره بخواند و پایگاه‌های داده را مجدداً مقداردهی اولیه کند.
 .P
 .B SIGUSR1
-causes dictd to unload databases. Then
+موجب می‌شود dictd پایگاه‌های داده را از حافظه تخلیه کند (unload). پس از آن،
 .I dictd
-returns 420 status (instead of 220). To load databases again, send
+وضعیت ۴۲۰ را (به جای ۲۲۰) بازمی‌گرداند. برای بارگذاری مجدد پایگاه‌های داده، سیگنال
 .B SIGHUP
-signal. Because database files are
-.I mmap'ed(2)
-, it is impossible
-to update them while
+را ارسال کنید. از آنجا که فایل‌های پایگاه‌داده با
+.I mmap(2)
+نگاشت شده‌اند، به‌روزرسانی آن‌ها در زمان اجرای
 .I dictd
-is running.
-So, if you need to update database files and reread configuration file,
-first, send
+غیرممکن است. بنابراین، اگر نیاز به به‌روزرسانی فایل‌های پایگاه‌داده و بازخوانی فایل پیکربندی دارید، ابتدا سیگنال
 .B SIGUSR1
-signal
-to
+را به
 .I dictd
-to unload databases,
-update files, and then send
-.B SUGHUP
-signal to load them again.
+ارسال کنید تا پایگاه‌های داده را تخلیه کند، سپس فایل‌ها را به‌روزرسانی نموده و در نهایت سیگنال
+.B SIGHUP
+را برای بارگذاری مجدد آن‌ها بفرستید.
 .SH "کپی‌رایت و تکثیر (COPYING)"
-The main source files for the
+فایل‌های منبع اصلی برای سرور
 .B dictd
-server and the
+و برنامه فشرده‌سازی
 .B dictzip
-compression program were written by Rik Faith (faith@dict.org) and are
-distributed under the terms of the GNU General Public License.  If you need
-to distribute under other terms, write to the author.
+توسط ریک فیث (faith@dict.org) نوشته شده‌اند و تحت شرایط مجوز عمومی همگانی گنو (GNU GPL) توزیع می‌شوند. اگر نیاز به توزیع تحت شرایط دیگری دارید، به نویسنده نامه بنویسید.
 .P
-The main libraries used by these programs (zlib, regex, libmaa) are
-distributed under different terms, so you may be able to use the libraries
-for applications which are incompatible with the GPL -- please see the
-copyright notices and license information that come with the libraries for
-more information, and consult with your attorney to resolve these issues.
+کتابخانه‌های اصلی استفاده‌شده توسط این برنامه‌ها (zlib، regex، libmaa) تحت شرایط متفاوتی توزیع می‌شوند؛ بنابراین ممکن است بتوانید از این کتابخانه‌ها برای برنامه‌هایی که با GPL ناسازگار هستند استفاده کنید -- لطفاً برای اطلاعات بیشتر به اعلانات کپی‌رایت و اطلاعات مجوز ارائه‌شده همراه با کتابخانه‌ها مراجعه فرمایید و برای حل این مسائل با وکیل خود مشورت کنید.
 .SH "اشکالات (BUGS)"
-The regular expression searches do not ignore non-whitespace,
-non-alphanumeric characters as do the other searches.  In practice, this
-isn't much of a problem.
+جستجوهای مبتنی بر عبارات باقاعده، بر خلاف سایر جستجوها، نویسه‌های غیرفاصله‌ای و غیر حرفی‌عددی را نادیده نمی‌گیرند. در عمل، این موضوع مشکل چندانی ایجاد نمی‌کند.
 .SH "هشدارها (WARNINGS)"
-Conformance of regular expressions
-(used by 're' and 'regexp' search strategies)
-to ERE and BRE depends on
-library you build dictd with.
-Whether 're' and 'regex' strategies support utf8 depends on 
-library you build dictd with.
+انطباق عبارات باقاعده (استفاده‌شده توسط راهبردهای جستجوی 're' و 'regexp') با استانداردهای ERE و BRE بستگی به کتابخانه‌ای دارد که dictd را با آن می‌سازید. اینکه آیا راهبردهای 're' و 'regexp' از utf8 پشتیبانی می‌کنند یا خیر، بستگی به کتابخانه‌ای دارد که dictd را با آن می‌سازید.
 .SH "فایل‌ها (FILES)"
 .TP
 .I /etc/dict/dictd.conf
+فایل پیکربندی
 .B dictd
-configuration file
 .TP
 .I /usr/bin/dictd
+دیمن اصلی
 .B dictd
-daemon itself
 .TP
 .I /var/run/dictd.pid
-File for storing pid of
+فایل ذخیره‌سازی شناسه فرآیند (pid) دیمن
 .B dictd
-daemon
 .TP
 .I /usr/share
-The default directory for
+پوشه پیش‌فرض برای پایگاه‌های داده
 .B dictd
-databases (.index and .dict[.dz] files)
+(فایل‌های index. و dict[.dz].)
 .SH "همچنین ببینید (SEE ALSO)"
-.BR examples/dictd*.conf,
+.BR examples/dictd*.conf ,
 .BR dictfmt (1),
 .BR dict (1),
 .BR dictzip (1),

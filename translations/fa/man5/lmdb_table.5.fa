@@ -1,10 +1,8 @@
-.TH LMDB_TABLE 5 
+.TH LMDB_TABLE 5
 .ad
 .fi
 .SH "نام (NAME)"
-lmdb_table
-\-
-Postfix LMDB adapter
+lmdb_table \- آداپتور LMDB برای Postfix
 .SH "خلاصه دستور (SYNOPSIS)"
 .na
 .nf
@@ -22,110 +20,95 @@ Postfix LMDB adapter
 .SH "توضیحات (DESCRIPTION)"
 .ad
 .fi
-The Postfix LMDB adapter provides access to a persistent,
-memory\-mapped, key\-value store.  The database size is limited
-only by the size of the memory address space (typically 31
-or 47 bits on 32\-bit or 64\-bit CPUs, respectively) and by
-the available file system space.
-.SH "REQUESTS"
+آداپتور LMDB در Postfix دسترسی به یک ذخیره‌ساز کلید\-مقدار پایدار با نگاشت حافظه (memory\-mapped) را فراهم می‌کند. اندازه پایگاه‌داده تنها با اندازه فضای آدرس حافظه (معمولاً ۳۱ یا ۴۷ بیت به ترتیب در پردازنده‌های ۳۲ بیتی یا ۶۴ بیتی) و فضای در دسترس سیستم‌فایل محدود می‌شود.
+.SH "درخواست‌ها (REQUESTS)"
 .na
 .nf
 .ad
 .fi
-The LMDB adapter supports all Postfix lookup table operations.
-This makes LMDB suitable for Postfix address rewriting,
-routing, access policies, caches, or any information that
-can be stored under a fixed lookup key.
-
-When a transaction fails due to a full database, Postfix
-resizes the database and retries the transaction.
-
-Postfix table lookups may generate partial search keys such
-as domain names without one or more subdomains, network
-addresses without one or more least\-significant octets, or
-email addresses without the localpart, address extension
-or domain portion.  This behavior is also found with, for
-example, btree:, hash:, or ldap: tables.
-
-Changes to an LMDB database do not trigger an automatic
-daemon restart, and do not require a daemon restart with
-"\fBpostfix reload\fR".
-.SH "RELIABILITY"
+آداپتور LMDB از تمامی عملیات‌های جدول جستجوی Postfix پشتیبانی می‌کند. این ویژگی LMDB را برای بازنویسی آدرس، مسیریابی، سیاست‌های دسترسی، حافظه‌های موقت (کش) یا هر اطلاعاتی که بتوان تحت یک کلید جستجوی ثابت ذخیره کرد در Postfix مناسب می‌سازد.
+.PP
+هنگامی که یک تراکنش به دلیل پر شدن پایگاه‌داده با شکست مواجه شود، Postfix اندازه پایگاه‌داده را افزایش داده و تراکنش را مجدداً تلاش می‌کند.
+.PP
+جستجوهای جدول در Postfix ممکن است کلیدهای جستجوی جزئی تولید کنند؛ مانند نام‌های دامنه بدون یک یا چند زیردامنه، آدرس‌های شبکه بدون یک یا چند اکتت کم‌ارزش‌تر (least\-significant)، یا آدرس‌های ایمیل بدون بخش محلی (localpart)، پسوند آدرس یا بخش دامنه. این رفتار در جدول‌های دیگر مانند btree:، hash: یا ldap: نیز دیده می‌شود.
+.PP
+تغییرات در یک پایگاه‌داده LMDB باعث راه‌اندازی مجدد خودکار دیمن نمی‌شود و نیازی به راه‌اندازی مجدد دیمن با دستور
+.B "postfix reload"
+ندارد.
+.SH "قابلیت اطمینان (RELIABILITY)"
 .na
 .nf
 .ad
 .fi
-LMDB's copy\-on\-write architecture provides safe updates,
-at the cost of using more space than some other flat\-file
-databases.  Read operations are memory\-mapped for speed.
-Write operations are not memory\-mapped to avoid silent
-corruption due to stray pointer bugs.
-
-Multiple processes can safely update an LMDB database without
-serializing requests through the proxymap(8) service.  This
-makes LMDB suitable as a shared cache for verify(8) or
-postscreen(8) services.
-.SH "SYNCHRONIZATION"
+معماری کپی هنگام نوشتن (copy\-on\-write) در LMDB به‌روزرسانی‌های امنی را فراهم می‌کند، به بهای استفاده از فضای بیشتر نسبت به برخی دیگر از پایگاه‌های داده فایل مسطح (flat\-file). عملیات‌های خواندن برای سرعت بالا با نگاشت حافظه (memory\-mapped) انجام می‌شوند. عملیات‌های نوشتن با نگاشت حافظه انجام نمی‌شوند تا از خرابی خاموش داده‌ها ناشی از خطاهای اشاره‌گرهای سرگردان (stray pointer) جلوگیری شود.
+.PP
+چندین فرایند می‌توانند بدون نیاز به سریال‌سازی درخواست‌ها از طریق سرویس
+.BR proxymap (8)،
+یک پایگاه‌داده LMDB را با ایمنی به‌روزرسانی کنند. این امر LMDB را به عنوان یک حافظه موقت (کش) مشترک برای سرویس‌های
+.BR verify (8)
+یا
+.BR postscreen (8)
+بسیار مناسب می‌سازد.
+.SH "همگام‌سازی (SYNCHRONIZATION)"
 .na
 .nf
 .ad
 .fi
-The Postfix LMDB adapter does not use LMDB's built\-in locking
-scheme, because that would require world\-writable lockfiles
-and therefore violate the Postfix security model.  Instead,
-Postfix uses fcntl(2) locks with whole\-file granularity.
-Programs that use LMDB's built\-in locking protocol will
-corrupt a Postfix LMDB database or will read garbage.
-
-Every Postfix LMDB database read or write transaction must
-be protected from start to end with a shared or exclusive
-fcntl(2) lock. A process may atomically downgrade an exclusive
-lock to a shared lock before opening a database read transaction,
-but it must hold an exclusive lock while opening a write
-transaction.
-
-Note that fcntl(2) locks do not protect transactions within
-the same process against each other.  If a program cannot
-avoid making simultaneous database requests, then it must
-protect its transactions with in\-process locks, in addition
-to the per\-process fcntl(2) locks.
-.SH "CONFIGURATION PARAMETERS"
+آداپتور LMDB در Postfix از طرح قفل‌گذاری داخلی LMDB استفاده نمی‌کند، زیرا این طرح نیازمند فایل‌های قفل قابل نوشتن برای همگان (world\-writable) است و در نتیجه مدل امنیتی Postfix را نقض می‌کند. در عوض، Postfix از قفل‌های
+.BR fcntl (2)
+با دانه‌بندی کل فایل (whole\-file granularity) استفاده می‌کند. برنامه‌هایی که از پروتکل قفل‌گذاری داخلی LMDB استفاده می‌کنند، به پایگاه‌داده LMDB در Postfix آسیب رسانده یا داده‌های مخدوش می‌خوانند.
+.PP
+هر تراکنش خواندن یا نوشتن پایگاه‌داده LMDB در Postfix باید از ابتدا تا انتها با یک قفل اشتراکی (shared) یا انحصاری (exclusive)
+.BR fcntl (2)
+محافظت شود. یک فرایند می‌تواند پیش از باز کردن یک تراکنش خواندن پایگاه‌داده، قفل انحصاری را به صورت اتمیک به یک قفل اشتراکی تنزل دهد (downgrade)، اما باید هنگام باز کردن یک تراکنش نوشتن، قفل انحصاری در اختیار داشته باشد.
+.PP
+توجه داشته باشید که قفل‌های
+.BR fcntl (2)
+تراکنش‌های درون همان فرایند را در برابر یکدیگر محافظت نمی‌کنند. اگر برنامه‌ای نتواند از ایجاد درخواست‌های همزمان به پایگاه‌داده جلوگیری کند، باید علاوه بر قفل‌های
+.BR fcntl (2)
+به ازای هر فرایند، از تراکنش‌های خود با قفل‌های درون‌فرایندی (in\-process) نیز محافظت کند.
+.SH "پارامترهای پیکربندی (CONFIGURATION PARAMETERS)"
 .na
 .nf
 .ad
 .fi
-Short\-lived programs automatically pick up changes to
-main.cf.  With long\-running daemon programs, Use the command
-"\fBpostfix reload\fR" after a configuration change.
+برنامه‌های کوتاه‌عمر به‌طور خودکار تغییرات
+.B main.cf
+را دریافت می‌کنند. در برنامه‌های دیمن بلندمدت، پس از تغییر پیکربندی از دستور
+.B "postfix reload"
+استفاده کنید.
 .IP "\fBlmdb_map_size (16777216)\fR"
-The initial OpenLDAP LMDB database size limit in bytes.
+حد اولیه اندازه پایگاه‌داده OpenLDAP LMDB به بایت.
 .SH "همچنین ببینید (SEE ALSO)"
 .na
 .nf
-postconf(1), Postfix supported lookup tables
-postmap(1), Postfix lookup table maintenance
-postconf(5), configuration parameters
-.SH "README FILES"
+postconf(1), جدول‌های جستجوی پشتیبانی‌شده در Postfix
+postmap(1), نگهداری جدول جستجوی Postfix
+postconf(5), پارامترهای پیکربندی
+.SH "فایل‌های راهنما (README FILES)"
 .na
 .nf
 .ad
 .fi
-Use "\fBpostconf readme_directory\fR" or
-"\fBpostconf html_directory\fR" to locate this information.
+برای یافتن این اطلاعات از
+.B "postconf readme_directory"
+یا
+.B "postconf html_directory"
+استفاده کنید.
 .na
 .nf
-DATABASE_README, Postfix lookup table overview
-LMDB_README, Postfix OpenLDAP LMDB howto
+DATABASE_README, نمای کلی جدول جستجوی Postfix
+LMDB_README, راهنمای جامع Postfix OpenLDAP LMDB
 .SH "مجوز (LICENSE)"
 .na
 .nf
 .ad
 .fi
-The Secure Mailer license must be distributed with this software.
+مجوز Secure Mailer باید به همراه این نرم‌افزار توزیع شود.
 .SH "تاریخچه (HISTORY)"
 .ad
 .fi
-LMDB support was introduced with Postfix version 2.11.
+پشتیبانی از LMDB با نسخه ۲.۱۱ پست‌فیکس (Postfix) معرفی شد.
 .SH "نویسندگان (AUTHORS)"
 .na
 .nf

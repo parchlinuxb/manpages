@@ -1,0 +1,735 @@
+'\" t
+.\"     Title: cxl-list
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-06-30
+.\"    Manual: cxl Manual
+.\"    Source: cxl
+.\"  Language: English
+.\"
+.TH "CXL\-LIST" "1" "2026-06-30" "cxl" "cxl Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+cxl-list \- List platform CXL objects, and their attributes, in json.
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.nf
+\fIcxl list\fP [<options>]
+.fi
+.br
+.sp
+Walk the CXL capable device hierarchy in the system and list all device
+instances along with some of their major attributes.
+.sp
+Options can be specified to limit the output to specific objects. When a
+single object type is specified the return json object is an array of
+just those objects, when multiple objects types are specified the
+returned object may be an array of arrays with the inner
+array named for the given object type. The top\-level arrays are elided
+when the objects can nest under a higher object\-type in the hierarchy.
+The potential top\-level array names and their nesting properties are:
+.sp
+"anon memdevs"
+.RS 4
+(disabled memory devices) do not nest
+.RE
+.sp
+"buses"
+.RS 4
+do not nest
+.RE
+.sp
+"ports"
+.RS 4
+nest under buses
+.RE
+.sp
+"endpoints"
+.RS 4
+nest under ports or buses (if ports are not emitted)
+.RE
+.sp
+"memdevs"
+.RS 4
+nest under endpoints or ports (if endpoints are not
+emitted) or buses (if endpoints and ports are not emitted)
+.RE
+.sp
+"root decoders"
+.RS 4
+nest under buses
+.RE
+.sp
+"port decoders"
+.RS 4
+nest under ports, or buses (if ports are not emitted)
+.RE
+.sp
+"endpoint decoders"
+.RS 4
+nest under endpoints, or ports (if endpoints are
+not emitted) or buses (if endpoints and ports are not emitted)
+.RE
+.sp
+Filters can be specified as either a single identifier, a space separated
+quoted string, or a comma separated list. When multiple filter
+identifiers are specified within a filter string, like "\-m
+mem0,mem1,mem2", they are combined as an \fIOR\fP filter.  When multiple
+filter string types are specified, like "\-m mem0,mem1,mem2 \-p port10",
+they are combined as an \fIAND\fP filter. So, "\-m mem0,mem1,mem2 \-p port10"
+would only list objects that are beneath port10 AND map mem0, mem1, OR
+mem2.
+.sp
+Given that many topology queries seek to answer questions relative to a
+given memdev, buses, ports, endpoints, and decoders can be filtered by
+one or more memdevs. For example:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-P \-p switch,endpoint \-m mem0
+[
+  {
+    "port":"port1",
+    "host":"ACPI0016:00",
+    "endpoints:port1":[
+      {
+        "endpoint":"endpoint2",
+        "host":"mem0"
+      }
+    ]
+  }
+]
+.fam
+.fi
+.if n .RE
+.sp
+Additionally, when provisioning new interleave configurations it is
+useful to know which memdevs can be referenced by a given decoder like a
+root decoder, or mapped by a given port if the decoders are not
+configured.
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-Mu \-d decoder0.0
+{
+  "memdev":"mem0",
+  "pmem_size":"256.00 MiB (268.44 MB)",
+  "serial":"0",
+  "host":"0000:35:00.0"
+}
+.fam
+.fi
+.if n .RE
+.sp
+Note that for the \-m/\-\-memdev=, \-p/\-\-port=, and \-e/\-\-endpoint= filters a
+host device name can be substituted for the CXL object identifier. For
+\-m/\-\-memdev= this is an endpoint PCI device name of the form
+"DDDD:bb:dd.f" (D: Domain b: Bus d: Device f: Function) (see
+/sys/bus/pci/devices), for \-p/\-\-port= this is an upstream switch port
+PCI device name of the form "DDDD:bb:dd.f", or a PCI bus name of the
+form "pciDDDD:bb", and for \-e/\-\-endpoint= the host device is CXL memory
+device object name of the form "memX".
+.sp
+The \-\-human option in addition to reformatting some fields to more human
+friendly strings also unwraps the array to reduce the number of lines of
+output.
+.SH "مثال (EXAMPLE)"
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-\-memdevs
+[
+  {
+    "memdev":"mem0",
+    "pmem_size":268435456,
+    "serial":0,
+    "host":"0000:35:00.0"
+  }
+]
+
+# cxl list \-BMu
+[
+  {
+    "anon memdevs":[
+      {
+        "memdev":"mem0",
+        "pmem_size":"256.00 MiB (268.44 MB)",
+        "serial":"0"
+      }
+    ]
+  },
+  {
+    "buses":[
+      {
+        "bus":"root0",
+        "provider":"ACPI.CXL"
+      }
+    ]
+  }
+]
+.fam
+.fi
+.if n .RE
+.SH "گزینه‌ها (OPTIONS)"
+.sp
+\-m, \-\-memdev=
+.RS 4
+Specify CXL memory device name(s) ("mem0"), device id(s) ("0"),
+and/or host device name(s) ("0000:35:00.0") to filter the listing. For
+example:
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-M \-\-memdev="0 mem3 5"
+[
+  {
+    "memdev":"mem0",
+    "pmem_size":268435456,
+    "serial":0
+  },
+  {
+    "memdev":"mem3",
+    "pmem_size":268435456,
+    "ram_size":268435456,
+    "serial":2
+  },
+  {
+    "memdev":"mem5",
+    "pmem_size":268435456,
+    "ram_size":268435456,
+    "serial":4
+  }
+]
+.fam
+.fi
+.if n .RE
+.sp
+\-s, \-\-serial=
+.RS 4
+Specify CXL memory device serial number(s) to filter the listing
+.RE
+.sp
+\-M, \-\-memdevs
+.RS 4
+Include CXL memory devices in the listing
+.RE
+.sp
+\-i, \-\-idle
+.RS 4
+Include idle (not enabled / zero\-sized) devices in the listing
+.RE
+.sp
+\-H, \-\-health
+.RS 4
+Include health information in the memdev listing. Example listing:
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-m mem0 \-H
+[
+  {
+    "memdev":"mem0",
+    "pmem_size":268435456,
+    "ram_size":268435456,
+    "health":{
+      "maintenance_needed":true,
+      "performance_degraded":true,
+      "hw_replacement_needed":true,
+      "media_normal":false,
+      "media_not_ready":false,
+      "media_persistence_lost":false,
+      "media_data_lost":true,
+      "media_powerloss_persistence_loss":false,
+      "media_shutdown_persistence_loss":false,
+      "media_persistence_loss_imminent":false,
+      "media_powerloss_data_loss":false,
+      "media_shutdown_data_loss":false,
+      "media_data_loss_imminent":false,
+      "ext_life_used":"normal",
+      "ext_temperature":"critical",
+      "ext_corrected_volatile":"warning",
+      "ext_corrected_persistent":"normal",
+      "life_used_percent":15,
+      "temperature":25,
+      "dirty_shutdowns":10,
+      "volatile_errors":20,
+      "pmem_errors":30
+    }
+  }
+]
+.fam
+.fi
+.if n .RE
+.sp
+\-I, \-\-partition
+.RS 4
+Include partition information in the memdev listing. Example listing:
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-m mem0 \-I
+[
+  {
+    "memdev":"mem0",
+    "ram_size":273535729664,
+    "partition_info":{
+      "total_size":273535729664,
+      "volatile_only_size":0,
+      "persistent_only_size":0,
+      "partition_alignment_size":268435456
+      "active_volatile_size":273535729664,
+      "active_persistent_size":0,
+      "next_volatile_size":0,
+      "next_persistent_size":0,
+    }
+  }
+]
+.fam
+.fi
+.if n .RE
+.sp
+\-A, \-\-alert\-config
+.RS 4
+Include alert configuration in the memdev listing. Example listing:
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-m mem0 \-A
+[
+  {
+    "memdev":"mem0",
+    "pmem_size":0,
+    "ram_size":273535729664,
+    "alert_config":{
+      "life_used_prog_warn_threshold_valid":false,
+      "dev_over_temperature_prog_warn_threshold_valid":false,
+      "dev_under_temperature_prog_warn_threshold_valid":false,
+      "corrected_volatile_mem_err_prog_warn_threshold_valid":true,
+      "corrected_pmem_err_prog_warn_threshold_valid":false,
+      "life_used_prog_warn_threshold_writable":false,
+      "dev_over_temperature_prog_warn_threshold_writable":false,
+      "dev_under_temperature_prog_warn_threshold_writable":false,
+      "corrected_volatile_mem_err_prog_warn_threshold_writable":true,
+      "corrected_pmem_err_prog_warn_threshold_writable":false,
+      "life_used_crit_alert_threshold":0,
+      "life_used_prog_warn_threshold":0,
+      "dev_over_temperature_crit_alert_threshold":0,
+      "dev_under_temperature_crit_alert_threshold":0,
+      "dev_over_temperature_prog_warn_threshold":0,
+      "dev_under_temperature_prog_warn_threshold":0,
+      "corrected_volatile_mem_err_prog_warn_threshold":0,
+      "corrected_pmem_err_prog_warn_threshold":0
+    },
+  }
+]
+.fam
+.fi
+.if n .RE
+.sp
+\-B, \-\-buses
+.RS 4
+Include \fIbus\fP / CXL root object(s) in the listing. Typically, on ACPI
+systems the bus object is a singleton associated with the ACPI0017
+device, but there are test scenarios where there may be multiple CXL
+memory hierarchies.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-B
+[
+  {
+    "bus":"root3",
+    "provider":"cxl_test"
+  },
+  {
+    "bus":"root0",
+    "provider":"ACPI.CXL"
+  }
+]
+.fam
+.fi
+.if n .RE
+.sp
+\-b, \-\-bus=
+.RS 4
+Specify CXL root device name(s), device id(s), and / or CXL bus provider
+names to filter the listing. The supported provider names are "ACPI.CXL"
+and "cxl_test".
+.RE
+.sp
+\-P, \-\-ports
+.RS 4
+Include port objects (CXL / PCIe root ports + Upstream Switch Ports) in
+the listing.
+.RE
+.sp
+\-p, \-\-port=
+.RS 4
+Specify CXL Port device name(s) ("port2"), device id(s) ("2"), host
+device name(s) ("pci0000:34"), and / or port type name(s) to filter the
+listing. The supported port type names are "root" and "switch". Note
+that a bus object is also a port, so the following two syntaxes are
+equivalent:
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-B
+# cxl list \-P \-p root \-S
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+\&...where the \*(Aq\-S/\-\-single\*(Aq is required since descendant ports are always
+included in a port listing and \*(Aq\-S/\-\-single\*(Aq stops after listing the
+bus.\&  Additionally, endpoint objects are ports so the following commands
+are equivalent, and no \*(Aq\-S/\-\-single\*(Aq is required as endpoint ports are
+terminal:
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-E
+# cxl list \-P \-p endpoint
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+By default, only \*(Aqswitch\*(Aq ports are listed, i.e.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-P
+# cxl list \-P \-p switch
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+\&...are equivalent.
+.fam
+.fi
+.if n .RE
+.sp
+\-S, \-\-single
+.RS 4
+Specify whether the listing should emit all the objects that are
+descendants of a port that matches the port filter, or only direct
+descendants of the individual ports that match the filter. By default
+all descendant objects are listed.
+.RE
+.sp
+\-E, \-\-endpoints
+.RS 4
+Include endpoint objects (CXL Memory Device decoders) in the
+listing.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-E
+[
+  {
+    "endpoint":"endpoint2",
+    "host":"mem0"
+  }
+]
+.fam
+.fi
+.if n .RE
+.sp
+\-e, \-\-endpoint
+.RS 4
+Specify CXL endpoint device name(s), or device id(s) to filter
+the emitted endpoint(s).
+.RE
+.sp
+\-D, \-\-decoders
+.RS 4
+Include decoder objects (CXL Memory decode capability instances
+in buses, ports, and endpoints) in the listing.
+.RE
+.sp
+\-d, \-\-decoder
+.RS 4
+Specify CXL decoder device name(s), device id(s), or decoder type names
+to filter the emitted decoder(s). The format for a decoder name is
+"decoder<port_id>.<instance_id>". The possible decoder type names are
+"root", "switch", or "endpoint", similar to the port filter syntax.
+.RE
+.sp
+\-T, \-\-targets
+.RS 4
+Extend decoder listings with downstream port target information, port
+and bus listings with the downstream port information, and / or regions
+with mapping information.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-BTu \-b ACPI.CXL
+{
+  "bus":"root0",
+  "provider":"ACPI.CXL",
+  "nr_dports":1,
+  "dports":[
+    {
+      "dport":"ACPI0016:00",
+      "alias":"pci0000:34",
+      "id":"0"
+    }
+  ]
+}
+.fam
+.fi
+.if n .RE
+.sp
+\-R, \-\-regions
+.RS 4
+Include region objects in the listing.
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-R
+{
+  "region":"region0",
+  "resource":277025390592,
+  "size":549755813888,
+  "extended_linear_cache_size":274877906944,
+  "type":"ram",
+  "interleave_ways":2,
+  "interleave_granularity":256,
+  "decode_state":"commit",
+  "qos_class_mismatch":true
+}
+.fam
+.fi
+.if n .RE
+.sp
+\-X, \-\-dax
+.RS 4
+Append DAX information to region listings
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-RXu
+{
+  "region":"region4",
+  "resource":"0xf010000000",
+  "size":"512.00 MiB (536.87 MB)",
+  "interleave_ways":2,
+  "interleave_granularity":4096,
+  "decode_state":"commit",
+  "daxregion":{
+    "id":4,
+    "size":"512.00 MiB (536.87 MB)",
+    "align":2097152,
+    "devices":[
+      {
+        "chardev":"dax4.0",
+        "size":"512.00 MiB (536.87 MB)",
+        "target_node":0,
+        "align":2097152,
+        "mode":"system\-ram",
+        "online_memblocks":0,
+        "total_memblocks":4
+      }
+    ]
+  }
+}
+.fam
+.fi
+.if n .RE
+.sp
+\-r, \-\-region
+.RS 4
+Specify CXL region device name(s), or device id(s), to filter the listing.
+.RE
+.sp
+\-L, \-\-media\-errors
+.RS 4
+Include media\-error information. The poison list is retrieved from the
+device(s) and media_error records are added to the listing. Apply this
+option to memdevs and regions where devices support the poison list
+capability. "offset:" is relative to the region resource when listing
+by region and is the absolute device DPA when listing by memdev.
+"source:" is one of: External, Internal, Injected, Vendor Specific,
+or Unknown, as defined in CXL Specification v3.1 Table 8\-140.
+.RE
+.sp
+The media\-errors option is only available with \fI\-Dlibtracefs=enabled\fP.
+.sp
+.if n .RS 4
+.nf
+.fam C
+# cxl list \-m mem9 \-\-media\-errors \-u
+{
+  "memdev":"mem9",
+  "pmem_size":"1024.00 MiB (1073.74 MB)",
+  "pmem_qos_class":42,
+  "ram_size":"1024.00 MiB (1073.74 MB)",
+  "ram_qos_class":42,
+  "serial":"0x5",
+  "numa_node":1,
+  "host":"cxl_mem.5",
+  "media_errors":[
+    {
+      "offset":"0x40000000",
+      "length":64,
+      "source":"Injected"
+    }
+  ]
+}
+
+# cxl list \-r region5 \-\-media\-errors \-u
+{
+  "region":"region5",
+  "resource":"0xf110000000",
+  "size":"2.00 GiB (2.15 GB)",
+  "type":"pmem",
+  "interleave_ways":2,
+  "interleave_granularity":4096,
+  "decode_state":"commit",
+  "media_errors":[
+    {
+      "offset":"0x1000",
+      "length":64,
+      "source":"Injected"
+    },
+    {
+      "offset":"0x2000",
+      "length":64,
+      "source":"Injected"
+    }
+  ]
+}
+.fam
+.fi
+.if n .RE
+.sp
+\-v, \-\-verbose
+.RS 4
+Increase verbosity of the output. This can be specified
+multiple times to be even more verbose on the
+informational and miscellaneous output, and can be used
+to override omitted flags for showing specific
+information. Note that cxl list \-\-verbose \-\-verbose is
+equivalent to cxl list \-vv.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\fB\-v\fP
+Enable \-\-memdevs, \-\-regions, \-\-buses,
+\-\-ports, \-\-decoders, and \-\-targets.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\fB\-vv\fP
+Everything \fB\-v\fP provides, plus include disabled
+devices with \-\-idle.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\fB\-vvv\fP
+Everything \fB\-vv\fP provides, plus enable
+\-\-health, \-\-partition, and \-\-media\-errors.
+.RE
+.RE
+.sp
+\-\-debug
+.RS 4
+If the cxl tool was built with debug enabled, turn on debug
+messages.
+.RE
+.sp
+\-u, \-\-human
+.RS 4
+By default the command will output machine\-friendly raw\-integer
+data. Instead, with this flag, numbers representing storage size
+will be formatted as human readable strings with units, other
+fields are converted to hexadecimal strings.
+.RE
+.SH "حق نشر (COPYRIGHT)"
+.sp
+Copyright \(co 2016 \- 2022, Intel Corporation. License GPLv2: GNU GPL
+version 2 \c
+.URL "http://gnu.org/licenses/gpl.html" "" "."
+This is free software:
+you are free to change and redistribute it.  There is NO WARRANTY, to
+the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+ndctl\-list(1)

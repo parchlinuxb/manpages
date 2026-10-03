@@ -1,0 +1,236 @@
+'\" t
+.nh
+.TH SKOPEO(1) Skopeo Man Pages
+Jhon Honce
+August 2016
+.SH "نام (NAME)"
+skopeo -- Command line utility used to interact with local and remote container images and container image registries
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBskopeo\fP [\fIglobal options\fP] \fIcommand\fP [\fIcommand options\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+\fBskopeo\fR is a command line utility providing various operations with container images and container image registries.
+
+.PP
+\fBskopeo\fR can copy container images between various containers image stores, converting them as necessary.  For example you can use \fBskopeo\fR to copy container images from one container registry to another.
+
+.PP
+\fBskopeo\fR can convert a Docker schema 2 or schema 1 container image to an OCI image.
+
+.PP
+\fBskopeo\fR can inspect a repository on a container registry without needlessly pulling the image. Pulling an image from a repository, especially a remote repository, is an expensive network and storage operation. Skopeo fetches the repository's manifest and displays a \fBdocker inspect\fR-like json output about the repository or a tag. \fBskopeo\fR, in contrast to \fBdocker inspect\fR, helps you gather useful information about a repository or a tag without requiring you to run \fBdocker pull\fR - e.g. - Which tags are available for the given repository? Which labels does the image have?
+
+.PP
+\fBskopeo\fR can sign and verify container images.
+
+.PP
+\fBskopeo\fR can delete container images from a remote container registry.
+
+.PP
+Note: \fBskopeo\fR does not require any container runtimes to be running to do most of
+its functionality.  It also does not require root, unless you are copying images into a container runtime storage backend, like the docker daemon or github.com/containers/storage.
+
+.SH IMAGE NAMES
+Most commands refer to container images, using a \fItransport\fP\fB:\fR\fIdetails\fP format. The following formats are supported:
+
+.PP
+\fBcontainers-storage:\fP\fIdocker-reference\fP
+  An image located in a local containers/storage image store.  Both the location and image store are specified in /etc/containers/storage.conf. (Backend for Podman, CRI-O, Buildah and friends)
+
+.PP
+\fBdir:\fP\fIpath\fP
+  An existing local directory \fIpath\fP storing the manifest, layer tarballs and signatures as individual files. This is a non-standardized format, primarily useful for debugging or noninvasive container inspection.
+
+.PP
+\fBdocker://\fP\fIdocker-reference\fP
+  An image in a registry implementing the "Docker Registry HTTP API V2".
+  Credentials are typically managed using \fB(skopeo login)\fR;
+  see \fBcontainers-auth.json\fP(5) for more details about the credential search mechanism.
+
+.PP
+\fBdocker-archive:\fP\fIpath\fP[\fB:\fP\fIdocker-reference\fP]
+  An image is stored in the \fBdocker save\fR formatted file.  \fIdocker-reference\fP is only used when creating such a file, and it must not contain a digest.
+
+.PP
+\fBdocker-daemon:\fP\fIdocker-reference\fP
+  An image \fIdocker-reference\fP stored in the docker daemon internal storage.  \fIdocker-reference\fP must contain either a tag or a digest.  Alternatively, when reading images, the format can be docker-daemon:algo:digest (an image ID).
+
+.PP
+\fBoci:\fP\fIpath\fP\fB:\fP\fItag\fP
+  An image \fItag\fP in a directory compliant with "Open Container Image Layout Specification" at \fIpath\fP\&.
+
+.PP
+\fBoci-archive:\fP\fIpath\fP\fB:\fP\fItag\fP
+  An image \fItag\fP in a tar archive compliant with "Open Container Image Layout Specification" at \fIpath\fP\&.
+
+.PP
+See containers-transports(5)
+\[la]https://github.com/containers/image/blob/main/docs/containers\-transports.5.md\[ra] for details.
+
+.SH "گزینه‌ها (OPTIONS)"
+These options should be placed before the subcommand name.
+Individual subcommands have their own options.
+
+.PP
+\fB--command-timeout\fP \fIduration\fP
+
+.PP
+Timeout for the command execution (e.g. 30s, 10m).
+
+.PP
+\fB--debug\fP
+
+.PP
+enable debug output
+
+.PP
+\fB--help\fP, \fB-h\fP
+
+.PP
+Show help
+
+.PP
+\fB--insecure-policy\fP
+
+.PP
+Adopt an insecure, permissive policy that allows anything. This obviates the need for a policy file.
+
+.PP
+\fB--override-arch\fP \fIarch\fP
+
+.PP
+Use \fIarch\fP instead of the architecture of the machine for choosing images.
+
+.PP
+\fB--override-os\fP \fIos\fP
+
+.PP
+Use \fIOS\fP instead of the running OS for choosing images.
+
+.PP
+\fB--override-variant\fP \fIvariant\fP
+
+.PP
+Use \fIvariant\fP instead of the running architecture variant for choosing images.
+
+.PP
+\fB--policy\fP \fIpath-to-policy\fP
+
+.PP
+Path to a policy.json file to use for verifying signatures and deciding whether an image is trusted, overriding the default trust policy file.
+
+.PP
+\fB--registries.d\fP \fIdir\fP
+
+.PP
+Use registry configuration files in \fIdir\fP (e.g. for container signature storage), overriding the default path.
+
+.PP
+\fB--require-signed\fP
+
+.PP
+Require that any pulled image must be signed regardless of what the default or provided trust policy file says.
+
+.PP
+\fB--tls-details\fP \fIpath\fP
+
+.PP
+Path to a containers-tls-details(5) file, affecting TLS behavior throughout the program.
+
+.PP
+If not set, defaults to a reasonable default that may change over time (depending on system’s global policy,
+version of the program, version of the Go language, and the like).
+
+.PP
+Users should generally not use this option unless they have a process to ensure that the configuration will be kept up to date.
+
+.PP
+\fB--tmpdir\fP \fIdir\fP
+
+.PP
+Directory used to store temporary files. Defaults to /var/tmp.
+
+.PP
+\fB--user-agent-prefix\fP \fIprefix\fP
+
+.PP
+Prefix to add to the user agent string. The resulting user agent will be in the format "\fIprefix\fP skopeo/\fIversion\fP".
+
+.PP
+\fB--version\fP, \fB-v\fP
+
+.PP
+Print the version number
+
+.SH COMMANDS
+.TS
+allbox;
+l l 
+l l .
+\fBCommand\fP	\fBDescription\fP
+skopeo-copy(1)	T{
+Copy an image (manifest, filesystem layers, signatures) from one location to another.
+T}
+skopeo-delete(1)	Mark the \fIimage-name\fP for later deletion by the registry's garbage collector.
+T{
+skopeo-generate-sigstore-key(1)
+T}	T{
+Generate a sigstore public/private key pair.
+T}
+skopeo-inspect(1)	T{
+Return low-level information about \fIimage-name\fP in a registry.
+T}
+skopeo-list-tags(1)	T{
+List image names in a transport-specific collection of images.
+T}
+skopeo-login(1)	Login to a container registry.
+skopeo-logout(1)	T{
+Logout of a container registry.
+T}
+skopeo-manifest-digest(1)	T{
+Compute a manifest digest for a manifest-file and write it to standard output.
+T}
+skopeo-standalone-sign(1)	T{
+Debugging tool - Sign an image locally without uploading.
+T}
+skopeo-standalone-verify(1)	T{
+Debugging tool - Verify an image signature from local files.
+T}
+skopeo-sync(1)	T{
+Synchronize images between registry repositories and local directories.
+T}
+.TE
+
+.SH "وضعیت خروج (EXIT STATUS)"
+\fBskopeo\fR exits with status 0 on success, non-zero on error.
+
+.PP
+Details about the exit statuses:
+
+.PP
+\fB1\fP Generic error, details can be found in the error message.
+
+.PP
+\fB2\fP The input image cannot be found. Note that this is best effort and for remote registries the status often cannot be reliably reported.
+
+.SH "فایل‌ها (FILES)"
+\fB/etc/containers/policy.json\fP
+  Default trust policy file, if \fB--policy\fP is not specified.
+  The policy format is documented in containers-policy.json(5)
+\[la]https://github.com/containers/image/blob/main/docs/containers\-policy.json.5.md\[ra] .
+
+.PP
+\fB/etc/containers/registries.d\fP
+  Default directory containing registry configuration, if \fB--registries.d\fP is not specified.
+  The contents of this directory are documented in containers-registries.d(5)
+\[la]https://github.com/containers/image/blob/main/docs/containers\-registries.d.5.md\[ra]\&.
+
+.SH "همچنین ببینید (SEE ALSO)"
+skopeo-login(1), docker-login(1), containers-auth.json(5), containers-storage.conf(5), containers-policy.json(5), containers-transports(5)
+
+.SH "نویسندگان (AUTHORS)"
+Antonio Murdaca runcom@redhat.com
+\[la]mailto:runcom@redhat.com\[ra], Miloslav Trmac mitr@redhat.com
+\[la]mailto:mitr@redhat.com\[ra], Jhon Honce jhonce@redhat.com
+\[la]mailto:jhonce@redhat.com\[ra]

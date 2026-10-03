@@ -1,0 +1,294 @@
+.TH CDEMU 1 "February 2026"
+.SH "نام (NAME)"
+cdemu \- a simple command-line CDEmu client
+.SH "خلاصه دستور (SYNOPSIS)"
+.B cdemu
+[options]
+<command>
+<command parameters>
+.SH "توضیحات (DESCRIPTION)"
+This is cdemu, a command-line client for controlling CDEmu daemon. It is
+part of the cdemu suite, a free, GPL CD/DVD-ROM device emulator
+for linux.
+.PP
+It provides a way to perform the key tasks related to controlling the CDEmu
+daemon, such as loading and unloading devices, displaying devices' status and
+retrieving/setting devices' debug masks.
+.PP
+When connecting to daemon, cdemu client can use either session or system bus. By
+hard-coded default, it uses session bus. The default bus to be used can be specified
+via /etc/cdemu-client.conf or ~/.cdemu-client file; for more information, please
+read README file. The default can be overridden using
+.B --bus
+option.
+.SH ENCRYPTED IMAGES SUPPORT
+CDEmu daemon offers support for encrypted images. When password
+is required to load an image, cdemu-client will prompt for it and then send it to daemon.
+.PP
+NOTE, HOWEVER, THAT THE PASSWORD IS SENT OVER D-BUS IN A PLAIN STRING FORM, WITHOUT
+ANY PROTECTION.
+.PP
+The password prompt mechanism is implemented as follows. If \fBCDEMU_ASKPASS\fR
+environment variable is set, the password is obtained by running a sub-process
+with the command specified in the said environment variable. Otherwise, if the
+client is ran from a console (standard input is available), the console is used
+to prompt for the password. If console is unavailable, the command from
+\fBSSH_ASKPASS\fR environment variable is used, if the said variable is set.
+Otherwise, the password cannot be obtained and error is raised.
+.SH OPTIONAL INTEGRATION WITH ZENITY
+Optional integration with \fBzenity\fR can be turned on by setting the
+\fBCDEMU_USE_ZENITY\fR environment variable to a value different from 0.
+.PP
+In this mode, cdemu client uses \fBzenity\fR-provided password input dialog
+to prompt user for password when trying to load an encrypted image. This
+effectively bypasses the mechanism outlined in the previous section (i.e.,
+the \fBzenity\fR dialog is always used to prompt for password, regardless
+of other environment variables and availability of standard input).
+.PP
+Similarly, \fBzenity\fR-provided error dialog is used to report errors,
+in addition to them being printed to the stderr stream. Note that error
+dialog effectively blocks the execution of the program until user
+acknowledges and closes the dialog.
+.PP
+This mode is primarily intended for use cases where cdemu client is used
+to implement actions that run without attached console, but may require
+user input (password) and may need to report error messages. An example
+of such scenario is implementation of a "Load with CDEmu client" action
+for desktop environments and their file browsers.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B -h --help
+Displays the help message. If command is specified, help message with
+synopsis and description for that command is displayed.
+.TP
+.B -v --version
+Prints version info and exits.
+.TP
+.B -b --bus
+Sets the D-BUS bus type to use for connection. Valid values are \fIsession\fR
+and \fIsystem\fR. If no bus is specified, the session bus is used by default.
+.SH COMMANDS
+.TP
+.B load [options] <device> <filename> [...]
+Loads the device; \fBdevice\fR is the number of the desired device, or \fIany\fR.
+If \fIany\fR is used, then the client will attempt to load the image into the
+first empty device it finds (provided there is one available). \fBfilename\fR is
+the image filename. For multi-file images, multiple filenames can be provided.
+
+The following options can be passed to the load command:
+
+.B --replace
+(or \fB--unload\fR) Allows the specified device to be unloaded, thereby effectively
+replacing the image in an already-loaded device. When device is set to \fIany\fR,
+the client first iterates over all devices and attempts to find an empty device.
+If no empty device is available, it iterates over devices again, and attempts to load
+the image in first device that it manages to unload. In practice, this will most often
+be the first device, unless some explicit locking prevents the device from being unloaded.
+
+.B --create
+If no empty device is available, allow client to request a new device to be created,
+and load the image into it. Applicable only when device is set to \fIany\fR.
+
+In addition to the above options, the following optional parser parameters can be also
+passed via corresponding options (whether they are supported by a particular image parser
+or not depends on the parser implementation):
+
+.B --encoding <string>
+Allows an encoding for text-based image format (such as CUE) to be specified. This
+might be needed if the image descriptor file contains non-ASCII characters and does
+not use Unicode.
+
+.TP
+.B create-blank [options] --writer_id=<writer-id> <device> <image_file>
+Creates blank recordable disc in the specified device. \fBdevice\fR is the number
+of the desired device, or \fIany\fR. If \fIany\fR is used, then the client will attempt
+to load the image into the first empty device it finds (provided there is one available).
+\fBimage_file\fR is the image filename/basename. A valid \fBwriter-id\fR must also be
+provided. Other valid options are:
+
+.B --medium-type <type>
+Sets the blank medium type. Valid values are: cdr74, cdr80, cdr90, cdr99 and dvd+r.
+
+.B --param="writer.parameter_id=parameter_value"
+Allows user to pass additional image writer parameters. \fIparameter_id\fR must
+be a valid parameter ID from image writer's parameter sheet, prefixed by "writer.".
+.TP
+.B unload <device>
+Unloads the device; \fBdevice\fR is the number of the desired device, or \fIall\fR.
+.TP
+.B status
+Displays devices' status
+.TP
+.B add-device
+Creates another virtual device
+.TP
+.B remove-device
+Removes the last virtual device
+.TP
+.B device-mapping
+Displays device mapping information
+.TP
+.B daemon-debug-mask <device> [new-value]
+Displays/sets daemon debug mask; \fBdevice\fR is the number of the desired
+device, or \fIall\fR. \fBnew-value\fR is the new debug mask value. If this
+argument is omitted, current debug mask is displayed. The list of supported
+debug mask identifiers and values can be obtained with
+.B enum-daemon-debug-masks
+command. The \fBnew-value\fR can be either a single numeric value (e.g,
+0x03), a string of numeric values separated by pipe character (e.g.,
+"0x01|0x02"), or a string of identifiers separated by pipe character
+(e.g., "DAEMON_DEBUG_DEVICE|DAEMON_DEBUG_MMC").
+.TP
+.B library-debug-mask <device> [new-value]
+Displays/sets library debug mask; \fBdevice\fR is the number of the desired
+device, or \fIall\fR. \fBnew-value\fR is the new debug mask value. If this
+argument is omitted, current debug mask is displayed. The list of supported
+debug mask identifiers and values can be obtained with
+.B enum-library-debug-masks
+command. The \fBnew-value\fR can be either a single numeric value (e.g,
+0x03), a string of numeric values separated by pipe character (e.g.,
+"0x01|0x02"), or a string of identifiers separated by pipe character
+(e.g., "MIRAGE_DEBUG_PARSER|MIRAGE_DEBUG_DISC").
+.TP
+.B dpm-emulation <device> [new-value]
+Displays/sets DPM emulation flag. \fBdevice\fR is the number of the desired
+device, or \fIall\fR. \fBnew-value\fR is the new value to be set. If this
+argument is omitted, currently set value is displayed.
+.TP
+.B tr-emulation <device> [new-value]
+Displays/sets transfer rate emulation flag. \fBdevice\fR is the number of the
+desired device, or \fIall\fR. \fBnew-value\fR is the new value to be set.
+If this argument is omitted, currently set value is displayed.
+.TP
+.B bad-sector-emulation <device> [new-value]
+Displays/sets bad sector emulation flag. \fBdevice\fR is the number of the
+desired device, or \fIall\fR. \fBnew-value\fR is the new value to be set.
+If this argument is omitted, currently set value is displayed.
+.TP
+.B dvd-report-css <device> [new-value]
+Report the loaded DVD as CSS-encrypted. \fBdevice\fR is the number of the
+desired device, or \fIall\fR. \fBnew-value\fR is the new value to be set.
+If this argument is omitted, currently set value is displayed.
+
+This flag influences the generation of fake Disc Structure 0x01, and as
+such works only with images of DVD videos that do not provide this
+information (most images, with exception of perhaps mds/mdf, don't).
+Enabling this option allows images of CSS-encrypted DVDs (e.g. created using 'dd'
+or 'readcd' without running through a CSS decryption step when creating the image)
+to be played by a deCSS-enabled Linux media player.
+.TP
+.B device-id <device> [new-vendor-id] [new-product-id] [new-revision] [new-vendor-specific]
+Displays/sets device ID. \fBdevice\fR is the number of the desired device.
+\fBnew-vendor-id\fR is the new vendor ID string to be set (8 characters max).
+\fBnew-product-id\fR is the new product ID string to be set (16 characters max).
+\fBnew-revision\fR is the new revision string to be set (4 characters max).
+\fBnew-vendor-specific\fR is the new vendor-specific string to be set (20 characters max).
+If new values are omitted, currently set values are displayed.
+.TP
+.B enum-parsers
+Enumerates supported image parsers.
+.TP
+.B enum-writers
+Enumerates supported image writers.
+.TP
+.B enum-filter-streams
+Enumerates supported filter streams.
+.TP
+.B enum-daemon-debug-masks
+Enumerates supported daemon debug masks.
+.TP
+.B enum-library-debug-masks
+Enumerates supported library debug masks.
+.TP
+.B enum-writer-parameters <writer-id>
+Retrieves and displays parameters sheet for specified image writer.
+.TP
+.B version
+Displays version information
+.SH "مثال‌ها (EXAMPLES)"
+.TP
+.B Loading a single image to first device:
+cdemu load 0 ~/image.mds
+.TP
+.B Loading multiple-file image to first device:
+cdemu load 0 ~/session1.toc ~/session2.toc ~/session3.toc
+.TP
+.B Loading a text-based image in non-ASCII/non-Unicode encoding:
+ cdemu load 0 ~/image.cue --encoding=windows-1250
+.TP
+.B Loading a raw image of a CSS-encrypted DVD created by 'dd', so it can be played by mplayer:
+ cdemu load 0 ~/image.iso
+ cdemu dvd-report-css 0 1
+.TP
+.B Creating a blank recordable disc: DVD+R SL with ISO image writer:
+cdemu create-blank --writer-id=WRITER-ISO --medium-type=dvd+r 0 ~/output-image.iso
+.TP
+.B Creating a blank recordable disc: 80-minute CD-R with TOC image writer, with additional writer parameters:
+cdemu create-blank --writer-id=WRITER-TOC --medium-type=cdr80 --param="writer.write_raw=1" --param="writer.write_subchannel=1" 0 ~/output-image.toc
+.TP
+.B Unloading first device:
+cdemu unload 0
+.TP
+.B Displaying device status:
+cdemu status
+.TP
+.B Adding another device:
+cdemu add-device
+.TP
+.B Removing the last device:
+cdemu remove-device
+.TP
+.B Displaying device mapping information:
+cdemu device-mapping
+.TP
+.B Setting daemon debug mask for the first device:
+cdemu daemon-debug-mask 0 0x01
+.TP
+.B Setting daemon debug mask for the first device (composite):
+cdemu daemon-debug-mask 0 "0x01|0x02"
+.TP
+.B Setting daemon debug mask for the first device (composite, by name):
+cdemu daemon-debug-mask 0 "DAEMON_DEBUG_DEVICE|DAEMON_DEBUG_MMC"
+.TP
+.B Obtaining library debug mask for the first device:
+cdemu library-debug-mask 0
+.TP
+.B Disabling DPM emulation on all devices:
+cdemu dpm-emulation all 0
+.TP
+.B Enabling transfer rate emulation on first device:
+cdemu tr-emulation 0 1
+.TP
+.B Enabling bad sector emulation on first device:
+cdemu tr-emulation 0 1
+.TP
+.B Changing device ID of first device:
+cdemu device-id 0 "MyVendor" "MyProduct" "1.0.0" "Test device ID"
+.TP
+.B Enumerating supported image parsers:
+cdemu enum-parsers
+.TP
+.B Enumerating supported image writers:
+cdemu enum-writers
+.TP
+.B Enumerating supported filter streams:
+cdemu enum-filter-streams
+.TP
+.B Enumerating supported daemon debug masks:
+cdemu enum-daemon-debug-masks
+.TP
+.B Enumerating supported library debug masks:
+cdemu enum-library-debug-masks
+.TP
+.B Obtaining parameter sheet for TOC image writer:
+cdemu enum-writer-parameters WRITER-TOC
+.TP
+.B Displaying daemon and library version:
+cdemu version
+.SH "نویسندگان (AUTHORS)"
+.PP
+Rok Mandeljc <rok.mandeljc@gmail.com>
+.PP
+CDEmu project's web page: http://cdemu.sourceforge.net
+.PP
+CDEmu project's mailing list: cdemu-devel@lists.sourceforge.net

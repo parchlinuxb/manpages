@@ -1,0 +1,517 @@
+'\" t
+.\"     Title: sqlhist
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 01/05/2026
+.\"    Manual: libtracefs Manual
+.\"    Source: libtracefs 1.8.3
+.\"  Language: English
+.\"
+.TH "SQLHIST" "1" "01/05/2026" "libtracefs 1\&.8\&.3" "libtracefs Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+sqlhist \- Tool that uses SQL language to create / show creation of tracefs histograms and synthetic events\&.
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBsqlhist\fR [\fIOPTIONS\fR] [\fISQL\-select\-command\fR]
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The sqlhist(1) will take an SQL like statement to create tracefs histograms and synthetic events that can perform various actions for various handling of the data\&.
+.sp
+The tracefs file system interfaces with the Linux tracing infrastructure that has various dynamic and static events through out the kernel\&. Each of these events can have a "histogram" attached to it, where the fields of the event will define the buckets of the histogram\&.
+.sp
+A synthetic event is a way to attach two separate events and use the fields and time stamps of those events to create a new dynamic event\&. This new dynamic event is call a synthetic event\&. The fields of each event can have simple calculations done on them where, for example, the delta between a field of one event to a field of the other event can be taken\&. This also works for the time stamps of the events where the time delta between the two events can also be extracted and placed into the synthetic event\&.
+.sp
+Other actions can be done from the fields of the events\&. A snapshot can be taken of the kernel ring buffer a variable used in the synthetic event creating hits a max, or simply changes\&.
+.sp
+The commands to create histograms and synthetic events are complex and not easy to remember\&. \fBsqlhist\fR is used to convert SQL syntax into the commands needed to create the histogram or synthetic event\&.
+.sp
+The \fBSQL\-select\-command\fR is a SQL string defined by \fBtracefs_sql\fR(3)\&.
+.sp
+Note, this must be run as root (or sudo) as interacting with the tracefs directory requires root privilege, unless the \fB\-t\fR option is given with a copy of the \fItracefs\fR directory and its events\&.
+.sp
+The \fBsqlhist\fR is a simple program where its code actual exists in the \fBtracefs_sql\fR(3) man page\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\fB\-n\fR \fIname\fR
+.RS 4
+The name of the synthetic event to create\&. This event can then be used like any other event, and enabled via
+\fBtrace\-cmd\fR(1)\&.
+.RE
+.PP
+\fB\-t\fR \fItracefs\-dir\fR
+.RS 4
+In order to test this out as non root user, a copy of the tracefs directory can be used, and passing that directory with this option will allow the program to work\&. Obviously,
+\fB\-e\fR
+will not work as non\-root because it will not be able to execute\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# mkdir /tmp/tracing
+# cp \-r /sys/kernel/tracing/events /tmp/tracing
+# exit
+$ \&./sqlhist \-t /tmp/tracing \&.\&.\&.
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+\fB\-e\fR
+.RS 4
+Not only display the commands to create the histogram, but also execute them\&. This requires root privilege\&.
+.RE
+.PP
+\fB\-f\fR \fIfile\fR
+.RS 4
+Instead of reading the SQL commands from the command line, read them from
+\fIfile\fR\&. If
+\fIfile\fR
+is
+\fI\-\fR
+then read from standard input\&.
+.RE
+.PP
+\fB\-m\fR \fIvar\fR
+.RS 4
+Do the given action when the variable
+\fIvar\fR
+hits a new maximum\&. This can not be used with
+\fB\-c\fR\&.
+.RE
+.PP
+\fB\-c\fR \fIvar\fR
+.RS 4
+Do the given action when the variable
+\fIvar\fR
+changes its value\&. This can not be used with
+\fB\-m\fR\&.
+.RE
+.PP
+\fB\-s\fR
+.RS 4
+Perform a snapshot instead of calling the synthetic event\&.
+.RE
+.PP
+\fB\-T\fR
+.RS 4
+Perform both a snapshot and trace the synthetic event\&.
+.RE
+.PP
+\fB\-S\fR \fIfields[,fields]\fR
+.RS 4
+Save the given fields\&. The fields must be fields of the "end" event given in the
+\fBSQL\-select\-command\fR
+.RE
+.PP
+\fB\-B\fR \fIinstance\fR
+.RS 4
+For simple statements that only produce a histogram, the instance given here will be where the histogram will be created\&. This is ignored for full synthetic event creation, as sythetic events have a global affect on all tracing instances, where as, histograms only affect a single instance\&.
+.RE
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Create the sqlhist executable:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+   man tracefs_sql | sed \-ne \*(Aq/^EXAMPLE/,/FILES/ { /EXAMPLE/d ; /FILES/d ; p}\*(Aq > sqlhist\&.c
+   gcc \-o sqlhist sqlhist\&.c `pkg\-config \-\-cflags \-\-libs libtracefs`
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+As described above, for testing purposes, make a copy of the event directory:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+   $ mkdir /tmp/tracing
+   $ sudo cp \-r /sys/kernel/tracing/events /tmp/tracing/
+   $ sudo chmod \-R 0644 /tmp/tracing/
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+For an example of simple histogram output using the copy of the tracefs directory\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+   $ \&./sqlhist \-t /tmp/tracing/ \*(AqSELECT CAST(call_site as SYM\-OFFSET), bytes_req, CAST(bytes_alloc AS _COUNTER_) FROM kmalloc\*(Aq
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Produces the output:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+   echo \*(Aqhist:keys=call_site\&.sym\-offset,bytes_req:vals=bytes_alloc\*(Aq > /sys/kernel/tracing/events/kmem/kmalloc/trigger
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Which could be used by root:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+   # echo \*(Aqhist:keys=call_site\&.sym\-offset,bytes_req:vals=bytes_alloc\*(Aq > /sys/kernel/tracing/events/kmem/kmalloc/trigger
+   # cat /sys/kernel/tracing/events/kmem/kmalloc/hist
+# event histogram
+#
+# trigger info: hist:keys=call_site\&.sym\-offset,bytes_req:vals=hitcount,bytes_alloc:sort=hitcount:size=2048 [active]
+#
+
+{ call_site: [ffffffff813f8d8a] load_elf_phdrs+0x4a/0xb0                               , bytes_req:        728 } hitcount:          1  bytes_alloc:       1024
+{ call_site: [ffffffffc0c69e74] nf_ct_ext_add+0xd4/0x1d0 [nf_conntrack]                , bytes_req:        128 } hitcount:          1  bytes_alloc:        128
+{ call_site: [ffffffff818355e6] dma_resv_get_fences+0xf6/0x440                         , bytes_req:          8 } hitcount:          1  bytes_alloc:          8
+{ call_site: [ffffffffc06dc73f] intel_gt_get_buffer_pool+0x15f/0x290 [i915]            , bytes_req:        424 } hitcount:          1  bytes_alloc:        512
+{ call_site: [ffffffff813f8d8a] load_elf_phdrs+0x4a/0xb0                               , bytes_req:        616 } hitcount:          1  bytes_alloc:       1024
+{ call_site: [ffffffff8161a44c] __sg_alloc_table+0x11c/0x180                           , bytes_req:         32 } hitcount:          1  bytes_alloc:         32
+{ call_site: [ffffffffc070749d] shmem_get_pages+0xad/0x5d0 [i915]                      , bytes_req:         16 } hitcount:          1  bytes_alloc:         16
+{ call_site: [ffffffffc07507f5] intel_framebuffer_create+0x25/0x60 [i915]              , bytes_req:        408 } hitcount:          1  bytes_alloc:        512
+{ call_site: [ffffffffc06fc20f] eb_parse+0x34f/0x910 [i915]                            , bytes_req:        408 } hitcount:          1  bytes_alloc:        512
+{ call_site: [ffffffffc0700ebd] i915_gem_object_get_pages_internal+0x5d/0x270 [i915]   , bytes_req:         16 } hitcount:          1  bytes_alloc:         16
+{ call_site: [ffffffffc0771188] intel_frontbuffer_get+0x38/0x220 [i915]                , bytes_req:        400 } hitcount:          1  bytes_alloc:        512
+{ call_site: [ffffffff8161a44c] __sg_alloc_table+0x11c/0x180                           , bytes_req:        128 } hitcount:          1  bytes_alloc:        128
+{ call_site: [ffffffff813f8f45] load_elf_binary+0x155/0x1680                           , bytes_req:         28 } hitcount:          1  bytes_alloc:         32
+{ call_site: [ffffffffc07038c8] __assign_mmap_offset+0x208/0x3d0 [i915]                , bytes_req:        288 } hitcount:          1  bytes_alloc:        512
+{ call_site: [ffffffff813737b2] alloc_bprm+0x32/0x2f0                                  , bytes_req:        416 } hitcount:          1  bytes_alloc:        512
+{ call_site: [ffffffff813f9027] load_elf_binary+0x237/0x1680                           , bytes_req:         64 } hitcount:          1  bytes_alloc:         64
+{ call_site: [ffffffff8161a44c] __sg_alloc_table+0x11c/0x180                           , bytes_req:         64 } hitcount:          1  bytes_alloc:         64
+{ call_site: [ffffffffc040ffe7] drm_vma_node_allow+0x27/0xe0 [drm]                     , bytes_req:         40 } hitcount:          2  bytes_alloc:        128
+{ call_site: [ffffffff813cda98] __do_sys_timerfd_create+0x58/0x1c0                     , bytes_req:        336 } hitcount:          2  bytes_alloc:       1024
+{ call_site: [ffffffff818355e6] dma_resv_get_fences+0xf6/0x440                         , bytes_req:         40 } hitcount:          2  bytes_alloc:        128
+{ call_site: [ffffffff8139b75a] single_open+0x2a/0xa0                                  , bytes_req:         32 } hitcount:          2  bytes_alloc:         64
+{ call_site: [ffffffff815df715] bio_kmalloc+0x25/0x80                                  , bytes_req:        136 } hitcount:          2  bytes_alloc:        384
+{ call_site: [ffffffffc071e5cd] i915_vma_work+0x1d/0x50 [i915]                         , bytes_req:        416 } hitcount:          3  bytes_alloc:       1536
+{ call_site: [ffffffff81390d0d] alloc_fdtable+0x4d/0x100                               , bytes_req:         56 } hitcount:          3  bytes_alloc:        192
+{ call_site: [ffffffffc06ff65f] i915_gem_do_execbuffer+0x158f/0x2440 [i915]            , bytes_req:         16 } hitcount:          4  bytes_alloc:         64
+{ call_site: [ffffffff8137713c] alloc_pipe_info+0x5c/0x230                             , bytes_req:        384 } hitcount:          5  bytes_alloc:       2560
+{ call_site: [ffffffff813771b4] alloc_pipe_info+0xd4/0x230                             , bytes_req:        640 } hitcount:          5  bytes_alloc:       5120
+{ call_site: [ffffffff81834cdb] dma_resv_list_alloc+0x1b/0x40                          , bytes_req:         40 } hitcount:          6  bytes_alloc:        384
+{ call_site: [ffffffff81834cdb] dma_resv_list_alloc+0x1b/0x40                          , bytes_req:         56 } hitcount:          9  bytes_alloc:        576
+{ call_site: [ffffffff8120086e] tracing_map_sort_entries+0x9e/0x3e0                    , bytes_req:         24 } hitcount:         60  bytes_alloc:       1920
+
+Totals:
+    Hits: 122
+    Entries: 30
+    Dropped: 0
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Note, although the examples use uppercase for the SQL keywords, they do not have to be\&. \fISELECT\fR could also be \fIselect\fR or even \fIsElEcT\fR\&.
+.sp
+By using the full SQL language, synthetic events can be made and processed\&. For example, using \fBsqlhist\fR along with \fBtrace\-cmd\fR(1), wake up latency can be recorded by creating a synthetic event by attaching the \fIsched_waking\fR and the \fIsched_switch\fR events\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+  # sqlhist \-n wakeup_lat \-e \-T \-m lat \*(AqSELECT end\&.next_comm AS comm, (end\&.TIMESTAMP_USECS \- start\&.TIMESTAMP_USECS) AS lat FROM \*(Aq \e
+    \*(Aqsched_waking AS start JOIN sched_switch AS end ON start\&.pid = end\&.next_pid WHERE end\&.next_prio < 100 && end\&.next_comm == "cyclictest"\*(Aq
+  # trace\-cmd start \-e all \-e wakeup_lat \-R stacktrace
+  # cyclictest \-l 1000 \-p80 \-i250  \-a \-t \-q \-m \-d 0 \-b 1000 \-\-tracemark
+  # trace\-cmd show \-s | tail \-30
+          <idle>\-0       [002] dNh4 23454\&.902246: sched_wakeup: comm=cyclictest pid=12272 prio=120 target_cpu=002
+          <idle>\-0       [005] \&.\&.\&.1 23454\&.902246: cpu_idle: state=4294967295 cpu_id=5
+          <idle>\-0       [007] d\&.\&.1 23454\&.902246: cpu_idle: state=0 cpu_id=7
+          <idle>\-0       [002] dNh1 23454\&.902247: hrtimer_expire_exit: hrtimer=0000000037956dc2
+          <idle>\-0       [005] d\&.\&.1 23454\&.902248: cpu_idle: state=0 cpu_id=5
+          <idle>\-0       [002] dNh1 23454\&.902248: write_msr: 6e0, value 4866ce957272
+          <idle>\-0       [006] \&.\&.\&.1 23454\&.902248: cpu_idle: state=4294967295 cpu_id=6
+          <idle>\-0       [002] dNh1 23454\&.902249: local_timer_exit: vector=236
+          <idle>\-0       [006] d\&.\&.1 23454\&.902250: cpu_idle: state=0 cpu_id=6
+          <idle>\-0       [002] \&.N\&.1 23454\&.902250: cpu_idle: state=4294967295 cpu_id=2
+          <idle>\-0       [002] dN\&.1 23454\&.902251: rcu_utilization: Start context switch
+          <idle>\-0       [002] dN\&.1 23454\&.902252: rcu_utilization: End context switch
+          <idle>\-0       [001] \&.\&.\&.1 23454\&.902252: cpu_idle: state=4294967295 cpu_id=1
+          <idle>\-0       [002] dN\&.3 23454\&.902253: prandom_u32: ret=3692516021
+          <idle>\-0       [001] d\&.\&.1 23454\&.902254: cpu_idle: state=0 cpu_id=1
+          <idle>\-0       [002] d\&.\&.2 23454\&.902254: sched_switch: prev_comm=swapper/2 prev_pid=0 prev_prio=120 prev_state=R ==> next_comm=cyclictest next_pid=12275 next_prio=19
+          <idle>\-0       [002] d\&.\&.4 23454\&.902256: wakeup_lat: next_comm=cyclictest lat=17
+          <idle>\-0       [002] d\&.\&.5 23454\&.902258: <stack trace>
+ => trace_event_raw_event_synth
+ => action_trace
+ => event_hist_trigger
+ => event_triggers_call
+ => trace_event_buffer_commit
+ => trace_event_raw_event_sched_switch
+ => __traceiter_sched_switch
+ => __schedule
+ => schedule_idle
+ => do_idle
+ => cpu_startup_entry
+ => secondary_startup_64_no_verify
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Here\(cqs the options for \fBsqlhist\fR explained:
+.PP
+\fB\-n wakeup_lat\fR
+.RS 4
+Name the synthetic event to use
+\fBwakeup_lat\fR\&.
+.RE
+.PP
+\fB\-e\fR
+.RS 4
+Execute the commands that are printed\&.
+.RE
+.PP
+\fB\-T\fR
+.RS 4
+Perform both a trace action and then a snapshot action (swap the buffer into the static
+\fIsnapshot\fR
+buffer)\&.
+.RE
+.PP
+\fB\-m lat\fR
+.RS 4
+Trigger the actions whenever
+\fIlat\fR
+hits a new maximum value\&.
+.RE
+.sp
+Now a breakdown of the SQL statement:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ \*(AqSELECT end\&.next_comm AS comm, (end\&.TIMESTAMP_USECS \- start\&.TIMESTAMP_USECS) AS lat FROM \*(Aq \e
+    \*(Aqsched_waking AS start JOIN sched_switch AS end ON start\&.pid = end\&.next_pid WHERE end\&.next_prio < 100 && end\&.next_comm == "cyclictest"\*(Aq
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBend\&.next_comm AS comm\fR
+.RS 4
+Save the
+\fIsched_switch\fR
+field
+\fBnext_comm\fR
+and place it into the
+\fBcomm\fR
+field of the
+\fIwakeup_lat\fR
+synthetic event\&.
+.RE
+.PP
+\fB(end\&.TIMESTAMP_USECS \- start\&.TIMESTAMP_USECS) AS lat\fR
+.RS 4
+Take the delta of the time stamps from the
+\fIsched_switch\fR
+event and the
+\fIsched_waking\fR
+event\&. As time stamps are usually recorded in nanoseconds,
+\fBTIMESTAMP\fR
+would give the full nanosecond time stamp, but here, the
+\fBTIMESTAMP_USECS\fR
+will truncate it into microseconds\&. The value is saved in the variable
+\fBlat\fR, which will also be recorded in the synthetic event\&.
+.RE
+.PP
+\fBFROM \fR\fB\fIsched_waking\fR\fR\fB AS start JOIN sched_switch AS end ON start\&.pid = end\&.next_pid\fR
+.RS 4
+Create the synthetic event by joining
+\fIsched_waking\fR
+to
+\fIsched_switch\fR, matching the
+\fIsched_waking\fR
+\fIpid\fR
+field with the
+\fIsched_switch\fR
+\fInext_pid\fR
+field\&. Also make
+\fBstart\fR
+an alias for
+\fIsched_waking\fR
+and
+\fBend\fR
+an alias for
+\fIsched_switch\fR
+which then an use
+\fBstart\fR
+and
+\fBend\fR
+as a subsitute for
+\fIsched_waking\fR
+and
+\fIsched_switch\fR
+respectively through out the rest of the SQL statement\&.
+.RE
+.PP
+\fBWHERE end\&.next_prio < 100 && end\&.next_comm == "cyclictest"\fR
+.RS 4
+Filter the logic where it executes only if
+\fIsched_waking\fR
+\fInext_prio\fR
+field is less than 100\&. (Note, in the Kernel, priorities are inverse, and the real\-time priorities are represented from 0\-100 where 0 is the highest priority)\&. Also only trace when the
+\fInext_comm\fR
+(the task scheduling in) of the
+\fIsched_switch\fR
+event has the name "cyclictest"\&.
+.RE
+.sp
+For the \fBtrace\-cmd\fR(3) command:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+   trace\-cmd start \-e all \-e wakeup_lat \-R stacktrace
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBtrace\-cmd start\fR
+.RS 4
+Enables tracing (does not record to a file)\&.
+.RE
+.PP
+\fB\-e all\fR
+.RS 4
+Enable all events
+.RE
+.PP
+\fB\-e wakeup_lat \-R stacktrace\fR
+.RS 4
+have the "wakeup_lat" event (our synthetic event) enable the
+\fBstacktrace\fR
+trigger, were for every instance of the "wakeup_lat" event, a kernel stack trace will be recorded in the ring buffer\&.
+.RE
+.sp
+After calling \fBcyclictest\fR (a real\-time tool to measure wakeup latency), read the snapshot buffer\&.
+.PP
+\fBtrace\-cmd show \-s\fR
+.RS 4
+\fBtrace\-cmd show\fR
+reads the kernel ring buffer, and the
+\fB\-s\fR
+option will read the
+\fBsnapshot\fR
+buffer instead of the normal one\&.
+.RE
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ <idle>\-0       [002] d\&.\&.4 23454\&.902256: wakeup_lat: next_comm=cyclictest lat=17
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+We see on the "wakeup_lat" event happened on CPU 2, with a wake up latency 17 microseconds\&.
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This can be extracted into a \fBtrace\&.dat\fR file that \fBtrace\-cmd\fR(3) can read and do further analysis, as well as \fBkernelshark\fR\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    # trace\-cmd extract \-s
+    # trace\-cmd report \-\-cpu 2 | tail \-30
+          <idle>\-0     [002] 23454\&.902238: prandom_u32:          ret=1633425088
+          <idle>\-0     [002] 23454\&.902239: sched_wakeup:         cyclictest:12275 [19] CPU:002
+          <idle>\-0     [002] 23454\&.902241: hrtimer_expire_exit:  hrtimer=0xffffbbd68286fe60
+          <idle>\-0     [002] 23454\&.902241: hrtimer_cancel:       hrtimer=0xffffbbd6826efe70
+          <idle>\-0     [002] 23454\&.902242: hrtimer_expire_entry: hrtimer=0xffffbbd6826efe70 now=23455294430750 function=hrtimer_wakeup/0x0
+          <idle>\-0     [002] 23454\&.902243: sched_waking:         comm=cyclictest pid=12272 prio=120 target_cpu=002
+          <idle>\-0     [002] 23454\&.902244: prandom_u32:          ret=1102749734
+          <idle>\-0     [002] 23454\&.902246: sched_wakeup:         cyclictest:12272 [120] CPU:002
+          <idle>\-0     [002] 23454\&.902247: hrtimer_expire_exit:  hrtimer=0xffffbbd6826efe70
+          <idle>\-0     [002] 23454\&.902248: write_msr:            6e0, value 4866ce957272
+          <idle>\-0     [002] 23454\&.902249: local_timer_exit:     vector=236
+          <idle>\-0     [002] 23454\&.902250: cpu_idle:             state=4294967295 cpu_id=2
+          <idle>\-0     [002] 23454\&.902251: rcu_utilization:      Start context switch
+          <idle>\-0     [002] 23454\&.902252: rcu_utilization:      End context switch
+          <idle>\-0     [002] 23454\&.902253: prandom_u32:          ret=3692516021
+          <idle>\-0     [002] 23454\&.902254: sched_switch:         swapper/2:0 [120] R ==> cyclictest:12275 [19]
+          <idle>\-0     [002] 23454\&.902256: wakeup_lat:           next_comm=cyclictest lat=17
+          <idle>\-0     [002] 23454\&.902258: kernel_stack:         <stack trace >
+=> trace_event_raw_event_synth (ffffffff8121a0db)
+=> action_trace (ffffffff8121e9fb)
+=> event_hist_trigger (ffffffff8121ca8d)
+=> event_triggers_call (ffffffff81216c72)
+=> trace_event_buffer_commit (ffffffff811f7618)
+=> trace_event_raw_event_sched_switch (ffffffff8110fda4)
+=> __traceiter_sched_switch (ffffffff8110d449)
+=> __schedule (ffffffff81c02002)
+=> schedule_idle (ffffffff81c02c86)
+=> do_idle (ffffffff8111e898)
+=> cpu_startup_entry (ffffffff8111eba9)
+=> secondary_startup_64_no_verify (ffffffff81000107)
+.fi
+.if n \{\
+.RE
+.\}
+.SH "اشکالات (BUGS)"
+.sp
+As \fBsqlhist\fR is just example code from a man page, it is guaranteed to contain lots of bugs\&. For one thing, not all error paths are covered properly\&.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+trace\-cmd(1), tracefs_sql(3)
+.SH "نویسنده (AUTHOR)"
+.sp
+Written by Steven Rostedt, <\m[blue]\fBrostedt@goodmis\&.org\fR\m[]\&\s-2\u[1]\d\s+2>
+.SH "RESOURCES"
+.sp
+\m[blue]\fBhttps://git\&.kernel\&.org/pub/scm/utils/trace\-cmd/trace\-cmd\&.git/\fR\m[]
+.SH "کپی‌رایت و تکثیر (COPYING)"
+.sp
+Copyright (C) 2021 , Inc\&. Free use of this software is granted under the terms of the GNU Public License (GPL)\&.
+.SH "نکات (NOTES)"
+.IP " 1." 4
+rostedt@goodmis.org
+.RS 4
+\%mailto:rostedt@goodmis.org
+.RE

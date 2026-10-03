@@ -1,0 +1,187 @@
+.TH GVHDL "1" "December 2005" "Debian/GNU Linux" "User Commands"
+.SH "نام (NAME)"
+gvhdl \- Frontend to the VHDL compiler/simulator FreeHDL.
+.SH "خلاصه دستور (SYNOPSIS)"
+.B gvhdl
+[\fIOPTION\fR] ... [\fIVHDL_FILES\fR] ... [\fIOBJECT_FILES\fR] ...
+.SH "توضیحات (DESCRIPTION)"
+
+\fBFreeHDL\fR is a compiler/simulator suite for the hardware
+description language VHDL.  VHDL'93 as well as VHDL'87 standards are
+supported. 
+
+\fBFreeHDL\fR translates the original VHDL source FILEs into
+C++. Then, the C++ source can be compiled and linked to the kernel to
+build the simulation program. Starting the generated executable will
+simulate the corresponding VHDL model. The actual build process to
+generate the simulator from the VHDL source is a complex process which
+is handled by the \fBgvhdl\fR script.
+
+\fIVHDL_FILES\fR is a list of VHDL source file names that must end
+with .vhdl or .vhd. The first VHDL file name also determines the name
+of the simulator executable. This is, the final executable will be
+named after the first VHDL file without the .vhdl or .vhd
+extension. Note that the object files as well as the simulator will be
+created in the current directory.
+
+\fIOBJECT_FILES\fR specifies a list of object files that are linked to
+the simulator executable. \fBgvhdl\fR considers all files that end
+with .o to be object files. Typically, these object files are
+generated previously (using option -c) from VHDL source code during a
+separate compilation step.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB\-L\fR VHDLLIB
+Path to VHDL library root directory.  Within this directory the
+compiler search for a file named \fIv2cc.libs\fR.  The mapping file
+\fIv2cc.libs\fR translates library unit names to directories.  Note
+that more than one VHDLLIB may be provided.
+.TP
+\fB\-g\fR 
+Adds debug information to the executable. In detail, this
+options associates the generated machine code to the corresponding
+lines in the VHDL source files.
+.TP
+\fB\-G\fR 
+Adds debug information to the executable but does not
+associate machine code to VHDL source lines. This option is actually
+used to debug the generated C++ code.
+.TP
+\fB\-c\fR 
+Do not generate simulator executable. Using this option, the compiler
+translated VHDL source into executables and compiles them into object
+code but does not generate a final simulator executable. This option
+is especially useful to compile VHDL packages.
+.TP
+\fB\-l\fR LIBNAME
+Associate the VHDL source code to VHDL library LIBNAME. As default
+the library name WORK is used. This option is especially important if
+VHDL components from several VHDL libraries shall be build into the
+simulator. Note that in order to successfully use a VHDL component
+from another than the current working library, the corresponding VHDL
+files must be found by the compiler using the mechanisms described in
+v2cc.libs. Further, components must be compiled with the appropriate
+-l LIBNAME option.
+.TP
+\fB\--relaxed-component-visibility\fR
+Allows invisible default bindings from \fIWORK\fR.
+.TP
+\fB\--libieee\fR
+Add the IEEE standard library files to the simulation executable. 
+.TP
+.SH "ENVIRONMENT VARIABLES"
+.TP
+V2CC_LIBRARY_PATH
+The variable V2CC_LIBRARY_PATH consists of ":" separated filenames.
+In addition to the environment variable, you can use the "-L libdir"
+command line option with v2cc.  The directories specified with "-L"
+are added in front of the ones specified by V2CC_LIBRARY_PATH.  In the
+final library path, they appear in the same order as on the command
+line.
+.SH SUPPORTED VHDL SUBSET
+Currently, FreeHDL does not support the entire VHDL'93 standard. The
+following incomplete list gives an overview on what is currently not
+supported:
+
+- Individual association of formals of composite type are not
+supported.
+
+- Shared variables are not supported.
+
+- Attributes transaction, quiet, stable and delayed are not supported.
+
+- User defined attributes are not supported.
+
+- Groups are not supported.
+
+- Guarded signal assignments are not supported.
+
+- Configurations are not supported.
+
+- Currently, drivers cannot be switched off.
+.SH "مثال‌ها (EXAMPLES)"
+Use 
+
+    gvhdl -c adder.vhdl
+
+to build an object file for adder.vhdl. Note that adder.vhdl may
+contain several VHDL models.
+
+    gvhdl adder.vhdl
+
+will generate a simulator for the \fBlast\fR VHDL model found in
+adder.vhdl. However, in this case, all VHDL components that area
+required to build the simulator must be included in the VHDL source
+file.
+
+    gvhdl top.vhdl adder.o --libieee
+
+generates a simulator for the \fRlast\fR VHDL model found in top.vhdl by
+compiling all models in top.vhdl and linking (the previously
+generated) adder.o object file and the IEEE standard libraries to the
+executable.
+
+    gvhdl -c -l mylib adder.vhdl
+
+will build an object file including all components provided in
+adder.vhdl. However, in this case the components will be associated
+with library mylib instead of the default library name work. Note that
+option -l does only effect the generated C++ source code but does not
+alter the place where the object files or executables are stored.
+.SH SIMULATION COMMANDS
+After the simulator has been started a short summary of the available
+commands is printed to the screen:
+
+  c <number> : execute cycles = execute <number> simulation cycles
+  n          : next = execute next simulation cycle
+  q          : quit = quit simulation
+  r <time>   : run = execute simulation for <time>
+  d          : dump = dump signals
+  doff       : dump off = stop dumping signals
+  don        : dump on = continue dumping signals
+  s          : show = show signal values
+  dv         : dump var  = dump a signal from the signal lists
+  ds         : dump show  = shows the list of dumped signals
+  nds        : number  show  = shows the number  of dumped signals
+  dc [-f <filename>] [-t <timescale> <time unit>] [-cfg <translation file>] [-q]
+                : configures dump process 
+
+Note that signals are dumped into a file (default file name is
+"wave.dmp") in VCD format. This file format should be accepted by each
+VCD waveform viewer. The file name is set to "wave.dmp" but may be
+changed using "dc -f <new_file_name>". However, make sure to execute 
+"dc -f ..." before executing "d".
+.SH SIMULATOR COMMAND LINE OPTIONS 
+Simulation can be controlled via the command line parameter '-cmd
+"cmd1; cmd2; ..."' where 'cmd1', 'cmd2', ... are simulation commands
+as described in the previous section. Note that each command must be
+separated by ';'. E.g., executing
+
+   ./top -cmd "d;run 1000 ns;q;"
+
+will start simulation program 'top', dump all signals and run simulation
+for 1000 ns. Finally, simulation is terminated. Actually, the last
+command 'q;' is optional as the simulator automatically terminates as
+soon as the last command has been executed.
+.SH "همچنین ببینید (SEE ALSO)"
+freehdl-v2cc(1), freehdl-config(1), v2cc.libs(5)
+.SH AVAILABILITY
+The latest version of FreeHDL can always be obtained from
+\fBwww.freehdl.seul.org\fR
+.SH "گزارش باگ‌ها (REPORTING BUGS)"
+Known bugs are documented within the BUGS file.  If your report
+addresses a parser related topic then contact Marius Vollmer
+<mvo@zagadka.ping.de>.  If it is related to the code generator or
+compiler then send an email to Edwin Naroska
+<edwin@ds.e-technik.uni-dortmund.de>.  If your are not sure send it to
+Edwin.  He will take care of forwarding your report to the appropriate
+recipient.
+.SH "حق نشر (COPYRIGHT)"
+Edwin Naroska \(co 1999, 2000, 2001, 2002, 2003, 2004, 2005
+<edwin@ds.e-technik.uni-dortmund.de>
+.PP
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+.SH "نویسندگان (AUTHORS)"
+Written by Marius Vollmer <mvo@zagadka.ping.de> and Edwin Naroska
+<edwin@ds.e-technik.uni-dortmund.de>.

@@ -1,0 +1,270 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "VINYLTEST" "1" "" ""
+.SH "نام (NAME)"
+vinyltest \- Test program for Vinyl Cache
+.\" Copyright (c) 2010-2020 Varnish Software AS
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" See LICENSE file for full text of license
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+vinyltest [\-hikLlqv] [\-b size] [\-D name=val] [\-j jobs] [\-n iter] [\-t duration] file [file ...]
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The \fIvinyltest\fP program is a script driven program used to test the
+Vinyl Cache.
+.sp
+The \fIvinyltest\fP program, when started and given one or more script
+files, can create a number of threads representing backends, some
+threads representing clients, and a \fIvinyld\fP process. This is then used to
+simulate a transaction to provoke a specific behavior.
+.sp
+The following options are available:
+.INDENT 0.0
+.TP
+.BI \-b \ size
+Set internal buffer size (default: 1M)
+.UNINDENT
+.sp
+\-D name=val      Define macro for use in scripts
+.INDENT 0.0
+.TP
+.B  \-h
+Show help
+.TP
+.B  \-i
+Set PATH and vmod_path to find Vinyl Cache binaries in build tree
+.TP
+.BI \-j \ jobs
+Run this many tests in parallel
+.TP
+.B  \-k
+Continue on test failure
+.TP
+.B  \-L
+Always leave temporary vtc.*
+.TP
+.B  \-l
+Leave temporary vtc.* if test fails
+.TP
+.BI \-n \ iterations
+Run tests this many times
+.UNINDENT
+.sp
+\-p name=val      Pass parameters to all \fIvinyld\fP command lines
+.INDENT 0.0
+.TP
+.B  \-q
+Quiet mode: report only failures
+.TP
+.BI \-t \ duration
+Time tests out after this long (default: 60s)
+.TP
+.B  \-v
+Verbose mode: always report test log
+.UNINDENT
+.sp
+file             File to use as a script
+.sp
+If \fITMPDIR\fP is set in the environment, \fIvinyltest\fP creates temporary
+\fIvtc.*\fP directories for each test in \fI$TMPDIR\fP, otherwise in \fI/tmp\fP\&.
+.SH SCRIPTS
+.sp
+The vtc syntax is documented at length in \fIvtc(7)\fP\&. Should you want more
+examples than the one below, you can have a look at the Vinyl Cache source code
+repository, under \fIbin/vinyltest/tests/\fP, where all the regression tests for
+Vinyl Cache are kept.
+.sp
+An example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+vinyltest \(dq#1029\(dq
+
+server s1 {
+        rxreq
+        expect req.url == \(dq/bar\(dq
+        txresp \-gzipbody {[bar]}
+
+        rxreq
+        expect req.url == \(dq/foo\(dq
+        txresp \-body {<h1>FOO<esi:include src=\(dq/bar\(dq/>BARF</h1>}
+
+} \-start
+
+vinyl v1 \-vcl+backend {
+        sub vcl_backend_response {
+                set beresp.do_esi = true;
+                if (bereq.url == \(dq/foo\(dq) {
+                        set beresp.ttl = 0s;
+                } else {
+                        set beresp.ttl = 10m;
+                }
+        }
+} \-start
+
+client c1 {
+        txreq \-url \(dq/bar\(dq \-hdr \(dqAccept\-Encoding: gzip\(dq
+        rxresp
+        gunzip
+        expect resp.bodylen == 5
+
+        txreq \-url \(dq/foo\(dq \-hdr \(dqAccept\-Encoding: gzip\(dq
+        rxresp
+        expect resp.bodylen == 21
+} \-run
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When run, the above script will simulate a server (s1) that expects
+two different requests. It will start a \fIvinyld\fP (v1) and add the
+backend definition to the VCL specified (\-vcl+backend). Finally it starts
+the c1\-client, which is a single client sending two requests.
+.SH TESTING A BUILD TREE
+.sp
+Whether you are building a VMOD or trying to use one that you freshly
+built, you can tell \fBvinyltest\fP to pass a \fIvmod_path\fP to \fBvinyld\fP
+instances started using the \fBvinyl \-start\fP command in your test case:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+vinyltest \-p vmod_path=... /path/to/*.vtc
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This way you can use the same test cases on both installed and built
+VMODs:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+server s1 {...} \-start
+
+vinyl v1 \-vcl+backend {
+    import wossname;
+
+    ...
+} \-start
+
+\&...
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You are not limited to the \fIvmod_path\fP and can pass any parameter,
+allowing you to run a build matrix without changing the test suite. You
+can achieve the same with macros, but then they need to be defined on
+each run.
+.sp
+You can see the actual \fBvinyld\fP command lines in test outputs,
+they look roughly like this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+exec vinyld [vinyltest \-p params] [testing params] [vtc \-arg params]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Parameters you define with \fBvinyltest \-p\fP may be overridden by
+parameters needed by \fBvinyltest\fP to run properly, and they may in
+turn be overridden by parameters set in test scripts.
+.sp
+There\(aqs also a special mode in which \fBvinyltest\fP builds itself a
+PATH and a \fIvmod_path\fP in order to find Vinyl Cache binaries (programs and
+VMODs) in the build tree surrounding the \fBvinyltest\fP binary. This
+is meant for testing of Vinyl Cache under development and will disregard
+your \fIvmod_path\fP if you set one.
+.sp
+If you need to test your VMOD against a Vinyl Cache build tree, you must
+install it first, in a temp directory for instance. With information
+provided by the installation\(aqs \fIpkg\-config(1)\fP you can build a proper
+PATH in order to access Vinyl programs, and a \fIvmod_path\fP to access
+both your VMOD and the built\-in VMODs:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+export PKG_CONFIG_PATH=/path/to/install/lib/pkgconfig
+
+BINDIR=\(dq$(pkg\-config \-\-variable=bindir vinylapi)\(dq
+SBINDIR=\(dq$(pkg\-config \-\-variable=sbindir vinylapi)\(dq
+PATH=\(dqSBINDIR:BINDIR:$PATH\(dq
+
+VMODDIR=\(dq$(pkg\-config \-\-variable=vmoddir vinylapi)\(dq
+VMOD_PATH=\(dq/path/to/your/vmod/build/dir:$VMODDIR\(dq
+
+vinyltest \-p vmod_path=\(dq$VMOD_PATH\(dq ...
+.EE
+.UNINDENT
+.UNINDENT
+.SH "همچنین ببینید (SEE ALSO)"
+.INDENT 0.0
+.IP \(bu 2
+vinyltest source code repository with tests
+.IP \(bu 2
+\fIvinylhist(1)\fP
+.IP \(bu 2
+\fIvinyllog(1)\fP
+.IP \(bu 2
+\fIvinylncsa(1)\fP
+.IP \(bu 2
+\fIvinylstat(1)\fP
+.IP \(bu 2
+\fIvinyltop(1)\fP
+.IP \(bu 2
+\fIvcl(7)\fP
+.IP \(bu 2
+\fIvtc(7)\fP
+.IP \(bu 2
+\fIvmod_vtc(3)\fP
+.UNINDENT
+.SH "تاریخچه (HISTORY)"
+.sp
+The vinyltest program was developed by Poul\-Henning Kamp
+< <phk@phk.freebsd.dk> > in cooperation with Redpill\-Linpro.  This manual
+page was originally written by Stig Sandbeck Mathisen < <ssm@linpro.no> >
+and updated by Kristian Lyngstøl < <kristian@varnish\-cache.org> >.
+.SH "حق نشر (COPYRIGHT)"
+.sp
+This document is licensed under the same licence as Vinyl Cache
+itself. See LICENCE for details.
+.INDENT 0.0
+.IP \(bu 2
+Copyright (c) 2007\-2016 Varnish Software AS
+.UNINDENT
+.\" Generated by docutils manpage writer.
+.

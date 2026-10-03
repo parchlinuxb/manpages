@@ -1,0 +1,655 @@
+'\" t
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "GDAL-PIPELINE" "1" "Aug 18, 2026" "" "GDAL"
+.SH "نام (NAME)"
+gdal-pipeline \- Process a dataset applying several steps
+.sp
+Added in version 3.12.
+
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgdal pipeline\fP execute a pipeline, taking a raster or input dataset,
+execute steps and finally writing a raster or vector dataset.
+.sp
+Most steps proceed in on\-demand evaluation of raster blocks or features,
+unless otherwise stated in their documentation, without \(dqmaterializing\(dq the
+resulting dataset of the operation of each step. It may be desirable sometimes
+for performance purposes to proceed to materializing an intermediate dataset
+to disk using \fI\%gdal raster materialize\fP or \fI\%gdal vector materialize\fP\&.
+.SH "خلاصه دستور (SYNOPSIS)"
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Usage: gdal pipeline [OPTIONS] <PIPELINE>
+
+Process a dataset applying several steps.
+
+Positional arguments:
+
+Common Options:
+  \-h, \-\-help                        Display help message and exit
+  \-\-json\-usage                      Display usage as JSON document and exit
+  \-\-config <KEY>=<VALUE>            Configuration option [may be repeated]
+  \-q, \-\-quiet                       Quiet mode (no progress bar or warning message) [not available in pipelines]
+
+Advanced Options:
+  \-\-<user\-provided\-option>=<value>  Argument provided by user
+
+<PIPELINE> is of the form: read|calc|concat|create|mosaic|stack [READ\-OPTIONS] ( ! <STEP\-NAME> [STEP\-OPTIONS] )* ! write!info!tile [WRITE\-OPTIONS]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A pipeline chains several steps, separated with the \fB!\fP (exclamation mark) character.
+Including a \fB!\fP between \fBgdal pipeline\fP and the first step is optional.
+The first step must be \fBread\fP, \fBcalc\fP, \fBconcat\fP, \fBmosaic\fP or \fBstack\fP,
+and the last one \fBinfo\fP, \fBtile\fP or \fBwrite\fP\&.
+Each step has its own positional or non\-positional arguments.
+Apart from \fBread\fP, \fBcalc\fP, \fBconcat\fP, \fBmosaic\fP, \fBstack\fP, \fBinfo\fP, \fBtile\fP, \fBpartition\fP and \fBwrite\fP,
+all other steps can potentially be used several times in a pipeline.
+.SS Example 1: Compute the footprint of a raster and apply a buffer on the footprint
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline ! read in.tif ! footprint ! buffer 20 ! write out.gpkg \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+.SH STEPS
+.sp
+For steps that have both \fIraster\fP data type as input and output, consult \fI\%gdal raster pipeline\fP\&.
+For steps that have both \fIvector\fP data type as input and output, consult \fI\%gdal vector pipeline\fP\&.
+.sp
+The table below lists steps that convert between raster and vector data.
+.TS
+box center;
+l|l.
+T{
+Step
+T}	T{
+Direction
+T}
+_
+T{
+\fI\%contour\fP
+T}	T{
+Raster → Vector
+T}
+_
+T{
+\fI\%footprint\fP
+T}	T{
+Raster → Vector
+T}
+_
+T{
+\fI\%pixel\-info\fP
+T}	T{
+Raster → Vector
+T}
+_
+T{
+\fI\%polygonize\fP
+T}	T{
+Raster → Vector
+T}
+_
+T{
+\fI\%grid\fP
+T}	T{
+Vector → Raster
+T}
+_
+T{
+\fI\%rasterize\fP
+T}	T{
+Vector → Raster
+T}
+_
+T{
+\fI\%tee\fP
+T}	T{
+Vector → Raster
+T}
+.TE
+.SS contour
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+* contour [OPTIONS]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+Creates a vector contour from a raster elevation model (DEM).
+
+Options:
+  \-\-output\-layer <OUTPUT\-LAYER>              Output layer name
+  \-b, \-\-band <BAND>                          Input band (1\-based index) (default: 1)
+  \-\-elevation\-name <ELEVATION\-NAME>          Name of the elevation field
+  \-\-min\-name <MIN\-NAME>                      Name of the minimum elevation field
+  \-\-max\-name <MAX\-NAME>                      Name of the maximum elevation field
+  \-\-3d                                       Force production of 3D vectors instead of 2D
+  \-\-input\-nodata <INPUT\-NODATA>              Input pixel value to treat as \(aqnodata\(aq
+  \-\-interval <INTERVAL>                      Elevation interval between contours
+                                             Mutually exclusive with \-\-levels, \-\-exp\-base
+  \-\-levels <LEVELS>                          List of contour levels [may be repeated]
+                                             Mutually exclusive with \-\-interval, \-\-exp\-base
+  \-e, \-\-exp\-base <EXP\-BASE>                  Base for exponential contour level generation
+                                             Mutually exclusive with \-\-interval, \-\-levels
+  \-\-off, \-\-offset <OFFSET>                   Offset to apply to contour levels
+  \-p, \-\-polygonize                           Create polygons instead of lines
+  \-\-group\-transactions <GROUP\-TRANSACTIONS>  Group n features per transaction (default 100 000)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Details for options can be found in \fI\%gdal raster contour\fP\&.
+.SS footprint
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+* footprint [OPTIONS]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+Compute the footprint of a raster dataset.
+
+Options:
+  \-\-output\-layer <OUTPUT\-LAYER>              Output layer name (default: footprint)
+  \-b, \-\-band <BAND>                          Input band(s) (1\-based index) [may be repeated]
+  \-\-combine\-bands <COMBINE\-BANDS>            Defines how the mask bands of the selected bands are combined to generate a single mask band, before being vectorized.. COMBINE\-BANDS=union|intersection (default: union)
+  \-\-overview <OVERVIEW>                      Which overview level of source file must be used
+                                             Mutually exclusive with \-\-input\-nodata
+  \-\-input\-nodata <INPUT\-NODATA>              Set nodata values for input bands. [1.. values]
+                                             Mutually exclusive with \-\-overview
+  \-\-coordinate\-system <COORDINATE\-SYSTEM>    Target coordinate system. COORDINATE\-SYSTEM=georeferenced|pixel
+  \-\-output\-crs <OUTPUT\-CRS>                  Output CRS
+  \-\-split\-multipolygons                      Whether to split multipolygons as several features each with one single polygon
+  \-\-convex\-hull                              Whether to compute the convex hull of the footprint
+  \-\-densify\-distance <DENSIFY\-DISTANCE>      Maximum distance between 2 consecutive points of the output geometry.
+  \-\-simplify\-tolerance <SIMPLIFY\-TOLERANCE>  Tolerance used to merge consecutive points of the output geometry.
+  \-\-min\-ring\-area <MIN\-RING\-AREA>            Minimum value for the area of a ring
+  \-\-max\-points <MAX\-POINTS>                  Maximum number of points of each output geometry (default: 100)
+  \-\-location\-field <LOCATION\-FIELD>          Name of the field where the path of the input dataset will be stored. (default: location)
+                                             Mutually exclusive with \-\-no\-location\-field
+  \-\-no\-location\-field                        Disable creating a field with the path of the input dataset
+                                             Mutually exclusive with \-\-location\-field
+  \-\-absolute\-path                            Whether the path to the input dataset should be stored as an absolute path
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Details for options can be found in \fI\%gdal raster footprint\fP\&.
+.SS grid
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+* grid <COMMAND> [OPTIONS]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+where <COMMAND> is one of:
+  \- average:                 Create a regular grid from scattered points using moving average interpolation.
+  \- average\-distance:        Create a regular grid from scattered points using the average distance between the grid node (center of the search ellipse) and all of the data points in the search ellipse.
+  \- average\-distance\-points: Create a regular grid from scattered points using the average distance between the data points in the search ellipse.
+  \- count:                   Create a regular grid from scattered points using the number of points in the search ellipse.
+  \- invdist:                 Create a regular grid from scattered points using weighted inverse distance interpolation.
+  \- invdistnn:               Create a regular grid from scattered points using weighted inverse distance interpolation nearest neighbour.
+  \- linear:                  Create a regular grid from scattered points using linear/barycentric interpolation.
+  \- maximum:                 Create a regular grid from scattered points using the maximum value in the search ellipse.
+  \- minimum:                 Create a regular grid from scattered points using the minimum value in the search ellipse.
+  \- nearest:                 Create a regular grid from scattered points using nearest neighbor interpolation.
+  \- range:                   Create a regular grid from scattered points using the difference between the minimum and maximum values in the search ellipse.
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Details for options can be found in \fI\%gdal vector grid\fP\&.
+.SS pixel\-info
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+* pixel\-info [OPTIONS] <INPUT> [<POSITION\-DATASET>]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+Return information on a pixel of a raster dataset.
+
+Positional arguments:
+  \-i, \-\-dataset, \-\-input <INPUT>                Input raster datasets [required]
+  \-\-position\-dataset <POSITION\-DATASET>         Vector dataset with coordinates
+                                                Mutually exclusive with \-\-position
+
+Options:
+  \-l, \-\-layer, \-\-input\-layer <INPUT\-LAYER>      Input layer name
+  \-b, \-\-band <BAND>                             Input band(s) (1\-based index) [may be repeated]
+  \-\-overview <OVERVIEW>                         Which overview level of source file must be used
+  \-p, \-\-pos, \-\-position <column,line> or <X,Y>  Pixel position [may be repeated]
+                                                Mutually exclusive with \-\-position\-dataset
+  \-\-position\-crs <POSITION\-CRS>                 CRS of position (default is \(aqpixel\(aq if \(aqposition\-dataset\(aq not specified)
+  \-r, \-\-resampling <RESAMPLING>                 Resampling algorithm for interpolation. RESAMPLING=nearest|bilinear|cubic|cubicspline (default: nearest)
+  \-\-promote\-pixel\-value\-to\-z                    Whether to set the pixel value as Z component of GeoJSON geometry
+  \-\-include\-field <INCLUDE\-FIELD>               Fields from coordinate dataset to include in output (special values: ALL and NONE) (default: ALL) [may be repeated]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Details for options can be found in \fI\%gdal raster pixel\-info\fP\&.
+.SS polygonize
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+* polygonize [OPTIONS]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+Create a polygon feature dataset from a raster band.
+
+Options:
+  \-\-output\-layer <OUTPUT\-LAYER>      Output layer name
+  \-b, \-\-band <BAND>                  Input band (1\-based index) (default: 1)
+  \-\-attribute\-name <ATTRIBUTE\-NAME>  Name of the field with the pixel value (default: DN)
+  \-c, \-\-connect\-diagonal\-pixels      Consider diagonal pixels as connected
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Details for options can be found in \fI\%gdal raster polygonize\fP\&.
+.SS rasterize
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+* rasterize [OPTIONS]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+Burns vector geometries into a raster.
+
+Options:
+  \-b, \-\-band <BAND>                                        The band(s) to burn values into (1\-based index) [may be repeated]
+  \-\-invert                                                 Invert the rasterization
+  \-\-all\-touched                                            Enables the ALL_TOUCHED rasterization option
+  \-\-burn <BURN>                                            Burn value [may be repeated]
+  \-a, \-\-attribute\-name <ATTRIBUTE\-NAME>                    Attribute name
+  \-\-3d                                                     Indicates that a burn value should be extracted from the Z values of the feature
+  \-l, \-\-input\-layer <INPUT\-LAYER>                          Input layer name
+                                                           Mutually exclusive with \-\-sql
+  \-\-where <WHERE>                                          SQL where clause
+  \-\-sql <SQL>                                              SQL select statement
+                                                           Mutually exclusive with \-\-input\-layer
+  \-\-dialect <DIALECT>                                      SQL dialect
+  \-\-nodata <NODATA>                                        Assign a specified nodata value to output bands
+  \-\-init <INIT>                                            Pre\-initialize output bands with specified value [may be repeated]
+  \-\-crs <CRS>                                              Override the projection for the output file
+  \-\-transformer\-option <NAME>=<VALUE>                      Set a transformer option suitable to pass to GDALCreateGenImgProjTransformer2 [may be repeated]
+  \-\-extent <xmin>,<ymin>,<xmax>,<ymax>                     Set the target georeferenced extent [4 values]
+  \-\-resolution <xres>,<yres>                               Set the target resolution [2 values]
+                                                           Mutually exclusive with \-\-size
+  \-\-tap, \-\-target\-aligned\-pixels                           (target aligned pixels) Align the coordinates of the extent of the output file to the values of the resolution
+                                                           Depends on \-\-resolution
+  \-\-size <xsize>,<ysize>                                   Set the target size in pixels and lines [2 values]
+                                                           Mutually exclusive with \-\-resolution
+  \-\-ot, \-\-datatype, \-\-output\-data\-type <OUTPUT\-DATA\-TYPE>  Output data type. OUTPUT\-DATA\-TYPE=UInt8|Int8|UInt16|Int16|UInt32|Int32|UInt64|Int64|CInt16|CInt32|Float16|Float32|Float64|CFloat32|CFloat64
+  \-\-optimization <OPTIMIZATION>                            Force the algorithm used (results are identical). OPTIMIZATION=AUTO|RASTER|VECTOR (default: AUTO)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Details for options can be found in \fI\%gdal vector rasterize\fP\&.
+.SS tee
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+* tee [OPTIONS] [<PIPELINE>...]
+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+
+Pipes the input into the output stream and side nested pipelines.
+
+Positional arguments:
+  \-\-tee\-pipeline <PIPELINE>  Nested pipeline [1.. values]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Details for options can be found in \fI\%Output nested pipeline\fP\&.
+.SH GDALG OUTPUT (ON-THE-FLY / STREAMED DATASET)
+.sp
+A pipeline can be serialized as a JSON file using the \fBGDALG\fP output format.
+The resulting file can then be opened as a dataset using the
+\fI\%GDALG: GDAL Streamed Algorithm\fP or \fI\%GDALG: GDAL Streamed Algorithm\fP driver, and apply the specified pipeline in a on\-the\-fly /
+streamed way.
+.sp
+The \fBcommand_line\fP member of the JSON file should nominally be the whole command
+line without the final \fBwrite\fP step, and is what is generated by
+\fBgdal pipeline ! .... ! write out.gdalg.json\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+    \(dqtype\(dq: \(dqgdal_streamed_alg\(dq,
+    \(dqcommand_line\(dq: \(dqgdal pipeline ! read in.tif ! footprint ! buffer 20\(dq
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The final \fBwrite\fP step can be added but if so it must explicitly specify the
+\fBstream\fP output format and a non\-significant output dataset name.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+    \(dqtype\(dq: \(dqgdal_streamed_alg\(dq,
+    \(dqcommand_line\(dq: \(dqgdal pipeline ! read in.tif ! footprint ! buffer 20 ! write \-\-output\-format=streamed streamed_dataset\(dq
+}
+.EE
+.UNINDENT
+.UNINDENT
+.SH SUBSTITUTIONS
+.sp
+It is also possible to use \fBgdal pipeline\fP to use a pipeline already
+serialized in a \fB\&.gdalg.json\fP file, and customize its existing steps, typically
+changing an input filename, specifying an output filename, or adding/modifying arguments
+of steps.
+.sp
+The syntax is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gdal pipeline <filename.gdalg.json> \-\-<step\-name>.<arg\-name>=value
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When specifying an existing argument of a step of a pipeline, the value from the
+pipeline is overridden by the one specified on the \fBgdal pipeline\fP command line.
+.sp
+Let\(aqs imagine we have a \fBraster_reproject.gdalg.json\fP with the following content:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+    \(dqtype\(dq: \(dqgdal_streamed_alg\(dq,
+    \(dqcommand_line\(dq: \(dqgdal pipeline ! read in.tif ! reproject \-\-output\-crs=EPSG:4326 ! edit \-\-metadata=CHANGES=reprojected\(dq
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+It is possible to run it with the following command line, overriding the
+\fBinput\fP argument of the \fBread\fP step, and implicitly adding a final \fBwrite\fP
+step with an \fBoutput\fP argument.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline raster_reproject.gdalg.json \-\-read.input=other_input.tif \-\-write.output=out.tif
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When there is no ambiguity, it is also possible to omit the step name, and just
+specify the argument name (if there is an ambiguity, \fBgdal pipeline\fP
+will emit an error, so this is safe to do):
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline raster_reproject.gdalg.json \-\-input=other_input.tif \-\-output=out.tif \-\-co COMPRESS=LZW \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When a step appears several times in the pipeline, it must specified as
+\fB<step\-name>[<idx>]\fP, where \fB<idx>\fP is a zero\-based index.
+.sp
+For example, given:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+    \(dqtype\(dq: \(dqgdal_streamed_alg\(dq,
+    \(dqcommand_line\(dq: \(dqgdal pipeline ! read in.tif ! edit \-\-metadata=before=value ! reproject \-\-output\-crs=EPSG:4326 ! edit \-\-metadata=CHANGES=reprojected\(dq
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+the following command line may be used:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline raster_reproject.gdalg.json \-\-edit[0].metadata=before=modified \-\-output=out.tif
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Execution of pipelines and argument substitutions can also be done in Python with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gdal.Run(\(dqpipeline\(dq, pipeline=\(dqraster_reproject.gdalg.json\(dq, output=\(dqout.tif\(dq, arguments={\(dqedit[0].metadata\(dq: \(dqbefore=modified\(dq})
+.EE
+.UNINDENT
+.UNINDENT
+.SH PLACEHOLDER DATASET NAME _PIPE_
+.sp
+Added in version 3.13.
+
+.sp
+By default, in a pipeline step that accepts multiple input dataset arguments,
+the first positional argument, \fBinput\fP, is implicitly set to the output
+dataset from the previous step. In some cases, it might be desirable to pipe
+the output dataset from the previous step into one of the other input dataset
+arguments instead.
+.sp
+This can be achieved by using the placeholder dataset name \fB_PIPE_\fP (PIPE with
+leading and trailing underscore character) as
+the value for the alternate dataset argument, while explicitly specifying the
+input positional dataset argument.
+.SS Example 2: Summarize mean elevation within 200m of points of interest
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gdal pipeline read points.geojson ! buffer 200 ! \e
+    zonal\-stats \e
+      \-\-input dem.tif
+      \-\-zones _PIPE_ \e
+      \-\-stat mean ! \e
+    write \e
+      \-\-output\-format CSV \e
+      \-\-output /vsistdout/
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+It is also possible to achieve the same result by using a input nested pipeline
+as described below.
+.SH NESTED PIPELINE
+.sp
+It is possible to create \(dqnested pipelines\(dq, i.e. pipelines inside pipelines.
+.sp
+A nested pipeline is delimited by square brackets (\fB[\fP and \fB]\fP) surrounded
+by a space character.
+.sp
+There are 2 kinds of nested pipelines:
+.INDENT 0.0
+.IP \(bu 2
+input nested pipelines: where the result dataset of the nested pipeline is
+used as the input dataset for an argument of the main pipeline.
+.IP \(bu 2
+output nested pipelines: where the output of a step of the main pipeline is
+used as the input of the nested pipeline in a following step. Output nested
+pipelines can only be used with the \fBtee\fP step.
+.UNINDENT
+.SS Input nested pipeline
+.sp
+Wherever an input dataset is expected as an auxiliary dataset, it is possible
+to specify it as the result of a nested pipeline. The content of an input
+nested pipeline is identical to the outer pipeline, except it must not end with
+an output\-generating step like \fBinfo\fP, \fBtile\fP or \fBwrite\fP
+.SS Example 3: Combine the output of shaded relief map and hypsometric rendering on a DEM to create a colorized shaded relief map.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline read n43.tif ! \e
+                color\-map \-\-color\-map color_file.txt ! \e
+                blend \-\-operator=hsv\-value \-\-overlay \e
+                    [ read n43.tif ! hillshade \-z 30 ] ! \e
+                write out.tif \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In the above example, the value of the \fBoverlay\fP argument of the \fBblend\fP
+step is set as the output of the nested pipeline \fBread n43.tif ! hillshade \-z 30\fP\&.
+[image]
+.SS Output nested pipeline
+.sp
+The \fBtee\fP step in a pipeline forwards the input dataset as its output,
+and additionally executes one or several nested pipelines that take this input
+dataset as input and do other processing to eventually write the output of that
+processing. The first step of a \fBtee\fP output nested pipeline \fImust\fP not be
+\fBread\fP, \fBcalc\fP, \fBconcat\fP, \fBmosaic\fP or \fBstack\fP, and its last step
+\fImust\fP be \fBwrite\fP or \fBtile\fP\&. The \fBtee\fP operator can be either used in
+the middle of a pipeline or as its last step.
+.sp
+The below example shows an example where the \fBtee\fP operator executes two
+output nested pipelines.
+.SS Example 4: Split the content of a \(dqcities\(dq layer according to whether its population is below or above 1 million.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline read cities.gpkg ! \e
+        tee [ filter \-\-where \(dqpop < 1e6\(dq ! write small_cities.gpkg ] \e
+            [ filter \-\-where \(dqpop >= 1e6\(dq ! write big_cities.gpkg ]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The below example shows a more complicated use case, including two occurrences of \fBtee\fP,
+with one of them being an output nested pipeline inside an input nested pipeline.
+.SS Example 5: Combine the output of shaded relief map and hypsometric rendering on
+a DEM to create a colorized shaded relief map, and write intermediate
+hillshade and colorized dataset
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline read n43.tif ! \e
+                color\-map \-\-color\-map color_file.txt ! \e
+                tee [ write colored.tif \-\-overwrite ] ! \e
+                blend \-\-operator=hsv\-value \-\-overlay \e
+                    [ read n43.tif ! hillshade \-z 30  ! tee [ write hillshade.tif \-\-overwrite ] ] ! \e
+                write colored\-hillshade.tif \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+[image]
+.SH RETURN STATUS CODE
+.sp
+The program returns status code 0 in case of success, and non\-zero in case of
+error (non\-blocking errors emitted as warnings are considered as a successful
+execution).
+.SH "مثال‌ها (EXAMPLES)"
+.SS Example 6: Compute the footprint of a raster and apply a buffer on the footprint
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline ! read in.tif ! footprint ! buffer 20 ! write out.gpkg \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 7: Rasterize and reproject
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline ! read in.gpkg ! rasterize \-\-size 1000,1000 ! reproject \-\-output\-crs EPSG:4326 ! write out.tif \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 8: Use an existing pipeline that rasterizes and reprojects, but change its input file and target CRS, and specify the output file
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline raster_reproject.gdalg.json \-\-input=my.gpkg \-\-output=out.tif \-\-output\-crs=EPSG:32631
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 9: Buffer a line dataset to create a new polygon dataset
+.sp
+This example uses a \fBlines.gpkg\fP dataset containing a single layer named \fBlines\fP,
+with a geometry field named \fBgeom\fP and an integer attribute named \fBwidth\fP\&. The value
+of this attribute is used as the buffer distance for each feature.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gdal vector pipeline \e
+    ! read lines.gpkg \e
+    ! sql \(dqSELECT fid, ST_Buffer(geom, width) AS geom FROM lines\(dq \e
+    ! set\-geom\-type \-\-geometry\-type Polygon \e
+    ! write buffered\-lines.gpkg \-\-output\-layer=BufferedLines \-\-overwrite \-\-overwrite\-layer
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+When creating derived geometries using SQL, avoid using \fBSELECT *\fP\&.
+Including the original geometry field will result in multiple geometry
+columns in the output. Instead, explicitly list the required attributes
+and return a single geometry column.
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Even Rouault <even.rouault@spatialys.com>
+.SH "حق نشر (COPYRIGHT)"
+1998-2026
+.\" Generated by docutils manpage writer.
+.

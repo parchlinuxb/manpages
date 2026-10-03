@@ -1,0 +1,1115 @@
+'\" t
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "POLLY" "1" "Jun 21, 2026" "22" "Polly"
+.SH "نام (NAME)"
+polly \- Polly 
+.SH RELEASE NOTES  RELEASE NOTES
+.sp
+In Polly 22 the following important changes have been incorporated.
+.SH THE ARCHITECTURE
+.sp
+Polly is a loop optimizer for LLVM. Starting from LLVM\-IR it detects and
+extracts interesting loop kernels. For each kernel a mathematical model is
+derived which precisely describes the individual computations and memory
+accesses in the kernels. Within Polly a variety of analysis and code
+transformations are performed on this mathematical model. After all
+optimizations have been derived and applied, optimized LLVM\-IR is regenerated
+and inserted into the LLVM\-IR module.
+[image]
+.SS Polly in the LLVM pass pipeline
+.sp
+The standard LLVM pass pipeline as it is used in \-O1/\-O2/\-O3 mode of clang/opt
+consists of a sequence of passes that can be grouped in different conceptual
+phases. The first phase, we call it here \fBCanonicalization\fP, is a scalar
+canonicalization phase that contains passes like \-mem2reg, \-instcombine,
+\-cfgsimplify, or early loop unrolling. It has the goal of removing and
+simplifying the given IR as much as possible focusing mostly on scalar
+optimizations. The second phase consists of three conceptual groups that  are
+executed in the so\-called \fBInliner cycle\fP, This is again a set of \fBScalar
+Simplification\fP passes, a set of \fBSimple Loop Optimizations\fP, and the
+\fBInliner\fP itself. Even though these passes make up the majority of the LLVM
+pass pipeline, the primary goal of these passes is still canonicalization
+without losing semantic information that complicates later analysis. As part of
+the inliner cycle, the LLVM inliner step\-by\-step tries to inline functions, runs
+canonicalization passes to exploit newly exposed simplification opportunities,
+and then tries to inline the further simplified functions. Some simple loop
+optimizations are executed as part of the inliner cycle. Even though they
+perform some optimizations, their primary goal is still the simplification of
+the program code. Loop invariant code motion is one such optimization that
+besides being beneficial for program performance also allows us to move
+computation out of loops and in the best case enables us to eliminate certain
+loops completely.  Only after the inliner cycle has been finished, a last
+\fBTarget Specialization\fP phase is run, where IR complexity is deliberately
+increased to take advantage of target specific features that maximize the
+execution performance on the device we target. One of the principal
+optimizations in this phase is vectorization, but also target specific loop
+unrolling, or some loop transformations (e.g., distribution) that expose more
+vectorization opportunities.
+[image]
+.sp
+Polly can conceptually be run at three different positions in the pass pipeline.
+As an early optimizer before the standard LLVM pass pipeline, as a later
+optimizer as part of the target specialization sequence, and theoretically also
+with the loop optimizations in the inliner cycle. We only discuss the first two
+options, as running Polly in the inline loop, is likely to disturb the inliner
+and is consequently not a good idea.
+[image]
+.sp
+Running Polly early before the standard pass pipeline has the benefit that the
+LLVM\-IR processed by Polly is still very close to the original input code.
+Hence, it is less likely that transformations applied by LLVM change the IR in
+ways not easily understandable for the programmer. As a result, user feedback is
+likely better and it is less likely that kernels that in C seem a perfect fit
+for Polly have been transformed such that Polly can not handle them any
+more. On the other hand, codes that require inlining to be optimized won\(aqt
+benefit if Polly is scheduled at this position. The additional set of
+canonicalization passes required will result in a small, but general compile
+time increase and some random run\-time performance changes due to slightly
+different IR being passed through the optimizers. To force Polly to run early in
+the pass pipeline use the option \fI\-polly\-position=early\fP (default today).
+[image]
+.sp
+Running Polly right before the vectorizer has the benefit that the full inlining
+cycle has been run and as a result even heavily templated C++ code could
+theoretically benefit from Polly (more work is necessary to make Polly here
+really effective). As the IR that is passed to Polly has already been
+canonicalized, there is also no need to run additional canonicalization passes.
+General compile time is almost not affected by Polly, as detection of loop
+kernels is generally very fast and the actual optimization and cleanup passes
+are only run on functions which contain loop kernels that are worth optimizing.
+However, due to the many optimizations that LLVM runs before Polly the IR that
+reaches Polly often has additional scalar dependences that make Polly a lot less
+efficient. To force Polly to run before the vectorizer in the pass pipeline use
+the option \fI\-polly\-position=before\-vectorizer\fP\&. This position is not yet the
+default for Polly, but work is on its way to be effective even in presence of
+scalar dependences. After this work has been completed, Polly will likely use
+this position by default.
+[image]
+.SH USING POLLY WITH CLANG
+.sp
+This documentation discusses how Polly can be used in Clang to automatically
+optimize C/C++ code during compilation.
+.sp
+\fBWarning:\fP
+.INDENT 0.0
+.INDENT 3.5
+Warning: clang/LLVM/Polly need to be in sync (compiled from the same
+revision).
+.UNINDENT
+.UNINDENT
+.SS Make Polly available from Clang
+.sp
+Polly is available through clang, opt, and bugpoint, if Polly was checked out
+into tools/polly before compilation. No further configuration is needed.
+.SS Optimizing with Polly
+.sp
+Optimizing with Polly is as easy as adding \-O3 \-mllvm \-polly to your compiler
+flags (Polly is not available unless optimizations are enabled, such as
+\-O1,\-O2,\-O3; Optimizing for size with \-Os or \-Oz is not recommended).
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang \-O3 \-mllvm \-polly file.c
+.EE
+.UNINDENT
+.UNINDENT
+.SS Automatic OpenMP code generation
+.sp
+To automatically detect parallel loops and generate OpenMP code for them you
+also need to add \-mllvm \-polly\-parallel \-lgomp to your CFLAGS.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang \-O3 \-mllvm \-polly \-mllvm \-polly\-parallel \-lgomp file.c
+.EE
+.UNINDENT
+.UNINDENT
+.SS Switching the OpenMP backend
+.sp
+The following CL switch allows to choose Polly\(aqs OpenMP\-backend:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \-polly\-omp\-backend[=BACKEND]
+choose the OpenMP backend; BACKEND can be \(aqGNU\(aq (the default) or \(aqLLVM\(aq;
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The OpenMP backends can be further influenced using the following CL switches:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \-polly\-num\-threads[=NUM]
+set the number of threads to use; NUM may be any positive integer (default: 0, which equals automatic/OMP runtime);
+.TP
+.B \-polly\-scheduling[=SCHED]
+set the OpenMP scheduling type; SCHED can be \(aqstatic\(aq, \(aqdynamic\(aq, \(aqguided\(aq or \(aqruntime\(aq (the default);
+.TP
+.B \-polly\-scheduling\-chunksize[=CHUNK]
+set the chunksize (for the selected scheduling type); CHUNK may be any strictly positive integer (otherwise it will default to 1);
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Note that at the time of writing, the GNU backend may only use the
+\fIpolly\-num\-threads\fP and \fIpolly\-scheduling\fP switches, where the latter also has
+to be set to \(dqruntime\(dq.
+.sp
+Example: Use alternative backend with dynamic scheduling, four threads and
+chunksize of one (additional switches).
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-mllvm \-polly\-omp\-backend=LLVM \-mllvm \-polly\-num\-threads=4
+\-mllvm \-polly\-scheduling=dynamic \-mllvm \-polly\-scheduling\-chunksize=1
+.EE
+.UNINDENT
+.UNINDENT
+.SS Automatic Vector code generation
+.sp
+Automatic vector code generation can be enabled by adding \-mllvm
+\-polly\-vectorizer=stripmine to your CFLAGS.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang \-O3 \-mllvm \-polly \-mllvm \-polly\-vectorizer=stripmine file.c
+.EE
+.UNINDENT
+.UNINDENT
+.SS Isolate the Polly passes
+.sp
+Polly\(aqs analysis and transformation passes are run with many other
+passes of the pass manager\(aqs pipeline.  Some of passes that run before
+Polly are essential for its working, for instance the canonicalization
+of loop.  Therefore Polly is unable to optimize code straight out of
+clang\(aqs \-O0 output.
+.sp
+To get the LLVM\-IR that Polly sees in the optimization pipeline, use the
+command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang file.c \-c \-O3 \-mllvm \-polly \-mllvm \-polly\-dump\-before\-file=before\-polly.ll
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This writes a file \(aqbefore\-polly.ll\(aq containing the LLVM\-IR as passed to
+polly, after SSA transformation, loop canonicalization, inlining and
+other passes.
+.sp
+Thereafter, any Polly pass can be run over \(aqbefore\-polly.ll\(aq using the
+\(aqopt\(aq tool.  To find out which Polly passes are active in the standard
+pipeline, see the output of
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang file.c \-c \-O3 \-mllvm \-polly \-mllvm \-debug\-pass=Arguments
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The Polly\(aqs passes are those between \(aq\-polly\-detect\(aq and
+\(aq\-polly\-codegen\(aq. Analysis passes can be omitted.  At the time of this
+writing, the default Polly pass pipeline is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+opt before\-polly.ll \-polly\-simplify \-polly\-optree \-polly\-delicm \-polly\-simplify \-polly\-prune\-unprofitable \-polly\-opt\-isl \-polly\-codegen
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that this uses LLVM\(aqs old/legacy pass manager.
+.sp
+For completeness, here are some other methods that generates IR
+suitable for processing with Polly from C/C++/Objective C source code.
+The previous method is the recommended one.
+.sp
+The following generates unoptimized LLVM\-IR (\(aq\-O0\(aq, which is the
+default) and runs the canonicalizing passes on it
+(\(aq\-polly\-canonicalize\(aq). This does /not/ include all the passes that run
+before Polly in the default pass pipeline.  The \(aq\-disable\-O0\-optnone\(aq
+option is required because otherwise clang adds an \(aqoptnone\(aq attribute
+to all functions such that it is skipped by most optimization passes.
+This is meant to stop LTO builds to optimize these functions in the
+linking phase anyway.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang file.c \-c \-O0 \-Xclang \-disable\-O0\-optnone \-emit\-llvm \-S \-o \- | opt \-polly\-canonicalize \-S
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The option \(aq\-disable\-llvm\-passes\(aq disables all LLVM passes, even those
+that run at \-O0.  Passing \-O1 (or any optimization level other than \-O0)
+avoids that the \(aqoptnone\(aq attribute is added.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang file.c \-c \-O1 \-Xclang \-disable\-llvm\-passes \-emit\-llvm \-S \-o \- | opt \-polly\-canonicalize \-S
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+As another alternative, Polly can be pushed in front of the pass
+pipeline, and then its output dumped.  This implicitly runs the
+\(aq\-polly\-canonicalize\(aq passes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang file.c \-c \-O3 \-mllvm \-polly \-mllvm \-polly\-position=early \-mllvm \-polly\-dump\-before\-file=before\-polly.ll
+.EE
+.UNINDENT
+.UNINDENT
+.SS Further options
+.sp
+Polly supports further options that are mainly useful for the development or the
+analysis of Polly. The relevant options can be added to clang by appending
+\-mllvm \-option\-name to the CFLAGS or the clang command line.
+.SS Limit Polly to a single function
+.sp
+To limit the execution of Polly to a single function, use the option
+\-polly\-only\-func=functionname.
+.SS Disable LLVM\-IR generation
+.sp
+Polly normally regenerates LLVM\-IR from the Polyhedral representation. To only
+see the effects of the preparing transformation, but to disable Polly code
+generation add the option polly\-no\-codegen.
+.SS Graphical view of the SCoPs
+.sp
+Polly can use graphviz to show the SCoPs it detects in a program. The relevant
+options are \-polly\-show, \-polly\-show\-only, \-polly\-dot and \-polly\-dot\-only. The
+\(aqshow\(aq options automatically run dotty or another graphviz viewer to show the
+scops graphically. The \(aqdot\(aq options store for each function a dot file that
+highlights the detected SCoPs. If \(aqonly\(aq is appended at the end of the option,
+the basic blocks are shown without the statements the contain.
+.SS Change/Disable the Optimizer
+.sp
+Polly uses by default the isl scheduling optimizer. The isl optimizer optimizes
+for data\-locality and parallelism using the Pluto algorithm.
+To disable the optimizer entirely use the option \-polly\-optimizer=none.
+.SS Disable tiling in the optimizer
+.sp
+By default both optimizers perform tiling, if possible. In case this is not
+wanted the option \-polly\-tiling=false can be used to disable it. (This option
+disables tiling for both optimizers).
+.SS Import / Export
+.sp
+The flags \-polly\-import and \-polly\-export allow the export and reimport of the
+polyhedral representation. By exporting, modifying and reimporting the
+polyhedral representation externally calculated transformations can be
+applied. This enables external optimizers or the manual optimization of
+specific SCoPs.
+.SS Viewing Polly Diagnostics with opt\-viewer
+.sp
+The flag \-fsave\-optimization\-record will generate .opt.yaml files when compiling
+your program. These yaml files contain information about each emitted remark.
+Ensure that you have Python 2.7 with PyYaml and Pygments Python Packages.
+To run opt\-viewer:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+llvm/tools/opt\-viewer/opt\-viewer.py \-source\-dir /path/to/program/src/ \e
+   /path/to/program/src/foo.opt.yaml \e
+   /path/to/program/src/bar.opt.yaml \e
+   \-o ./output
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Include all yaml files (use *.opt.yaml when specifying which yaml files to view)
+to view all diagnostics from your program in opt\-viewer. Compile with PGO \%<https://\:clang\:.llvm\:.org/\:docs/\:UsersManual\:.html#\:profiling-with-instrumentation> to view
+Hotness information in opt\-viewer. Resulting html files can be viewed in an internet browser.
+.SH HOW TO MANUALLY USE THE INDIVIDUAL PIECES OF POLLY
+.SS Execute the individual Polly passes manually
+.sp
+This example presents the individual passes that are involved when optimizing
+code with Polly. We show how to execute them individually and explain for
+each which analysis is performed or what transformation is applied. In this
+example the polyhedral transformation is user\-provided to show how much
+performance improvement can be expected by an optimal automatic optimizer.
+.SS 1. \fBCreate LLVM\-IR from the C code\fP
+.INDENT 0.0
+.INDENT 3.5
+Polly works on LLVM\-IR. Hence it is necessary to translate the source
+files into LLVM\-IR. If more than one file should be optimized the
+files can be combined into a single file with llvm\-link.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+clang \-S \-emit\-llvm matmul.c \-Xclang \-disable\-O0\-optnone \-o matmul.ll
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 2. \fBPrepare the LLVM\-IR for Polly\fP
+.INDENT 0.0
+.INDENT 3.5
+Polly is only able to work with code that matches a canonical form.
+To translate the LLVM\-IR into this form we use a set of
+canonicalization passes. They are scheduled by using
+\(aq\-polly\-canonicalize\(aq.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+opt \-S \-polly\-canonicalize matmul.ll \-o matmul.preopt.ll
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 3. \fBShow the SCoPs detected by Polly (optional)\fP
+.INDENT 0.0
+.INDENT 3.5
+To understand if Polly was able to detect SCoPs, we print the structure
+of the detected SCoPs. In our example two SCoPs are detected. One in
+\(aqinit_array\(aq the other in \(aqmain\(aq.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-basic\-aa \-polly\-ast \-analyze matmul.preopt.ll \-polly\-process\-unprofitable \-polly\-use\-llvm\-names
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+:: isl ast :: init_array :: %for.cond1.preheader\-\-\-%for.end19
+
+if (1)
+
+    for (int c0 = 0; c0 <= 1535; c0 += 1)
+      for (int c1 = 0; c1 <= 1535; c1 += 1)
+        Stmt_for_body3(c0, c1);
+
+else
+    {  /* original code */ }
+
+:: isl ast :: main :: %for.cond1.preheader\-\-\-%for.end30
+
+if (1)
+
+    for (int c0 = 0; c0 <= 1535; c0 += 1)
+      for (int c1 = 0; c1 <= 1535; c1 += 1) {
+        Stmt_for_body3(c0, c1);
+        for (int c2 = 0; c2 <= 1535; c2 += 1)
+          Stmt_for_body8(c0, c1, c2);
+      }
+
+else
+    {  /* original code */ }
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 4. \fBHighlight the detected SCoPs in the CFGs of the program (requires graphviz/dotty)\fP
+.INDENT 0.0
+.INDENT 3.5
+Polly can use graphviz to graphically show a CFG in which the detected
+SCoPs are highlighted. It can also create \(aq.dot\(aq files that can be
+translated by the \(aqdot\(aq utility into various graphic formats.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-polly\-use\-llvm\-names \-basic\-aa \-view\-scops \-disable\-output matmul.preopt.ll
+$ opt \-polly\-use\-llvm\-names \-basic\-aa \-view\-scops\-only \-disable\-output matmul.preopt.ll
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The output for the different functions:
+.INDENT 0.0
+.IP \(bu 2
+view\-scops : main \%<http://\:polly\:.llvm\:.org/\:experiments/\:matmul/\:scops\:.main\:.dot\:.png>, init_array \%<http://\:polly\:.llvm\:.org/\:experiments/\:matmul/\:scops\:.init_array\:.dot\:.png>, print_array \%<http://\:polly\:.llvm\:.org/\:experiments/\:matmul/\:scops\:.print_array\:.dot\:.png>
+.IP \(bu 2
+view\-scops\-only : main\-scopsonly \%<http://\:polly\:.llvm\:.org/\:experiments/\:matmul/\:scopsonly\:.main\:.dot\:.png>, init_array\-scopsonly \%<http://\:polly\:.llvm\:.org/\:experiments/\:matmul/\:scopsonly\:.init_array\:.dot\:.png>, print_array\-scopsonly \%<http://\:polly\:.llvm\:.org/\:experiments/\:matmul/\:scopsonly\:.print_array\:.dot\:.png>
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 5. \fBView the polyhedral representation of the SCoPs\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-polly\-use\-llvm\-names \-basic\-aa \-polly\-scops \-analyze matmul.preopt.ll \-polly\-process\-unprofitable
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]Printing analysis \(aqPolly \- Create polyhedral description of Scops\(aq for region: \(aqfor.cond1.preheader => for.end19\(aq in function \(aqinit_array\(aq:
+    Function: init_array
+    Region: %for.cond1.preheader\-\-\-%for.end19
+    Max Loop Depth:  2
+        Invariant Accesses: {
+        }
+        Context:
+        {  :  }
+        Assumed Context:
+        {  :  }
+        Invalid Context:
+        {  : 1 = 0 }
+        Arrays {
+            float MemRef_A[*][1536]; // Element size 4
+            float MemRef_B[*][1536]; // Element size 4
+        }
+        Arrays (Bounds as pw_affs) {
+            float MemRef_A[*][ { [] \-> [(1536)] } ]; // Element size 4
+            float MemRef_B[*][ { [] \-> [(1536)] } ]; // Element size 4
+        }
+        Alias Groups (0):
+            n/a
+        Statements {
+            Stmt_for_body3
+                Domain :=
+                    { Stmt_for_body3[i0, i1] : 0 <= i0 <= 1535 and 0 <= i1 <= 1535 };
+                Schedule :=
+                    { Stmt_for_body3[i0, i1] \-> [i0, i1] };
+                MustWriteAccess :=      [Reduction Type: NONE] [Scalar: 0]
+                    { Stmt_for_body3[i0, i1] \-> MemRef_A[i0, i1] };
+                MustWriteAccess :=      [Reduction Type: NONE] [Scalar: 0]
+                    { Stmt_for_body3[i0, i1] \-> MemRef_B[i0, i1] };
+        }
+[...]Printing analysis \(aqPolly \- Create polyhedral description of Scops\(aq for region: \(aqfor.cond1.preheader => for.end30\(aq in function \(aqmain\(aq:
+    Function: main
+    Region: %for.cond1.preheader\-\-\-%for.end30
+    Max Loop Depth:  3
+    Invariant Accesses: {
+    }
+    Context:
+    {  :  }
+    Assumed Context:
+    {  :  }
+    Invalid Context:
+    {  : 1 = 0 }
+    Arrays {
+        float MemRef_C[*][1536]; // Element size 4
+        float MemRef_A[*][1536]; // Element size 4
+        float MemRef_B[*][1536]; // Element size 4
+    }
+    Arrays (Bounds as pw_affs) {
+        float MemRef_C[*][ { [] \-> [(1536)] } ]; // Element size 4
+        float MemRef_A[*][ { [] \-> [(1536)] } ]; // Element size 4
+        float MemRef_B[*][ { [] \-> [(1536)] } ]; // Element size 4
+    }
+    Alias Groups (0):
+        n/a
+    Statements {
+        Stmt_for_body3
+            Domain :=
+                { Stmt_for_body3[i0, i1] : 0 <= i0 <= 1535 and 0 <= i1 <= 1535 };
+            Schedule :=
+                { Stmt_for_body3[i0, i1] \-> [i0, i1, 0, 0] };
+            MustWriteAccess :=  [Reduction Type: NONE] [Scalar: 0]
+                { Stmt_for_body3[i0, i1] \-> MemRef_C[i0, i1] };
+        Stmt_for_body8
+            Domain :=
+                { Stmt_for_body8[i0, i1, i2] : 0 <= i0 <= 1535 and 0 <= i1 <= 1535 and 0 <= i2 <= 1535 };
+            Schedule :=
+                { Stmt_for_body8[i0, i1, i2] \-> [i0, i1, 1, i2] };
+            ReadAccess :=       [Reduction Type: NONE] [Scalar: 0]
+                { Stmt_for_body8[i0, i1, i2] \-> MemRef_C[i0, i1] };
+            ReadAccess :=       [Reduction Type: NONE] [Scalar: 0]
+                { Stmt_for_body8[i0, i1, i2] \-> MemRef_A[i0, i2] };
+            ReadAccess :=       [Reduction Type: NONE] [Scalar: 0]
+                { Stmt_for_body8[i0, i1, i2] \-> MemRef_B[i2, i1] };
+            MustWriteAccess :=  [Reduction Type: NONE] [Scalar: 0]
+                { Stmt_for_body8[i0, i1, i2] \-> MemRef_C[i0, i1] };
+    }
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 6. \fBShow the dependences for the SCoPs\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-basic\-aa \-polly\-use\-llvm\-names \-polly\-dependences \-analyze matmul.preopt.ll \-polly\-process\-unprofitable
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]Printing analysis \(aqPolly \- Calculate dependences\(aq for region: \(aqfor.cond1.preheader => for.end19\(aq in function \(aqinit_array\(aq:
+        RAW dependences:
+                {  }
+        WAR dependences:
+                {  }
+        WAW dependences:
+                {  }
+        Reduction dependences:
+                n/a
+        Transitive closure of reduction dependences:
+                {  }
+[...]Printing analysis \(aqPolly \- Calculate dependences\(aq for region: \(aqfor.cond1.preheader => for.end30\(aq in function \(aqmain\(aq:
+        RAW dependences:
+                { Stmt_for_body3[i0, i1] \-> Stmt_for_body8[i0, i1, 0] : 0 <= i0 <= 1535 and 0 <= i1 <= 1535; Stmt_for_body8[i0, i1, i2] \-> Stmt_for_body8[i0, i1, 1 + i2] : 0 <= i0 <= 1535 and 0 <= i1 <= 1535 and 0 <= i2 <= 1534 }
+        WAR dependences:
+                {  }
+        WAW dependences:
+                { Stmt_for_body3[i0, i1] \-> Stmt_for_body8[i0, i1, 0] : 0 <= i0 <= 1535 and 0 <= i1 <= 1535; Stmt_for_body8[i0, i1, i2] \-> Stmt_for_body8[i0, i1, 1 + i2] : 0 <= i0 <= 1535 and 0 <= i1 <= 1535 and 0 <= i2 <= 1534 }
+        Reduction dependences:
+                n/a
+        Transitive closure of reduction dependences:
+                {  }
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 7. \fBExport jscop files\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-basic\-aa \-polly\-use\-llvm\-names \-polly\-export\-jscop matmul.preopt.ll \-polly\-process\-unprofitable
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]Writing JScop \(aq%for.cond1.preheader\-\-\-%for.end19\(aq in function \(aqinit_array\(aq to \(aq./init_array___%for.cond1.preheader\-\-\-%for.end19.jscop\(aq.
+
+Writing JScop \(aq%for.cond1.preheader\-\-\-%for.end30\(aq in function \(aqmain\(aq to \(aq./main___%for.cond1.preheader\-\-\-%for.end30.jscop\(aq.
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 8. \fBImport the changed jscop files and print the updated SCoP structure (optional)\fP
+.INDENT 0.0
+.INDENT 3.5
+Polly can reimport jscop files, in which the schedules of the statements
+are changed. These changed schedules are used to describe
+transformations. It is possible to import different jscop files by
+providing the postfix of the jscop file that is imported.
+.sp
+We apply three different transformations on the SCoP in the main
+function. The jscop files describing these transformations are
+hand written (and available in docs/experiments/matmul).
+.sp
+\fBNo Polly\fP
+.sp
+As a baseline we do not call any Polly code generation, but only apply the normal \-O3 optimizations.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-basic\-aa \-polly\-use\-llvm\-names matmul.preopt.ll \-polly\-import\-jscop \-polly\-ast \-analyze \-polly\-process\-unprofitable
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]
+:: isl ast :: main :: %for.cond1.preheader\-\-\-%for.end30
+
+if (1)
+
+    for (int c0 = 0; c0 <= 1535; c0 += 1)
+      for (int c1 = 0; c1 <= 1535; c1 += 1) {
+        Stmt_for_body3(c0, c1);
+        for (int c3 = 0; c3 <= 1535; c3 += 1)
+          Stmt_for_body8(c0, c1, c3);
+      }
+
+else
+    {  /* original code */ }
+[...]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBLoop Interchange (and Fission to allow the interchange)\fP
+.sp
+We split the loops and can now apply an interchange of the loop dimensions that enumerate Stmt_for_body8.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-basic\-aa \-polly\-use\-llvm\-names matmul.preopt.ll \-polly\-import\-jscop \-polly\-import\-jscop\-postfix=interchanged \-polly\-ast \-analyze \-polly\-process\-unprofitable
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]
+:: isl ast :: main :: %for.cond1.preheader\-\-\-%for.end30
+
+if (1)
+
+    {
+      for (int c1 = 0; c1 <= 1535; c1 += 1)
+        for (int c2 = 0; c2 <= 1535; c2 += 1)
+          Stmt_for_body3(c1, c2);
+      for (int c1 = 0; c1 <= 1535; c1 += 1)
+        for (int c2 = 0; c2 <= 1535; c2 += 1)
+          for (int c3 = 0; c3 <= 1535; c3 += 1)
+            Stmt_for_body8(c1, c3, c2);
+    }
+
+else
+    {  /* original code */ }
+[...]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBInterchange + Tiling\fP
+.sp
+In addition to the interchange we now tile the second loop nest.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-basic\-aa \-polly\-use\-llvm\-names matmul.preopt.ll \-polly\-import\-jscop \-polly\-import\-jscop\-postfix=interchanged+tiled \-polly\-ast \-analyze \-polly\-process\-unprofitable
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]
+:: isl ast :: main :: %for.cond1.preheader\-\-\-%for.end30
+
+if (1)
+
+    {
+      for (int c1 = 0; c1 <= 1535; c1 += 1)
+        for (int c2 = 0; c2 <= 1535; c2 += 1)
+          Stmt_for_body3(c1, c2);
+      for (int c1 = 0; c1 <= 1535; c1 += 64)
+        for (int c2 = 0; c2 <= 1535; c2 += 64)
+          for (int c3 = 0; c3 <= 1535; c3 += 64)
+            for (int c4 = c1; c4 <= c1 + 63; c4 += 1)
+              for (int c5 = c3; c5 <= c3 + 63; c5 += 1)
+                for (int c6 = c2; c6 <= c2 + 63; c6 += 1)
+                  Stmt_for_body8(c4, c6, c5);
+    }
+
+else
+    {  /* original code */ }
+[...]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBInterchange + Tiling + Strip\-mining to prepare vectorization\fP
+.sp
+To later allow vectorization we create a so called trivially
+parallelizable loop. It is innermost, parallel and has only four
+iterations. It can be replaced by 4\-element SIMD instructions.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-basic\-aa \-polly\-use\-llvm\-names matmul.preopt.ll \-polly\-import\-jscop \-polly\-import\-jscop\-postfix=interchanged+tiled \-polly\-ast \-analyze \-polly\-process\-unprofitable
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[...]
+:: isl ast :: main :: %for.cond1.preheader\-\-\-%for.end30
+
+if (1)
+
+    {
+      for (int c1 = 0; c1 <= 1535; c1 += 1)
+        for (int c2 = 0; c2 <= 1535; c2 += 1)
+          Stmt_for_body3(c1, c2);
+      for (int c1 = 0; c1 <= 1535; c1 += 64)
+        for (int c2 = 0; c2 <= 1535; c2 += 64)
+          for (int c3 = 0; c3 <= 1535; c3 += 64)
+            for (int c4 = c1; c4 <= c1 + 63; c4 += 1)
+              for (int c5 = c3; c5 <= c3 + 63; c5 += 1)
+                for (int c6 = c2; c6 <= c2 + 63; c6 += 4)
+                  for (int c7 = c6; c7 <= c6 + 3; c7 += 1)
+                    Stmt_for_body8(c4, c7, c5);
+    }
+
+else
+    {  /* original code */ }
+[...]
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 9. \fBCodegenerate the SCoPs\fP
+.INDENT 0.0
+.INDENT 3.5
+This generates new code for the SCoPs detected by polly. If
+\-polly\-import\-jscop is present, transformations specified in the
+imported jscop files will be applied.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-S matmul.preopt.ll | opt \-S \-O3 \-o matmul.normalopt.ll
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-S matmul.preopt.ll \-basic\-aa \-polly\-use\-llvm\-names \-polly\-import\-jscop \-polly\-import\-jscop\-postfix=interchanged \-polly\-codegen \-polly\-process\-unprofitable | opt \-S \-O3 \-o matmul.polly.interchanged.ll
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end19\(aq in function \(aqinit_array\(aq from \(aq./init_array___%for.cond1.preheader\-\-\-%for.end19.jscop.interchanged\(aq.
+File could not be read: No such file or directory
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end30\(aq in function \(aqmain\(aq from \(aq./main___%for.cond1.preheader\-\-\-%for.end30.jscop.interchanged\(aq.
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-S matmul.preopt.ll \-basic\-aa \-polly\-use\-llvm\-names \-polly\-import\-jscop \-polly\-import\-jscop\-postfix=interchanged+tiled \-polly\-codegen \-polly\-process\-unprofitable | opt \-S \-O3 \-o matmul.polly.interchanged+tiled.ll
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end19\(aq in function \(aqinit_array\(aq from \(aq./init_array___%for.cond1.preheader\-\-\-%for.end19.jscop.interchanged+tiled\(aq.
+File could not be read: No such file or directory
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end30\(aq in function \(aqmain\(aq from \(aq./main___%for.cond1.preheader\-\-\-%for.end30.jscop.interchanged+tiled\(aq.
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-S matmul.preopt.ll \-basic\-aa \-polly\-use\-llvm\-names \-polly\-import\-jscop \-polly\-import\-jscop\-postfix=interchanged+tiled+vector \-polly\-codegen \-polly\-vectorizer=polly \-polly\-process\-unprofitable | opt \-S \-O3 \-o matmul.polly.interchanged+tiled+vector.ll
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end19\(aq in function \(aqinit_array\(aq from \(aq./init_array___%for.cond1.preheader\-\-\-%for.end19.jscop.interchanged+tiled+vector\(aq.
+File could not be read: No such file or directory
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end30\(aq in function \(aqmain\(aq from \(aq./main___%for.cond1.preheader\-\-\-%for.end30.jscop.interchanged+tiled+vector\(aq.
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ opt \-S matmul.preopt.ll \-basic\-aa \-polly\-use\-llvm\-names \-polly\-import\-jscop \-polly\-import\-jscop\-postfix=interchanged+tiled+vector \-polly\-codegen \-polly\-vectorizer=polly \-polly\-parallel \-polly\-process\-unprofitable | opt \-S \-O3 \-o matmul.polly.interchanged+tiled+openmp.ll
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end19\(aq in function \(aqinit_array\(aq from \(aq./init_array___%for.cond1.preheader\-\-\-%for.end19.jscop.interchanged+tiled+vector\(aq.
+File could not be read: No such file or directory
+Reading JScop \(aq%for.cond1.preheader\-\-\-%for.end30\(aq in function \(aqmain\(aq from \(aq./main___%for.cond1.preheader\-\-\-%for.end30.jscop.interchanged+tiled+vector\(aq.
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 10. \fBCreate the executables\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ llc matmul.normalopt.ll \-o matmul.normalopt.s \-relocation\-model=pic
+$ gcc matmul.normalopt.s \-o matmul.normalopt.exe
+$ llc matmul.polly.interchanged.ll \-o matmul.polly.interchanged.s \-relocation\-model=pic
+$ gcc matmul.polly.interchanged.s \-o matmul.polly.interchanged.exe
+$ llc matmul.polly.interchanged+tiled.ll \-o matmul.polly.interchanged+tiled.s \-relocation\-model=pic
+$ gcc matmul.polly.interchanged+tiled.s \-o matmul.polly.interchanged+tiled.exe
+$ llc matmul.polly.interchanged+tiled+vector.ll \-o matmul.polly.interchanged+tiled+vector.s \-relocation\-model=pic
+$ gcc matmul.polly.interchanged+tiled+vector.s \-o matmul.polly.interchanged+tiled+vector.exe
+$ llc matmul.polly.interchanged+tiled+vector+openmp.ll \-o matmul.polly.interchanged+tiled+vector+openmp.s \-relocation\-model=pic
+$ gcc matmul.polly.interchanged+tiled+vector+openmp.s \-lgomp \-o matmul.polly.interchanged+tiled+vector+openmp.exe
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS 11. \fBCompare the runtime of the executables\fP
+.INDENT 0.0
+.INDENT 3.5
+By comparing the runtimes of the different code snippets we see that a
+simple loop interchange gives here the largest performance boost.
+However in this case, adding vectorization and using OpenMP degrades
+the performance.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ time ./matmul.normalopt.exe
+
+real    0m11.295s
+user    0m11.288s
+sys     0m0.004s
+$ time ./matmul.polly.interchanged.exe
+
+real    0m0.988s
+user    0m0.980s
+sys     0m0.008s
+$ time ./matmul.polly.interchanged+tiled.exe
+
+real    0m0.830s
+user    0m0.816s
+sys     0m0.012s
+$ time ./matmul.polly.interchanged+tiled+vector.exe
+
+real    0m5.430s
+user    0m5.424s
+sys     0m0.004s
+$ time ./matmul.polly.interchanged+tiled+vector+openmp.exe
+
+real    0m3.184s
+user    0m11.972s
+sys     0m0.036s
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH TIPS AND TRICKS ON USING AND CONTRIBUTING TO POLLY
+.SS Committing to polly trunk
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+General reference to git\-svn workflow \%<https://\:stackoverflow\:.com/\:questions/\:190431/\:is-git-svn-dcommit-after-merging-in-git-dangerous>
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Using bugpoint to track down errors in large files
+.INDENT 0.0
+.INDENT 3.5
+If you know the \fBopt\fP invocation and have a large \fB\&.ll\fP file that causes
+an error, \fBbugpoint\fP allows one to reduce the size of test cases.
+.sp
+The general calling pattern is:
+.INDENT 0.0
+.IP \(bu 2
+\fB$ bugpoint <file.ll> <pass that causes the crash> \-opt\-args <opt option flags>\fP
+.UNINDENT
+.sp
+An example invocation is:
+.INDENT 0.0
+.IP \(bu 2
+\fB$ bugpoint crash.ll \-polly\-codegen \-opt\-args  \-polly\-canonicalize \-polly\-process\-unprofitable\fP
+.UNINDENT
+.sp
+For more documentation on bugpoint, Visit the LLVM manual \%<https://\:llvm\:.org/\:docs/\:Bugpoint\:.html>
+.UNINDENT
+.UNINDENT
+.SS Understanding which pass makes a particular change
+.INDENT 0.0
+.INDENT 3.5
+If you know that something like \fIopt \-O3 \-polly\fP makes a change, but you wish to
+isolate which pass makes a change, the steps are as follows:
+.INDENT 0.0
+.IP \(bu 2
+\fB$ bugpoint \-O3 file.ll \-opt\-args \-polly\fP  will allow bugpoint to track down the pass which causes the crash.
+.UNINDENT
+.sp
+To do this manually:
+.INDENT 0.0
+.IP \(bu 2
+\fB$ opt \-O3 \-polly \-debug\-pass=Arguments\fP to get all passes that are run by default. \fB\-debug\-pass=Arguments\fP will list all passes that have run.
+.IP \(bu 2
+Bisect down to the pass that changes it.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Debugging regressions introduced at some unknown earlier point
+.sp
+In case of a regression in performance or correctness (e.g., an earlier version
+of Polly behaved as expected and a later version does not), bisecting over the
+version history is the standard approach to identify the commit that introduced
+the regression.
+.sp
+LLVM has a single repository that contains all projects. It can be cloned at:
+\%<https://\:github\:.com/\:llvm/\:llvm-project>\&. How to bisect on a
+git repository is explained here
+\%<https://\:www\:.metaltoad\:.com/\:blog/\:beginners-guide-git-bisect-process-elimination>\&.
+The bisect process can also be automated as explained here:
+\%<https://\:www\:.metaltoad\:.com/\:blog/\:mechanizing-git-bisect-bug-hunting-lazy>\&.
+An LLVM specific run script is available here:
+\%<https://\:gist\:.github\:.com/\:dcci/\:891cd98d80b1b95352a407d80914f7cf>\&.
+.SH PERFORMANCE
+.SS High\-Performance Generalized Matrix Multiplication
+.sp
+Polly automatically detects and optimizes generalized matrix multiplication,
+the computation C ← α ⊗ C ⊕ β ⊗ A ⊗ B, where A, B, and C are three appropriately sized matrices,
+⊕ and ⊗ operations are originating from the corresponding matrix semiring, and α and β are
+constants, and beta is not equal to zero. It allows to obtain the highly optimized form structured
+similar to the expert implementation of GEMM that can be found in GotoBLAS and its successors. The
+performance evaluation of GEMM is shown in the following figure.
+.INDENT 0.0
+.INDENT 3.5
+[image]
+.UNINDENT
+.UNINDENT
+.SS Compile Time Impact of Polly
+.sp
+Clang+LLVM+Polly are compiled using Clang on a Intel(R) Core(TM) i7\-7700 based system. The experiment
+is repeated twice: with and without Polly enabled in order to measure its compile time impact.
+.sp
+The following versions are used:
+.INDENT 0.0
+.IP \(bu 2
+Polly (git hash 0db98a4837b6f233063307bb9184374175401922)
+.IP \(bu 2
+Clang (git hash 3e1d04a92b51ed36163995c96c31a0e4bbb1561d)
+.IP \(bu 2
+LLVM  git hash 0265ec7ebad69a47f5c899d95295b5eb41aba68e)
+.UNINDENT
+.sp
+ninja \%<https://\:ninja-build\:.org> is used as the build system.
+.sp
+For both cases the whole compilation was performed five times. The compile times in seconds are shown in the following table.
+.TS
+box center;
+l|l.
+T{
+Polly Disabled
+T}	T{
+Polly Enabled
+T}
+_
+T{
+964
+T}	T{
+977
+T}
+_
+T{
+964
+T}	T{
+980
+T}
+_
+T{
+967
+T}	T{
+981
+T}
+_
+T{
+967
+T}	T{
+981
+T}
+_
+T{
+968
+T}	T{
+982
+T}
+.TE
+.sp
+The median compile time without Polly enabled is 967 seconds and with Polly enabled it is 981 seconds. The overhead is 1.4%.
+.INDENT 0.0
+.IP \(bu 2
+A list of Polly passes \%<http://\:polly\:.llvm\:.org/\:documentation/\:passes\:.html>
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+Index \%<>
+.IP \(bu 2
+Search Page \%<>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Author name not set
+.SH "حق نشر (COPYRIGHT)"
+2010-2026, The Polly Team
+.\" End of generated man page.

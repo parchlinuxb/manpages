@@ -1,0 +1,718 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "BLUEPY" "1" "Dec 14, 2025" "0.9" "bluepy"
+.SH "نام (NAME)"
+bluepy \- bluepy Documentation
+.sp
+\fBbluepy\fP is a Python module which allows communication with Bluetooth Low
+Energy devices. The current implementation runs on Linux
+(internally it uses code from the BlueZ project \%<http://\:www\:.bluez\:.org>), although it can be ported to other
+platforms.
+.sp
+To browse the API documentation, it is recommended to start with The Peripheral class \%<#\:peripheral>\&.
+.sp
+Contents:
+.SH THE PERIPHERAL CLASS
+.sp
+Bluepy\(aqs \fBPeripheral\fP class encapsulates a connection to a Bluetooth LE peripheral. You create a \fBPeripheral\fP object directly by specifying its MAC address; when the connection is established, the services and characteristics offered by that device can be discovered and read or written.
+.SS Constructor
+.INDENT 0.0
+.TP
+.B Peripheral([deviceAddr=None[, addrType=ADDR_TYPE_PUBLIC[, iface=None]]])
+If \fIdeviceAddr\fP is not \fBNone\fP, creates a \fBPeripheral\fP object and makes a connection
+to the device indicated by \fIdeviceAddr\fP\&. \fIdeviceAddr\fP should be a string comprising six hex
+bytes separated by colons, e.g. \fB\(dq11:22:33:ab:cd:ed\(dq\fP\&.
+.sp
+If \fIdeviceAddr\fP is \fBNone\fP, creates an un\-connected \fBPeripheral\fP object. You must call the \fBconnect()\fP method on this object (passing it a device address) before it will be usable.
+.sp
+The \fIaddrType\fP parameter can be used to select between fixed (\fBbtle.ADDR_TYPE_PUBLIC\fP)
+and random (\fBbtle.ADDR_TYPE_RANDOM\fP) address types, depending on what the target
+peripheral requires. See section 10.8 of the Bluetooth 4.0 specification for more
+details.
+.sp
+The \fIiface\fP parameter allows the Bluetooth interface on which to make the connection to be set.
+On Linux, 0 means \fI/dev/hci0\fP, 1 means \fI/dev/hci1\fP and so on.
+.sp
+\fIdeviceAddr\fP may also be a \fBScanEntry\fP object. In this case the device address,
+address type, and interface number are all taken from the \fBScanEntry\fP values, and
+the \fIaddrType\fP and \fIiface\fP parameters are ignored.
+.sp
+The constructor will throw a \fBBTLEException\fP if connection to the device fails.
+.UNINDENT
+.SS Instance Methods
+.INDENT 0.0
+.TP
+.B connect(addr[, addrType=ADDR_TYPE_PUBLIC[, iface=None]])
+Makes a connection to the device indicated by \fIaddr\fP, with address type
+\fIaddrType\fP and interface number \fIiface\fP (see the \fBPeripheral\fP constructor for details).
+You should only call
+this method if the \fBPeripheral\fP is un\-connected (i.e. you did not pass a \fIaddr\fP
+to the constructor); a given peripheral object cannot be re\-connected once connected.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B disconnect()
+Drops the connection to the device, and cleans up associated OS resources. Although the
+Python destructor for a \fBPeripheral\fP will attempt to call this method, you should not
+rely on this happening at any particular time. Therefore, always explicitly call
+\fBdisconnect()\fP if you have finished communicating with a device.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getState()
+Returns a string indicating device state. Possible states are: \(dqconn\(dq \- connected,
+\(dqdisc\(dq \- disconnected, \(dqscan\(dq scanning and \(dqtryconn\(dq \- connecting.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getServices()
+Returns a list of \fBService\fP objects representing the services offered by the peripheral.
+This will perform Bluetooth service discovery if this has not already been done;
+otherwise it will return a cached list of services immediately.
+.sp
+On Python 3.x, this returns a \fIdictionary view\fP object, not a list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getServiceByUUID(uuidVal)
+Returns an instance of a \fBService\fP object which has the indicated UUID.
+\fBuuidVal\fP can be a \fBUUID\fP object, or any string or integer which can be
+used to construct a \fBUUID\fP object. The method will return immediately if the
+service was previously discovered (e.g. by \fIgetServices()\fP), and will query
+the peripheral otherwise. It raises a \fIBTLEEException\fP if the service is not
+found.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getCharacteristics(startHnd=1, endHnd=0xFFFF, uuid=None)
+Returns a list containing \fBCharacteristic\fP objects for the peripheral. If no
+arguments are given, will return all characteristics. If \fIstartHnd\fP and/or
+\fIendHnd\fP are given, the list is restricted to characteristics whose handles are
+within the given range \- note that it\(aqs usually more convenient to use
+\fBService.getCharacteristics()\fP to get the characteristics associated with
+a particular service. Alternatively, \fIuuid\fP may be specified to locate a
+characteristic with a particular UUID value. \fIuuid\fP may be any string, integer,
+or \fBUUID\fP type which can be used to construct a \fBUUID\fP object.
+.sp
+If no matching characteristics are found, returns an empty list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getDescriptors(startHnd=1, endHnd=0xFFFF)
+Returns a list containing \fBDescriptor\fP objects for the peripheral. If no
+arguments are given, will return all descriptors. If \fIstartHnd\fP and/or
+\fIendHnd\fP are given, the list is restricted to descriptors whose handles are
+within the given range. Again, it\(aqs usually more convenient to use
+\fBService.getDescriptors()\fP to get the descriptors associated with
+a particular service.
+.sp
+If no matching descriptors are found, returns an empty list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B withDelegate(delegate)
+This stores a reference to a \(dqdelegate\(dq object, which is called when asynchronous
+events such as Bluetooth notifications occur. This should be a subclass of the
+\fBDefaultDelegate\fP class. See Working with notifications \%<#\:notifications> for more information. This
+method returns the \fBPeripheral\fP object.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B setDelegate(delegate)
+\fI(deprecated since 0.9.10)\fP Same as \fIwithDelegate()\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B waitForNotifications(timeout)
+Blocks until a notification is received from the peripheral, or until the
+given \fItimeout\fP (in seconds) has elapsed. If a notification is received, the
+delegate object\(aqs \fBhandleNotification()\fP method will be called, and
+\fBwaitForNotifications()\fP will then return \fBTrue\fP\&.
+.sp
+If nothing is received before the timeout elapses, this will return \fBFalse\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B writeCharacteristic(handle, val, withResponse=False)
+Writes the data \fIval\fP (of type \fBstr\fP on Python 2.x, \fBbyte\fP on 3.x) to the
+characteristic identified by handle \fIhandle\fP, which should be an integer in the
+range 1 to 65535. This is useful if you know a characteristic\(aqs GATT handle,
+but do not have a \fBCharacteristic\fP object.
+.sp
+If \fIwithResponse\fP is true, will await confirmation that the write was successful
+from the device.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B readCharacteristic(handle)
+Reads the current value of the characteristic identified by \fIhandle\fP\&. This is
+useful if you know the handle for the characteristic but do not have a suitable
+\fBCharacteristic\fP object.
+.UNINDENT
+.SS Properties
+.sp
+All the properties listed below are read\-only.
+.INDENT 0.0
+.TP
+.B addr
+Device MAC address (as a hex string separated by colons).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B addrType
+Device address type \- one of \fIADDR_TYPE_PUBLIC\fP or \fIADDR_TYPE_RANDOM\fP; this will be a
+printable string.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B iface
+Bluetooth interface number (0 = \fB/dev/hci0\fP) used for the connection.
+.UNINDENT
+.SH THE SCANNER CLASS
+.sp
+A \fBScanner\fP object is used to scan for LE devices which are broadcasting
+advertising data. In most situations this will give a set of devices which
+are available for connection. (Note, however, that Bluetooth LE devices may
+accept connections without broadcasting advertising data, or may broadcast
+advertising data but may not accept connections).
+.SS Constructor
+.INDENT 0.0
+.TP
+.B Scanner([index=0])
+Creates and initialises a new scanner object. \fIindex\fP identifies the
+Bluetooth interface to use (where 0 is \fB/dev/hci0\fP etc). Scanning
+does not start until the \fIstart()\fP or \fIscan()\fP methods are called \-
+see below for details.
+.UNINDENT
+.SS Instance Methods
+.INDENT 0.0
+.TP
+.B withDelegate(delegate)
+Stores a reference to a \fIdelegate\fP object, which receives callbacks
+when broadcasts from devices are received. See the documentation for
+\fBDefaultDelegate\fP for details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B scan([timeout = 10])
+Scans for devices for the given \fItimeout\fP in seconds. During this
+period, callbacks to the \fIdelegate\fP object will be called. When the
+timeout ends, scanning will stop and the method will return a list
+(or a \fIview\fP on Python 3.x) of \fBScanEntry\fP objects for all devices
+discovered during that time.
+.sp
+\fIscan()\fP is equivalent to calling the \fIclear()\fP, \fIstart()\fP,
+\fIprocess()\fP and \fIstop()\fP methods in order.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B clear()
+Clears the current set of discovered devices.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B start()
+Enables reception of advertising broadcasts from peripherals.
+Should be called before calling \fIprocess()\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B process([timeout = 10])
+Waits for advertising broadcasts and calls the \fIdelegate\fP object
+when they are received. Returns after the given \fItimeout\fP period
+in seconds. This may be called multiple times (between calls to
+\fIstart()\fP and \fIstop()\fP ).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B stop()
+Disables reception of advertising broadcasts. Should be called after
+\fIprocess()\fP has returned.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getDevices()
+Returns a list (a \fIview\fP on Python 3.x) of \fBScanEntry\fP objects for
+all devices which have been discovered (since the last \fIclear()\fP call).
+.UNINDENT
+.SS Sample code
+.sp
+Basic code to run a LE device scan for 10 seconds follows this example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# import the necessary parts of the bluepy library
+from bluepy.btle import Scanner, DefaultDelegate
+
+# create a delegate class to receive the BLE broadcast packets
+class ScanDelegate(DefaultDelegate):
+    def __init__(self):
+        DefaultDelegate.__init__(self)
+
+    # when this python script discovers a BLE broadcast packet, print a message with the device\(aqs MAC address
+    def handleDiscovery(self, dev, isNewDev, isNewData):
+        if isNewDev:
+            print \(dqDiscovered device\(dq, dev.addr
+        elif isNewData:
+            print \(dqReceived new data from\(dq, dev.addr
+
+# create a scanner object that sends BLE broadcast packets to the ScanDelegate
+scanner = Scanner().withDelegate(ScanDelegate())
+
+# create a list of unique devices that the scanner discovered during a 10\-second scan
+devices = scanner.scan(10.0)
+
+# for each device  in the list of devices
+for dev in devices:
+    # print  the device\(aqs MAC address, its address type,
+    # and Received Signal Strength Indication that shows how strong the signal was when the script received the broadcast.
+    print \(dqDevice %s (%s), RSSI=%d dB\(dq % (dev.addr, dev.addrType, dev.rssi)
+
+    # For each of the device\(aqs advertising data items, print a description of the data type and value of the data itself
+    # getScanData returns a list of tupples: adtype, desc, value
+    # where AD Type means “advertising data type,” as defined by Bluetooth convention:
+    # https://www.bluetooth.com/specifications/assigned\-numbers/generic\-access\-profile
+    # desc is a human\-readable description of the data type and value is the data itself
+    for (adtype, desc, value) in dev.getScanData():
+        print \(dq  %s = %s\(dq % (desc, value)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For continuous scanning, follow this example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# import the necessary parts of the bluepy library
+from bluepy.btle import Scanner, DefaultDelegate
+
+# create a delegate class to receive the BLE broadcast packets
+class ScanDelegate(DefaultDelegate):
+    def __init__(self):
+        DefaultDelegate.__init__(self)
+
+    # when this python script discovers a BLE broadcast packet, print a message with the device\(aqs MAC address
+    def handleDiscovery(self, dev, isNewDev, isNewData):
+        if isNewDev:
+            print \(dqDiscovered device\(dq, dev.addr
+        elif isNewData:
+            print \(dqReceived new data from\(dq, dev.addr
+
+# create a scanner object that sends BLE broadcast packets to the ScanDelegate
+scanner = Scanner().withDelegate(ScanDelegate())
+
+# start the scanner and keep the process running
+scanner.start()
+while True:
+    print \(dqStill running...\(dq
+    scanner.process()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+NOTE that (1) LE scanning must be run as root and (2) the continuous scanning code never completes, so you\(aqll need to do useful things in the \fIhandleDiscovery()\fP method of your delegate.
+.sp
+See the documentation for \fBScanEntry\fP for the information available via the \fIdev\fP
+parameter passed to the delegate.
+.SH THE SCANENTRY CLASS
+.sp
+A \fBScanEntry\fP object contains information received from a Bluetooth LE
+device received during \fBScanner\fP operation. This includes parameters
+needed to connect to the device (MAC address, address type), and
+advertising data (such as its name or available services) supplied in
+the device\(aqs broadcasts.
+.SS Constructor
+.sp
+\fBScanEntry\fP objects are created by the \fBScanner\fP class, and should not
+be created by the user.
+.SS Instance Methods
+.INDENT 0.0
+.TP
+.B getDescription(adtype)
+Returns a human\-readable description of the advertising data \(aqtype\(aq
+code \fIadtype\fP\&. For instance, an \fIadtype\fP value of 9 would return the
+string \fB\(dqComplete Local Name\(dq\fP\&. See the Generic Access Profile
+assigned numbers at \%<https://\:www\:.bluetooth\:.org/\:en-us/\:specification/\:assigned-numbers/\:generic-access-profile>
+for a complete list.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getValueText(adtype)
+Returns a human\-readable string representation of the advertising data
+for code \fIadtype\fP\&. Values such as the \(aqlocal name\(aq are returned as
+strings directly; other values are converted to hex strings. If the
+requested data is not available, \fBNone\fP is returned.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getScanData()
+Returns a list of tuples \fI(adtype, description, value)\fP containing the
+AD type code, human\-readable description and value (as reported by
+\fBgetDescription()\fP and \fBgetValueText()\fP) for all available advertising
+data items.
+.UNINDENT
+.SS Properties
+.sp
+All the properties listed below are read\-only.
+.INDENT 0.0
+.TP
+.B addr
+Device MAC address (as a hex string separated by colons).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B addrType
+Device address type \- one of \fIADDR_TYPE_PUBLIC\fP or \fIADDR_TYPE_RANDOM\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B iface
+Bluetooth interface number (0 = \fB/dev/hci0\fP) on which advertising information was seen.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B rssi
+Received Signal Strength Indication for the last received broadcast from the
+device. This is an integer value measured in dB, where 0 dB is the maximum
+(theoretical) signal strength, and more negative numbers indicate a weaker signal.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B connectable
+Boolean value \- \fBTrue\fP if the device supports connections, and \fBFalse\fP
+otherwise (typically used for advertising \(aqbeacons\(aq).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B updateCount
+Integer count of the number of advertising packets received from the device
+so far (since \fIclear()\fP was called on the \fBScanner\fP object which found it).
+.UNINDENT
+.SH THE DEFAULTDELEGATE CLASS
+.sp
+\fBbluepy\fP functions which receive Bluetooth messages asynchronously \-
+such as notifications, indications, and advertising data \- pass this information
+to the user by calling methods on a \(aqdelegate\(aq object.
+.sp
+To be useful, the delegate object will be from a class created by the user.
+Bluepy\(aqs \fBDefaultDelegate\fP is a base class for this \- you should override
+some or all of the methods here with your own application\-specific code.
+.SS Constructor
+.INDENT 0.0
+.TP
+.B DefaultDelegate()
+Initialises the object instance.
+.UNINDENT
+.SS Instance Methods
+.INDENT 0.0
+.TP
+.B handleNotification(cHandle, data)
+Called when a notification or indication is received from a connected
+\fBPeripheral\fP object. \fIcHandle\fP is the (integer) handle for the
+characteristic \- this can be used to distinguish between notifications
+from multiple sources on the same peripheral. \fIdata\fP is the characteristic
+data (a \fBstr\fP type on Python 2.x, and \fBbytes\fP on 3.x).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B handleDiscovery(scanEntry, isNewDev, isNewData)
+Called when advertising data is received from an LE device while a
+\fBScanner\fP object is active. \fIscanEntry\fP contains device information
+and advertising data \- see the \fBScanEntry\fP class for details. \fIisNewDev\fP
+is \fBTrue\fP if the device (as identified by its MAC address) has not been
+seen before by the scanner, and \fBFalse\fP otherwise. \fIisNewData\fP is \fBTrue\fP
+if new or updated advertising data is available.
+.UNINDENT
+.SH THE UUID CLASS
+.SS Constructor
+.INDENT 0.0
+.TP
+.B UUID(value)
+Constructs a \fBUUID\fP object with the given \fIvalue\fP\&. This may be:
+.INDENT 7.0
+.IP \(bu 2
+an \fIint\fP value in the range 0 to 0xFFFFFFFF
+.IP \(bu 2
+a \fIstr\fP value
+.IP \(bu 2
+another \fIUUID\fP object
+.IP \(bu 2
+any other value which can be converted to hex digits using \fBstr()\fP
+.UNINDENT
+.UNINDENT
+.SS Instance Methods
+.INDENT 0.0
+.TP
+.B getCommonName()
+Returns string describing that UUID. If the UUID is one listed
+in Assigned Numbers \%<#\:assignednumbers> this will be a human\-readable name e.g.
+\(dqCycling Speed and Cadence\(dq. Otherwise, it will be a hexadecimal string.
+.UNINDENT
+.SS Properties
+.sp
+All the properties listed below are read\-only.
+.INDENT 0.0
+.TP
+.B binVal
+The UUID expressed in binary (a \fBstr\fP object on Python 2.x, \fBbytes\fP on 3.x).
+.UNINDENT
+.SH THE SERVICE CLASS
+.sp
+A Bluetooth LE \fBService\fP object represents a collection of \fIcharacteristics\fP and
+\fIdescriptors\fP which are all related to one particular function of the peripheral. This
+allows particular characteristics to be discovered without having to enumerate everything offered by that peripheral.
+.sp
+More information about standard services can be found at
+\%<https://\:www\:.bluetooth\:.org/\:en-us/\:specification/\:adopted-specifications>
+.SS Constructor
+.sp
+You should not construct \fBService\fP objects directly. Instead, use the
+\fBgetServices()\fP or \fBgetServiceByUUID()\fP methods of a connected \fBPeripheral\fP object.
+.SS Instance Methods
+.INDENT 0.0
+.TP
+.B getCharacteristics([forUUID=None])
+Returns a list of \fBCharacteristic\fP objects associated with the service. If this
+has not been done before, the peripheral is queried. Otherwise, a cached list if
+returned. If \fIforUUID\fP is given, it may be a \fBUUID\fP object or a value used to
+construct one.  In this case the returned list, which may be empty, contains any
+characteristics associated with the service which match that UUID.
+.UNINDENT
+.SS Properties
+.sp
+All the properties listed below are read\-only.
+.INDENT 0.0
+.TP
+.B uuid
+The Bluetooth \fBUUID\fP for this service.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B peripheral
+The \fBPeripheral\fP object for the device to which the service belongs.
+.UNINDENT
+.SH THE CHARACTERISTIC CLASS
+.sp
+A Bluetooth LE \(dqcharacteristic\(dq represents a short data item which can be read or
+written. These can be fixed (e.g. a string representing the manufacturer name) or
+change dynamically (such as the current temperature or state of a button). Most
+interaction with Bluetooth LE peripherals is done by reading or writing characteristics.
+.SS Constructor
+.sp
+You should not construct \fBCharacteristic\fP objects directly. Instead, use the
+\fBgetCharacteristics()\fP method of a connected \fBPeripheral\fP object.
+.SS Instance Methods
+.INDENT 0.0
+.TP
+.B read()
+Reads the current value of a characteristic as a string of bytes. For Python 2.x this
+is a value of type \fIstr\fP, and on Python 3.x this is of type \fIbytes\fP\&. This may be
+used with the \fIstruct\fP module to extract integer values from the data.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B write(data[, withResponse=False])
+Writes the given \fIdata\fP to the characteristic. \fIdata\fP should be of type \fIstr\fP for
+Python 2.x, and type \fIbytes\fP for Python 3.x. Bluetooth LE allows the sender to
+request the peripheral to send a response to confirm that the data has been received.
+Setting the \fIwithResponse\fP parameter to \fITrue\fP will make this request. A
+\fIBTLEException\fP will be raised if the confirmation process fails.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B supportsRead()
+Returns \fITrue\fP if the characteristic can be read (as indicated by its properties)
+and \fIFalse\fP otherwise.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B propertiesToString()
+Returns a string describing the characteristic properties (\(aqREAD\(aq, \(aqWRITE\(aq, etc).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B getHandle()
+Returns the 16\-bit integer value used to identify the characteristic in the
+underlying GATT protocol. This may be useful to distinguish between notifications
+from different characteristics (see Working with notifications \%<#\:notifications> for further information).
+.UNINDENT
+.SS Properties
+.sp
+All the properties listed below are read\-only.
+.INDENT 0.0
+.TP
+.B uuid
+The Bluetooth \fBUUID\fP for this characteristic.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B peripheral
+The \fBPeripheral\fP object for the device to which the characteristic belongs.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B properties
+A bitmask of properties for the characteristic.
+.UNINDENT
+.SH THE DESCRIPTOR CLASS
+.sp
+The Descriptor class is a placeholder. \fBbluepy\fP does not currently support any useful operations with descriptors.
+.SH WORKING WITH NOTIFICATIONS
+.sp
+In \fBbluepy\fP, notifications are processed by creating a \(dqdelegate\(dq object and
+registering it with the \fBPeripheral\fP\&. A method in the delegate is called whenever
+a notification is received from the peripheral, as shown below:
+.INDENT 0.0
+.TP
+.B handleNotification(cHandle, data)
+Called when a notification has been received from a \fBPeripheral\fP\&. Normally
+you will call the peripheral\(aqs \fBwaitForNotifications()\fP method to allow this,
+but note that a Bluetooth LE device may transmit notifications at any time. This
+means that \fIhandleNotification()\fP can potentially be called when any BluePy call
+is in progress.
+.sp
+The \fIcHandle\fP parameter is the GATT \(aqhandle\(aq for the characteristic which is
+sending the notification. If a peripheral sends notifications for more than one
+characteristic, this may be used to distinguish them. The \(aqhandle\(aq value can be
+found by calling the \fBgetHandle()\fP method of a \fBCharacteristic\fP object.
+.sp
+The \fIdata\fP parameter is a \fBstr\fP (Python 2.x) or \fBbytes\fP (Python 3.x) value
+containing the notification data. It is recommended you use Python\(aqs \fBstruct\fP
+module to unpack this, to allow portability between language versions.
+.UNINDENT
+.sp
+It is recommended that the class used for the delegate object is derived from
+\fBbtle.DefaultDelegate\fP\&. This will ensure that an appropriate default method
+exists for any future calls which may be added to the delegate interface.
+.SS Example code
+.sp
+Code to receive notifications from a peripheral can follow the outline below:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import btle
+
+class MyDelegate(btle.DefaultDelegate):
+    def __init__(self, params):
+        btle.DefaultDelegate.__init__(self)
+        # ... initialise here
+
+    def handleNotification(self, cHandle, data):
+        # ... perhaps check cHandle
+        # ... process \(aqdata\(aq
+
+
+# Initialisation  \-\-\-\-\-\-\-
+
+p = btle.Peripheral( address )
+p.setDelegate( MyDelegate(params) )
+
+# Setup to turn notifications on, e.g.
+#   svc = p.getServiceByUUID( service_uuid )
+#   ch = svc.getCharacteristics( char_uuid )[0]
+#   ch.write( setup_data )
+
+# Main loop \-\-\-\-\-\-\-\-
+
+while True:
+    if p.waitForNotifications(1.0):
+        # handleNotification() was called
+        continue
+
+    print \(dqWaiting...\(dq
+    # Perhaps do something else here
+.EE
+.UNINDENT
+.UNINDENT
+.SH ASSIGNED NUMBERS
+.sp
+The \fBAssignedNumbers\fP object is a convenient way to refer to common Bluetooth\-related
+Assigned Numbers by using textual names. So, for instance \fBAssignedNumbers.firmwareRevisionString\fP
+is a \fBUUID\fP object for the \fIFirmware Revision String\fP characteristic identifier (0x2A26).
+.sp
+The complete list of Bluetooth assigned numbers is given at \%<https://\:www\:.bluetooth\:.org/\:en-us/\:specification/\:assigned-numbers>
+.sp
+The current version of \fIbluepy\fP includes the following defined values:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+alertNotificationService
+batteryLevel
+batteryService
+bloodPressure
+currentTimeService
+cyclingPower
+cyclingSpeedAndCadence
+deviceInformation
+deviceName
+firmwareRevisionString
+genericAccess
+genericAttribute
+glucose
+hardwareRevisionString
+healthThermometer
+heartRate
+humanInterfaceDevice
+immediateAlert
+linkLoss
+locationAndNavigation
+manufacturerNameString
+modelNumberString
+nextDstChangeService
+phoneAlertStatusService
+referenceTimeUpdateService
+runningSpeedAndCadence
+scanParameters
+serialNumberString
+softwareRevisionString
+txPower
+txPowerLevel
+userData
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+Index \%<>
+.IP \(bu 2
+Module Index \%<>
+.IP \(bu 2
+Search Page \%<>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Ian Harvey
+.SH "حق نشر (COPYRIGHT)"
+2014, Ian Harvey
+.\" End of generated man page.

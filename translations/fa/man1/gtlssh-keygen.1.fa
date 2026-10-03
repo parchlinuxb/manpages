@@ -1,0 +1,227 @@
+.TH gtlssh-keygen 1 01/02/19  "Key handling for gtlssh"
+.SH "نام (NAME)"
+gtlssh-keygen \- Key handling for gtlssh
+.SH "خلاصه دستور (SYNOPSIS)"
+.B gtlssh-keygen [options] <command> [command options]
+.SH "توضیحات (DESCRIPTION)"
+The
+.BR gtlssh-keygen
+program is used for making key handling for gtlssh easier.
+
+Generally, when you start using gtlssh on a system, you would run
+
+  gtlssh-keygen keygen
+
+and it would create keys for you.  You should do the same thing on any
+target system you want to log into with gtlssh.  Then copy the
+default.crt file in your $HOME/.gtlssh directory to the target's
+$HOME/.gtlssh/allowed_certs directory.  Then run
+
+  gtlssh rehash
+
+on the target system to generate the hashes   After that you should be
+able to log in without a password.
+
+When you need to regenerate your keys, you run
+
+  gtlssh-keygen keygen
+
+again.  It will prompt you for replacement.  If you replace the keys,
+the old keys will be saved with a ".1" appended to the filename.  Once
+you replace they keys, you need to push up new keys to all your
+target.  You can run
+
+  gtlssh-keygen pushcert target1 [target2 [....]]
+
+to update they keys on all those targets.  It will use the old
+credentials (with the ".1" appended) to do this, so it should work
+easily.
+.SH DIFFERENCES FROM SSH
+Unlike ssh, ssl keys have lifetimes.  By default gtlssh creates 1 year
+lifetimes on keys, though you can override this.  Although this is a
+little annoying, it is a good idea to replace your keys periodically,
+so you could call this a good thing.
+
+gtlssh lets you create keys for specific targets and use them
+automatically.  Suppose, for instance, that you want to use a
+different key for logging into target abc.my.domain.  You would do:
+
+  gtlssh-keygen keygen abc.my.domain
+
+and it would create a key and certificate in the
+directory .gtlssh/keycerts with the names abc.my.domain.crt and
+abc.my.domain.key.  You would need to copy that certificate (not the
+default.crt) to your remote target.
+.B gtlssh
+would see that those keys were there and use them automatically when
+you logged in to abc.my.domain.  The pushcert command understands
+this, too, and will handle pushing the proper keys when you push to
+abc.my.domain.
+
+You can also add ports to the key generation, and it will only use it
+if you connect to the specific target on the specific port.  This
+could be useful for ser2net.
+.SH WINDOWS HACKS
+gtlsshd will work on Windows, and it will sort of work without a
+password (certificate-only login), but certain things will not work as
+the logon has no stored credentials, and it is unable to create a
+linked token for admin logins so you can't do admin things.
+
+You have two options to work around this issue and still allow
+certificate logins:
+
+You can use the storepw command of gtlssh-keygen to store your
+password in your .gtlssh directory.  This is not ideal, but your
+private keys are there, anyway, so it's not a huge thing.
+Administrators on your system will be able to look at your password,
+so be warned.
+
+You can use the --require-password option to gtlsshd.  This will
+prompt you for the password even if the certificate passes validation.
+This defeats one purpose of having a certificate, not having to enter
+a password, but still provides the major benefit of certificate-level
+authentication, in that it's more secure.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.I \-\-keysize size
+Create an RSA key with the given number of bits.  Default is 2048.
+Usually 1024, 2048, or 4096.
+.TP
+.I \-\-keydays days
+Create a key that expires in the given number of days.  Default is 365.
+.TP
+.I \-\-basedir dir
+Base directory for gtlssh.  Default is $HOME/.gtlssh.
+Default keys go here.
+.TP
+.I \-\-keydir dir
+Location to put the non-default generated keys.  Default is
+$HOME/.gtlssh/keycerts for user certificates.  For server certificates
+it is in sysconfdir (generally /etc) /gtlssh on Unix.  On Windows
+it is ../etc/gtlsshd from the directory of the executable.
+
+Note that on Windows, you must set the permissions of the key
+directory (or the keys) so that only System and Administrators have
+access.  Otherwise gtlsshd will fail with an error about permissions
+on the key.
+.TP
+.I \-\-commonname name
+Set the common name in the certificate.  The default is your username
+for normal certificates and the fully qualified domain name (prefixed
+with the keyname if the keyname is given) for server certificates.
+.TP
+.I \-\-algorithm algname
+Use the given algorithm for the key generation, one of rsa, ec, or
+ed25519.  The default is ed25519.
+.TP
+.I \-\-force | \-f
+Don't ask any questions, just force the operations.  Be careful, this
+will overwrite data without asking.
+.TP
+.I \-\-version
+Print the version number and exit.
+.TP
+.I \-h|\-\-help
+Help output
+.SH "COMMAND"
+Commands are:
+.TP
+.I keygen [-p <port>] [hostname]
+Setup of the base directory (if not already set up) and create keys.
+If nothing is specified, create the default key in
+<basedir>/default.key and <basedir>/default.crt.  Otherwise create
+keys in the form <keydir>/<host>[,<port>].key and
+<keydir>/<host>[,<port>].crt.
+.TP
+.I setup
+Like keygen, but take no options and create the default certificate
+only.
+.TP
+.I rehash [directory [directory [...]]]
+The openssl library used by gtlssh requires that certificates in a
+library be hashed so it can find them.  This command redoes the hashes
+in the given directories.  If no directory is specified, it rehashes
+<basedir>/allowed_certs and <basedir>/server_certs.
+
+Note that if you add keys to these directories, you must rehash them
+or they will not work.
+
+.I rehash
+will automatically remove any certificates that have expired.
+.TP
+.I addallow [-i] <hostname> <file>
+Add the given file as an allowed public certificate for the given
+hostname.  It will install this file in the directory in
+<basedir>/allowed_certs with the name "hostname.crt".  It will
+also rehash the directory.  If
+.I -i
+is specified, input comes from stdin and the file is not required or
+used.  If the destination file already exists, it will rename it
+"hostname.crt.1.crt".
+.TP
+.I pushcert [-n <name> ] [-p <port>] <hostname> [[-p <port>] <hostname> [...]]
+Put the local certificate for the given host onto the remote host so
+it can be used for login.  It uses old credentials (credentials
+with .1 appended to the name, per keygen) if they are there.  This is
+useful if you have updated your certificate and need to send a new one
+to some remote hosts.  It finds the certificate name as described in
+the keygen command.  If old credentials exist, it will use those to
+connect with gtlssh and send the certificate.  Otherwise it will use
+default credentials and hope for the best, probably only useful if
+passwords are accepcted.  This only works one keygen back, if you have
+run the keygen command twice for the host, you will need to transfer
+the certificate manually.  By default the credential on the remote
+host is named the output of 'hostname -f' on the local machine,
+.I -n
+overrides this.
+.TP
+.I storepw
+Windows only, see "WINDOW HACKS" above for details. Prompts for your
+password to store in your .gtlssh directory.
+.TP
+.I serverkey
+Create keys for the server, generally in /etc/gtlssh/gtlsshd.key and
+/etc/gtlssh/gtlsshd.crt.  You generally must be root to do this.  Use
+for initial setup of gtlsshd.
+
+If you specify a keyname, the common name used for the key will be
+"<keyname>.<hostname>" by default, unless you set it with
+.B --commonname.
+If you do not specify a keyname (defaulting it to gtlsshd), the common
+name is just the hostname.  This avoids the following problem...
+
+.B NOTE:
+If you run multiple servers on the same system, you must have a
+different common name for each one.  Some version of openssl will look
+at another certificate with the same common name as part of the same
+certificate chain and you will get a failure:
+
+  authority and subject key identifier mismatch
+
+So if, for instance, you are running ser2net and gtlsshd on the same
+system, they must have different common names.
+
+On Windows, you must remove all permissions from the key file except
+for SYSTEM and Administrator.  If gtlssh doesn't run, this is the
+first thing to check.  (You can raise get a SYSTEM console as
+described below and run "gtlssh -d" and it will give you an error,
+this is useful for debugging.)  The program doesn't yet do this by
+default, unfortunately.  You will have to configure the file as SYSTEM
+to do this.  The procedure is:
+
+Run an administrator console.
+
+Run "psexec -sid cmd" to run a console as SYSTEM.
+
+Run "explorer".
+
+Go to the key file in explorer, right click on it, and choose
+Properties, then Security, then you can modify it from there.
+
+.SH "همچنین ببینید (SEE ALSO)"
+gtlssh(1), gtlsshd(8)
+.SH "KNOWN PROBLEMS"
+None.
+.SH "نویسنده (AUTHOR)"
+.PP
+Corey Minyard <minyard@acm.org>

@@ -1,0 +1,692 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "PYOTP" "1" "Jun 16, 2026" "" "PyOTP"
+.SH "نام (NAME)"
+pyotp \- PyOTP 
+.sp
+PyOTP is a Python library for generating and verifying one\-time passwords. It can be used to implement two\-factor (2FA)
+or multi\-factor (MFA) authentication methods in web applications and in other systems that require users to log in.
+.sp
+Open MFA standards are defined in RFC 4226 \%<https://\:tools\:.ietf\:.org/\:html/\:rfc4226> (HOTP: An HMAC\-Based One\-Time
+Password Algorithm) and in RFC 6238 \%<https://\:tools\:.ietf\:.org/\:html/\:rfc6238> (TOTP: Time\-Based One\-Time Password
+Algorithm). PyOTP implements server\-side support for both of these standards. Client\-side support can be enabled by
+sending authentication codes to users over SMS or email (HOTP) or, for TOTP, by instructing users to use Google
+Authenticator \%<https://\:en\:.wikipedia\:.org/\:wiki/\:Google_Authenticator>, Authy \%<https://\:www\:.authy\:.com>, or another
+compatible app. Users can set up auth tokens in their apps easily by using their phone camera to scan otpauth:// \%<https://\:github\:.com/\:google/\:google-authenticator/\:wiki/\:Key-Uri-Format> QR codes provided by PyOTP.
+.sp
+Implementers should read and follow the HOTP security requirements \%<https://\:tools\:.ietf\:.org/\:html/\:rfc4226#\:section-7>
+and TOTP security considerations \%<https://\:tools\:.ietf\:.org/\:html/\:rfc6238#\:section-5> sections of the relevant RFCs. At
+minimum, application implementers should follow this checklist:
+.INDENT 0.0
+.IP \(bu 2
+Ensure transport confidentiality by using HTTPS
+.IP \(bu 2
+Ensure HOTP/TOTP secret confidentiality by storing secrets in a controlled access database
+.IP \(bu 2
+Deny replay attacks by rejecting one\-time passwords that have been used by the client (this requires storing the most
+recently authenticated timestamp, OTP, or hash of the OTP in your database, and rejecting the OTP when a match is
+seen)
+.IP \(bu 2
+Throttle (rate limit) brute\-force attacks against your application\(aqs login functionality (see RFC 4226, section 7.3)
+.IP \(bu 2
+When implementing a \(dqgreenfield\(dq application, consider supporting
+FIDO U2F \%<https://\:en\:.wikipedia\:.org/\:wiki/\:Universal_2nd_Factor>/WebAuthn \%<https://\:www\:.w3\:.org/\:TR/\:webauthn> in
+addition to or instead of HOTP/TOTP. U2F uses asymmetric cryptography to avoid using a shared secret design, which
+strengthens your MFA solution against server\-side attacks. Hardware U2F also sequesters the client secret in a
+dedicated single\-purpose device, which strengthens your clients against client\-side attacks. And by automating scoping
+of credentials to relying party IDs (application origin/domain names), U2F adds protection against phishing attacks.
+One implementation of FIDO U2F/WebAuthn is PyOTP\(aqs sister project, PyWARP \%<https://\:github\:.com/\:pyauth/\:pywarp>\&.
+.UNINDENT
+.sp
+We also recommend that implementers read the
+OWASP Authentication Cheat Sheet \%<https://\:github\:.com/\:OWASP/\:CheatSheetSeries/\:blob/\:master/\:cheatsheets/\:Authentication_Cheat_Sheet\:.md> and
+NIST SP 800\-63\-3: Digital Authentication Guideline \%<https://\:pages\:.nist\:.gov/\:800-63-3> for a high level overview of
+authentication best practices.
+.SH QUICK OVERVIEW OF USING ONE TIME PASSWORDS ON YOUR PHONE
+.INDENT 0.0
+.IP \(bu 2
+OTPs involve a shared secret, stored both on the phone and the server
+.IP \(bu 2
+OTPs can be generated on a phone without internet connectivity
+.IP \(bu 2
+OTPs should always be used as a second factor of authentication (if your phone is lost, you account is still secured
+with a password)
+.IP \(bu 2
+Google Authenticator and other OTP client apps allow you to store multiple OTP secrets and provision those using a QR
+Code
+.UNINDENT
+.SH INSTALLATION
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install pyotp
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نحوه استفاده (USAGE)"
+.SS Time\-based OTPs
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import pyotp
+import time
+
+totp = pyotp.TOTP(\(aqbase32secret3232\(aq)
+totp.now() # => \(aq492039\(aq
+
+# OTP verified for current time
+totp.verify(\(aq492039\(aq) # => True
+time.sleep(30)
+totp.verify(\(aq492039\(aq) # => False
+.EE
+.UNINDENT
+.UNINDENT
+.SS Counter\-based OTPs
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import pyotp
+
+hotp = pyotp.HOTP(\(aqbase32secret3232\(aq)
+hotp.at(0) # => \(aq260182\(aq
+hotp.at(1) # => \(aq055283\(aq
+hotp.at(1401) # => \(aq316439\(aq
+
+# OTP verified with a counter
+hotp.verify(\(aq316439\(aq, 1401) # => True
+hotp.verify(\(aq316439\(aq, 1402) # => False
+.EE
+.UNINDENT
+.UNINDENT
+.SS Generating a Secret Key
+.sp
+A helper function is provided to generate a 32\-character base32 secret, compatible with Google Authenticator and other
+OTP apps:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pyotp.random_base32()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Some applications want the secret key to be formatted as a hex\-encoded string:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pyotp.random_hex()  # returns a 40\-character hex\-encoded secret
+.EE
+.UNINDENT
+.UNINDENT
+.SS Google Authenticator Compatible
+.sp
+PyOTP works with the Google Authenticator iPhone and Android app, as well as other OTP apps like Authy. PyOTP includes
+the ability to generate provisioning URIs for use with the QR Code scanner built into these MFA client apps:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pyotp.totp.TOTP(\(aqJBSWY3DPEHPK3PXP\(aq).provisioning_uri(name=\(aqalice@google.com\(aq, issuer_name=\(aqSecure App\(aq)
+
+>>> \(aqotpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App\(aq
+
+pyotp.hotp.HOTP(\(aqJBSWY3DPEHPK3PXP\(aq).provisioning_uri(name=\(dqalice@google.com\(dq, issuer_name=\(dqSecure App\(dq, initial_count=0)
+
+>>> \(aqotpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This URL can then be rendered as a QR Code (for example, using \%<https://\:github\:.com/\:soldair/\:node-qrcode>) which can then be
+scanned and added to the users list of OTP credentials.
+.sp
+Parsing these URLs is also supported:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pyotp.parse_uri(\(aqotpauth://totp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App\(aq)
+
+>>> <pyotp.totp.TOTP object at 0xFFFFFFFF>
+
+pyotp.parse_uri(\(aqotpauth://hotp/Secure%20App:alice%40google.com?secret=JBSWY3DPEHPK3PXP&issuer=Secure%20App&counter=0\(aq
+
+>>> <pyotp.totp.HOTP object at 0xFFFFFFFF>
+.EE
+.UNINDENT
+.UNINDENT
+.SS Working example
+.sp
+Scan the following barcode with your phone\(aqs OTP app (e.g. Google Authenticator):
+[image]
+.sp
+Now run the following and compare the output:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import pyotp
+totp = pyotp.TOTP(\(dqJBSWY3DPEHPK3PXP\(dq)
+print(\(dqCurrent OTP:\(dq, totp.now())
+.EE
+.UNINDENT
+.UNINDENT
+.SS Third\-party contributions
+.sp
+The following third\-party contributions are not described by a standard, not officially supported, and provided for
+reference only:
+.INDENT 0.0
+.IP \(bu 2
+\fBpyotp.contrib.Steam()\fP: An implementation of Steam TOTP. Uses the same API as \fIpyotp.TOTP()\fP\&.
+.UNINDENT
+.SS Links
+.INDENT 0.0
+.IP \(bu 2
+Project home page (GitHub) \%<https://\:github\:.com/\:pyauth/\:pyotp>
+.IP \(bu 2
+Documentation \%<https://\:pyauth\:.github\:.io/\:pyotp>
+.IP \(bu 2
+Package distribution (PyPI) \%<https://\:pypi\:.python\:.org/\:pypi/\:pyotp>
+.IP \(bu 2
+Change log \%<https://\:github\:.com/\:pyauth/\:pyotp/\:blob/\:master/\:Changes\:.rst>
+.IP \(bu 2
+RFC 4226: HOTP: An HMAC\-Based One\-Time Password \%<https://\:tools\:.ietf\:.org/\:html/\:rfc4226>
+.IP \(bu 2
+RFC 6238: TOTP: Time\-Based One\-Time Password Algorithm \%<https://\:tools\:.ietf\:.org/\:html/\:rfc6238>
+.IP \(bu 2
+ROTP \%<https://\:github\:.com/\:mdp/\:rotp> \- Original Ruby OTP library by Mark Percival \%<https://\:github\:.com/\:mdp>
+.IP \(bu 2
+OTPHP \%<https://\:github\:.com/\:lelag/\:otphp> \- PHP port of ROTP by Le Lag \%<https://\:github\:.com/\:lelag>
+.IP \(bu 2
+OWASP Authentication Cheat Sheet \%<https://\:github\:.com/\:OWASP/\:CheatSheetSeries/\:blob/\:master/\:cheatsheets/\:Authentication_Cheat_Sheet\:.md>
+.IP \(bu 2
+NIST SP 800\-63\-3: Digital Authentication Guideline \%<https://\:pages\:.nist\:.gov/\:800-63-3>
+.UNINDENT
+.sp
+For new applications:
+.INDENT 0.0
+.IP \(bu 2
+WebAuthn \%<https://\:www\:.w3\:.org/\:TR/\:webauthn>
+.IP \(bu 2
+PyWARP \%<https://\:github\:.com/\:pyauth/\:pywarp>
+.UNINDENT
+.SS Versioning
+.sp
+This package follows the Semantic Versioning 2.0.0 \%<http://\:semver\:.org> standard. To control changes, it is
+recommended that application developers pin the package version and manage it using pip\-tools \%<https://\:github\:.com/\:jazzband/\:pip-tools> or similar. For library developers, pinning the major version is
+recommended.
+[image]
+ \%<https://\:github\:.com/\:pyauth/\:pyotp/\:actions>[image]
+ \%<https://\:codecov\:.io/\:github/\:pyauth/\:pyotp?\:branch=master>[image]
+ \%<https://\:pypi\:.python\:.org/\:pypi/\:pyotp>[image]
+ \%<https://\:pypi\:.python\:.org/\:pypi/\:pyotp>[image]
+ \%<https://\:pyotp\:.readthedocs\:.io>.INDENT 0.0
+.TP
+.B pyotp.parse_uri(uri: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) -> OTP
+Parses the provisioning URI for the OTP; works for either TOTP or HOTP.
+.INDENT 7.0
+.TP
+.B See also:
+\%<https://\:github\:.com/\:google/\:google-authenticator/\:wiki/\:Key-Uri-Format>
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+\fBuri\fP \-\- the hotp/totp URI to parse
+.TP
+.B Returns
+OTP object
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class pyotp.totp.TOTP(s: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, digits: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 6, digest: Any \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any> = None, name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, issuer: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, interval: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 30)
+Handler for time\-based OTP counters.
+.INDENT 7.0
+.TP
+.B at(for_time: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | datetime \%<https://\:docs\:.python\:.org/\:3/\:library/\:datetime\:.html#\:datetime\:.datetime>, counter_offset: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 0) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Accepts either a Unix timestamp integer or a datetime object.
+.sp
+To get the time until the next timecode change (seconds until the current OTP expires), use this instead:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+totp = pyotp.TOTP(...)
+time_remaining = totp.interval \- datetime.datetime.now().timestamp() % totp.interval
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBfor_time\fP \-\- the time to generate an OTP for
+.IP \(bu 2
+\fBcounter_offset\fP \-\- the amount of ticks to add to the time counter
+.UNINDENT
+.TP
+.B Returns
+OTP value
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B now() -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Generate the current time OTP
+.INDENT 7.0
+.TP
+.B Returns
+OTP value
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B provisioning_uri(name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, issuer_name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, **kwargs) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Returns the provisioning URI for the OTP.  This can then be
+encoded in a QR Code and used to provision an OTP app like
+Google Authenticator.
+.INDENT 7.0
+.TP
+.B See also:
+\%<https://\:github\:.com/\:google/\:google-authenticator/\:wiki/\:Key-Uri-Format>
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B timecode(for_time: datetime \%<https://\:docs\:.python\:.org/\:3/\:library/\:datetime\:.html#\:datetime\:.datetime>) -> int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>
+Accepts either a timezone naive (\fIfor_time.tzinfo is None\fP) or
+a timezone aware datetime as argument and returns the
+corresponding counter value (timecode).
+.UNINDENT
+.INDENT 7.0
+.TP
+.B verify(otp: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, for_time: datetime \%<https://\:docs\:.python\:.org/\:3/\:library/\:datetime\:.html#\:datetime\:.datetime> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, valid_window: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 0) -> bool \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>
+Verifies the OTP passed in against the current time OTP.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBotp\fP \-\- the OTP to check against
+.IP \(bu 2
+\fBfor_time\fP \-\- Time to check OTP at (defaults to now)
+.IP \(bu 2
+\fBvalid_window\fP \-\- extends the validity to this many counter ticks before and after the current one
+.UNINDENT
+.TP
+.B Returns
+True if verification succeeded, False otherwise
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class pyotp.hotp.HOTP(s: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, digits: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 6, digest: Any \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any> = None, name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, issuer: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, initial_count: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 0)
+Handler for HMAC\-based OTP counters.
+.INDENT 7.0
+.TP
+.B at(count: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Generates the OTP for the given count.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBcount\fP \-\- the OTP HMAC counter
+.TP
+.B Returns
+OTP
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B provisioning_uri(name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, initial_count: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, issuer_name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, **kwargs) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Returns the provisioning URI for the OTP.  This can then be
+encoded in a QR Code and used to provision an OTP app like
+Google Authenticator.
+.INDENT 7.0
+.TP
+.B See also:
+\%<https://\:github\:.com/\:google/\:google-authenticator/\:wiki/\:Key-Uri-Format>
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBname\fP \-\- name of the user account
+.IP \(bu 2
+\fBinitial_count\fP \-\- starting HMAC counter value, defaults to 0
+.IP \(bu 2
+\fBissuer_name\fP \-\- the name of the OTP issuer; this will be the
+organization title of the OTP entry in Authenticator
+.UNINDENT
+.TP
+.B Returns
+provisioning URI
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B verify(otp: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, counter: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>) -> bool \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>
+Verifies the OTP passed in against the current counter OTP.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBotp\fP \-\- the OTP to check against
+.IP \(bu 2
+\fBcounter\fP \-\- the OTP HMAC counter
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B pyotp.utils.build_uri(secret: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, initial_count: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, issuer: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, algorithm: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, digits: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, period: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, **kwargs) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Returns the provisioning URI for the OTP; works for either TOTP or HOTP.
+.sp
+This can then be encoded in a QR Code and used to provision the Google
+Authenticator app.
+.sp
+For module\-internal use.
+.INDENT 7.0
+.TP
+.B See also:
+\%<https://\:github\:.com/\:google/\:google-authenticator/\:wiki/\:Key-Uri-Format>
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsecret\fP \-\- the hotp/totp secret used to generate the URI
+.IP \(bu 2
+\fBname\fP \-\- name of the account
+.IP \(bu 2
+\fBinitial_count\fP \-\- starting counter value, defaults to None.
+If none, the OTP type will be assumed as TOTP.
+.IP \(bu 2
+\fBissuer\fP \-\- the name of the OTP issuer; this will be the
+organization title of the OTP entry in Authenticator
+.IP \(bu 2
+\fBalgorithm\fP \-\- the algorithm used in the OTP generation.
+.IP \(bu 2
+\fBdigits\fP \-\- the length of the OTP generated code.
+.IP \(bu 2
+\fBperiod\fP \-\- the number of seconds the OTP generator is set to
+expire every code.
+.IP \(bu 2
+\fBkwargs\fP \-\- other query string parameters to include in the URI
+.UNINDENT
+.TP
+.B Returns
+provisioning uri
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B pyotp.utils.strings_equal(s1: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, s2: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) -> bool \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>
+Timing\-attack resistant string comparison.
+.sp
+Normal comparison using == will short\-circuit on the first mismatching
+character. This avoids that by scanning the whole string, though we
+still reveal to a timing attack whether the strings are the same
+length.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class pyotp.contrib.steam.Steam(s: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, name: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, issuer: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = None, interval: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 30, digits: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> = 5)
+Steam\(aqs custom TOTP. Subclass of \fIpyotp.totp.TOTP\fP\&.
+.INDENT 7.0
+.TP
+.B generate_otp(input: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+.INDENT 7.0
+.TP
+.B Parameters
+\fBinput\fP \-\- the HMAC counter value to use as the OTP input.
+Usually either the counter, or the computed integer based on the Unix timestamp
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH RELEASE NOTES
+.SH CHANGES FOR V2.10.0 (2026-06-13)
+.INDENT 0.0
+.IP \(bu 2
+Fix parse_uri mis\-parsing of encoded colon in issuer/account name
+(#187)
+.IP \(bu 2
+Simplified and improved generate_otp() performance in Steam class
+(#179)
+.IP \(bu 2
+Check digest function to prevent error on OTP Generation (#170)
+.IP \(bu 2
+Ignore non\-standard otpauth parameters
+.IP \(bu 2
+use strings as immutable default arguments (#162)
+.UNINDENT
+.SH CHANGES FOR V2.9.0 (2023-07-27)
+.INDENT 0.0
+.IP \(bu 2
+Add \fBparse_uri()\fP support for Steam TOTP (#153)
+.IP \(bu 2
+Test and documentation improvements
+.UNINDENT
+.SH CHANGES FOR V2.8.0 (2022-12-13)
+.INDENT 0.0
+.IP \(bu 2
+Modify OTP generation to run in constant time (#148)
+.IP \(bu 2
+Documentation improvements
+.IP \(bu 2
+Drop Python 3.6 support; introduce Python 3.11 support
+.UNINDENT
+.SH CHANGES FOR V2.7.0 (2022-09-11)
+.INDENT 0.0
+.IP \(bu 2
+Support Steam TOTP (#142)
+.IP \(bu 2
+Build, test, and documentation updates
+.UNINDENT
+.SH CHANGES FOR V2.6.0 (2021-02-04)
+.INDENT 0.0
+.IP \(bu 2
+Raise default and minimum base32 secret length to 32, and hex secret
+length to 40 (160 bits as recommended by the RFC) (#115).
+.IP \(bu 2
+Fix issue where provisioning_uri would return invalid results after
+calling verify() (#115).
+.UNINDENT
+.SH CHANGES FOR V2.5.1 (2021-01-29)
+.INDENT 0.0
+.IP \(bu 2
+parse_uri accepts and ignores optional image parameter (#114)
+.UNINDENT
+.SH CHANGES FOR V2.5.0 (2021-01-29)
+.INDENT 0.0
+.IP \(bu 2
+Add optional image parameter to provisioning_uri (#113)
+.IP \(bu 2
+Support for 7\-digit codes in ‘parse_uri’ (#111)
+.IP \(bu 2
+Raise default and minimum base32 secret length to 26
+.UNINDENT
+.SH CHANGES FOR V2.4.1 (2020-10-16)
+.INDENT 0.0
+.IP \(bu 2
+parse_uri: Fix handling of period, counter (#108)
+.IP \(bu 2
+Add support for timezone aware datetime as argument to
+\fBTOTP.timecode()\fP (#107)
+.UNINDENT
+.SH CHANGES FOR V2.4.0 (2020-07-29)
+.INDENT 0.0
+.IP \(bu 2
+Fix data type for at(for_time) (#85)
+.IP \(bu 2
+Add support for parsing provisioning URIs (#84)
+.IP \(bu 2
+Raise error when trying to generate secret that is too short (The
+secret must be at least 128 bits)
+.IP \(bu 2
+Add random_hex function (#82)
+.UNINDENT
+.SH CHANGES FOR V2.3.0 (2019-07-26)
+.INDENT 0.0
+.IP \(bu 2
+Fix comparison behavior on Python 2.7
+.UNINDENT
+.SH CHANGES FOR V2.2.8 (2019-07-26)
+.INDENT 0.0
+.IP \(bu 2
+Fix comparison of unicode chars (#78)
+.IP \(bu 2
+Minor documentation and test fixes
+.UNINDENT
+.SH CHANGES FOR V2.2.7 (2018-11-05)
+.INDENT 0.0
+.IP \(bu 2
+Have random_base32() use ‘secrets’ as rand source (#66)
+.IP \(bu 2
+Documentation: Add security considerations, minimal security
+checklist, other improvements
+.IP \(bu 2
+Update setup.py to reference correct license
+.UNINDENT
+.SH CHANGES FOR V2.2.6 (2017-06-10)
+.INDENT 0.0
+.IP \(bu 2
+Fix tests wrt double\-quoting in provisioning URIs
+.UNINDENT
+.SH CHANGES FOR V2.2.5 (2017-06-03)
+.INDENT 0.0
+.IP \(bu 2
+Quote issuer QS parameter in provisioning_uri. Fixes #47.
+.IP \(bu 2
+Raise an exception if a negative integer is passed to at() (#41).
+.IP \(bu 2
+Documentation and release infrastructure improvements.
+.UNINDENT
+.SH CHANGES FOR V2.2.4 (2017-01-04)
+.INDENT 0.0
+.IP \(bu 2
+Restore Python 2.6 compatibility (however, Python 2.6 is not
+supported)
+.IP \(bu 2
+Documentation and test improvements
+.IP \(bu 2
+Fix release infra script, part 2
+.UNINDENT
+.SH CHANGES FOR V2.2.3 (2017-01-04)
+.INDENT 0.0
+.IP \(bu 2
+Restore Python 2.6 compatibility (however, Python 2.6 is not
+supported)
+.IP \(bu 2
+Documentation and test improvements
+.IP \(bu 2
+Fix release infra script
+.UNINDENT
+.SH CHANGES FOR V2.2.2 (2017-01-04)
+.INDENT 0.0
+.IP \(bu 2
+Restore Python 2.6 compatibility (however, Python 2.6 is not
+supported)
+.IP \(bu 2
+Documentation and test improvements
+.UNINDENT
+.SH CHANGES FOR V2.2.1 (2016-08-30)
+.INDENT 0.0
+.IP \(bu 2
+Avoid using python\-future; it has subdependencies that limit
+compatibility (#34)
+.IP \(bu 2
+Make test suite pass on 32\-bit platforms (#30)
+.IP \(bu 2
+Timing attack resistance fix: don\(aqt reveal string length to attacker.
+Thanks to Eeo Jun (#28).
+.IP \(bu 2
+Support algorithm, digits, period parameters in provisioning_uri.
+Thanks to Dionisio E Alonso (#33).
+.IP \(bu 2
+Minor style and packaging infrastructure fixes.
+.UNINDENT
+.SH CHANGES FOR V2.2.0 (2016-08-30)
+.INDENT 0.0
+.IP \(bu 2
+See v2.2.1
+.UNINDENT
+.SS Version 2.1.0 (2016\-05\-02)
+.INDENT 0.0
+.IP \(bu 2
+Add extended range support to TOTP.verify. Thanks to Zeev Rotshtein (PR #19).
+.IP \(bu 2
+Handle missing padding of encoded secret. Thanks to Kun Yan (#20).
+.IP \(bu 2
+Miscellaneous fixes.
+.UNINDENT
+.SS Version 2.0.1 (2015\-09\-28)
+.INDENT 0.0
+.IP \(bu 2
+Fix packaging issue in v2.0.0 that prevented installation with easy_install.
+.UNINDENT
+.SS Version 2.0.0 (2015\-08\-22)
+.INDENT 0.0
+.IP \(bu 2
+The \fBpyotp.HOTP.at()\fP, \fBpyotp.TOTP.at()\fP, and
+\fBpyotp.TOTP.now()\fP methods now return strings instead of
+integers. Thanks to Rohan Dhaimade (PR #16).
+.UNINDENT
+.SS Version 1.4.2 (2015\-07\-21)
+.INDENT 0.0
+.IP \(bu 2
+Begin tracking changes in change log.
+.IP \(bu 2
+Update documentation.
+.IP \(bu 2
+Introduce Travis CI integration.
+.UNINDENT
+.SS Version 1.3.1 (2012\-02\-29)
+.INDENT 0.0
+.IP \(bu 2
+Initial release.
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+PyOTP contributors
+.SH "حق نشر (COPYRIGHT)"
+PyOTP contributors
+.\" End of generated man page.

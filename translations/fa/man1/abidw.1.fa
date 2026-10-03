@@ -1,0 +1,606 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "ABIDW" "1" "May 01, 2026" "" "Libabigail"
+.SH "نام (NAME)"
+abidw \- serialize the ABI of an ELF file
+.sp
+abidw reads a shared library in ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> format and emits an XML
+representation of its ABI to standard output.  The emitted
+representation format, named \fBABIXML\fP, includes all the globally
+defined functions and variables, along with a complete representation
+of their types.  It also includes a representation of the globally
+defined ELF symbols of the file.
+.sp
+When given the \fB\-\-linux\-tree\fP option, this program can also handle a
+Linux kernel \%<https://\:kernel\:.org> tree.  That is, a directory tree that contains both
+the vmlinux binary and Linux Kernel \%<https://\:kernel\:.org> modules.  It analyses those
+Linux Kernel \%<https://\:kernel\:.org> binaries and emits an XML representation of the
+interface between the kernel and its module, to standard output.  In
+this case, we don\(aqt call it an ABI, but a KMI (Kernel Module
+Interface).  The emitted KMI includes all the globally defined
+functions and variables, along with a complete representation of their
+types.
+.sp
+To generate either ABI or KMI representation, by default \fBabidw\fP
+uses debug information in the DWARF \%<http://\:www\:.dwarfstd\:.org> format, if present, otherwise
+it looks for debug information in CTF \%<https://\:raw\:.githubusercontent\:.com/\:wiki/\:oracle/\:binutils-gdb/\:files/\:ctf-spec\:.pdf> or BTF \%<https://\:docs\:.kernel\:.org/\:bpf/\:btf\:.html> formats, if present.
+Finally, if no debug info in these formats is found, it only considers
+ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols and report about their addition or removal.
+.sp
+This tool uses the libabigail library to analyze the binary as well as its
+associated debug information.  Here is its general mode of operation.
+.sp
+When instructed to do so, a binary and its associated debug
+information is read and analyzed.  To that effect, libabigail analyzes
+by default the descriptions of the types reachable by the interfaces
+(functions and variables) that are visible outside of their
+translation unit.  Once that analysis is done, an Application Binary
+Interface Corpus is constructed by only considering the subset of
+types reachable from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are
+defined and exported by the binary.  It\(aqs that final ABI corpus which
+libabigail considers as representing the ABI of the analyzed binary.
+.sp
+Libabigail then has capabilities to generate textual representations
+of ABI Corpora, compare them, analyze their changes and report about
+them.
+.SH INVOCATION
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+abidw [options] [<path\-to\-elf\-file>]
+.EE
+.UNINDENT
+.UNINDENT
+.SH "گزینه‌ها (OPTIONS)"
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-abidiff\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+Load the ABI of the ELF binary given in argument, save it in
+libabigail\(aqs XML format in a temporary file; read the ABI from the
+temporary XML file and compare the ABI that has been read back
+against the ABI of the ELF binary given in argument.  The ABIs
+should compare equal.  If they don\(aqt, the program emits a
+diagnostic and exits with a non\-zero code.
+.sp
+This is a debugging and sanity check option.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-abixml\-version\fP
+.sp
+Display the version of the ABIXML format emitted by this program and exit.
+.IP \(bu 2
+\fB\-\-add\-binaries\fP <\fIbin1,bin2,...\fP>
+.sp
+For each of the comma\-separated binaries given in argument to this
+option, if the binary is found in the directory specified by the
+\fI\-\-added\-binaries\-dir\fP option, then load the ABI corpus of the
+binary and add it to a set of ABI corpora (called a ABI Corpus
+Group) made of the binary denoted by the Argument of
+\fBabidw\fP\&.  That corpus group is then serialized out.
+.IP \(bu 2
+\fB\-\-added\-binaries\-dir | \-\-abd\fP <\fIdir\-path\fP>
+.sp
+This option is to be used in conjunction with the
+\fB\-\-add\-binaries\fP, the \fB\-\-follow\-dependencies\fP or the
+\fB\-\-list\-dependencies\fP option.  Binaries listed as arguments of
+the \fB\-\-add\-binaries\fP option or being dependencies of the input
+binary in the case of the \fB\-\-follow\-dependencies\fP option and
+found in the directory <\fIdir\-path\fP> are going to be loaded as ABI
+corpus and added to the set of ABI corpora (called an ABI corpus
+group) built and serialized.
+.IP \(bu 2
+\fB\-\-allow\-non\-exported\-interfaces\fP
+.sp
+When looking at the debug information accompanying a binary, this
+tool analyzes the descriptions of the types reachable by the
+interfaces (functions and variables) that are visible outside of
+their translation unit.  Once that analysis is done, an ABI corpus
+is constructed by only considering the subset of types reachable
+from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are defined and
+exported by the binary.  It\(aqs that final ABI corpus which textual
+representation is saved as \fBABIXML\fP\&.
+.sp
+The problem with that approach however is that analyzing all the
+interfaces that are visible from outside their translation unit
+can amount to a lot of data, especially when those binaries are
+applications, as opposed to shared libraries.  One example of such
+applications is the Linux Kernel \%<https://\:kernel\:.org>\&.  Analyzing massive ABI
+corpora like these can be extremely slow.
+.sp
+In the presence of an \(dqaverage sized\(dq binary however one can
+afford having libabigail analyze all interfaces that are visible
+outside of their translation unit, using this option.
+.sp
+Note that this option is turned on by default, unless we are in
+the presence of the Linux Kernel \%<https://\:kernel\:.org>\&.
+.IP \(bu 2
+\fB\-\-annotate\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+Annotate the ABIXML output with comments above most elements.  The
+comments are made of the pretty\-printed form types, declaration or
+even ELF symbols.  The purpose is to make the ABIXML output more
+human\-readable for debugging or documenting purposes.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-btf\fP
+.sp
+Extract ABI information from BTF \%<https://\:docs\:.kernel\:.org/\:bpf/\:btf\:.html> debug information, if present in
+the given object.
+.IP \(bu 2
+\fB\-\-check\-alternate\-debug\-info\fP <\fIelf\-path\fP>
+.sp
+If the debug info for the file \fIelf\-path\fP contains a reference to
+an alternate debug info \%<alt-di-label> file, \fBabidw\fP checks
+that it can find that alternate debug info file.  In that case, it
+emits a meaningful success message mentioning the full path to the
+alternate debug info file found.  Otherwise, it emits an error
+code.
+.IP \(bu 2
+\fB\-\-check\-alternate\-debug\-info\-base\-name\fP <\fIelf\-path\fP>
+.sp
+Like \fB\-\-check\-alternate\-debug\-info\fP, but in the success message,
+only mention the base name of the debug info file; not its full path.
+.IP \(bu 2
+\fB\-\-debug\-abidiff\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+Same as \fB\-\-abidiff\fP but in debug mode.  In this mode, error
+messages are emitted for types which fail type canonicalization.
+.sp
+This is an optional debugging and sanity check option.  To enable
+it the libabigail package needs to be configured with
+the \-\-enable\-debug\-self\-comparison option.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-ctf\fP
+.sp
+Extract ABI information from CTF \%<https://\:raw\:.githubusercontent\:.com/\:wiki/\:oracle/\:binutils-gdb/\:files/\:ctf-spec\:.pdf> debug information, if present in
+the given object.
+.IP \(bu 2
+\fB\-\-debug\-info\-dir | \-d\fP <\fIdir\-path\fP>
+.sp
+In cases where the debug info for \fIpath\-to\-elf\-file\fP is in a
+separate file that is located in a non\-standard place, this tells
+\fBabidw\fP where to look for that debug info file.
+.sp
+Note that \fIdir\-path\fP must point to the root directory under which
+the debug information is arranged in a tree\-like manner.  Under
+Red Hat based systems, that directory is usually
+\fB<root>/usr/lib/debug\fP\&.
+.sp
+This option can be provided several times with different root
+directories.  In that case, \fBabidw\fP will potentially look into
+all those root directories to find the split debug info for the
+elf file.
+.sp
+Note that this option is not mandatory for split debug information
+installed by your system\(aqs package manager because then
+\fBabidw\fP knows where to find it.
+.IP \(bu 2
+\fB\-\-debug\-type\-canonicalization | \-\-debug\-tc\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+Debug the type canonicalization process.  This is done by using
+structural and canonical equality when canonicalizing every single
+type.  Structural and canonical equality should yield the same
+result.  If they don\(aqt yield the same result for a given type,
+then it means that the canonicalization of that type went wrong.
+In that case, an error message is emitted and the execution of the
+program is aborted.
+.sp
+This option is available only if the package was configured with
+the \-\-enable\-debug\-type\-canonicalization option.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-drop\-private\-types\fP
+.sp
+This option is implicitly set by option \-\-headers\-dir and \-\-header\-file options.
+.sp
+With this option, types that are \fINOT\fP defined in the headers are
+entirely dropped from the internal representation build by
+Libabigail to represent the ABI and will not end up in the abi XML
+file.
+.sp
+This option is provided or compatibility reasons only and should
+not be explicitly used anymore.
+.IP \(bu 2
+\fB\-\-drop\-undefined\-syms\fP
+.sp
+With this option functions or variables for which the (exported)
+ELF symbol is undefined are dropped from the internal
+representation build by Libabigail to represent the ABI and will
+not end up in the abi XML file.
+.IP \(bu 2
+\fB\-\-exported\-interfaces\-only\fP
+.sp
+By default, when looking at the debug information accompanying a
+binary, this tool analyzes the descriptions of the types reachable
+by the interfaces (functions and variables) that are visible
+outside of their translation unit.  Once that analysis is done, an
+ABI corpus is constructed by only considering the subset of types
+reachable from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are
+defined and exported by the binary.  It\(aqs that final ABI corpus
+which textual representation is saved as \fBABIXML\fP\&.
+.sp
+The problem with that approach however is that analyzing all the
+interfaces that are visible from outside their translation unit
+can amount to a lot of data, especially when those binaries are
+applications, as opposed to shared libraries.  One example of such
+applications is the Linux Kernel \%<https://\:kernel\:.org>\&.  Analyzing massive ABI
+corpora like these can be extremely slow.
+.sp
+To mitigate that performance issue, this option allows libabigail
+to only analyze types that are reachable from interfaces
+associated with defined and exported ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols.
+.sp
+Note that this option is turned on by default when analyzing the
+Linux Kernel \%<https://\:kernel\:.org>\&.  Otherwise, it\(aqs turned off by default.
+.IP \(bu 2
+\fB\-\-fail\-no\-debug\-info\fP
+.sp
+If the program could not find the debug info for the input binary,
+then it exits with a non\-zero error code.  Without this option,
+the program emits the ABI information about ELF symbols, in the
+absence of the debug info.  In that case, type information is
+omitted.
+.IP \(bu 2
+\fB\-\-follow\-dependencies\fP
+.sp
+For each dependency of the input binary of \fBabidw\fP, if it is
+found in the directory specified by the \fB\-\-added\-binaries\-dir\fP
+option, then construct an ABI corpus out of the dependency and add
+it to a set of ABI corpora (called an ABI Corpus Group) along with
+the ABI corpus of the input binary of the program.  The ABI Corpus
+Group is then serialized out.
+.IP \(bu 2
+\fB\-\-force\-early\-suppression\fP
+.sp
+This option must be used alongside option \-\-suppression\&.
+.sp
+It forces suppression specifications \%<#\:suppr-spec-label> to
+be applied in early suppression mode \%<#\:early-suppression-mode-label>\&.  Artifacts of the internal
+representation that are matched by suppression specifications are
+thus suppressed from memory.
+.sp
+If this option is not used then only suppression specifications
+with the drop property set to \(aqyes\(aq \%<#\:drop-property-label>
+are effective.  All other suppression specification directives
+will appear to be ignored.
+.IP \(bu 2
+\fB\-\-headers\-dir | \-\-hd\fP <headers\-directory\-path\-1>
+.sp
+Specifies where to find the public headers of the binary that the
+tool has to consider.  The tool will thus filter out types that
+are not defined in public headers.  This option implicitly sets
+option \-\-drop\-private\-types\&.
+.sp
+Note that several public header directories can be specified for
+the binary to consider.  In that case the \fB\-\-header\-dir\fP option
+should be present several times on the command line, like in the
+following example:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidw \-\-header\-dir /some/path       \e
+        \-\-header\-dir /some/other/path \e
+        binary > binary.abi
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-header\-file | \-\-hf\fP <header\-file\-path>
+.sp
+Specifies where to find one of the public headers of the abi file
+that the tool has to consider.  The tool will thus filter out
+types that are not defined in public headers.
+.sp
+This option implicitly sets option \-\-drop\-private\-types\&.
+.IP \(bu 2
+\fB\-\-help | \-h\fP
+.sp
+Display a short help about the command and exit.
+.IP \(bu 2
+\fB\-\-kmi\-whitelist | \-\-kmi\-stablelist |\-w\fP <\fIpath\-to\-stablelist\fP>
+.sp
+When analyzing a Linux Kernel \%<https://\:kernel\:.org> binary, this option points to the
+list of names of ELF symbols of functions and variables which ABI
+must be written out.  Any function or variable with a name that is
+not included in that list will not ignored.  That list is called a
+\(dq Kernel Module Interface stable list\(dq.  This is because for the
+Kernel, we don\(aqt talk about the ABI; we rather talk about the
+interface between the Kernel and its module. Hence the term
+\fBKMI\fP rather than \fBKABI\fP\&.
+.sp
+Any other function or variable which ELF symbol are not present in
+that stable list will not be considered by the KMI writing
+process.
+.sp
+If this option is not provided \-\- thus if no stable list is
+provided \-\- then the entire KMI, that is, all publicly defined and
+exported functions and global variables by the Linux Kernel \%<https://\:kernel\:.org>
+binaries is emitted.
+.IP \(bu 2
+\fB\-\-list\-dependencies\fP
+.sp
+For each dependency of the input binary of\(ga\(gaabidw\(ga\(ga, if it\(aqs found
+in the directory specified by the \fB\-\-added\-binaries\-dir\fP option,
+then the name of the dependency is printed out.
+.IP \(bu 2
+\fB\-\-load\-all\-types\fP
+.sp
+By default, \fBlibabigail\fP (and thus \fBabidw\fP) only loads types
+that are reachable from functions and variables declarations that
+are publicly defined and exported by the binary.  So only those
+types are present in the output of \fBabidw\fP\&.  This option however
+makes \fBabidw\fP load \fIall\fP the types defined in the binaries, even
+those that are not reachable from public declarations.
+.IP \(bu 2
+\fB\-\-linux\-tree | \-\-lt\fP
+.sp
+Make \fBabidw\fP to consider the input path as a path to a directory
+containing the vmlinux binary as several kernel modules binaries.
+In that case, this program emits the representation of the Kernel
+Module Interface (KMI) on the standard output.
+.sp
+Below is an example of usage of \fBabidw\fP on a Linux Kernel \%<https://\:kernel\:.org>
+tree.
+.sp
+First, checkout a Linux Kernel \%<https://\:kernel\:.org> source tree and build it.  Then
+install the kernel modules in a directory somewhere.  Copy the
+vmlinux binary into that directory too.  And then serialize the
+KMI of that kernel to disk, using \fBabidw\fP:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+$ cd linux && git checkout v4.5
+$ make allyesconfig all
+$ mkdir build\-output
+$ make INSTALL_MOD_PATH=./build\-output modules_install
+$ cp vmlinux build\-output/modules/4.5.0
+$ abidw \-\-linux\-tree build\-output/modules/4.5.0 > build\-output/linux\-4.5.0.kmi
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-no\-assume\-odr\-for\-cplusplus\fP
+.sp
+When analysing a binary originating from C++ code using DWARF \%<http://\:www\:.dwarfstd\:.org>
+debug information, libabigail assumes the One Definition Rule \%<https://\:en\:.wikipedia\:.org/\:wiki/\:One_Definition_Rule>
+to speed\-up the analysis.  In that case, when several types have
+the same name in the binary, they are assumed to all be equal.
+.sp
+This option disables that assumption and instructs libabigail to
+actually actually compare the types to determine if they are
+equal.
+.IP \(bu 2
+\fB\-\-no\-corpus\-path\fP
+.sp
+Do not emit the path attribute for the ABI corpus.
+.IP \(bu 2
+\fB\-\-no\-elf\-needed\fP
+.sp
+Do not include the list of DT_NEEDED dependency names in the
+corpus.
+.IP \(bu 2
+\fB\-\-no\-leverage\-dwarf\-factorization\fP
+.sp
+When analysing a binary which DWARF \%<http://\:www\:.dwarfstd\:.org> debug information was
+processed with the DWZ \%<https://\:sourceware\:.org/\:dwz> tool, the type information is supposed
+to be already factorized.  That context is used by libabigail to
+perform some speed optimizations.
+.sp
+This option disables those optimizations.
+.IP \(bu 2
+\fB\-\-no\-load\-undefined\-interfaces\fP
+.sp
+By default, \fBlibabigail\fP (and thus \fBabidw\fP) loads information
+about undefined function and variable symbols as well as functions
+and variables that are associated with those undefined symbols.
+Those are called undefined interfaces.  This option however makes
+makes \fBabidw\fP avoid loading information about undefined
+interfaces.  The resulting XML file thus doesn\(aqt contain
+information about those undefined interfaces.
+.IP \(bu 2
+\fB\-\-no\-linux\-kernel\-mode\fP
+.sp
+Without this option, if abipkgiff detects that the binaries it is
+looking at are Linux Kernel binaries (either vmlinux or modules)
+then it only considers functions and variables which ELF symbols
+are listed in the __ksymtab and __ksymtab_gpl sections.
+.sp
+With this option, abipkgdiff considers the binary as a non\-special
+ELF binary.  It thus considers functions and variables which are
+defined and exported in the ELF sense.
+.IP \(bu 2
+\fB\-\-noout\fP
+.sp
+This option instructs \fBabidw\fP to not emit the XML representation
+of the ABI.  So it only reads the ELF and debug information,
+builds the internal representation of the ABI and exits.  This
+option is usually useful for debugging purposes.
+.IP \(bu 2
+\fB\-\-no\-parameter\-names\fP
+.sp
+In the emitted ABI representation, do not show names of function
+parameters, just the types.
+.IP \(bu 2
+\fB\-\-no\-show\-locs\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+In the emitted ABI representation, do not show file, line or column
+where ABI artifacts are defined.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-no\-write\-default\-sizes\fP
+.sp
+In the XML ABI representation, do not write the size\-in\-bits for
+pointer type definitions, reference type definitions, function
+declarations and function types when they are equal to the default
+address size of the translation unit.  Note that libabigail before
+1.8 will not set the default size and will interpret types without
+a size\-in\-bits attribute as zero sized.
+.IP \(bu 2
+\fB\-\-out\-file | \-o\fP <\fIfile\-path\fP>
+.sp
+This option instructs \fBabidw\fP to emit the XML representation of
+\fIpath\-to\-elf\-file\fP into the file \fIfile\-path\fP, rather than emitting
+it to its standard output.
+.IP \(bu 2
+\fB\-\-stats\fP
+.sp
+Emit statistics about various internal things.
+.IP \(bu 2
+\fB\-\-suppressions | suppr\fP <\fIpath\-to\-suppression\-specifications\-file\fP>
+.sp
+Use a suppression specification \%<#\:suppr-spec-label> file
+located at \fIpath\-to\-suppression\-specifications\-file\fP\&.  Note that
+this option can appear multiple times on the command line.  In
+that case, all of the provided suppression specification files are
+taken into account.  ABI artifacts matched by the suppression
+specifications are suppressed from the output of this tool.
+.sp
+Only suppression specifications that have the drop property
+set to \(aqyes\(aq \%<#\:drop-property-label> are going to be effective.
+All other suppression specification directives will appear as
+being ignored, unless the command line option
+\-\-force\-early\-suppression is provided.
+.IP \(bu 2
+\fB\-\-type\-id\-style\fP <\fBsequence\(ga\(ga|\(ga\(gahash\fP>
+.sp
+This option controls how types are idenfied in the generated XML
+files.  The default \fBsequence\fP style just numbers (with
+\fBtype\-id\-\fP as prefix) the types in the order they are
+encountered.  The \fBhash\fP style uses a (stable, portable) hash of
+libabigail\(aqs internal type names and is intended to make the XML
+files easier to diff.
+.IP \(bu 2
+\fB\-\-verbose\fP
+.sp
+Emit verbose logs about the progress of miscellaneous internal
+things.
+.IP \(bu 2
+\fB\-\-version | \-v\fP
+.sp
+Display the version of the program and exit.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH USAGE EXAMPLES
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+Emitting an \fBABIXML\fP representation of a binary:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ abidw binary > binary.abi
+.EE
+.UNINDENT
+.UNINDENT
+.IP 2. 3
+Emitting an \fBABIXML\fP representation of a set of binaries
+specified on the command line:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ abidw \-\-added\-binaries=bin1,bin2,bin3  \e
+        \-\-added\-binaries\-dir /some/where \e
+        binary > binaries.abi
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that the binaries bin1, bin2 and bin3 are to be found in the
+directory \fB/some/where\fP\&.  A representation of the ABI of the
+set of binaries \fBbinary, bin1, bin2\fP and \fBbin3\fP called an
+\fBABI corpus group\fP is serialized in the file binaries.abi.
+.IP 3. 3
+Emitting an \fBABIXML\fP representation of a binary and its
+dependencies:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ abidw \-\-follow\-dependencies              \e
+        \-\-added\-binaries\-dir /some/where   \e
+        binary > binary.abi
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that only the dependencies that are found in the directory
+\fB/some/where\fP are analysed.  Their ABIs, along with the ABI the
+binary named \fBbinary\fP are represented as an ABI corpus group
+and serialized in the file \fBbinary.abi\fP, in the ABIXML format.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH "نکات (NOTES)"
+.SS Alternate debug info files
+.sp
+As of the version 4 of the DWARF specification, Alternate debug
+information \%<http://\:www\:.dwarfstd\:.org/\:ShowIssue\:.php?\:issue=120604.1>
+is a GNU \%<http://\:www\:.gnu\:.org> extension to the DWARF specification.  It has however been
+proposed for inclusion into the upcoming version 5 of the DWARF
+standard.  You can read more about the GNU extensions to the DWARF
+standard here \%<https://\:fedorahosted\:.org/\:elfutils/\:wiki/\:DwarfExtensions>\&.
+.SH "نویسنده (AUTHOR)"
+Dodji Seketeli
+.SH "حق نشر (COPYRIGHT)"
+2014-2025, Red Hat, Inc.
+.\" End of generated man page.

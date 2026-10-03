@@ -1,0 +1,209 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "GDAL-RASTER-CLEAN-COLLAR" "1" "Aug 18, 2026" "" "GDAL"
+.SH "نام (NAME)"
+gdal-raster-clean-collar \- Clean the collar of a raster dataset, removing noise
+.sp
+Added in version 3.11.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Usage: gdal raster clean\-collar [OPTIONS] <INPUT> [<OUTPUT>]
+
+Clean the collar of a raster dataset, removing noise.
+
+Positional arguments:
+  \-i, \-\-input <INPUT>                                  Input raster dataset [required]
+  \-o, \-\-output <OUTPUT>                                Output raster dataset
+
+Common Options:
+  \-h, \-\-help                                           Display help message and exit
+  \-\-json\-usage                                         Display usage as JSON document and exit
+  \-\-config <KEY>=<VALUE>                               Configuration option [may be repeated]
+  \-q, \-\-quiet                                          Quiet mode (no progress bar or warning message) [not available in pipelines]
+
+Options:
+  \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>  Output format
+  \-\-co, \-\-creation\-option <KEY>=<VALUE>                Creation option [may be repeated]
+  \-\-overwrite                                          Whether overwriting existing output dataset is allowed
+  \-\-update                                             Whether to open existing dataset in update mode
+  \-\-color <COLOR>                                      Transparent color(s): tuple of integer (like \(aqr,g,b\(aq), \(aqblack\(aq, \(aqwhite\(aq (default: black) [may be repeated]
+  \-\-color\-threshold <COLOR\-THRESHOLD>                  Select how far from specified transparent colors the pixel values are considered transparent. (default: 15)
+  \-\-pixel\-distance <PIXEL\-DISTANCE>                    Number of consecutive transparent pixels that can be encountered before the giving up search inwards. (default: 2)
+  \-\-add\-alpha                                          Adds an alpha band to the output dataset.
+                                                       Mutually exclusive with \-\-add\-mask
+  \-\-add\-mask                                           Adds a mask band to the output dataset.
+                                                       Mutually exclusive with \-\-add\-alpha
+  \-\-algorithm <ALGORITHM>                              Algorithm to apply. ALGORITHM=floodfill|twopasses (default: floodfill)
+
+Advanced Options:
+  \-\-oo, \-\-open\-option <KEY>=<VALUE>                    Open options [may be repeated]
+  \-\-if, \-\-input\-format <INPUT\-FORMAT>                  Input formats [may be repeated]
+.EE
+.UNINDENT
+.UNINDENT
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgdal raster clean\-collar\fP scans a (8\-bit) image and sets all pixels that
+are nearly or exactly black (the default), white or one or more custom colors around the collar
+to black or white.
+This is often used to \(dqfix up\(dq lossy compressed air photos so that color pixels can be
+treated as transparent when mosaicing. The output format must use lossless compression
+if either alpha band or mask band is not set.
+.SH PROGRAM-SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-add\-alpha
+Adds an alpha band to the output file.
+The alpha band is set to 0 in the image collar and to 255 elsewhere.
+This option is mutually exclusive with \fI\%\-\-add\-mask\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-add\-mask
+Adds a mask band to the output file,
+The mask band is set to 0 in the image collar and to 255 elsewhere.
+This option is mutually exclusive with \fI\%\-\-add\-alpha\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-algorithm floodfill|twopasses
+Selects the algorithm to apply.
+.sp
+\fBtwopasses\fP uses a top\-to\-bottom pass followed by a bottom\-to\-top pass.
+It may miss with concave areas.
+The algorithm processes the image one scanline at a time.  A scan \(dqin\(dq is done
+from either end setting pixels to black or white until at least
+\(dqnon_black_pixels\(dq pixels that are more than \(dqdist\(dq gray levels away from
+black, white or custom colors have been encountered at which point the scan stops.  The nearly
+black, white or custom color pixels are set to black or white. The algorithm also scans from
+top to bottom and from bottom to top to identify indentations in the top or bottom.
+.sp
+\fBfloodfill\fP (default) uses the \X'tty: link https://en.wikipedia.org/wiki/Flood_fill#Span_filling'\fI\%Flood Fill\fP\X'tty: link'
+algorithm and will work with concave areas. It requires creating a temporary
+dataset and is slower than \fBtwopasses\fP\&. When a non\-zero value for \fI\%\-\-pixel\-distance\fP
+is used, \fBtwopasses\fP is actually called as an initial step of \fBfloodfill\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-color <c1>,<c2>,<c3>...<cn>|black|white
+Search for pixels near the specified color. May be specified multiple times.
+When this option is specified, the pixels that are considered as the collar are set to 0,
+unless only white is specified, in which case there are set to 255.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-color\-threshold <val>
+Select how far from black, white or custom colors the pixel values can be
+and still considered near black, white or custom color. Defaults to 15.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-pixel\-distance <val>
+Number of consecutive transparent pixels that can be encountered before the
+giving up search inwards. Said otherwise, the collar will be extended by
+this number of pixels.
+Defaults to 2.
+.UNINDENT
+.SH STANDARD OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-co, \-\-creation\-option <NAME>=<VALUE>
+Many formats have one or more optional creation options that can be
+used to control particulars about the file created. For instance,
+the GeoTIFF driver supports creation options to control compression,
+and whether the file should be tiled.
+.sp
+May be repeated.
+.sp
+The creation options available vary by format driver, and some
+simple formats have no creation options at all. A list of options
+supported for a format can be listed with the
+\fI\%\-\-formats\fP
+command line option but the documentation for the format is the
+definitive source of information on driver creation options.
+See \fI\%Raster drivers\fP format
+specific documentation for legal creation options for each format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>
+Which output raster format to use. Allowed values may be given by
+\fBgdal \-\-formats | grep raster | grep + | sort\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-overwrite
+Allow program to overwrite existing target file or dataset.
+Otherwise, by default, \fBgdal\fP errors out if the target file or
+dataset already exists.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-update
+If only an input dataset is specified, ask for it to be opened in update mode
+If an output dataset is specified, ask for it to be opened in update mode
+(this implies that it already exists).
+Note that updating an existing dataset may lead to file size increase if
+the dataset is compressed, and/or quality loss if lossy compression is used.
+.UNINDENT
+.SH RETURN STATUS CODE
+.sp
+The program returns status code 0 in case of success, and non\-zero in case of
+error (non\-blocking errors emitted as warnings are considered as a successful
+execution).
+.SH "مثال‌ها (EXAMPLES)"
+.SS Example 1: Edit in place a dataset using the default black color as the color of the collar
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal raster clean\-collar \-\-update my.tif
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 2: Create a new dataset, using black or white as the color of the collar, considering values in the [0,5] range as being considered black, and values in the [250,255] range to be white. It also adds an alpha band to the output dataset.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal raster clean\-collar \-\-add\-alpha \-\-color=black \-\-color=white \-\-color\-threshold=5 in.tif out.tif
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Even Rouault <even.rouault@spatialys.com>
+.SH "حق نشر (COPYRIGHT)"
+1998-2026
+.\" Generated by docutils manpage writer.
+.

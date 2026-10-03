@@ -1,0 +1,177 @@
+.nh
+.TH umoci-insert(1) # umoci insert - insert content into an OCI image
+Aleksa Sarai
+SEPTEMBER 2018
+
+.SH "نام (NAME)"
+umoci insert \- insert content into an OCI image
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBumoci insert\fP
+\fB--image\fP=\fIimage\fP[:\fItag\fP]
+[\fB--tag\fP=\fInew-tag\fP]
+[\fB--compress\fP=\fIcompression-type\fP]
+[\fB--opaque\fP]
+[\fB--rootless\fP]
+[\fB--uid-map\fP=\fIvalue\fP]
+[\fB--uid-map\fP=\fIvalue\fP]
+[\fB--no-history\fP]
+[\fB--history.comment\fP=\fIcomment\fP]
+[\fB--history.created_by\fP=\fIcreated_by\fP]
+[\fB--history.author\fP=\fIauthor\fP]
+[\fB--history-created\fP=\fIdate\fP]
+\fIsource\fP
+\fItarget\fP
+
+.PP
+\fBumoci insert\fP
+[options]
+\fB--whiteout\fP
+\fItarget\fP
+
+
+.SH "توضیحات (DESCRIPTION)"
+In the first form, insert the contents of \fIsource\fP into the OCI image given by
+\fB--image\fP -- \fBoverwriting it unless you specify --tag\fP\&. This is done by
+creating a new layer containing just the contents of \fIsource\fP with a name of
+\fItarget\fP\&. \fIsource\fP can be either a file or directory, and in the latter case it
+will be recursed. If \fB--opaque\fP is specified then any paths below \fItarget\fP in
+the previous image layers (assuming \fItarget\fP is a directory) will be removed.
+
+.PP
+In the second form, inserts a "deletion entry" into the OCI image for \fItarget\fP
+inside the image. This is done by inserting a layer containing just a whiteout
+entry for the given path.
+
+.PP
+Note that this command works by creating a new layer, so this should not be
+used to remove (or replace) secrets from an already-built image. See
+\fBumoci-config\fP(1) and \fB--config.volume\fP for how to achieve this correctly
+by not creating image layers with secrets in the first place.
+
+.PP
+If \fB--no-history\fP was not specified, a history entry is appended to the
+tagged OCI image for this change (with the various \fB--history.\fP flags
+controlling the values used). To view the history, see \fBumoci-stat\fP(1).
+
+
+.SH "گزینه‌ها (OPTIONS)"
+The global options are defined in \fBumoci\fP(1).
+
+.PP
+\fB--image\fP=\fIimage\fP[:\fItag\fP]
+  The source and destination tag for the insertion of \fIfile\fP at \fIpath\fP inside
+  the container image. \fIimage\fP must be a path to a valid OCI image and \fItag\fP
+  must be a valid tag in the image. If \fItag\fP is not provided it defaults to
+  "latest".
+
+.PP
+\fB--tag\fP=\fInew-tag\fP
+  Tag name for the modified image, if unspecified then the original tag
+  provided to \fB--image\fP will be clobbered.
+
+.PP
+\fB--compress\fP=\fIcompression-type\fP
+  Specify the compression type to use when creating a new layer. Supported
+  compression types are \fInone\fP, \fIgzip\fP, and \fIzstd\fP\&. \fBumoci-unpack\fP(1)
+  transparently supports all compression methods you can specify with
+  \fB--compress\fP\&.
+  
+  The special value \fIauto\fP will cause \fBumoci\fP(1) to auto-select the most
+  appropriate compression algorithm based on what previous layers are
+  compressed with (it will try to use the most recent layer's compression
+  algorithm which it supports). Note that \fIauto\fP will never select \fInone\fP
+  compression automatically, as not compressing \fBtar\fP(1) archives is really
+  not advisable.
+  
+  If no \fIcompression-type\fP is provided, it defaults to \fIauto\fP\&.
+
+.PP
+\fB--opaque\fP
+  (Assuming \fItarget\fP is a directory.) Add an opaque whiteout entry for \fItarget\fP
+  so that any child path of \fItarget\fP in previous layers is masked by the new
+  entry for \fItarget\fP, which will just contain the contents of \fIsource\fP\&. This
+  allows for the complete replacement of a directory, as opposed to the merging
+  of directory entries.
+
+.PP
+\fB--whiteout\fP
+  Add a deletion entry for \fItarget\fP, so that it is not present in future
+  extractions of the image.
+
+.PP
+\fB--rootless\fP
+  Enable rootless insertion support. This allows for \fBumoci-insert\fP(1) to be
+  used as an unprivileged user. Use of this flag implies \fB--uid-map=0:$(id
+  -u):1\fP and \fB--gid-map=0:$(id -g):1\fP, as well as enabling several features
+  to fake parts of the recursion process in an attempt to generate an
+  as-close-as-possible clone of the filesystem for insertion.
+
+.PP
+\fB--uid-map\fP=\fIvalue\fP
+  Specifies a UID mapping to use when inserting files. This is used in a
+  similar fashion to \fBuser_namespaces\fP(7), and is of the form
+  \fBcontainer:host[:size]\fP\&.
+
+.PP
+\fB--gid-map\fP=\fIvalue\fP
+  Specifies a GID mapping to use when inserting files. This is used in a
+  similar fashion to \fBuser_namespaces\fP(7), and is of the form
+  \fBcontainer:host[:size]\fP\&.
+
+.PP
+\fB--no-history\fP
+  Causes no history entry to be added for this operation. \fBThis is not
+  recommended for use with umoci-insert(1), since it results in the history not
+  including all of the image layers -- and thus will cause confusion with tools
+  that look at image history.\fP
+
+.PP
+\fB--history.comment\fP=\fIcomment\fP
+  Comment for the history entry corresponding to this modification of the image
+  If unspecified, \fBumoci\fP(1) will generate an implementation-dependent value.
+
+.PP
+\fB--history.created_by\fP=\fIcreated_by\fP
+  CreatedBy entry for the history entry corresponding to this modification of
+  the image. If unspecified, \fBumoci\fP(1) will generate an
+  implementation-dependent value.
+
+.PP
+\fB--history.author\fP=\fIauthor\fP
+  Author value for the history entry corresponding to this modification of the
+  image. If unspecified, this value will be the image's author value \fBafter\fP
+  any modifications were made by this call of \fBumoci-config\fP(1).
+
+.PP
+\fB--history-created\fP=\fIdate\fP
+  Creation date for the history entry corresponding to this modifications of
+  the image. This must be an ISO8601 formatted timestamp (see \fBdate\fP(1)). If
+  unspecified, the current time is used.
+
+
+.SH "مثال (EXAMPLE)"
+The following inserts a file \fBmybinary\fR into the path \fB/usr/bin/mybinary\fR and a
+directory \fBmyconfigdir\fR into the path \fB/etc/myconfigdir\fR\&. It should be noted
+that if \fB/etc/myconfigdir\fR already exists in the image, the contents of the two
+directories are merged (with the newer layer taking precedence).
+
+.EX
+% umoci insert --image oci:foo mybinary /usr/bin/mybinary
+% umoci insert --image oci:foo myconfigdir /etc/myconfigdir
+.EE
+
+.PP
+And in these examples we delete \fB/usr/bin/mybinary\fR and replace the entirety of
+\fB/etc\fR with \fBmyetcdir\fR (such that none of the old \fB/etc\fR entries will be
+present on \fBumoci-unpack\fP(1)).
+
+.EX
+% umoci insert --image oci:foo --whiteout /usr/bin/mybinary
+% umoci insert --image oci:foo --opaque myetcdir /etc
+.EE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBumoci\fP(1), \fBumoci-repack\fP(1), \fBumoci-raw-add-layer\fP(1)

@@ -1,0 +1,125 @@
+.nh
+.TH umoci-repack(1) # umoci repack - Repacks an OCI runtime bundle into an image tag
+Aleksa Sarai
+DECEMBER 2016
+
+.SH "نام (NAME)"
+umoci repack \- Repacks an OCI runtime bundle into an image tag
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBumoci repack\fP
+\fB--image\fP=\fIimage\fP[:\fItag\fP]
+[\fB--compress\fP=\fIcompression-type\fP]
+[\fB--no-history\fP]
+[\fB--history.comment\fP=\fIcomment\fP]
+[\fB--history.created_by\fP=\fIcreated_by\fP]
+[\fB--history.author\fP=\fIauthor\fP]
+[\fB--history-created\fP=\fIdate\fP]
+[\fB--refresh-bundle\fP]
+\fIbundle\fP
+
+
+.SH "توضیحات (DESCRIPTION)"
+Given a modified OCI bundle extracted with \fBumoci-unpack\fP(1) (at the given
+path \fIbundle\fP), \fBumoci-repack\fP(1) computes the filesystem delta for the OCI
+bundle's \fIrootfs\fP\&. The delta is used to generate a delta layer, which is then
+appended to the original image manifest (that was used as an argument to
+\fBumoci-unpack\fP(1)) and tagged as a new image tag. Between a call to
+\fBumoci-unpack\fP(1) and \fBumoci-repack\fP(1) users SHOULD NOT modify the OCI
+image in any way (specifically you MUST NOT use \fBumoci-gc\fP(1)).
+
+.PP
+All \fB--uid-map\fP and \fB--gid-map\fP settings are implied from the saved values
+specified in \fBumoci-unpack\fP(1), so they are not available for
+\fBumoci-repack\fP(1).
+
+.PP
+If \fB--no-history\fP was not specified, a history entry is appended to the
+tagged OCI image for this change (with the various \fB--history.\fP flags
+controlling the values used). To view the history, see \fBumoci-stat\fP(1).
+
+.PP
+Note that the original image tag (used with \fBumoci-unpack\fP(1)) will \fBnot\fP
+be modified unless the target of \fBumoci-repack\fP(1) is the original image tag.
+
+
+.SH "گزینه‌ها (OPTIONS)"
+The global options are defined in \fBumoci\fP(1).
+
+.PP
+\fB--image\fP=\fIimage\fP[:\fItag\fP]
+  The destination tag for the repacked OCI image. \fIimage\fP must be a path to a
+  valid OCI image (and the same \fIimage\fP used in \fBumoci-unpack\fP(1) to create
+  the \fIbundle\fP) and \fItag\fP must be a valid tag name. If another tag already has
+  the same name as \fItag\fP it will be overwritten. If \fItag\fP is not provided it
+  defaults to "latest".
+
+.PP
+\fB--compress\fP=\fIcompression-type\fP
+  Specify the compression type to use when creating a new layer. Supported
+  compression types are \fInone\fP, \fIgzip\fP, and \fIzstd\fP\&. \fBumoci-unpack\fP(1)
+  transparently supports all compression methods you can specify with
+  \fB--compress\fP\&.
+  
+  The special value \fIauto\fP will cause \fBumoci\fP(1) to auto-select the most
+  appropriate compression algorithm based on what previous layers are
+  compressed with (it will try to use the most recent layer's compression
+  algorithm which it supports). Note that \fIauto\fP will never select \fInone\fP
+  compression automatically, as not compressing \fBtar\fP(1) archives is really
+  not advisable.
+  
+  If no \fIcompression-type\fP is provided, it defaults to \fIauto\fP\&.
+
+.PP
+\fB--no-history\fP
+  Causes no history entry to be added for this operation. \fBThis is not
+  recommended for use with umoci-repack(1), since it results in the history not
+  including all of the image layers -- and thus will cause confusion with tools
+  that look at image history.\fP
+
+.PP
+\fB--history.comment\fP=\fIcomment\fP
+  Comment for the history entry corresponding to this modification of the image
+  If unspecified, \fBumoci\fP(1) will generate an implementation-dependent value.
+
+.PP
+\fB--history.created_by\fP=\fIcreated_by\fP
+  CreatedBy entry for the history entry corresponding to this modification of
+  the image. If unspecified, \fBumoci\fP(1) will generate an
+  implementation-dependent value.
+
+.PP
+\fB--history.author\fP=\fIauthor\fP
+  Author value for the history entry corresponding to this modification of the
+  image. If unspecified, this value will be the image's author value \fBafter\fP
+  any modifications were made by this call of \fBumoci-config\fP(1).
+
+.PP
+\fB--history-created\fP=\fIdate\fP
+  Creation date for the history entry corresponding to this modifications of
+  the image. This must be an ISO8601 formatted timestamp (see \fBdate\fP(1)). If
+  unspecified, the current time is used.
+
+.PP
+\fB--refresh-bundle\fP
+  Whether to update the OCI bundle's metadata (i.e. mtree and umoci
+  metadata) after repacking the image. If set, then the new state of
+  the bundle should be equivalent to unpacking the new image tag.
+
+
+.SH "مثال (EXAMPLE)"
+The following downloads an image from a \fBdocker\fP(1) registry using
+\fBskopeo\fP(1), unpacks it with \fBumoci-unpack\fP(1), modifies it and then
+repacks it.
+
+.EX
+% skopeo copy docker://opensuse/amd64:42.2 oci:image:latest
+# umoci unpack --image image bundle
+# touch bundle/rootfs/a_new_file
+# umoci repack --image image:new-42.2 bundle
+.EE
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBumoci\fP(1), \fBumoci-unpack\fP(1)

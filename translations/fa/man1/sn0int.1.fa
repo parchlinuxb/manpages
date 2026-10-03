@@ -1,0 +1,2287 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "SN0INT" "1" "Jul 17, 2025" "" "sn0int"
+.SH "نام (NAME)"
+sn0int \- Semi-automatic OSINT framework and package manager
+.sp
+todo
+.SH RUNNING YOUR FIRST INVESTIGATION
+.sp
+This page is going to guide you through the process of setting up your
+environment and running your first investigation.
+.SS Installing the default modules
+.sp
+By default, sn0int doesn\(aqt have any modules installed. If you start up sn0int
+it\(aqs going to download some files that it needs and then suggests to install a
+number of recommended modules:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sn0int
+
+                   ___/           .
+     ____ , __   .\(aq  /\e \(ga , __   _/_
+    (     |\(aq  \(ga. |  / | | |\(aq  \(ga.  |
+    \(ga\-\-.  |    | |,\(aq  | | |    |  |
+   \e___.\(aq /    | /\(ga\-\-\-\(aq / /    |  \e__/
+
+        osint | recon | security
+      irc.hackint.org:6697/#sn0int
+
+[+] Connecting to database
+[+] Downloading public suffix list
+[+] Downloading \(dqGeoLite2\-City.mmdb\(dq
+[+] Downloading \(dqGeoLite2\-ASN.mmdb\(dq
+[+] Loaded 0 modules
+[*] No modules found, run pkg quickstart to install default modules
+[sn0int][default] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Typing \fBpkg quickstart\fP is going to get you a fair number of featured modules:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][default] > pkg quickstart
+[+] Installing kpcyrd/asn
+[+] Installing kpcyrd/ctlogs
+[+] Installing kpcyrd/dns\-resolve
+[+] Installing kpcyrd/geoip
+[+] Installing kpcyrd/hackertarget\-subdomains
+[+] Installing kpcyrd/otx\-subdomains
+[+] Installing kpcyrd/passive\-spider
+[+] Installing kpcyrd/pgp\-keyserver
+[+] Installing kpcyrd/threatminer\-ipaddr
+[+] Installing kpcyrd/threatminer\-subdomains
+[+] Installing kpcyrd/url\-scan
+[+] Installing kpcyrd/waybackurls
+[+] Loaded 12 modules
+[sn0int][default] >
+.EE
+.UNINDENT
+.UNINDENT
+.SS Adding something to scope
+.sp
+You probably want to separate your investigations so you should select a
+workspace where your results should go:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][default] > workspace demo
+[+] Connecting to database
+[sn0int][demo] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Next, we have to start somewhere and add the first entity to our scope:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo] > add domain
+Domain: example.com
+[sn0int][demo] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+There is a concept of a domain vs a subdomain. We are referring to a domain
+as everything that is a subdomain of a \X'tty: link https://publicsuffix.org'\fI\%public suffix\fP\X'tty: link'\&. For example, .com
+is a public suffix, which makes example.com a domain in sn0int terms. Every
+subdomain of that, like www.example.com, is referred to as a subdomain.
+.sp
+Note that example.com can be added as a subdomain as well since it can hold
+records. In that case, example.com is both the name of the dns zone, while
+also being an entity in that zone.
+.UNINDENT
+.UNINDENT
+.sp
+You can confirm this by running a select on the domains we now have:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo] > select domains
+#1, \(dqexample.com\(dq
+[sn0int][demo] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Something we don\(aqt need right now, but is going to be useful later on is the
+ability to filter your entities:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo] > select domains where id=1
+#1, \(dqexample.com\(dq
+[sn0int][demo] >
+[sn0int][demo] > select domains where value like %.com
+#1, \(dqexample.com\(dq
+[sn0int][demo] >
+[sn0int][demo] > select domains where ( value like e% and value like %m ) or false
+#1, \(dqexample.com\(dq
+[sn0int][demo] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Almost all entities have a \fBvalue\fP column that holds the primary value of
+the entity.
+.UNINDENT
+.UNINDENT
+.SS Running a module
+.sp
+Now that we have something to get started with, we can run our first module.
+First lets list all modules we have:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo] > pkg list
+kpcyrd/asn (0.1.0)
+    Run a asn lookup for an ip address
+kpcyrd/ctlogs (0.1.0)
+    Query certificate transparency logs to discover subdomains
+kpcyrd/dns\-resolve (0.1.0)
+    Query subdomains to discovery ip addresses and verify the record is visible
+kpcyrd/geoip (0.1.0)
+    Run a geoip lookup for an ip address
+kpcyrd/hackertarget\-subdomains (0.1.0)
+    Query hackertarget for subdomains of a domain
+kpcyrd/otx\-subdomains (0.1.0)
+    Query alienvault otx passive dns for subdomains of a domain
+kpcyrd/passive\-spider (0.1.0)
+    Scrape known http responses for urls
+kpcyrd/pgp\-keyserver (0.1.0)
+    Query pgp keyserver for email addresses
+kpcyrd/threatminer\-ipaddr (0.1.0)
+    Query ThreatMiner passive dns for subdomains of an ip address
+kpcyrd/threatminer\-subdomains (0.1.0)
+    Query ThreatMiner passive dns for subdomains of a domain
+kpcyrd/url\-scan (0.1.0)
+    Scan subdomains for websites
+kpcyrd/waybackurls (0.1.0)
+    Discover subdomains from wayback machine
+[sn0int][demo] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Let\(aqs start by querying certificate transparency logs:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo] > use ctlogs
+[sn0int][demo][kpcyrd/ctlogs] > run
+[*] \(dqexample.com\(dq                                     : Subdomain: \(dqwww.example.com\(dq
+[*] \(dqexample.com\(dq                                     : Subdomain: \(dqm.example.com\(dq
+[*] \(dqexample.com\(dq                                     : Subdomain: \(dqdev.example.com\(dq
+[*] \(dqexample.com\(dq                                     : Subdomain: \(dqproducts.example.com\(dq
+[*] \(dqexample.com\(dq                                     : Subdomain: \(dqsupport.example.com\(dq
+[+] Finished kpcyrd/ctlogs
+[sn0int][demo][kpcyrd/ctlogs] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Looks like we\(aqve discovered some subdomains here. It might be tempting to throw
+some of them in a browser but hold on, there\(aqs a more efficient way to approach
+this.
+.sp
+\fBHINT:\fP
+.INDENT 0.0
+.INDENT 3.5
+You can run the modules concurrently with \fBrun \-j3\fP\&.
+.UNINDENT
+.UNINDENT
+.SS Running followup modules on the results
+.sp
+A lot of time has been spent on the database part. While it sort of feels like
+a no\-sql database we are actually enforcing a schema for a reason instead of
+just using generic dictionaries and calling it a day.
+.sp
+It\(aqs crucial that entities created by one module can be picked up by another
+module, like LEGOs. Let\(aqs continue with a module to query the dns records:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo][kpcyrd/ctlogs] > use dns\-resolve
+[sn0int][demo][kpcyrd/dns\-resolve] > run
+[*] \(dqwww.example.com\(dq                                 : Updating \(dqwww.example.com\(dq (resolvable => true)
+[*] \(dqwww.example.com\(dq                                 : IpAddr: 93.184.216.34
+[*] \(dqwww.example.com\(dq                                 : \(dqwww.example.com\(dq \-> 93.184.216.34
+[*] \(dqm.example.com\(dq                                   : Updating \(dqm.example.com\(dq (resolvable => false)
+[*] \(dqdev.example.com\(dq                                 : Updating \(dqdev.example.com\(dq (resolvable => false)
+[*] \(dqproducts.example.com\(dq                            : Updating \(dqproducts.example.com\(dq (resolvable => false)
+[*] \(dqsupport.example.com\(dq                             : Updating \(dqsupport.example.com\(dq (resolvable => false)
+[+] Finished kpcyrd/dns\-resolve
+[sn0int][demo][kpcyrd/dns\-resolve] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Two things happened here: We\(aqve discovered some IP addresses and added them to
+scope, and we also updated our subdomain entities with new information, since
+we now know which of them are resolvable and which aren\(aqt.
+.sp
+Let\(aqs run the next module, which is actually going to check for websites on
+them, but let\(aqs only target subdomains that we know are resolvable:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo][kpcyrd/dns\-resolve] > use url\-scan
+[sn0int][demo][kpcyrd/url\-scan] > target
+#1, \(dqwww.example.com\(dq
+    93.184.216.34
+#2, \(dqm.example.com\(dq
+#3, \(dqdev.example.com\(dq
+#4, \(dqproducts.example.com\(dq
+#5, \(dqsupport.example.com\(dq
+[sn0int][demo][kpcyrd/url\-scan] > target where resolvable
+[+] 1 entities selected
+[sn0int][demo][kpcyrd/url\-scan] > target
+#1, \(dqwww.example.com\(dq
+    93.184.216.34
+[sn0int][demo][kpcyrd/url\-scan] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+We can both preview and limit the targets that are going to be passed to the
+module with the target command. Once we are satisfied with our selection we can
+run this module:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo][kpcyrd/url\-scan] > run
+[*] \(dqwww.example.com\(dq                                 : Url: \(dqhttp://www.example.com/\(dq (200)
+[*] \(dqwww.example.com\(dq                                 : Url: \(dqhttps://www.example.com/\(dq (200)
+[+] Finished kpcyrd/url\-scan
+[sn0int][demo][kpcyrd/url\-scan] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+We\(aqve now probed both port 80 and port 443 for each subdomain and found two
+http responses this way. If you want a list of urls you may want to visit in
+your browser can now query them:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo][kpcyrd/url\-scan] > select urls
+#1, \(dqhttp://www.example.com/\(dq (200)
+#2, \(dqhttps://www.example.com/\(dq (200)
+[sn0int][demo][kpcyrd/url\-scan] >
+.EE
+.UNINDENT
+.UNINDENT
+.SS Unscoping entities
+.sp
+Something you are going to run into is that modules are too greedy and add
+things to the scope we are not interested in. You can delete them using the
+delete command, but those are likely picked up by a module again.
+.sp
+What you can do instead is setting a flag on an entity that removes it from
+our scope. This is done using the noscope command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo] > use ctlogs
+[sn0int][demo][kpcyrd/ctlogs] > target
+#1, \(dqexample.com\(dq
+[sn0int][demo][kpcyrd/ctlogs] > add domain
+Domain: google.com
+[sn0int][demo][kpcyrd/ctlogs] > target
+#1, \(dqexample.com\(dq
+#2, \(dqgoogle.com\(dq
+[sn0int][demo][kpcyrd/ctlogs] > noscope domains where value=google.com
+[+] Updated 1 rows
+[sn0int][demo][kpcyrd/ctlogs] > target
+#1, \(dqexample.com\(dq
+[sn0int][demo][kpcyrd/ctlogs] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Entities that are unscoped are automatically ignored by all modules.
+.sp
+You can reverse this using the scope command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[sn0int][demo][kpcyrd/ctlogs] > target
+#1, \(dqexample.com\(dq
+[sn0int][demo][kpcyrd/ctlogs] > scope domains where true
+[+] Updated 2 rows
+[sn0int][demo][kpcyrd/ctlogs] > target
+#1, \(dqexample.com\(dq
+#2, \(dqgoogle.com\(dq
+[sn0int][demo][kpcyrd/ctlogs] >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBHINT:\fP
+.INDENT 0.0
+.INDENT 3.5
+All entities have this field, you can refer to it in queries using
+\fBunscoped=1\fP\&.
+.UNINDENT
+.UNINDENT
+.SH "پیکربندی (CONFIGURATION)"
+.sp
+This section documents the config file. By default this file does not exist and
+a default configuration is used instead.
+.INDENT 0.0
+.TP
+.B Linux/BSD
+\fB~/.config/sn0int.toml\fP
+.TP
+.B OSX
+\fB~/Library/Preferences/sn0int.toml\fP
+.TP
+.B Windows
+\fB%APPDATA%/sn0int.toml\fP
+.UNINDENT
+.SS [core]
+.INDENT 0.0
+.TP
+.B \fBregistry\fP
+Configure the registry you want to use. Defaults to \fBhttps://sn0int.com\fP\&.
+.TP
+.B \fBno\-autoupdate\fP
+sn0int is going to check if your modules are outdated during startout once
+a week. Set this option to \fBtrue\fP to disable this.
+.UNINDENT
+.SS [namespaces]
+.sp
+By default sn0int modules are assumed to be installed from the registry. You
+may want to keep a local directory with private modules, especially during
+development. You can configure a folder that contains modules that aren\(aqt
+managed by sn0int by adding a namespace section to the config file:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[namespaces]
+foo = \(dq/opt/sn0int/foo\(dq
+bar = \(dq~/repos/a/b/c/sn0int\-modules\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This is going to load modules from these two folders and register them in the
+\fBfoo\fP and \fBbar\fP namespace.
+.sp
+Note that sn0int is also going to assume that symlinks in
+\fB~/.local/share/sn0int/modules\fP and folders containing a \fB\&.git\fP folder are
+externally managed.
+.SS [network]
+.sp
+To enable a proxy, add the following to your config file:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[network]
+proxy = \(dq127.0.0.1:9050\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This forces everything through tor (or any other socks5 proxy) and restricts
+all other functions that depend on the network. For example the \fBdns\fP
+function is fully disabled if a proxy is configured.
+.SH FUNCTION REFERENCE
+.SS asn_lookup
+.sp
+Run an ASN lookup for a given ip address. The function returns \fBasn\fP and
+\fBas_org\fP\&. This function may fail.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+lookup = asn_lookup(\(aq1.1.1.1\(aq)
+if last_err() then return end
+.EE
+.UNINDENT
+.UNINDENT
+.SS base64_decode
+.sp
+Decode a base64 string with the default alphabet+padding.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+base64_decode(\(dqww==\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS base64_encode
+.sp
+Encode a binary array with base64 and the default alphabet+padding.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+base64_encode(\(dq\ex00\exff\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS base64_custom_decode
+.sp
+Decode a base64 string with custom alphabet+padding.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- base64
+base64_custom_decode(\(aqb2hhaQ==\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\(aq, \(aq=\(aq)
+\-\- base64 no padding
+base64_custom_decode(\(aqb2hhaQ\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\(aq, \(aq\(aq)
+\-\- base64 url safe
+base64_custom_decode(\(aqb2hhaQ==\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\-_\(aq, \(aq=\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS base64_custom_encode
+.sp
+Encode a binary array with base64 and custom alphabet+padding.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- base64
+base64_custom_encode(\(aqohai\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\(aq, \(aq=\(aq)
+\-\- base64 no padding
+base64_custom_encode(\(aqohai\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/\(aq, \(aq\(aq)
+\-\- base64 url safe
+base64_custom_encode(\(aqohai\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\-_\(aq, \(aq=\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS base32_custom_decode
+.sp
+Decode a base32 string with custom alphabet+padding.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- rfc\-4648 base32
+base32_custom_decode(\(aqN5UGC2I=\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZ234567\(aq, \(aq=\(aq)
+\-\- z\-base\-32
+base32_custom_decode(\(aqp7wgn4e\(aq, \(aqybndrfg8ejkmcpqxot1uwisza345h769\(aq, \(aq\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS base32_custom_encode
+.sp
+Encode a binary array with base32 and custom alphabet+padding.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- rfc\-4648 base32
+x = base32_custom_encode(\(aqohai\(aq, \(aqABCDEFGHIJKLMNOPQRSTUVWXYZ234567\(aq, \(aq=\(aq)
+\-\- z\-base\-32
+x = base32_custom_encode(\(aqohai\(aq, \(aqybndrfg8ejkmcpqxot1uwisza345h769\(aq, \(aq\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS clear_err
+.sp
+Clear the last recorded error from the internal state. See also \fI\%last_err\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+if last_err() then
+    \-\- ignore this error
+    clear_err()
+end
+.EE
+.UNINDENT
+.UNINDENT
+.SS create_blob
+.sp
+Push a byte array into persistent blob storage. This allows passing those bytes
+to functions operating on blob storage. Returns a blob identifier that is
+deterministic based on the blob content. Blobs are immutable.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+blob = create_blob(\(dqsome bytes\(dq)
+debug(blob)
+.EE
+.UNINDENT
+.UNINDENT
+.SS datetime
+.sp
+Return current time in UTC. This function is suitable to determine datetimes
+for \fBDATETIME\fP database fields.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+now = datetime()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+This format is sn0int specific, to get the current time for scripting use
+\fI\%time_unix\fP instead.
+.UNINDENT
+.UNINDENT
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+This function is going to be deprecated at some point. Prefer \fI\%sn0int_time\fP
+for new scripts.
+.UNINDENT
+.UNINDENT
+.SS db_add
+.sp
+Add an entity to the database or update it if it already exists. This function
+may fail or return \fBnil\fP\&. See \fI\%db_add\fP for details.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+domain_id = db_add(\(aqdomain\(aq, {
+    value=\(aqexample.com\(aq,
+})
+.EE
+.UNINDENT
+.UNINDENT
+.SS db_add_ttl
+.sp
+Add a temporary entity to the database. This is commonly used to insert
+temporary links that automatically expire over time. If the entity already
+exists and is also marked as temporary the new ttl is going to replace the old
+ttl. If the entity already exists but never expires we are not going to add a
+ttl.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- this link is valid for 2min
+domain_id = db_add_ttl(\(aqnetwork\-device\(aq, {
+    network_id=1,
+    device_id=13,
+}, 120)
+.EE
+.UNINDENT
+.UNINDENT
+.SS db_activity
+.sp
+Log an activity event. A basic event looks like this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+db_activity({
+    topic=\(aqharness/activity\-ping:dummy\(aq,
+    time=sn0int_time(),
+    content={
+        a=\(aqb\(aq,
+        foo={
+            bar=1337,
+        },
+        msg=\(aqohai\(aq,
+    },
+})
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This function is explained in detail in the \fI\%activity\fP
+section.
+.SS db_select
+.sp
+Checks if a target is in scope. If non\-nil is returned, this entity is in
+scope. This function may fail. See \fI\%db_select\fP for
+details.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+domain_id = db_select(\(aqdomain\(aq, \(aqexample.com\(aq)
+if domain_id ~= nil then
+    \-\- do something
+end
+.EE
+.UNINDENT
+.UNINDENT
+.SS db_update
+.sp
+Update an entity in the database. This function may fail. See \fI\%db_update\fP for details.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+db_update(\(aqipaddr\(aq, arg, {
+    asn=lookup[\(aqasn\(aq],
+    as_org=lookup[\(aqas_org\(aq],
+})
+.EE
+.UNINDENT
+.UNINDENT
+.SS dns
+.sp
+Resolve a dns record. If the dns query was successful and the dns reply is
+\fBNoError\fP then \fBx[\(aqerror\(aq]\fP is \fBnil\fP\&. The records of the reply are in
+\fBx[\(aqanswers\(aq]\fP\&. This function may fail.
+.sp
+This function accepts the following options:
+.INDENT 0.0
+.TP
+.B \fBrecord\fP
+The \fBquery_type\fP, can be any of \fBA\fP, \fBAAAA\fP, \fBMX\fP, \fBAXFR\fP, etc.
+.TP
+.B \fBnameserver\fP
+The server that should be used for the lookup. Defaults to your system
+resolver.
+.TP
+.B \fBtcp\fP
+If the lookup should use tcp, true/false.
+.TP
+.B \fBtimeout\fP
+The time until the query times out in milliseconds.
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+records = dns(\(aqexample.com\(aq, {
+    record=\(aqA\(aq,
+})
+if last_err() then return end
+if records[\(aqerror\(aq] ~= nil then return end
+records = records[\(aqanswers\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+DNS replies with an error code set are not causing a change to
+\fBlast_err()\fP\&. You have to test for this explicitly.
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+This function is unavailable if a socks5 proxy is configured.
+.UNINDENT
+.UNINDENT
+.SS error
+.sp
+Log an error to the terminal.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+error(\(aqohai\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS geoip_lookup
+.sp
+Run a geoip lookup for a given ip address. The function returns:
+.INDENT 0.0
+.IP \(bu 2
+continent
+.IP \(bu 2
+continent_code
+.IP \(bu 2
+country
+.IP \(bu 2
+country_code
+.IP \(bu 2
+city
+.IP \(bu 2
+latitude
+.IP \(bu 2
+longitude
+.UNINDENT
+.sp
+This function may fail.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+lookup = geoip_lookup(\(aq1.1.1.1\(aq)
+if last_err() then return end
+.EE
+.UNINDENT
+.UNINDENT
+.SS hex
+.sp
+Hex encode a list of bytes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hex(\(dq\ex6F\ex68\ex61\ex69\ex0A\ex00\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS hmac_md5
+.sp
+Calculate an hmac with md5. Returns a binary array.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hmac_md5(\(dqsecret\(dq, \(dqmy authenticated message\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS hmac_sha1
+.sp
+Calculate an hmac with sha1. Returns a binary array.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hmac_sha1(\(dqsecret\(dq, \(dqmy authenticated message\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS hmac_sha2_256
+.sp
+Calculate an hmac with sha2_256. Returns a binary array.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hmac_sha2_256(\(dqsecret\(dq, \(dqmy authenticated message\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS hmac_sha2_512
+.sp
+Calculate an hmac with sha2_512. Returns a binary array.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hmac_sha2_512(\(dqsecret\(dq, \(dqmy authenticated message\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS hmac_sha3_256
+.sp
+Calculate an hmac with sha3_256. Returns a binary array.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hmac_sha3_256(\(dqsecret\(dq, \(dqmy authenticated message\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS hmac_sha3_512
+.sp
+Calculate an hmac with sha3_512. Returns a binary array.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hmac_sha3_512(\(dqsecret\(dq, \(dqmy authenticated message\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS html_select
+.sp
+Parses an html document and returns the first element that matches the css
+selector. The return value is a table with \fItext\fP being the inner text and
+\fIattrs\fP being a table of the elements attributes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+csrf = html_select(html, \(aqinput[name=\(dqcsrf\(dq]\(aq)
+token = csrf[\(dqattrs\(dq][\(dqvalue\(dq]
+.EE
+.UNINDENT
+.UNINDENT
+.SS html_select_list
+.sp
+Same as \fI\%html_select\fP but returns all matches instead of the first one.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+html_select_list(html, \(aqinput[name=\(dqcsrf\(dq]\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS http_mksession
+.sp
+Create a session object. This is similar to \fBrequests.Session\fP in
+python\-requests and keeps track of cookies.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+session = http_mksession()
+.EE
+.UNINDENT
+.UNINDENT
+.SS http_request
+.sp
+Prepares an http request. The first argument is the session reference and
+cookies from that session are copied into the request. After the request has
+been sent, the cookies from the response are copied back into the session.
+.sp
+The next arguments are the \fBmethod\fP, the \fBurl\fP and additional options.
+Please note that you still need to specify an empty table \fB{}\fP even if no
+options are set. The following options are available:
+.INDENT 0.0
+.TP
+.B \fBquery\fP
+A map of query parameters that should be set on the url.
+.TP
+.B \fBheaders\fP
+A map of headers that should be set.
+.TP
+.B \fBbasic_auth\fP
+Configure the basic auth header with \fB{\(dquser, \(dqpassword\(dq}\fP\&.
+.TP
+.B \fBuser_agent\fP
+Overwrite the default user agent with a string.
+.TP
+.B \fBjson\fP
+The request body that should be json encoded.
+.TP
+.B \fBform\fP
+The request body that should be form encoded.
+.TP
+.B \fBfollow_redirects\fP
+Automatically follow redirects, up to the specified number. If set to 1, only
+one redirect is going to be followed. Defaults to 0 so redirects aren\(aqt
+followed.
+.TP
+.B \fBbody\fP
+The raw request body as string.
+.TP
+.B \fBinto_blob\fP
+If true, the response body is stored in blob storage and a blob reference is
+returned as \fBblob\fP instead of the full body.
+.TP
+.B \fBproxy\fP
+Use a socks5 proxy in the format \fB127.0.0.1:9050\fP\&. This option only works
+if it doesn\(aqt conflict with the global proxy settings.
+.TP
+.B \fBbinary\fP
+Set to \fBtrue\fP to get the http response as raw bytes.
+.UNINDENT
+.sp
+This function may fail.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+req = http_request(session, \(aqPOST\(aq, \(aqhttps://httpbin.org/post\(aq, {
+    json={
+        user=user,
+        password=password,
+    }
+})
+resp = http_send(req)
+if last_err() then return end
+if resp[\(aqstatus\(aq] ~= 200 then return \(aqhttp status error: \(aq .. resp[\(aqstatus\(aq] end
+.EE
+.UNINDENT
+.UNINDENT
+.SS http_send
+.sp
+Send the request that has been built with \fI\%http_request\fP\&. Returns a table with
+the following keys:
+.INDENT 0.0
+.TP
+.B \fBstatus\fP
+The http status code
+.TP
+.B \fBheaders\fP
+A table of headers
+.TP
+.B \fBtext\fP
+The response body as string
+.TP
+.B \fBbinary\fP
+The response body as bytes (if \fBbinary=true\fP)
+.TP
+.B \fBblob\fP
+If \fBinto_blob\fP was enabled for the request the body is downloaded into blob
+storage with a reference to the body in this field.
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+req = http_request(session, \(aqPOST\(aq, \(aqhttps://httpbin.org/post\(aq, {
+    json={
+        user=user,
+        password=password,
+    }
+})
+resp = http_send(req)
+if last_err() then return end
+if resp[\(aqstatus\(aq] ~= 200 then return \(aqhttp status error: \(aq .. resp[\(aqstatus\(aq] end
+.EE
+.UNINDENT
+.UNINDENT
+.SS http_fetch
+.sp
+This does an \fI\%http_send\fP and also automatically validate the status code.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+You almost always want this when setting the \fBinto_blob\fP option since this
+function validates the status code \fIbefore\fP inserting the response body into
+blob storage.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- short form
+data = http_fetch(req)
+if last_err() then return end
+
+\-\- long form
+resp = http_send(req)
+if last_err() then return end
+if resp[\(aqstatus\(aq] ~= 200 then return \(aqhttp status error: \(aq .. resp[\(aqstatus\(aq] end
+.EE
+.UNINDENT
+.UNINDENT
+.SS http_fetch_json
+.sp
+Identical to \fI\%http_fetch\fP but also automatically parses the response body as json.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- short form
+data = http_fetch_json(req)
+if last_err() then return end
+
+\-\- long form
+resp = http_send(req)
+if last_err() then return end
+if resp[\(aqstatus\(aq] ~= 200 then return \(aqhttp status error: \(aq .. resp[\(aqstatus\(aq] end
+data = json_decode(resp[\(aqtext\(aq])
+if last_err() then return end
+.EE
+.UNINDENT
+.UNINDENT
+.SS img_load
+.sp
+Attempt to decode a blob as an image and return some basic metadata like the
+mime type, height and width.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+img = img_load(blob)
+if last_err() then return end
+debug(img)
+.EE
+.UNINDENT
+.UNINDENT
+.SS img_exif
+.sp
+Extract exif metadata from an image.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+exif = img_exif(blob)
+if last_err() then return end
+debug(exif)
+.EE
+.UNINDENT
+.UNINDENT
+.SS img_ahash
+.sp
+Calculate the Mean (aHash) perceptual hash.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hash = img_ahash(blob)
+if last_err() then return end
+debug(hash)
+.EE
+.UNINDENT
+.UNINDENT
+.SS img_dhash
+.sp
+Calculate the Gradient (dHash) perceptual hash.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hash = img_dhash(blob)
+if last_err() then return end
+debug(hash)
+.EE
+.UNINDENT
+.UNINDENT
+.SS img_phash
+.sp
+Calculate the DCT (pHash) perceptual hash.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hash = img_phash(blob)
+if last_err() then return end
+debug(hash)
+.EE
+.UNINDENT
+.UNINDENT
+.SS img_nudity
+.sp
+Classify an image for nudity. The score goes from 0 to 2. A score above 1 means
+nudity has been detected.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+nudity = img_nudity(blob)
+if last_err() then return end
+debug(nudity)
+.EE
+.UNINDENT
+.UNINDENT
+.SS info
+.sp
+Log an info to the terminal.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+info(\(aqohai\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS intval
+.sp
+Parse a number from a string.
+.INDENT 0.0
+.INDENT 3.5
+x = strval(\(aq1234\(aq)
+.UNINDENT
+.UNINDENT
+.SS json_decode
+.sp
+Decode a lua value from a json string.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+json_decode(\(dq{\e\(dqdata\e\(dq:{\e\(dqpassword\e\(dq:\e\(dqfizz\e\(dq,\e\(dquser\e\(dq:\e\(dqbar\e\(dq},\e\(dqlist\e\(dq:[1,3,3,7]}\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS json_decode_stream
+.sp
+Very similar to \fI\%json_decode\fP, but works with multiple json objects directly
+concatenated to each other or separated by newlines.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+json_decode_stream(\(dq{\e\(dqdata\e\(dq:1}{\e\(dqdata\e\(dq:2}\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS json_encode
+.sp
+Encode a datastructure into a string.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = json_encode({
+    some=1,
+    fancy={
+        data=\(aqstructures\(aq,
+    }
+})
+print(x)
+.EE
+.UNINDENT
+.UNINDENT
+.SS key_trunc_pad
+.sp
+Truncate/pad a key to a given length.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- if longer than 32 bytes: truncate to 32
+\-\- if shorter than 32 bytes: pad with \ex00
+local key = key_trunc_pad(password, 32, 0)
+.EE
+.UNINDENT
+.UNINDENT
+.SS keyring
+.sp
+Request all keys from a given namespace. See the \fI\%keyring\fP
+section for details.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+creds = keyring(\(aqaws\(aq)
+print(creds[1][\(aqaccesskey\(aq])
+print(creds[1][\(aqsecretkey\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.SS last_err
+.sp
+Returns infos about the last error we\(aqve observed, if any. Returns \fBnil\fP
+otherwise.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+if last_err() then
+    \-\- Something went wrong, abort
+    return
+end
+.EE
+.UNINDENT
+.UNINDENT
+.SS md5
+.sp
+Hash a byte array with md5 and return the results as bytes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hex(md5(\(dq\ex00\exff\(dq))
+.EE
+.UNINDENT
+.UNINDENT
+.SS mqtt_connect
+.sp
+Connect to an mqtt broker.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+local sock = mqtt_connect(\(aqmqtts://mqtt.example.com\(aq, {
+    username=\(aqfoo\(aq,
+    password=\(aqsecret\(aq,
+})
+if last_err() then return end
+.EE
+.UNINDENT
+.UNINDENT
+.SS mqtt_subscribe
+.sp
+Subscribe to a topic. Right now only QoS 0 is supported.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+mqtt_subscribe(sock, \(aq#\(aq, 0)
+if last_err() then return end
+.EE
+.UNINDENT
+.UNINDENT
+.SS mqtt_recv
+.sp
+Receive an mqtt packet. This is not necessarily a publish packet and more
+packets might be added in the future, so you need to check the type
+specifically.
+.sp
+If a read timeout has been set with \fI\%mqtt_connect\fP this function returns \fBnil\fP
+in case of a read timeout.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+local pkt = mqtt_recv(sock)
+if last_err() then return end
+if pkt == nil then
+    \-\- read timeout, consider sending a ping or disconnect if the previous ping failed
+elseif pkt[\(aqtype\(aq] == \(aqpong\(aq then
+    \-\- broker sent a pong
+elseif pkt[\(aqtype\(aq] == \(aqpublish\(aq then
+    local payload = utf8_decode(pkt[\(aqbody\(aq])
+    if last_err() then return end
+    info(payload)
+end
+.EE
+.UNINDENT
+.UNINDENT
+.SS mqtt_ping
+.sp
+Send a pingreq packet, causing the broker to send a pingresp. This is used to
+make sure the connection is still working correctly.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+mqtt_ping(sock)
+if last_err() then return end
+.EE
+.UNINDENT
+.UNINDENT
+.SS pgp_pubkey
+.sp
+Same as \fI\%pgp_pubkey_armored\fP, but without the unarmor step.
+.SS pgp_pubkey_armored
+.sp
+Extract \fBuids\fP, \fBsigs\fP and the \fBfingerprint\fP out of an rfc 4880 pgp
+public key. This function may fail.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+key = pgp_pubkey_armored([===[
+\-\-\-\-\-BEGIN PGP PUBLIC KEY BLOCK\-\-\-\-\-
+Version: GnuPG v2
+
+mQENBFu6q90BCADgD7Q9aH5683yt7hzPktDkAUNAZJHwYhUNeyGK43frPyDRWQmq
+N+oXTfiYWLQN+d7KNBTnF9uwyBdaLM7SH44lLNYo8W09mVM2eK+wt19uf5HYNgAE
+8la45QLo/ce9CQVe1a4oXNWq6l0FOY7M+wLe+G2wMwz8RXGgwd/qQp4/PB5YpUhx
+nAnzClxvwymrL6BQXsRcKSMSD5bIzIv95n105CvW5Hql7JR9zgOR+gHqVOH8HBUc
+ZxMumrTM6aKLgAhgM8Sn36gCFOfjlG1b1OFLZhUtgro/nnEOmAurRsCZy8M5h8QM
+FpZChIH8kgHs90F/CCvGjMq3qvWcH8ZsPUizABEBAAG0NUhhbnMgQWNrZXIgKGV4
+YW1wbGUgY29tbWVudCkgPGhhbnMuYWNrZXJAZXhhbXBsZS5jb20+iQFOBBMBCAA4
+FiEEyzeO1eEwbB03hcqBM00IodGdlj8FAlu6q90CGwMFCwkIBwIGFQgJCgsCBBYC
+AwECHgECF4AACgkQM00IodGdlj/AJQgAjmk+iP5b7Jt7+f+lU4Oprlf3f3DG/uh5
+Ge6MjV7cvtxlhZJRD5hxGt9RwwnEp61TBSbrem288pM89ilQfTNe0wUr9OzwWzh/
+8Ngl5iWnD2ah3Mpi5R1V/YMNf2cnwVjqNvfkRHdNc43pZOkC2GoiTUn0QY0UBpOW
+ZMN3//ANi6ZtiK/L0IZQND/gKvOzu/4tfaJeBl26T3cVYj53p3G3jhlb92vVa8SR
+uL3S3bzd1h5snDgU1uXHmNHGbhkEc4KUneQ0V9/bdZrg6OzFAfM1ghgfoId+YpQH
+er9L26ISL3QF58wdEXfIdHYEmMlANjBMO2cUlQXgONuCgkMuY7GBmrkBDQRbuqvd
+AQgA41jqCumCxYV0NdSYNnTSSDRyd69dOUYCAPT80iZ739s7KKJS9X9KVfGmDjfi
+u2RcfR/KYj53HoyOm4Pm/+ONN8De4ktzXpIpJxGC+O8NBvd9vkboAS6qnCjK7KVE
+r91ymxxVKp2dzZvVfpIjWVZR5i2EAvS5vw8UK4gL8ALH+S9leJFZrQWcgyoJOJzH
+Rzr9pesX2HvdgcNG1O6QUArlsnsTnqpi/hu7tQa8tifBpWDeArOA23Y2DgeehdDF
+lSU/8KD4J+AkFrWWlcTaMsvSChXQkCHEMRIcSOfXtdpX5KJSE7UBQdD1opm+mR79
+VeHnuJAAVZZtUZmJA7pjdKykYQARAQABiQE2BBgBCAAgFiEEyzeO1eEwbB03hcqB
+M00IodGdlj8FAlu6q90CGwwACgkQM00IodGdlj8bMAf+Lq3Qive4vcrCTT4IgvVj
+arOACdcbtt5RhVBTimT19rDWNH+m+PfPjo3FSlBj5cm70KAXUS2LBFFxhakTZ/Mq
+cQroWZpVbBxj4kipEVVJZFdUZQaDERJql0xYGOQrNMQ4JGqJ84BRrtOExjSqo41K
+hAhNe+bwPGH9/Igiixc4tH07xa7TOy4MyJv/6gpbHy/lW1hqpCAgM5fT/im5/6QF
+k0tED6vIuc54IWiOmwCnjZiQnJ8uCwEu+cuJ5Exwy9CNERLp5v0y4eG+0E+at9j/
+macOg39qf09t53pTqe9dWv5NIi319TeBsKZ2lb0crrQjsbHqk0DAUwgQuoANqLku
+vA==
+=kRIv
+\-\-\-\-\-END PGP PUBLIC KEY BLOCK\-\-\-\-\-
+]===])
+
+if last_err() then return end
+print(key)
+.EE
+.UNINDENT
+.UNINDENT
+.SS print
+.sp
+Write something directly to the terminal.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+print({
+    some=1,
+    fancy={
+        data=\(aqstructures\(aq,
+    }
+})
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+This function writes directly to the terminal and can interfere with other
+terminal features. This function should be used during development only.
+.UNINDENT
+.UNINDENT
+.SS psl_domain_from_dns_name
+.sp
+Returns the parent domain according to the public suffix list. For
+\fBwww.a.b.c.d.example.co.uk\fP this is going to be \fBexample.co.uk\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+domain = psl_domain_from_dns_name(\(aqwww.a.b.c.d.example.co.uk\(aq)
+print(domain == \(aqexample.co.uk\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS ratelimit_throttle
+.sp
+Create a ratelimit that can only be passed x times every y milliseconds. This
+limit is global for a single \fBrun\fP and also works with threads.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\- allow this to pass every 250ms
+ratelimit_throttle(\(aqfoo\(aq, 1, 250)
+\-\- allow this to pass not more than 4 times per second
+ratelimit_throttle(\(aqfoo\(aq, 4, 1000)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This is useful if you need to coordinate your executions to stay below a
+certain request threshold.
+.SS regex_find
+.sp
+Apply a regex to some text. Returns \fBnil\fP if the regex didn\(aqt match and the
+capture groups if it did.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+m = regex_find(\(dq.(.)\(dq, \(dqabcdef\(dq)
+
+if m == nil then
+    print(\(aqNo captures\(aq)
+end
+
+print(m[1] == \(aqab\(aq)
+print(m[2] == \(aqb\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS regex_find_all
+.sp
+Same as \fI\%regex_find\fP, but returns all matches.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+m = regex_find_all(\(dq.(.)\(dq, \(dqabcdef\(dq)
+
+print(m[1][1] == \(aqab\(aq)
+print(m[1][2] == \(aqb\(aq)
+print(m[2][1] == \(aqcd\(aq)
+print(m[2][2] == \(aqd\(aq)
+print(m[3][1] == \(aqef\(aq)
+print(m[3][2] == \(aqf\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS semver_match
+.sp
+Compare a version to a version requirement. This can be used with
+\fI\%sn0int_version\fP to test for certain features or behavior.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+semver_match(\(aq=0.11.2\(aq, sn0int_version())
+semver_match(\(aq>0.11.2\(aq, sn0int_version())
+semver_match(\(aq<0.11.2\(aq, sn0int_version())
+semver_match(\(aq~0.11.2\(aq, sn0int_version())
+semver_match(\(aq^0.11.2\(aq, sn0int_version())
+semver_match(\(aq0.11.2\(aq, sn0int_version()) \-\- synonym for ^0.11.2
+semver_match(\(aq<=0.11.2\(aq, sn0int_version())
+semver_match(\(aq>=0.11.2\(aq, sn0int_version())
+semver_match(\(aq>=0.4.0, <=0.10.0\(aq, sn0int_version())
+.EE
+.UNINDENT
+.UNINDENT
+.SS set_err
+.sp
+Manipulate the global error object. If you want to exit the main \fBrun\fP
+function with an error you can simply return a string, but those are difficult
+to propagate through functions. \fBset_err\fP specifically assigns an error to
+the global error object that are also used by all other rust functions.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+function foo()
+    set_err(\(dqsomething failed\(dq)
+end
+
+foo()
+if last_err() then return end
+.EE
+.UNINDENT
+.UNINDENT
+.SS sha1
+.sp
+Hash a byte array with sha1 and return the results as bytes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hex(sha1(\(dq\ex00\exff\(dq))
+.EE
+.UNINDENT
+.UNINDENT
+.SS sha2_256
+.sp
+Hash a byte array with sha2_256 and return the results as bytes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hex(sha2_256(\(dq\ex00\exff\(dq))
+.EE
+.UNINDENT
+.UNINDENT
+.SS sha2_512
+.sp
+Hash a byte array with sha2_512 and return the results as bytes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hex(sha2_512(\(dq\ex00\exff\(dq))
+.EE
+.UNINDENT
+.UNINDENT
+.SS sha3_256
+.sp
+Hash a byte array with sha3_256 and return the results as bytes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hex(sha3_256(\(dq\ex00\exff\(dq))
+.EE
+.UNINDENT
+.UNINDENT
+.SS sha3_512
+.sp
+Hash a byte array with sha3_512 and return the results as bytes.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+hex(sha3_512(\(dq\ex00\exff\(dq))
+.EE
+.UNINDENT
+.UNINDENT
+.SS sleep
+.sp
+Pause the current program for the specified number of seconds. This is usually
+only used for debugging.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sleep(1)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sn0int_time
+.sp
+Return current time in UTC. This function is suitable to determine datetimes
+for \fBDATETIME\fP database fields.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+now = sn0int_time()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+This format is sn0int specific, to get the current time for scripting use
+\fI\%time_unix\fP instead.
+.UNINDENT
+.UNINDENT
+.SS sn0int_time_from
+.sp
+Identical to \fI\%sn0int_time\fP but uses a unix timestamp in seconds instead of the
+current time. This function is compatible with \fI\%time_unix\fP and \fI\%strptime\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+time = sn0int_time_from(1567931337)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sn0int_version
+.sp
+Get the current sn0int version string. This can be used with \fI\%semver_match\fP to
+test for certain features or behavior.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+info(sn0int_version())
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_connect
+.sp
+Create a tcp connection.
+.sp
+The following options are available:
+.INDENT 0.0
+.TP
+.B \fBtls\fP
+Set to true to enable tls (certificates are validated)
+.TP
+.B \fBsni_value\fP
+Instead of the host argument, use a custom string for the sni extension.
+.TP
+.B \fBdisable_tls_verify\fP
+\fBDanger\fP: disable tls verification. This disables all security on the
+connection. Note that sn0int is still rather strict, you\(aqre going to run into
+issues if you need support for insecure ciphers.
+.TP
+.B \fBproxy\fP
+Use a socks5 proxy in the format \fB127.0.0.1:9050\fP\&. This option only works
+if it doesn\(aqt conflict with the global proxy settings.
+.TP
+.B \fBconnect_timeout\fP
+Abort tcp connection attempts after \fBn\fP seconds.
+.TP
+.B \fBread_timeout\fP
+Abort read attempts after \fBn\fP seconds. This can be used to wake up
+connections periodically.
+.TP
+.B \fBwrite_timeout\fP
+Abort write attempts after \fBn\fP seconds.
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock = sock_connect(\(dq127.0.0.1\(dq, 1337, {
+    tls=true,
+})
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_upgrade_tls
+.sp
+Take an existing tcp connection and start a tls handshake. The options are the
+same as \fI\%sock_connect\fP but the \fBtls\fP value is always assumed to be true.
+.sp
+The sni value needs to be set specifically, otherwise the sni extension is
+disabled.
+.sp
+Using this function specifically returns some extra information that is
+discarded when using \fI\%sock_connect\fP directly with \fBtls=true\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock = sock_connect(\(dq127.0.0.1\(dq, 1337, {})
+if last_err() then return end
+
+tls = sock_upgrade_tls(sock, {
+    sni_value=\(aqexample.com\(aq,
+})
+if last_err() then return end
+
+info(tls)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_options
+.sp
+Update options of an existing connection:
+.INDENT 0.0
+.TP
+.B \fBread_timeout\fP
+Abort read attempts after \fBn\fP seconds. This can be used to wake up
+connections periodically.
+.TP
+.B \fBwrite_timeout\fP
+Abort write attempts after \fBn\fP seconds.
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock_options(sock, {
+    read_timeout=3,
+})
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_send
+.sp
+Send data to the socket.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock_send(sock, \(dqhello world\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_recv
+.sp
+Receive up to 4096 bytes from the socket.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = sock_recv(sock)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_sendline
+.sp
+Send a string to the socket. A newline is automatically appended to the string.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock_sendline(sock, line)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_recvline
+.sp
+Receive a line from the socket. The line includes the newline.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = sock_recvline(sock)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_recvall
+.sp
+Receive all data from the socket until EOF.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = sock_recvall(sock)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_recvline_contains
+.sp
+Receive lines from the server until a line contains the needle, then return
+this line.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = sock_recvline_contains(sock, needle)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_recvline_regex
+.sp
+Receive lines from the server until a line matches the regex, then return this
+line.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = sock_recvline_regex(sock, \(dq^250 \(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_recvn
+.sp
+Receive exactly n bytes from the socket.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = sock_recvn(sock, 4)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_recvuntil
+.sp
+Receive until the needle is found, then return all data including the needle.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = sock_recvuntil(sock, needle)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_sendafter
+.sp
+Receive until the needle is found, then write data to the socket.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock_sendafter(sock, needle, data)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sock_newline
+.sp
+Overwrite the default \fB\en\fP newline.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock_newline(sock, \(dq\er\en\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS sodium_secretbox_open
+.sp
+Use authenticated symetric crypto to decrypt a given message.
+.sp
+Internally this is \fBcrypto_secretbox_xsalsa20poly1305\fP\&.
+.sp
+The key \fBmust\fP be 32 bytes, see \fI\%key_trunc_pad\fP if necessary.
+.sp
+The first 24 bytes of the encrypted message are expected to be the nonce.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+plain = sodium_secretbox_open(encrypted, key)
+if last_err() then return end
+
+txt = utf8_decode(plain)
+if last_err() then return end
+
+info(txt)
+.EE
+.UNINDENT
+.UNINDENT
+.SS status
+.sp
+Update the label of the progress indicator.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+status(\(aqohai\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS stdin_readline
+.sp
+Read a line from stdin. The final newline is not removed.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+stdin_readline()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+This only works with \fIsn0int run \-\-stdin\fP\&.
+.UNINDENT
+.UNINDENT
+.SS stdin_read_to_end
+.sp
+Read stdin until EOF as a utf\-8 string.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+stdin_read_to_end()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+This only works with \fIsn0int run \-\-stdin\fP\&.
+.UNINDENT
+.UNINDENT
+.SS str_find
+.sp
+Returns the byte index of the first character that matches the pattern. This is
+explicitly a literal match instead of a lua pattern.
+.sp
+If no match is found, returns \fBnil\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = str_find(\(aqasdf\(aq, \(aqsd\(aq)
+print(x == 2)
+.EE
+.UNINDENT
+.UNINDENT
+.SS str_replace
+.sp
+Replaces all matches of a pattern in a string. This is explicitly a literal
+match instead of a lua pattern.
+.sp
+If no match is found, an unmodified copy is returned.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = str_replace(\(aqthis is old\(aq, \(aqold\(aq, \(aqnew\(aq)
+print(x == \(aqthis is new\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS strftime
+.sp
+Format a timestamp generated with \fI\%time_unix\fP into a date, see \X'tty: link https://docs.rs/chrono/0.4.6/chrono/format/strftime/index.html'\fI\%strftime rules\fP\X'tty: link'\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+t = strftime(\(aq%d/%m/%Y %H:%M\(aq, 1558584994)
+.EE
+.UNINDENT
+.UNINDENT
+.SS strptime
+.sp
+Parse a date into a unix timestamp, see \X'tty: link https://docs.rs/chrono/0.4.6/chrono/format/strftime/index.html'\fI\%strftime rules\fP\X'tty: link'\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+t = strptime(\(aq%d/%m/%Y %H:%M\(aq, \(aq23/05/2019 04:16\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS strval
+.sp
+Convert a number into a string.
+.INDENT 0.0
+.INDENT 3.5
+x = strval(1234)
+.UNINDENT
+.UNINDENT
+.SS time_unix
+.sp
+Get the current time as seconds since \fBJanuary 1, 1970 0:00:00 UTC\fP, also
+known as UNIX timestamp. This timestamp can be formated using \fI\%strftime\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+now = time_unix()
+.EE
+.UNINDENT
+.UNINDENT
+.SS url_decode
+.sp
+Parse a query string into a map. For raw percent decoding see \fI\%url_unescape\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+v = url_decode(\(aqa=b&c=d\(aq)
+print(v[\(aqa\(aq] == \(aqb\(aq)
+print(v[\(aqc\(aq] == \(aqd\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS url_encode
+.sp
+Encode a map into a query string. For raw percent encoding see \fI\%url_escape\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+v = url_encode({
+    a=\(aqb\(aq,
+    c=\(aqd\(aq,
+})
+print(v == \(aqa=b&c=d\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS url_escape
+.sp
+Apply url escaping to a string.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+v = url_escape(\(aqfoo bar?\(aq)
+print(v == \(aqfoo%20bar%3F\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS url_join
+.sp
+Join a relative link to an absolute link. If both links are absolute we just
+return the first one:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = url_join(\(aqhttps://example.com/x\(aq, \(aq/foo\(aq)
+print(x == \(aqhttps://example.com/foo\(aq)
+
+x = url_join(\(aqhttps://example.com/x\(aq, \(aqhttps://github.com/\(aq)
+print(x == \(aqhttps://github.com/\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS url_parse
+.sp
+Parse a url into its components. The following components are returned:
+.INDENT 0.0
+.IP \(bu 2
+scheme
+.IP \(bu 2
+host
+.IP \(bu 2
+port
+.IP \(bu 2
+path
+.IP \(bu 2
+query
+.IP \(bu 2
+fragment
+.IP \(bu 2
+params
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+url = url_parse(\(aqhttps://example.com\(aq)
+print(url[\(aqscheme\(aq] == \(aqhttps\(aq)
+print(url[\(aqhost\(aq] == \(aqexample.com\(aq)
+print(url[\(aqpath\(aq] == \(aq/\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS url_unescape
+.sp
+Remove url escaping of a string.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+v = url_unescape(\(aqfoo%20bar%3F\(aq)
+print(v == \(aqfoo bar?\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS utf8_decode
+.sp
+Decodes a list of bytes/numbers into a string. This function might fail.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = utf8_decode({65, 65, 65, 65})
+if last_err() then return end
+print(x == \(aqAAAA\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS warn
+.sp
+Log a warning to the terminal.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+warn(\(aqohai\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS warn_once
+.sp
+Log a warning to the terminal once. This can be used to print a warning to the
+user without printing the same warning for each struct we\(aqre processing during
+a \fBrun\fP execution.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+warn_once(\(aqohai\(aq)
+warn_once(\(aqohai\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_connect
+.sp
+Create a websocket connection. The url format is \fBws://example.com/asdf\fP,
+\fBwss://\fP is also supported.
+.sp
+The following options are available:
+.INDENT 0.0
+.TP
+.B \fBheaders\fP
+A map of additional headers that should be set for the request.
+.TP
+.B \fBproxy\fP
+Use a socks5 proxy in the format \fB127.0.0.1:9050\fP\&. This option only works
+if it doesn\(aqt conflict with the global proxy settings.
+.TP
+.B \fBconnect_timeout\fP
+Abort tcp connection attempts after \fBn\fP seconds.
+.TP
+.B \fBread_timeout\fP
+Abort read attempts after \fBn\fP seconds. This can be used to wake up
+connections periodically.
+.TP
+.B \fBwrite_timeout\fP
+Abort write attempts after \fBn\fP seconds.
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sock = ws_connect(\(dqwss://example.com/asdf\(dq, {})
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_options
+.sp
+Update options of an existing connection:
+.INDENT 0.0
+.TP
+.B \fBread_timeout\fP
+Abort read attempts after \fBn\fP seconds. This can be used to wake up
+connections periodically.
+.TP
+.B \fBwrite_timeout\fP
+Abort write attempts after \fBn\fP seconds.
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ws_options(sock, {
+    read_timeout=3,
+})
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_recv_text
+.sp
+Wait until the server sends a text frame. A binary frame is considered an
+error. Ping requests are answered automatically.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+msg = ws_recv_text(sock)
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_recv_binary
+.sp
+Wait until the server sends a binary frame. A text frame is considered an
+error. Ping requests are answered automatically.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+msg = ws_recv_binary(sock)
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_recv_json
+.sp
+Identical to \fI\%ws_send_text\fP but automatically runs \fI\%json_decode\fP on the
+response.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+msg = ws_recv_json(sock)
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_send_text
+.sp
+Send a text frame on the websocket connection.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ws_send_text(sock, \(dqohai!\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_send_binary
+.sp
+Send a binary frame on the websocket connection.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ws_send_binary(sock, \(dq\ex00\ex01\ex02\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS ws_send_json
+.sp
+Encode the object as json string and send it as a text frame on the websocket
+connection.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ws_send_text(sock, {
+    foo=\(dqohai!\(dq,
+    x={
+        y={1,3,3,7},
+    },
+})
+.EE
+.UNINDENT
+.UNINDENT
+.SS x509_parse_pem
+.sp
+Parse a pem encoded certificate. This function might fail.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = x509_parse_pem([[\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-
+MIID9DCCA3qgAwIBAgIQBWzetBRl/ycHFsBukRYuGTAKBggqhkjOPQQDAjBMMQsw
+CQYDVQQGEwJVUzEVMBMGA1UEChMMRGlnaUNlcnQgSW5jMSYwJAYDVQQDEx1EaWdp
+Q2VydCBFQ0MgU2VjdXJlIFNlcnZlciBDQTAeFw0xODAzMzAwMDAwMDBaFw0yMDAz
+MjUxMjAwMDBaMGwxCzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEWMBQGA1UEBxMN
+U2FuIEZyYW5jaXNjbzEZMBcGA1UEChMQQ2xvdWRmbGFyZSwgSW5jLjEdMBsGA1UE
+AwwUKi5jbG91ZGZsYXJlLWRucy5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC
+AASyRQsxrFBjziHmfDQjGsXBU0WWl3oxh7vg6h2V9f8lBMp18PY/td9R6VvJPa20
+AwVzIJI+dL6OSxviaIZEbmK7o4ICHDCCAhgwHwYDVR0jBBgwFoAUo53mH/naOU/A
+buiRy5Wl2jHiCp8wHQYDVR0OBBYEFN+XTeVDs7BBp0LykM+Jf64SV4ThMGMGA1Ud
+EQRcMFqCFCouY2xvdWRmbGFyZS1kbnMuY29thwQBAQEBhwQBAAABghJjbG91ZGZs
+YXJlLWRucy5jb22HECYGRwBHAAAAAAAAAAAAERGHECYGRwBHAAAAAAAAAAAAEAEw
+DgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMBBggrBgEFBQcDAjBp
+BgNVHR8EYjBgMC6gLKAqhihodHRwOi8vY3JsMy5kaWdpY2VydC5jb20vc3NjYS1l
+Y2MtZzEuY3JsMC6gLKAqhihodHRwOi8vY3JsNC5kaWdpY2VydC5jb20vc3NjYS1l
+Y2MtZzEuY3JsMEwGA1UdIARFMEMwNwYJYIZIAYb9bAEBMCowKAYIKwYBBQUHAgEW
+HGh0dHBzOi8vd3d3LmRpZ2ljZXJ0LmNvbS9DUFMwCAYGZ4EMAQICMHsGCCsGAQUF
+BwEBBG8wbTAkBggrBgEFBQcwAYYYaHR0cDovL29jc3AuZGlnaWNlcnQuY29tMEUG
+CCsGAQUFBzAChjlodHRwOi8vY2FjZXJ0cy5kaWdpY2VydC5jb20vRGlnaUNlcnRF
+Q0NTZWN1cmVTZXJ2ZXJDQS5jcnQwDAYDVR0TAQH/BAIwADAKBggqhkjOPQQDAgNo
+ADBlAjEAjoyy2Ogh1i1/Kh9+psMc1OChlQIvQF6AkojZS8yliar6m8q5nqC3qe0h
+HR0fExwLAjAueWRnHX4QJ9loqMhsPk3NB0Cs0mStsNDNG6/DpCYw7XmjoG3y1LS7
+ZkZZmqNn2Q8=
+\-\-\-\-\-END CERTIFICATE\-\-\-\-\-
+]])
+if last_err() then return end
+print(x)
+.EE
+.UNINDENT
+.UNINDENT
+.SS xml_decode
+.sp
+Decode a lua value from an xml document.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = xml_decode(\(aq<body><foo fizz=\(dqbuzz\(dq>bar</foo></body>\(aq)
+if last_err() then return end
+
+body = x[\(aqchildren\(aq][1]
+foo = body[\(aqchildren\(aq][1]
+
+print(foo[\(aqattrs\(aq][\(aqfizz\(aq])
+print(foo[\(aqtext\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.SS xml_named
+.sp
+Get a named child element from a parent element.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+x = xml_decode(\(aq<body><foo fizz=\(dqbuzz\(dq>bar</foo></body>\(aq)
+if last_err() then return end
+
+body = x[\(aqchildren\(aq][1]
+foo = xml_named(body, \(aqfoo\(aq)
+if foo ~= nil then
+    print(foo)
+end
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+kpcyrd
+.SH "حق نشر (COPYRIGHT)"
+2018-2020, kpcyrd
+.\" Generated by docutils manpage writer.
+.

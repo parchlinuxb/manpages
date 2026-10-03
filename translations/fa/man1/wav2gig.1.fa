@@ -1,0 +1,211 @@
+.TH "wav2gig" "1" "30 Jun 2025" "libgig 4.6.0" "libgig tools"
+.SH "نام (NAME)"
+wav2gig \- Create GigaStudio (.gig) file from a set of WAV files.
+.SH "خلاصه دستور (SYNOPSIS)"
+.B wav2gig
+[ OPTIONS ] GIG_FILE WAV_FILE_OR_DIR_1 [ WAV_FILE_OR_DIR_2 ... ]
+.SH "توضیحات (DESCRIPTION)"
+Takes a list of wave (.wav) files and / or directories containing wave files as
+argument(s) and creates one new GigaStudio / GigaSampler (.gig) file for those
+samples.
+
+The created GigaStudio (.gig) file will contain the given input samples. The
+samples' meta information (as far as available) like root note
+(a.k.a 'unity note'), fine tune, loop points, loop type and loop play count
+are automatically extracted from the input wave (.wav) files and applied
+accordingly.
+
+Additionally this tool creates exactly one instrument inside the newly created
+GigaStudio (.gig) file and tries to automatically map the samples in a
+meaningful way to that instrument. As the wave (.wav) format currently does not
+support many of the meta information required for this particular task, this
+tool tries to extract the required (missing) information from the individual
+sample's file name for being able to map the samples accordingly. See
+.BR SAMPLE
+.BR NAMES
+below for details on the assumed naming scheme for input sample files and how
+to override that default naming scheme by providing custom regular expression
+patterns.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B \ GIG_FILE
+GigaStudio / GigaSampler (.gig) filename to be created
+.TP
+.B \ WAV_FILE_OR_DIR_1
+Filename or directory containing wave (.wav) file(s)
+.TP
+.B \ WAV_FILE_OR_DIR_2
+Filename or directory containing wave (.wav) file(s)
+.TP
+.B \ -r
+Recurse through all subdirectories of provided input WAV directories.
+.TP
+.B \ -f
+Overwrite output GigaStudio (.gig) file in case it already exists.
+.TP
+.B \ -v
+Print version and exit.
+.TP
+.B \ --dry-run
+Scan input sample (.wav) files, but exit before creating any .gig file.
+.TP
+.B \ --verbose
+Increase amount of info being shown.
+.TP
+.B \ --regex-name1 PATTERN
+Regular expression for overriding the
+.BR NAME1
+part of the input sample file name scheme.
+
+Defaults to '([^-\/\\]+) - [^-]+ - [^-]+ - [^-]+ - [^.]+'.
+
+.TP
+.B \ --regex-name2 PATTERN
+Regular expression for overriding the
+.BR NAME2
+part of the input sample file name scheme.
+
+Defaults to '[^-\/\\]+ - ([^-]+) - [^-]+ - [^-]+ - [^.]+'.
+
+.TP
+.B \ --regex-velocity-nr PATTERN
+Regular expression for overriding the
+.BR VELOCITY_NR
+part of the input sample file name scheme.
+
+Defaults to '[^-\/\\]+ - [^-]+ - ([^-]+) - [^-]+ - [^.]+'.
+
+.TP
+.B \ --regex-note-nr PATTERN
+Regular expression for overriding the
+.BR NOTE_NR
+part of the input sample file name scheme.
+
+Defaults to '[^-\/\\]+ - [^-]+ - [^-]+ - ([^-]+) - [^.]+'.
+
+.TP
+.B \ --regex-note-name PATTERN
+Regular expression for overriding the
+.BR NOTE_NAME
+part of the input sample file name scheme.
+
+Defaults to '[^-\/\\]+ - [^-]+ - [^-]+ - [^-]+ - ([^.]+)'.
+
+.SH SAMPLE NAMES
+By default this tool assumes the following input sample file naming scheme for
+automatically mapping samples to regions on the keyboard, as well as mapping
+them to velocity splits adequately:
+
+.B 'NAME1 - NAME2 - VELOCITY_NR - NOTE_NR - NOTE_NAME.wav'
+
+Which are interpreted in the following way:
+
+.TP
+.B \ NAME1
+Primary name of the sample (e.g. "Violin").
+
+This is not interpreted for sample mapping, but it will be used to assemble the
+final sample name inside the GigaStudio (.gig) file.
+
+You may use
+.BR --regex-name1
+to override this part of the naming scheme.
+
+.TP
+.B \ NAME2
+Secondary name of the sample (e.g. "Cresc").
+
+This is currently ignored, but might be used in future.
+
+You may use
+.BR --regex-name2
+to override this part of the naming scheme.
+
+.TP
+.B \ VELOCITY_NR
+MIDI Velocity number of the sample (e.g. "18").
+
+This information will be used to automatically create velocity splits.
+
+You may use
+.BR --regex-velocity-nr
+to override this part of the naming scheme.
+
+.TP
+.B \ NOTE_NR
+MIDI Note number of the sample (e.g. "021" for note a-1).
+
+This information will be used to automatically map the sample to a region on the
+keyboard. The sample's root note (a.k.a. "unity note") is taken directly from
+the .wav file content, however if the .wav file content does not contain a root
+note information then
+.B \ NOTE_NR
+is used as root note as well.
+
+You may use
+.BR --regex-note-nr
+to override this part of the naming scheme.
+
+.TP
+.B \ NOTE_NAME
+Note name of the sample (e.g. "a-1").
+
+This is not interpreted for sample mapping, but it will be used to assemble the
+final sample name inside the GigaStudio (.gig) file.
+
+You may use
+.BR --regex-note-name
+to override this part of the naming scheme.
+
+.PP
+This tool utilizes the
+.I regular expressions
+library provided by C++ (introduced with the C++11 standard revision).
+Each custom regular expression (abbreviated as 'RegEx' from now on below)
+passed to one of the 
+.BR --regex-*
+options must contain
+.B
+exactly one
+active RegEx 'capture group' which is denoted in regular expressions by a pair
+of round brackets like:
+
+.B (PATTERN)
+
+So the 'capture group' marks the portion in the overall filename string that is
+going to be exctracted for the respective component of the filename schema.
+If additional RegEx group(s) are needed to build the overall RegEx pattern, then
+those other group(s) must be defined as 'passive groups' denoted in RegEx
+patterns by an additional question mark and colon like this:
+
+.B (?:PATTERN)
+
+Keep in mind that RegEx scanners behave 'greedy' by default, which means by
+default they try to match the longest string possible according to your defined
+RegEx pattern. If that's not desired then you may either override the required
+parts of your RegEx pattern to behave 'non-greedy' such that those parts would
+match for the shortest string possible instead, or alternatively consider using
+the RegEx 'alternation'
+operator, which is denoted in regular expressions by a vertical bar character
+like:
+
+.B PATTERN1|PATTERN2|PATTERN3
+
+The RegEx 'alternation' operator is sometimes more intuitive, because it tries
+to match the provided patterns strictly in order from left to right. So it
+would first try to match the first pattern, and only if no match with the first
+pattern was possible (independent of string length) it would then try to match
+the second pattern, and so on.
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR gig2mono(1),
+.BR gigextract(1),
+.BR gigdump(1),
+.BR gigmerge(1)
+.BR korg2gig(1)
+
+.SH "اشکالات (BUGS)"
+Check and report bugs at http://bugs.linuxsampler.org
+.SH "نویسنده (AUTHOR)"
+Application and manual page written by Christian Schoenebeck <cuse@users.sf.net>

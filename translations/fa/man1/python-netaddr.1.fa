@@ -1,0 +1,4589 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "NETADDR" "1" "Dec 14, 2025" "1.3.0" "netaddr"
+.SH "نام (NAME)"
+netaddr \- netaddr Documentation
+.sp
+A Python library and a CLI tool \%<> for representing and manipulating layer 3 (IP) and layer 2 (MAC)
+network addresses.
+.sp
+netaddr provides support for:
+.sp
+Layer 3 addresses
+.INDENT 0.0
+.IP \(bu 2
+IPv4 and IPv6 addresses, subnets, masks, prefixes
+.IP \(bu 2
+iterating, slicing, sorting, summarizing and classifying IP networks
+.IP \(bu 2
+dealing with various ranges formats (CIDR, arbitrary ranges and globs, nmap)
+.IP \(bu 2
+set based operations (unions, intersections etc) over IP addresses and subnets
+.IP \(bu 2
+parsing a large variety of different formats and notations
+.IP \(bu 2
+looking up IANA IP block information
+.IP \(bu 2
+generating DNS reverse lookups
+.IP \(bu 2
+supernetting and subnetting
+.UNINDENT
+.sp
+Layer 2 addresses
+.INDENT 0.0
+.IP \(bu 2
+representation and manipulation MAC addresses and EUI\-64 identifiers
+.IP \(bu 2
+looking up IEEE organisational information (OUI, IAB)
+.IP \(bu 2
+generating derived IPv6 addresses
+.UNINDENT
+.sp
+netaddr\(aqs documentation uses the Diátaxis approach to technical documentation
+authoring \%<https://\:diataxis\:.fr> and is organized like so:
+.INDENT 0.0
+.IP \(bu 2
+Tutorials \%<> take you on a step\-by\-step journey through some of the netaddr\(aqs features.
+Start here if you\(aqre new to netaddr.
+.IP \(bu 2
+How\-to guides \%<> are recipes and provide steps to address common problems and use\-cases.
+.IP \(bu 2
+Reference \%<> contains technical description of various parts of netaddr machinery
+(including the API Reference \%<>).
+.UNINDENT
+.SH TUTORIALS
+.sp
+The pages in this section take you on a step\-by\-step journey through some of the
+netaddr\(aqs features.
+.sp
+Start here if you\(aqre new to netaddr.
+.SS Tutorial 1: IP Addresses, Subnets and Ranges
+.sp
+First of all you need to pull the various netaddr classes and functions into your namespace.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+Do this for the purpose of this tutorial only. In your own code, you should be explicit about the classes, functions and constants you import to avoid name clashes.
+.UNINDENT
+.UNINDENT
+.sp
+.EX
+>>> from netaddr import *
+.EE
+.sp
+We also import the standard library module \fIpprint\fP to help format our output.
+.sp
+.EX
+>>> import pprint
+.EE
+.SS Basic operations
+.sp
+The following \fIIPAddress\fP object represents a single IP address.
+.sp
+.EX
+>>> ip = IPAddress(\(aq192.0.2.1\(aq)
+>>> ip.version
+4
+.EE
+.sp
+The \fIrepr()\fP call returns a Python statement that can be used to reconstruct an equivalent IP address object state from scratch when run in the Python interpreter.
+.sp
+.EX
+>>> repr(ip)
+\(dqIPAddress(\(aq192.0.2.1\(aq)\(dq
+>>> ip
+IPAddress(\(aq192.0.2.1\(aq)
+.EE
+.sp
+Access in the string context returns the IP object as a string value.
+.sp
+.EX
+>>> str(ip)
+\(aq192.0.2.1\(aq
+>>> \(aq%s\(aq % ip
+\(aq192.0.2.1\(aq
+>>> ip.format()  # only really useful for IPv6 addresses.
+\(aq192.0.2.1\(aq
+.EE
+.SS Numerical representation
+.sp
+You can view an IP address in various other formats.
+.sp
+.EX
+>>> int(ip) == 3221225985
+True
+>>> hex(ip)
+\(aq0xc0000201\(aq
+>>> ip.bin
+\(aq0b11000000000000000000001000000001\(aq
+>>> ip.bits()
+\(aq11000000.00000000.00000010.00000001\(aq
+>>> ip.words == (192, 0, 2, 1)
+True
+.EE
+.SS Representing networks and subnets
+.sp
+\fIIPNetwork\fP objects are used to represent subnets, networks or VLANs that accept CIDR prefixes and netmasks.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq192.0.2.1\(aq)
+>>> ip.ip
+IPAddress(\(aq192.0.2.1\(aq)
+>>> ip.network, ip.broadcast
+(IPAddress(\(aq192.0.2.1\(aq), None)
+>>> ip.netmask, ip.hostmask
+(IPAddress(\(aq255.255.255.255\(aq), IPAddress(\(aq0.0.0.0\(aq))
+>>> ip.size
+1
+.EE
+.sp
+In this case, the network and broadcast address are the same, akin to a host route.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq192.0.2.0/24\(aq)
+>>> ip.ip
+IPAddress(\(aq192.0.2.0\(aq)
+>>> ip.network, ip.broadcast
+(IPAddress(\(aq192.0.2.0\(aq), IPAddress(\(aq192.0.2.255\(aq))
+>>> ip.netmask, ip.hostmask
+(IPAddress(\(aq255.255.255.0\(aq), IPAddress(\(aq0.0.0.255\(aq))
+>>> ip.size
+256
+.EE
+.sp
+And finally, this IPNetwork object represents an IP address that belongs to a given IP subnet.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq192.0.3.112/22\(aq)
+>>> ip.ip
+IPAddress(\(aq192.0.3.112\(aq)
+>>> ip.network, ip.broadcast
+(IPAddress(\(aq192.0.0.0\(aq), IPAddress(\(aq192.0.3.255\(aq))
+>>> ip.netmask, ip.hostmask
+(IPAddress(\(aq255.255.252.0\(aq), IPAddress(\(aq0.0.3.255\(aq))
+>>> ip.size
+1024
+.EE
+.sp
+Internally, each IPNetwork object only stores 3 values :
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+the IP address value as an unsigned integer
+.IP \(bu 2
+a reference to the IP protocol module for the IP version being represented
+.IP \(bu 2
+the CIDR prefix bitmask
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+All the other values are calculated on\-the\-fly on access.
+.sp
+It is possible to adjust the IP address value and the CIDR prefix after object instantiation.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq0.0.0.0/0\(aq)
+>>> ip
+IPNetwork(\(aq0.0.0.0/0\(aq)
+>>> ip.value = 3221225985
+>>> ip
+IPNetwork(\(aq192.0.2.1/0\(aq)
+>>> ip.prefixlen
+0
+>>> ip.prefixlen = 23
+>>> ip
+IPNetwork(\(aq192.0.2.1/23\(aq)
+.EE
+.sp
+The prefix length can also be changed by specifying a subnet mask:
+.sp
+.EX
+>>> ip = IPNetwork(\(aq192.168.1.0/24\(aq)
+>>> ip.netmask = \(aq255.255.0.0\(aq
+>>> ip
+IPNetwork(\(aq192.168.1.0/16\(aq)
+>>> ip = IPNetwork(\(aqfe80::dead:beef/64\(aq)
+>>> ip.netmask = \(aqffff:ffff::\(aq
+>>> ip
+IPNetwork(\(aqfe80::dead:beef/32\(aq)
+.EE
+.sp
+There is also a property that lets you access the \fItrue\fP CIDR address which removes all host bits from the network address based on the CIDR subnet prefix.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq192.0.2.1/23\(aq)
+>>> ip.cidr
+IPNetwork(\(aq192.0.2.0/23\(aq)
+.EE
+.sp
+This is handy for specifying some networking configurations correctly.
+.sp
+If you want to access information about each of the various IP addresses that form the IP subnet, this is available by performing pass through calls to sub methods of each \fIIPAddress\fP object.
+.sp
+For example if you want to see a binary digit representation of each address you can do the following.
+.sp
+.EX
+>>> ip.ip.bits()
+\(aq11000000.00000000.00000010.00000001\(aq
+>>> ip.network.bits()
+\(aq11000000.00000000.00000010.00000000\(aq
+>>> ip.netmask.bits()
+\(aq11111111.11111111.11111110.00000000\(aq
+>>> ip.broadcast.bits()
+\(aq11000000.00000000.00000011.11111111\(aq
+.EE
+.SS IPv6 support
+.sp
+Full support for IPv6 is provided. Let\(aqs try a few examples:
+.sp
+.EX
+>>> ip = IPAddress(0, 6)
+>>> ip
+IPAddress(\(aq::\(aq)
+>>> ip = IPNetwork(\(aqfe80::dead:beef/64\(aq)
+>>> str(ip), ip.prefixlen, ip.version
+(\(aqfe80::dead:beef/64\(aq, 64, 6)
+>>> int(ip.ip) == 338288524927261089654018896845083623151
+True
+>>> hex(ip.ip)
+\(aq0xfe8000000000000000000000deadbeef\(aq
+.EE
+.sp
+Bit\-style output isn\(aqt as quite as friendly as hexadecimal for such a long numbers, but here the proof that it works!
+.sp
+.EX
+>>> ip.ip.bits()
+\(aq1111111010000000:0000000000000000:0000000000000000:0000000000000000:0000000000000000:0000000000000000:1101111010101101:1011111011101111\(aq
+.EE
+.sp
+Here are some networking details for an IPv6 subnet.
+.sp
+.EX
+>>> ip.network, ip.broadcast, ip.netmask, ip.hostmask
+(IPAddress(\(aqfe80::\(aq), IPAddress(\(aqfe80::ffff:ffff:ffff:ffff\(aq), IPAddress(\(aqffff:ffff:ffff:ffff::\(aq), IPAddress(\(aq::ffff:ffff:ffff:ffff\(aq))
+.EE
+.SS Interoperability between IPv4 and IPv6
+.sp
+It is likely that with IPv6 becoming more prevalent, you\(aqll want to be able to interoperate between IPv4 and IPv6 address seamlessly.
+.sp
+Here are a couple of methods that help achieve this.
+.SS IPv4 to IPv6 conversion
+.sp
+.EX
+>>> IPAddress(\(aq192.0.2.15\(aq).ipv4()
+IPAddress(\(aq192.0.2.15\(aq)
+>>> ip = IPAddress(\(aq192.0.2.15\(aq).ipv6()
+>>> ip
+IPAddress(\(aq::ffff:192.0.2.15\(aq)
+>>> ip.is_ipv4_mapped()
+True
+>>> ip.is_ipv4_compat()
+False
+.EE
+.sp
+.EX
+>>> IPAddress(\(aq192.0.2.15\(aq).ipv6(ipv4_compatible=True)
+IPAddress(\(aq::192.0.2.15\(aq)
+>>> IPAddress(\(aq192.0.2.15\(aq).ipv6(ipv4_compatible=True).is_ipv4_compat()
+True
+>>> IPAddress(\(aq192.0.2.15\(aq).ipv6(True)
+IPAddress(\(aq::192.0.2.15\(aq)
+>>> ip = IPNetwork(\(aq192.0.2.1/23\(aq)
+>>> ip.ipv4()
+IPNetwork(\(aq192.0.2.1/23\(aq)
+>>> ip.ipv6()
+IPNetwork(\(aq::ffff:192.0.2.1/119\(aq)
+>>> ip.ipv6(ipv4_compatible=True)
+IPNetwork(\(aq::192.0.2.1/119\(aq)
+.EE
+.SS IPv6 to IPv4 conversion
+.sp
+.EX
+>>> IPNetwork(\(aq::ffff:192.0.2.1/119\(aq).ipv6()
+IPNetwork(\(aq::ffff:192.0.2.1/119\(aq)
+>>> IPNetwork(\(aq::ffff:192.0.2.1/119\(aq).ipv6(ipv4_compatible=True)
+IPNetwork(\(aq::192.0.2.1/119\(aq)
+>>> IPNetwork(\(aq::ffff:192.0.2.1/119\(aq).ipv4()
+IPNetwork(\(aq192.0.2.1/23\(aq)
+>>> IPNetwork(\(aq::192.0.2.1/119\(aq).ipv4()
+IPNetwork(\(aq192.0.2.1/23\(aq)
+.EE
+.sp
+Note that the IP object returns IPv4 \(dqmapped\(dq addresses by default in preference to IPv4 \(dqcompatible\(dq ones. This has been chosen purposefully as the latter form has been deprecated (see RFC 4291 for details).
+.SS List operations
+.sp
+If you treat an \fIIPNetwork\fP object as if it were a standard Python list object it will give you access to a list of individual IP address objects. This of course is illusory and they are not created until you access them.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq192.0.2.16/29\(aq)
+.EE
+.sp
+Accessing an IP object using the \fIlist()\fP context invokes the default generator which returns a list of all IP objects in the range specified by the IP object\(aqs subnet.
+.sp
+.EX
+>>> ip_list = list(ip)
+>>> len(ip_list)
+8
+>>> ip_list
+[IPAddress(\(aq192.0.2.16\(aq), IPAddress(\(aq192.0.2.17\(aq), ..., IPAddress(\(aq192.0.2.22\(aq), IPAddress(\(aq192.0.2.23\(aq)]
+.EE
+.sp
+The length of that list is 8 individual IP addresses.
+.sp
+.EX
+>>> len(ip)
+8
+.EE
+.SS Indexing
+.sp
+You can use standard index access to IP addresses in the subnet.
+.sp
+.EX
+>>> ip[0]
+IPAddress(\(aq192.0.2.16\(aq)
+>>> ip[1]
+IPAddress(\(aq192.0.2.17\(aq)
+>>> ip[\-1]
+IPAddress(\(aq192.0.2.23\(aq)
+.EE
+.SS Slicing
+.sp
+You can also use list slices on IP addresses in the subnet.
+.sp
+.EX
+>>> ip[0:4]
+<generator object ...>
+.EE
+.sp
+The slice is a generator function. This was done to save time and system resources as some slices can end up being very large for certain subnets!
+.sp
+Here is how you\(aqd access all elements in a slice.
+.sp
+.EX
+>>> list(ip[0:4])
+[IPAddress(\(aq192.0.2.16\(aq), IPAddress(\(aq192.0.2.17\(aq), IPAddress(\(aq192.0.2.18\(aq), IPAddress(\(aq192.0.2.19\(aq)]
+.EE
+.sp
+Extended slicing is also supported.
+.sp
+.EX
+>>> list(ip[0::2])
+[IPAddress(\(aq192.0.2.16\(aq), IPAddress(\(aq192.0.2.18\(aq), IPAddress(\(aq192.0.2.20\(aq), IPAddress(\(aq192.0.2.22\(aq)]
+.EE
+.sp
+List reversal.
+.sp
+.EX
+>>> list(ip[\-1::\-1])
+[IPAddress(\(aq192.0.2.23\(aq), IPAddress(\(aq192.0.2.22\(aq), ..., IPAddress(\(aq192.0.2.17\(aq), IPAddress(\(aq192.0.2.16\(aq)]
+.EE
+.sp
+Use of generators ensures working with large IP subnets is efficient.
+.sp
+.EX
+>>> for ip in IPNetwork(\(aq192.0.2.0/23\(aq):
+\&...    print(\(aq%s\(aq % ip)
+\&...
+192.0.2.0
+192.0.2.1
+192.0.2.2
+192.0.2.3
+\&...
+192.0.3.252
+192.0.3.253
+192.0.3.254
+192.0.3.255
+.EE
+.sp
+In IPv4 networks you only usually assign the addresses between the network and broadcast addresses to actual host interfaces on systems.
+.sp
+Here is the iterator provided for accessing these IP addresses :
+.sp
+.EX
+>>> for ip in IPNetwork(\(aq192.0.2.0/23\(aq).iter_hosts():
+\&...     print(\(aq%s\(aq % ip)
+\&...
+192.0.2.1
+192.0.2.2
+192.0.2.3
+192.0.2.4
+\&...
+192.0.3.251
+192.0.3.252
+192.0.3.253
+192.0.3.254
+.EE
+.SS Sorting IP addresses and networks
+.sp
+It is fairly common and useful to be able to sort IP addresses and networks canonically.
+.sp
+Here is how sorting works with individual addresses.
+.sp
+.EX
+>>> import random
+>>> ip_list = list(IPNetwork(\(aq192.0.2.128/28\(aq))
+>>> random.shuffle(ip_list)
+>>> sorted(ip_list)
+[IPAddress(\(aq192.0.2.128\(aq), IPAddress(\(aq192.0.2.129\(aq), ..., IPAddress(\(aq192.0.2.142\(aq), IPAddress(\(aq192.0.2.143\(aq)]
+.EE
+.sp
+For convenience, you are able to sort IP subnets at the same time as addresses and they can be combinations of IPv4 and IPv6 addresses at the same time as well (IPv4 addresses and network appear before IPv6 ones).
+.sp
+.EX
+>>> ip_list = [
+\&... IPAddress(\(aq192.0.2.130\(aq),
+\&... IPAddress(\(aq10.0.0.1\(aq),
+\&... IPNetwork(\(aq192.0.2.128/28\(aq),
+\&... IPNetwork(\(aq192.0.3.0/24\(aq),
+\&... IPNetwork(\(aq192.0.2.0/24\(aq),
+\&... IPNetwork(\(aqfe80::/64\(aq),
+\&... IPAddress(\(aq::\(aq)]
+>>> random.shuffle(ip_list)
+>>> ip_list.sort()
+>>> pprint.pprint(ip_list)
+[IPAddress(\(aq10.0.0.1\(aq),
+ IPNetwork(\(aq192.0.2.0/24\(aq),
+ IPNetwork(\(aq192.0.2.128/28\(aq),
+ IPAddress(\(aq192.0.2.130\(aq),
+ IPNetwork(\(aq192.0.3.0/24\(aq),
+ IPAddress(\(aq::\(aq),
+ IPNetwork(\(aqfe80::/64\(aq)]
+.EE
+.sp
+Notice how overlapping subnets also sort in order from largest to smallest.
+.SS Summarizing list of addresses and subnets
+.sp
+Another useful operation is the ability to summarize groups of IP subnets and addresses, merging them together where possible to create the smallest possible list of CIDR subnets.
+.sp
+You do this in netaddr using the \fIcidr_merge()\fP function.
+.sp
+First we create a list of IP objects that contains a good mix of individual addresses and subnets, along with some string based IP address values for good measure. To make things more interesting some IPv6 addresses are thrown in as well.
+.sp
+.EX
+>>> ip_list = [ip for ip in IPNetwork(\(aqfe80::/120\(aq)]
+>>> ip_list.append(IPNetwork(\(aq192.0.2.0/24\(aq))
+>>> ip_list.extend([str(ip) for ip in IPNetwork(\(aq192.0.3.0/24\(aq)])
+>>> ip_list.append(IPNetwork(\(aq192.0.4.0/25\(aq))
+>>> ip_list.append(IPNetwork(\(aq192.0.4.128/25\(aq))
+>>> len(ip_list)
+515
+>>> cidr_merge(ip_list)
+[IPNetwork(\(aq192.0.2.0/23\(aq), IPNetwork(\(aq192.0.4.0/24\(aq), IPNetwork(\(aqfe80::/120\(aq)]
+.EE
+.sp
+Useful isn\(aqt it?
+.SS Supernets and subnets
+.sp
+It is quite common to have a large CIDR subnet that you may want to split up into multiple smaller component blocks to better manage your network allocations, firewall rules etcc and netaddr gives you the tools required to do this.
+.sp
+Here we take a large /16 private class B network block and split it up into a set of smaller 512 sized blocks.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq172.24.0.0/16\(aq)
+>>> ip.subnet(23)
+<generator object ...>
+.EE
+.sp
+Once again, this method produces and iterator because of the possibility for a large number of return values depending on this subnet size specified.
+.sp
+.EX
+>>> subnets = list(ip.subnet(23))
+>>> len(subnets)
+128
+>>> subnets
+[IPNetwork(\(aq172.24.0.0/23\(aq), IPNetwork(\(aq172.24.2.0/23\(aq), IPNetwork(\(aq172.24.4.0/23\(aq), ..., IPNetwork(\(aq172.24.250.0/23\(aq), IPNetwork(\(aq172.24.252.0/23\(aq), IPNetwork(\(aq172.24.254.0/23\(aq)]
+.EE
+.sp
+It is also possible to retrieve the list of supernets that a given IP address or subnet belongs to. You can also specify an optional limit.
+.sp
+.EX
+>>> ip = IPNetwork(\(aq192.0.2.114\(aq)
+>>> supernets = ip.supernet(22)
+>>> pprint.pprint(supernets)
+[IPNetwork(\(aq192.0.0.0/22\(aq),
+ IPNetwork(\(aq192.0.2.0/23\(aq),
+ IPNetwork(\(aq192.0.2.0/24\(aq),
+ IPNetwork(\(aq192.0.2.0/25\(aq),
+ IPNetwork(\(aq192.0.2.64/26\(aq),
+ IPNetwork(\(aq192.0.2.96/27\(aq),
+ IPNetwork(\(aq192.0.2.112/28\(aq),
+ IPNetwork(\(aq192.0.2.112/29\(aq),
+ IPNetwork(\(aq192.0.2.112/30\(aq),
+ IPNetwork(\(aq192.0.2.114/31\(aq)]
+.EE
+.sp
+Here, we return a list rather than a generator because the potential list of values is of a predictable size (no more than 31 subnets for an IPv4 address and 127 for IPv6).
+.SS Support for non\-standard address ranges
+.sp
+While CIDR is a useful way to describe networks succinctly, it is often necessary (particularly with IPv4 which predates the CIDR specification) to be able to generate lists of IP addresses that have an arbitrary start and end address that do not fall on strict bit mask boundaries.
+.sp
+The \fIiter_iprange()\fP function allow you to do just this.
+.sp
+.EX
+>>> ip_list = list(iter_iprange(\(aq192.0.2.1\(aq, \(aq192.0.2.14\(aq))
+>>> len(ip_list)
+14
+>>> ip_list
+[IPAddress(\(aq192.0.2.1\(aq), IPAddress(\(aq192.0.2.2\(aq), ..., IPAddress(\(aq192.0.2.13\(aq), IPAddress(\(aq192.0.2.14\(aq)]
+.EE
+.sp
+It is equally nice to know what the actual list of CIDR subnets is that would correctly cover this non\-aligned range of addresses.
+.sp
+Here \fIcidr_merge()\fP comes to the rescue once more.
+.sp
+.EX
+>>> cidr_merge(ip_list)
+[IPNetwork(\(aq192.0.2.1/32\(aq), IPNetwork(\(aq192.0.2.2/31\(aq), IPNetwork(\(aq192.0.2.4/30\(aq), IPNetwork(\(aq192.0.2.8/30\(aq), IPNetwork(\(aq192.0.2.12/31\(aq), IPNetwork(\(aq192.0.2.14/32\(aq)]
+.EE
+.SS Dealing with older IP network specifications
+.sp
+Until the advent of the CIDR specification it was common to infer the netmask of an IPv4 address based on its first octet using an set of classful rules (first defined in RFC 791).
+.sp
+You frequently come across reference to them in various RFCs and they are well supported by a number of software libraries. For completeness, rather than leave out this important (but now somewhat historical) set of rules, they are supported via the cryptically named \fIcidr_abbrev_to_verbose()\fP function.
+.sp
+Here is an example of these rules for the whole of the IPv4 address space.
+.sp
+.EX
+>>> cidrs = [cidr_abbrev_to_verbose(octet) for octet in range(0, 256)]
+>>> pprint.pprint(cidrs)
+[\(aq0.0.0.0/8\(aq,
+\&...
+ \(aq127.0.0.0/8\(aq,
+ \(aq128.0.0.0/16\(aq,
+\&...
+ \(aq191.0.0.0/16\(aq,
+ \(aq192.0.0.0/24\(aq,
+\&...
+ \(aq223.0.0.0/24\(aq,
+ \(aq224.0.0.0/4\(aq,
+\&...
+ \(aq239.0.0.0/4\(aq,
+ \(aq240.0.0.0/32\(aq,
+\&...
+ \(aq255.0.0.0/32\(aq]
+>>> len(cidrs)
+256
+.EE
+.SS IP address categorisation
+.sp
+IP addresses fall into several categories, not all of which are suitable for assignment as host addresses.
+.SS Unicast
+.sp
+.EX
+>>> IPAddress(\(aq192.0.2.1\(aq).is_unicast()
+True
+>>> IPAddress(\(aqfe80::1\(aq).is_unicast()
+True
+.EE
+.SS Multicast
+.sp
+Used to identify multicast groups (see RFC 2365 and 3171 for more info).
+.sp
+.EX
+>>> IPAddress(\(aq239.192.0.1\(aq).is_multicast()
+True
+>>> IPAddress(\(aqff00::1\(aq).is_multicast()
+True
+.EE
+.SS Reserved
+.sp
+Addresses in reserved ranges are not available for general use.
+.sp
+.EX
+>>> IPAddress(\(aq253.0.0.1\(aq).is_reserved()
+True
+.EE
+.SS Netmasks
+.sp
+A bitmask used to divide an IP address into its network address and host address.
+.sp
+.EX
+>>> IPAddress(\(aq255.255.254.0\(aq).is_netmask()
+True
+.EE
+.SS Hostmasks
+.sp
+Similar to a netmask but with the all the bits flipped the opposite way.
+.sp
+.EX
+>>> IPAddress(\(aq0.0.1.255\(aq).is_hostmask()
+True
+.EE
+.SS Loopback
+.sp
+These addresses are used internally within an IP network stack and packets sent to these addresses are not distributed via a physical network connection.
+.sp
+.EX
+>>> IPAddress(\(aq127.0.0.1\(aq).is_loopback()
+True
+>>> IPAddress(\(aq::1\(aq).is_loopback()
+True
+.EE
+.SS Comparing IP addresses
+.sp
+\fIIPAddress\fP objects can be compared with each other. As an \fIIPAddress\fP object can represent both an individual IP address and an implicit network, it pays to get both sides of your comparison into the same terms before you compare them to avoid odd results.
+.sp
+Here are some comparisons of individual IP address to get the ball rolling.
+.sp
+.EX
+>>> IPAddress(\(aq192.0.2.1\(aq) == IPAddress(\(aq192.0.2.1\(aq)
+True
+>>> IPAddress(\(aq192.0.2.1\(aq) < IPAddress(\(aq192.0.2.2\(aq)
+True
+>>> IPAddress(\(aq192.0.2.2\(aq) > IPAddress(\(aq192.0.2.1\(aq)
+True
+>>> IPAddress(\(aq192.0.2.1\(aq) != IPAddress(\(aq192.0.2.1\(aq)
+False
+>>> IPAddress(\(aq192.0.2.1\(aq) >= IPAddress(\(aq192.0.2.1\(aq)
+True
+>>> IPAddress(\(aq192.0.2.2\(aq) >= IPAddress(\(aq192.0.2.1\(aq)
+True
+>>> IPAddress(\(aq192.0.2.1\(aq) <= IPAddress(\(aq192.0.2.1\(aq)
+True
+>>> IPAddress(\(aq192.0.2.1\(aq) <= IPAddress(\(aq192.0.2.2\(aq)
+True
+.EE
+.sp
+Now, lets try something a little more interesting.
+.sp
+.EX
+>>> IPNetwork(\(aq192.0.2.0/24\(aq) == IPNetwork(\(aq192.0.2.112/24\(aq)
+True
+.EE
+.sp
+Hmmmmmmmm... looks a bit odd doesn\(aqt it? That\(aqs because by default, IP objects compare their subnets (or lower and upper boundaries) rather than their individual IP address values.
+.sp
+The solution to this situation is very simple. Knowing this default behaviour, just be explicit about exactly which portion of each IP object you\(aqd like to compare using pass\-through properties.
+.sp
+.EX
+>>> IPNetwork(\(aq192.0.2.0/24\(aq).ip == IPNetwork(\(aq192.0.2.112/24\(aq).ip
+False
+>>> IPNetwork(\(aq192.0.2.0/24\(aq).ip < IPNetwork(\(aq192.0.2.112/24\(aq).ip
+True
+.EE
+.sp
+That\(aqs more like it. You can also be explicit about comparing networks in this way if you so wish (although it is not strictly necessary).
+.sp
+.EX
+>>> IPNetwork(\(aq192.0.2.0/24\(aq).cidr == IPNetwork(\(aq192.0.2.112/24\(aq).cidr
+True
+.EE
+.sp
+Armed with this information here are some examples of network comparisons.
+.sp
+.EX
+>>> IPNetwork(\(aq192.0.2.0/24\(aq) == IPNetwork(\(aq192.0.3.0/24\(aq)
+False
+>>> IPNetwork(\(aq192.0.2.0/24\(aq) < IPNetwork(\(aq192.0.3.0/24\(aq)
+True
+.EE
+.sp
+This will inevitably raise questions about comparing IPAddress (scalar) objects and IPNetwork (vector) objects with each other (or at least it should).
+.sp
+Here is how netaddr chooses to address this situation.
+.sp
+.EX
+>>> IPAddress(\(aq192.0.2.0\(aq) == IPNetwork(\(aq192.0.2.0/32\(aq)
+False
+>>> IPAddress(\(aq192.0.2.0\(aq) != IPNetwork(\(aq192.0.2.0/32\(aq)
+True
+.EE
+.sp
+An IP network or subnet is different from an individual IP address and therefore cannot be (directly) compared.
+.sp
+If you want to compare them successfully, you must be explicit about which aspect of the IP network you wish to match against the IP address in question.
+.sp
+You can use the index of the first or last address if it is a /32 like so :
+.sp
+.EX
+>>> IPAddress(\(aq192.0.2.0\(aq) == IPNetwork(\(aq192.0.2.0/32\(aq)[0]
+True
+>>> IPAddress(\(aq192.0.2.0\(aq) == IPNetwork(\(aq192.0.2.0/32\(aq)[\-1]
+True
+>>> IPAddress(\(aq192.0.2.0\(aq) != IPNetwork(\(aq192.0.2.0/32\(aq)[0]
+False
+.EE
+.sp
+You can also use the base address if this is what you wish to compare :
+.sp
+.EX
+>>> IPAddress(\(aq192.0.2.0\(aq) == IPNetwork(\(aq192.0.2.0/32\(aq).ip
+True
+>>> IPAddress(\(aq192.0.2.0\(aq) != IPNetwork(\(aq192.0.2.0/32\(aq).ip
+False
+.EE
+.sp
+While this may seem a bit pointless at first, netaddr strives to keep IP addresses and network separate from one another while still allowing reasonable interoperability.
+.SS DNS support
+.sp
+It is a common administrative task to generate reverse IP lookups for DNS. This is particularly arduous for IPv6 addresses.
+.sp
+Here is how you do this using an IPAddress object\(aqs \fIreverse_dns()\fP method.
+.sp
+.EX
+>>> IPAddress(\(aq172.24.0.13\(aq).reverse_dns
+\(aq13.0.24.172.in\-addr.arpa.\(aq
+>>> IPAddress(\(aqfe80::feeb:daed\(aq).reverse_dns
+\(aqd.e.a.d.b.e.e.f.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8.e.f.ip6.arpa.\(aq
+.EE
+.sp
+Note that \fBip6.int\fP is not used as this has been deprecated (see RFC 3152 for details).
+.SS Non standard address ranges
+.sp
+As CIDR is a relative newcomer given the long history of IP version 4 you are quite likely to come across systems and documentation which make reference to IP address ranges in formats other than CIDR. Converting from these arbitrary range types to CIDR and back again isn\(aqt a particularly fun task. Fortunately, netaddr tries to make this job easy for you with two purpose built classes.
+.SS Arbitrary IP address ranges
+.sp
+You can represent an arbitrary IP address range using a lower and upper bound address in the form of an IPRange object.
+.sp
+.EX
+>>> r1 = IPRange(\(aq192.0.2.1\(aq, \(aq192.0.2.15\(aq)
+>>> r1
+IPRange(\(aq192.0.2.1\(aq, \(aq192.0.2.15\(aq)
+.EE
+.sp
+You can iterate across and index these ranges just like and IPNetwork object.
+.sp
+Importantly, you can also convert it to it\(aqs CIDR equivalent.
+.sp
+.EX
+>>> r1.cidrs()
+[IPNetwork(\(aq192.0.2.1/32\(aq), IPNetwork(\(aq192.0.2.2/31\(aq), IPNetwork(\(aq192.0.2.4/30\(aq), IPNetwork(\(aq192.0.2.8/29\(aq)]
+.EE
+.sp
+Here is how individual IPRange and IPNetwork compare.
+.sp
+.EX
+>>> IPRange(\(aq192.0.2.0\(aq, \(aq192.0.2.255\(aq) != IPNetwork(\(aq192.0.2.0/24\(aq)
+False
+>>> IPRange(\(aq192.0.2.0\(aq, \(aq192.0.2.255\(aq) == IPNetwork(\(aq192.0.2.0/24\(aq)
+True
+.EE
+.sp
+You may wish to compare an IP range against a list of IPAddress and IPNetwork
+objects.
+.sp
+.EX
+>>> r1 = IPRange(\(aq192.0.2.1\(aq, \(aq192.0.2.15\(aq)
+>>> addrs = list(r1)
+>>> addrs
+[IPAddress(\(aq192.0.2.1\(aq), IPAddress(\(aq192.0.2.2\(aq), IPAddress(\(aq192.0.2.3\(aq), IPAddress(\(aq192.0.2.4\(aq), IPAddress(\(aq192.0.2.5\(aq), IPAddress(\(aq192.0.2.6\(aq), IPAddress(\(aq192.0.2.7\(aq), IPAddress(\(aq192.0.2.8\(aq), IPAddress(\(aq192.0.2.9\(aq), IPAddress(\(aq192.0.2.10\(aq), IPAddress(\(aq192.0.2.11\(aq), IPAddress(\(aq192.0.2.12\(aq), IPAddress(\(aq192.0.2.13\(aq), IPAddress(\(aq192.0.2.14\(aq), IPAddress(\(aq192.0.2.15\(aq)]
+>>> r1 == addrs
+False
+.EE
+.sp
+Oops! Not quite what we were looking for or expecting.
+.sp
+The way to do this is to get either side of the comparison operation into the same terms.
+.sp
+.EX
+>>> list(r1) == addrs
+True
+.EE
+.sp
+That\(aqs more like it.
+.sp
+The same goes for IPNetwork objects.
+.sp
+.EX
+>>> subnets = r1.cidrs()
+>>> subnets
+[IPNetwork(\(aq192.0.2.1/32\(aq), IPNetwork(\(aq192.0.2.2/31\(aq), IPNetwork(\(aq192.0.2.4/30\(aq), IPNetwork(\(aq192.0.2.8/29\(aq)]
+>>> r1 == subnets
+False
+>>> r1.cidrs() == subnets
+True
+.EE
+.sp
+The above works if the list you are comparing contains one type or the other, but what if you have a mixed list of \fIIPAddress\fP, \fIIPNetwork\fP and string addresses?
+.sp
+Time for some slightly more powerful operations. Let\(aqs make use of a new class for dealing with groups of IP addresses and subnets. The IPSet class.
+.sp
+.EX
+>>> ips = [IPAddress(\(aq192.0.2.1\(aq), \(aq192.0.2.2/31\(aq, IPNetwork(\(aq192.0.2.4/31\(aq), IPAddress(\(aq192.0.2.6\(aq), IPAddress(\(aq192.0.2.7\(aq), \(aq192.0.2.8\(aq, \(aq192.0.2.9\(aq, IPAddress(\(aq192.0.2.10\(aq), IPAddress(\(aq192.0.2.11\(aq), IPNetwork(\(aq192.0.2.12/30\(aq)]
+>>> s1 = IPSet(r1.cidrs())
+>>> s2 = IPSet(ips)
+>>> s2
+IPSet([\(aq192.0.2.1/32\(aq, \(aq192.0.2.2/31\(aq, \(aq192.0.2.4/30\(aq, \(aq192.0.2.8/29\(aq])
+>>> s1 == s2
+True
+.EE
+.sp
+Let\(aqs remove one of the element from one of the IPSet objects and see what happens.
+.sp
+.EX
+>>> s2.pop()
+IPNetwork(\(aq...\(aq)
+>>> s1 == s2
+False
+.EE
+.sp
+This is perhaps a somewhat contrived example but it just shows you some of the capabilities on offer.
+.sp
+See the IPSet tutorial Tutorial 3: Working with IP sets \%<> for more details on that class.
+.SS IP Glob ranges
+.sp
+netaddr also supports a user friendly form of specifying IP address ranges using a \(dqglob\(dq style syntax.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+At present only IPv4 globs are supported.
+.UNINDENT
+.UNINDENT
+.sp
+.EX
+>>> IPGlob(\(aq192.0.2.*\(aq) == IPNetwork(\(aq192.0.2.0/24\(aq)
+True
+.EE
+.sp
+.EX
+>>> IPGlob(\(aq192.0.2.*\(aq) != IPNetwork(\(aq192.0.2.0/24\(aq)
+False
+.EE
+.sp
+As \fIIPGlob\fP is a subclass of \fIIPRange\fP, all of the same operations apply.
+.SS Tutorial 2: MAC addresses
+.sp
+First of all you need to pull the various MAC related classes and functions into your namespace.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+Do this for the purpose of this tutorial only. In your own code, you should be explicit about the classes, functions and constants you import to avoid name clashes.
+.UNINDENT
+.UNINDENT
+.sp
+.EX
+>>> from netaddr import *
+.EE
+.sp
+You can reasonably safely import everything from the netaddr namespace as care has been taken to only export the necessary classes, functions and constants.
+.sp
+Always hand pick your imports if you are unsure about possible name clashes.
+.SS Basic operations
+.sp
+Instances of the EUI class are used to represent MAC addresses.
+.sp
+.EX
+>>> mac = EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+Standard repr() access returns a Python statement that can reconstruct the MAC address object from scratch if executed in the Python interpreter.
+.sp
+.EX
+>>> mac
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+Accessing the EUI object in the string context.
+.sp
+.EX
+>>> str(mac)
+\(aq00\-1B\-77\-49\-54\-FD\(aq
+>>> \(aq%s\(aq % mac
+\(aq00\-1B\-77\-49\-54\-FD\(aq
+.EE
+.sp
+Here are a few other common properties.
+.sp
+.EX
+>>> str(mac), str(mac.oui), mac.ei, mac.version
+(\(aq00\-1B\-77\-49\-54\-FD\(aq, \(aq00\-1B\-77\(aq, \(aq49\-54\-FD\(aq, 48)
+.EE
+.SS Numerical representations
+.sp
+You can view an individual MAC address in various other formats.
+.sp
+.EX
+>>> int(mac) == 117965411581
+True
+>>> hex(mac)
+\(aq0x1b774954fd\(aq
+>>> oct(mac)
+\(aq0o1556722252375\(aq
+>>> mac.bits()
+\(aq00000000\-00011011\-01110111\-01001001\-01010100\-11111101\(aq
+>>> mac.bin
+\(aq0b1101101110111010010010101010011111101\(aq
+.EE
+.SS Formatting
+.sp
+It is very common to see MAC address in many different formats other than the standard IEEE EUI\-48.
+.sp
+The EUI class constructor handles all these common forms.
+.sp
+.EX
+>>> EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+IEEE EUI\-48 lowercase format
+.sp
+.EX
+>>> EUI(\(aq00\-1b\-77\-49\-54\-fd\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+Common UNIX format
+.sp
+.EX
+>>> EUI(\(aq0:1b:77:49:54:fd\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+Cisco triple hextet format
+.sp
+.EX
+>>> EUI(\(aq001b:7749:54fd\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+>>> EUI(\(aq1b:7749:54fd\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+>>> EUI(\(aq1B:7749:54FD\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+Bare MAC addresses (no delimiters)
+.sp
+.EX
+>>> EUI(\(aq001b774954fd\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+>>> EUI(\(aq01B774954FD\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+PostreSQL format (found in documentation)
+.sp
+.EX
+>>> EUI(\(aq001B77:4954FD\(aq)
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+.EE
+.sp
+It is equally possible to specify a selected format for your MAC string output in the form of a \(aqdialect\(aq class. Its use is similar to the dialect class used in the Python standard library csv module.
+.sp
+.EX
+>>> mac = EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+>>> mac
+EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+>>> mac.dialect = mac_unix
+>>> mac
+EUI(\(aq0:1b:77:49:54:fd\(aq)
+>>> mac.dialect = mac_unix_expanded
+>>> mac
+EUI(\(aq00:1b:77:49:54:fd\(aq)
+>>> mac.dialect = mac_cisco
+>>> mac
+EUI(\(aq001b.7749.54fd\(aq)
+>>> mac.dialect = mac_bare
+>>> mac
+EUI(\(aq001B774954FD\(aq)
+>>> mac.dialect = mac_pgsql
+>>> mac
+EUI(\(aq001b77:4954fd\(aq)
+.EE
+.sp
+You can, of course, create your own dialect classes to customise the MAC formatting if the standard ones do not suit your needs.
+.sp
+Here\(aqs a tweaked UNIX MAC dialect that generates uppercase, zero\-filled octets.
+.sp
+.EX
+>>> class mac_custom(mac_unix): pass
+>>> mac_custom.word_fmt = \(aq%.2X\(aq
+>>> mac = EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq, dialect=mac_custom)
+>>> mac
+EUI(\(aq00:1B:77:49:54:FD\(aq)
+.EE
+.SS Querying organisational information
+.sp
+EUI objects provide an interface to the OUI (Organisationally Unique Identifier) and IAB (Individual Address Block) registration databases available from the IEEE.
+.sp
+Here is how you query an OUI with the EUI interface.
+.sp
+.EX
+>>> mac = EUI(\(aq00\-1B\-77\-49\-54\-FD\(aq)
+>>> oui = mac.oui
+>>> oui
+OUI(\(aq00\-1B\-77\(aq)
+>>> oui.registration().address
+[\(aqLot 8, Jalan Hi\-Tech 2/3\(aq, \(aqKulim  Kedah  09000\(aq, \(aqMY\(aq]
+>>> oui.registration().org
+\(aqIntel Corporate\(aq
+.EE
+.sp
+You can also use OUI objects directly without going through the EUI interface.
+.sp
+A few OUI records have multiple registrations against them. I\(aqm not sure if this is recording historical information or just a quirk of the IEEE registration process.
+.sp
+This example shows you how you access them individually by specifying an index number.
+.sp
+.EX
+>>> oui = OUI(524336)   #   OUI constructor accepts integer values, too.
+>>> oui
+OUI(\(aq08\-00\-30\(aq)
+>>> oui.registration(0).address
+[\(aq2380 N. ROSE AVENUE\(aq, \(aqOXNARD  CA  93010\(aq, \(aqUS\(aq]
+>>> oui.registration(0).org
+\(aqNETWORK RESEARCH CORPORATION\(aq
+>>> oui.registration(0).oui
+\(aq08\-00\-30\(aq
+>>> oui.registration(1).address
+[\(aqGPO BOX 2476V\(aq, \(aqMELBOURNE  VIC  3001\(aq, \(aqAU\(aq]
+>>> oui.registration(1).org
+\(aqROYAL MELBOURNE INST OF TECH\(aq
+>>> oui.registration(1).oui
+\(aq08\-00\-30\(aq
+>>> oui.registration(2).address
+[\(aqCH\-1211\(aq, \(aqGENEVE  SUISSE/SWITZ  023\(aq, \(aqCH\(aq]
+>>> oui.registration(2).org
+\(aqCERN\(aq
+>>> oui.registration(2).oui
+\(aq08\-00\-30\(aq
+>>> for i in range(oui.reg_count):
+\&...     str(oui), oui.registration(i).org
+\&...
+(\(aq08\-00\-30\(aq, \(aqNETWORK RESEARCH CORPORATION\(aq)
+(\(aq08\-00\-30\(aq, \(aqROYAL MELBOURNE INST OF TECH\(aq)
+(\(aq08\-00\-30\(aq, \(aqCERN\(aq)
+.EE
+.sp
+Here is how you query an IAB with the EUI interface.
+.sp
+.EX
+>>> mac = EUI(\(aq00\-50\-C2\-00\-0F\-01\(aq)
+>>> mac.is_iab()
+True
+>>> iab = mac.iab
+>>> iab
+IAB(\(aq00\-50\-C2\-00\-00\-00\(aq)
+>>> iab.registration()
+{\(aqaddress\(aq: [\(aq1241 Superieor Ave E\(aq, \(aqCleveland  OH  44114\(aq, \(aqUS\(aq],
+ \(aqiab\(aq: \(aq00\-50\-C2\-00\-00\-00\(aq,
+ \(aqidx\(aq: 84680704,
+ ...
+ \(aqorg\(aq: \(aqT.L.S. Corp.\(aq,
+ \(aqsize\(aq: 537}
+.EE
+.SS Tutorial 3: Working with IP sets
+.sp
+First of all you need to pull the various netaddr classes and functions into your namespace.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+Do this for the purpose of this tutorial only. In your own code, you should be explicit about the classes, functions and constants you import to avoid name clashes.
+.UNINDENT
+.UNINDENT
+.sp
+.EX
+>>> from netaddr import *
+.EE
+.SS Creating IP sets
+.sp
+Here how to create IP sets.
+.sp
+An empty set.
+.sp
+.EX
+>>> IPSet()
+IPSet([])
+>>> IPSet([])
+IPSet([])
+>>> len(IPSet([]))
+0
+.EE
+.sp
+You can specify either IP addresses and networks as strings. Alternatively, you
+can use IPAddress, IPNetwork, IPRange or other IPSet objects.
+.sp
+.EX
+>>> IPSet([\(aq192.0.2.0\(aq])
+IPSet([\(aq192.0.2.0/32\(aq])
+>>> IPSet([IPAddress(\(aq192.0.2.0\(aq)])
+IPSet([\(aq192.0.2.0/32\(aq])
+>>> IPSet([IPNetwork(\(aq192.0.2.0\(aq)])
+IPSet([\(aq192.0.2.0/32\(aq])
+>>> IPSet(IPNetwork(\(aq1234::/32\(aq))
+IPSet([\(aq1234::/32\(aq])
+>>> IPSet([IPNetwork(\(aq192.0.2.0/24\(aq)])
+IPSet([\(aq192.0.2.0/24\(aq])
+>>> IPSet(IPSet([\(aq192.0.2.0/32\(aq]))
+IPSet([\(aq192.0.2.0/32\(aq])
+>>> IPSet(IPRange(\(dq10.0.0.0\(dq, \(dq10.0.1.31\(dq))
+IPSet([\(aq10.0.0.0/24\(aq, \(aq10.0.1.0/27\(aq])
+>>> IPSet(IPRange(\(aq0.0.0.0\(aq, \(aq255.255.255.255\(aq))
+IPSet([\(aq0.0.0.0/0\(aq])
+.EE
+.sp
+You can iterate over all the IP addresses that are members of the IP set.
+.sp
+.EX
+>>> for ip in IPSet([\(aq192.0.2.0/28\(aq, \(aq::ffff:192.0.2.0/124\(aq]):
+\&...     print(ip)
+192.0.2.0
+192.0.2.1
+192.0.2.2
+192.0.2.3
+192.0.2.4
+192.0.2.5
+192.0.2.6
+192.0.2.7
+192.0.2.8
+192.0.2.9
+192.0.2.10
+192.0.2.11
+192.0.2.12
+192.0.2.13
+192.0.2.14
+192.0.2.15
+::ffff:192.0.2.0
+::ffff:192.0.2.1
+::ffff:192.0.2.2
+::ffff:192.0.2.3
+::ffff:192.0.2.4
+::ffff:192.0.2.5
+::ffff:192.0.2.6
+::ffff:192.0.2.7
+::ffff:192.0.2.8
+::ffff:192.0.2.9
+::ffff:192.0.2.10
+::ffff:192.0.2.11
+::ffff:192.0.2.12
+::ffff:192.0.2.13
+::ffff:192.0.2.14
+::ffff:192.0.2.15
+.EE
+.SS Adding and removing set elements
+.sp
+.EX
+>>> s1 = IPSet()
+>>> s1.add(\(aq192.0.2.0\(aq)
+>>> s1
+IPSet([\(aq192.0.2.0/32\(aq])
+>>> s1.remove(\(aq192.0.2.0\(aq)
+>>> s1
+IPSet([])
+>>> s1.add(IPRange(\(dq10.0.0.0\(dq, \(dq10.0.0.255\(dq))
+>>> s1
+IPSet([\(aq10.0.0.0/24\(aq])
+>>> s1.remove(IPRange(\(dq10.0.0.128\(dq, \(dq10.10.10.10\(dq))
+>>> s1
+IPSet([\(aq10.0.0.0/25\(aq])
+.EE
+.SS Set membership
+.sp
+Here is a simple arbitrary IP address range.
+.sp
+.EX
+>>> iprange = IPRange(\(aq192.0.1.255\(aq, \(aq192.0.2.16\(aq)
+.EE
+.sp
+We can see the CIDR networks that can existing with this defined range.
+.sp
+.EX
+>>> iprange.cidrs()
+[IPNetwork(\(aq192.0.1.255/32\(aq), IPNetwork(\(aq192.0.2.0/28\(aq), IPNetwork(\(aq192.0.2.16/32\(aq)]
+.EE
+.sp
+Here\(aqs an IP set.
+.sp
+.EX
+>>> ipset = IPSet([\(aq192.0.2.0/28\(aq])
+.EE
+.sp
+Now, let\(aqs iterate over the IP addresses in the arbitrary IP address range and see if they are found within the IP set.
+.sp
+.EX
+>>> for ip in iprange:
+\&...     print(ip, ip in ipset)
+192.0.1.255 False
+192.0.2.0 True
+192.0.2.1 True
+192.0.2.2 True
+192.0.2.3 True
+192.0.2.4 True
+192.0.2.5 True
+192.0.2.6 True
+192.0.2.7 True
+192.0.2.8 True
+192.0.2.9 True
+192.0.2.10 True
+192.0.2.11 True
+192.0.2.12 True
+192.0.2.13 True
+192.0.2.14 True
+192.0.2.15 True
+192.0.2.16 False
+.EE
+.sp
+More exotic IPSets
+.sp
+.EX
+>>> bigone = IPSet([\(aq0.0.0.0/0\(aq])
+>>> IPAddress(\(dq10.0.0.1\(dq) in bigone
+True
+>>> IPAddress(\(dq0.0.0.0\(dq) in bigone
+True
+>>> IPAddress(\(dq255.255.255.0\(dq) in bigone
+True
+>>> IPNetwork(\(dq10.0.0.0/24\(dq) in bigone
+True
+>>> IPAddress(\(dq::1\(dq) in bigone
+False
+.EE
+.sp
+.EX
+>>> smallone = IPSet([\(dq10.0.0.42/32\(dq])
+>>> IPAddress(\(dq10.0.0.42\(dq) in smallone
+True
+>>> IPAddress(\(dq10.0.0.41\(dq) in smallone
+False
+>>> IPAddress(\(dq10.0.0.43\(dq) in smallone
+False
+>>> IPNetwork(\(dq10.0.0.42/32\(dq) in smallone
+True
+>>> IPNetwork(\(dq10.0.0.42/31\(dq) in smallone
+False
+.EE
+.SS Unions, intersections and differences
+.sp
+Here are some examples of union operations performed on \fIIPSet\fP objects.
+.sp
+.EX
+>>> IPSet([\(aq192.0.2.0\(aq])
+IPSet([\(aq192.0.2.0/32\(aq])
+.EE
+.sp
+.EX
+>>> IPSet([\(aq192.0.2.0\(aq]) | IPSet([\(aq192.0.2.1\(aq])
+IPSet([\(aq192.0.2.0/31\(aq])
+.EE
+.sp
+.EX
+>>> IPSet([\(aq192.0.2.0\(aq]) | IPSet([\(aq192.0.2.1\(aq]) | IPSet([\(aq192.0.2.3\(aq])
+IPSet([\(aq192.0.2.0/31\(aq, \(aq192.0.2.3/32\(aq])
+.EE
+.sp
+.EX
+>>> IPSet([\(aq192.0.2.0\(aq]) | IPSet([\(aq192.0.2.1\(aq]) | IPSet([\(aq192.0.2.3/30\(aq])
+IPSet([\(aq192.0.2.0/30\(aq])
+.EE
+.sp
+.EX
+>>> IPSet([\(aq192.0.2.0\(aq]) | IPSet([\(aq192.0.2.1\(aq]) | IPSet([\(aq192.0.2.3/31\(aq])
+IPSet([\(aq192.0.2.0/30\(aq])
+.EE
+.sp
+.EX
+>>> IPSet([\(aq192.0.2.0/24\(aq]) | IPSet([\(aq192.0.3.0/24\(aq]) | IPSet([\(aq192.0.4.0/24\(aq])
+IPSet([\(aq192.0.2.0/23\(aq, \(aq192.0.4.0/24\(aq])
+.EE
+.sp
+Here is an example of the union, intersection and symmetric difference operations all in play at the same time.
+.sp
+.EX
+>>> adj_cidrs = list(IPNetwork(\(aq192.0.2.0/24\(aq).subnet(28))
+>>> even_cidrs = adj_cidrs[::2]
+>>> evens = IPSet(even_cidrs)
+>>> evens
+IPSet([\(aq192.0.2.0/28\(aq, \(aq192.0.2.32/28\(aq, \(aq192.0.2.64/28\(aq, \(aq192.0.2.96/28\(aq, \(aq192.0.2.128/28\(aq, \(aq192.0.2.160/28\(aq, \(aq192.0.2.192/28\(aq, \(aq192.0.2.224/28\(aq])
+>>> IPSet([\(aq192.0.2.0/24\(aq]) & evens
+IPSet([\(aq192.0.2.0/28\(aq, \(aq192.0.2.32/28\(aq, \(aq192.0.2.64/28\(aq, \(aq192.0.2.96/28\(aq, \(aq192.0.2.128/28\(aq, \(aq192.0.2.160/28\(aq, \(aq192.0.2.192/28\(aq, \(aq192.0.2.224/28\(aq])
+>>> odds = IPSet([\(aq192.0.2.0/24\(aq]) ^ evens
+>>> odds
+IPSet([\(aq192.0.2.16/28\(aq, \(aq192.0.2.48/28\(aq, \(aq192.0.2.80/28\(aq, \(aq192.0.2.112/28\(aq, \(aq192.0.2.144/28\(aq, \(aq192.0.2.176/28\(aq, \(aq192.0.2.208/28\(aq, \(aq192.0.2.240/28\(aq])
+>>> evens | odds
+IPSet([\(aq192.0.2.0/24\(aq])
+>>> evens & odds
+IPSet([])
+>>> evens ^ odds
+IPSet([\(aq192.0.2.0/24\(aq])
+.EE
+.SS Supersets and subsets
+.sp
+IP sets provide the ability to test whether a group of addresses ranges fit within the set of another group of address ranges.
+.sp
+.EX
+>>> s1 = IPSet([\(aq192.0.2.0/24\(aq, \(aq192.0.4.0/24\(aq])
+>>> s2 = IPSet([\(aq192.0.2.0\(aq, \(aq192.0.4.0\(aq])
+>>> s1
+IPSet([\(aq192.0.2.0/24\(aq, \(aq192.0.4.0/24\(aq])
+>>> s2
+IPSet([\(aq192.0.2.0/32\(aq, \(aq192.0.4.0/32\(aq])
+>>> s1.issuperset(s2)
+True
+>>> s2.issubset(s1)
+True
+>>> s2.issuperset(s1)
+False
+>>> s1.issubset(s2)
+False
+.EE
+.sp
+Here\(aqs a more complete example using various well known IPv4 address ranges.
+.sp
+.EX
+>>> ipv4_addr_space = IPSet([\(aq0.0.0.0/0\(aq])
+>>> private = IPSet([\(aq10.0.0.0/8\(aq, \(aq172.16.0.0/12\(aq, \(aq192.0.2.0/24\(aq, \(aq192.168.0.0/16\(aq, \(aq239.192.0.0/14\(aq])
+>>> reserved = IPSet([\(aq225.0.0.0/8\(aq, \(aq226.0.0.0/7\(aq, \(aq228.0.0.0/6\(aq, \(aq234.0.0.0/7\(aq, \(aq236.0.0.0/7\(aq, \(aq238.0.0.0/8\(aq, \(aq240.0.0.0/4\(aq])
+>>> unavailable = reserved | private
+>>> available = ipv4_addr_space ^ unavailable
+.EE
+.sp
+Let\(aqs see what we\(aqve got:
+.sp
+.EX
+>>> for cidr in available.iter_cidrs():
+\&...     print(cidr, cidr[0], cidr[\-1])
+0.0.0.0/5 0.0.0.0 7.255.255.255
+8.0.0.0/7 8.0.0.0 9.255.255.255
+11.0.0.0/8 11.0.0.0 11.255.255.255
+12.0.0.0/6 12.0.0.0 15.255.255.255
+16.0.0.0/4 16.0.0.0 31.255.255.255
+32.0.0.0/3 32.0.0.0 63.255.255.255
+64.0.0.0/2 64.0.0.0 127.255.255.255
+128.0.0.0/3 128.0.0.0 159.255.255.255
+160.0.0.0/5 160.0.0.0 167.255.255.255
+168.0.0.0/6 168.0.0.0 171.255.255.255
+172.0.0.0/12 172.0.0.0 172.15.255.255
+172.32.0.0/11 172.32.0.0 172.63.255.255
+172.64.0.0/10 172.64.0.0 172.127.255.255
+172.128.0.0/9 172.128.0.0 172.255.255.255
+173.0.0.0/8 173.0.0.0 173.255.255.255
+174.0.0.0/7 174.0.0.0 175.255.255.255
+176.0.0.0/4 176.0.0.0 191.255.255.255
+192.0.0.0/23 192.0.0.0 192.0.1.255
+192.0.3.0/24 192.0.3.0 192.0.3.255
+192.0.4.0/22 192.0.4.0 192.0.7.255
+192.0.8.0/21 192.0.8.0 192.0.15.255
+192.0.16.0/20 192.0.16.0 192.0.31.255
+192.0.32.0/19 192.0.32.0 192.0.63.255
+192.0.64.0/18 192.0.64.0 192.0.127.255
+192.0.128.0/17 192.0.128.0 192.0.255.255
+192.1.0.0/16 192.1.0.0 192.1.255.255
+192.2.0.0/15 192.2.0.0 192.3.255.255
+192.4.0.0/14 192.4.0.0 192.7.255.255
+192.8.0.0/13 192.8.0.0 192.15.255.255
+192.16.0.0/12 192.16.0.0 192.31.255.255
+192.32.0.0/11 192.32.0.0 192.63.255.255
+192.64.0.0/10 192.64.0.0 192.127.255.255
+192.128.0.0/11 192.128.0.0 192.159.255.255
+192.160.0.0/13 192.160.0.0 192.167.255.255
+192.169.0.0/16 192.169.0.0 192.169.255.255
+192.170.0.0/15 192.170.0.0 192.171.255.255
+192.172.0.0/14 192.172.0.0 192.175.255.255
+192.176.0.0/12 192.176.0.0 192.191.255.255
+192.192.0.0/10 192.192.0.0 192.255.255.255
+193.0.0.0/8 193.0.0.0 193.255.255.255
+194.0.0.0/7 194.0.0.0 195.255.255.255
+196.0.0.0/6 196.0.0.0 199.255.255.255
+200.0.0.0/5 200.0.0.0 207.255.255.255
+208.0.0.0/4 208.0.0.0 223.255.255.255
+224.0.0.0/8 224.0.0.0 224.255.255.255
+232.0.0.0/7 232.0.0.0 233.255.255.255
+239.0.0.0/9 239.0.0.0 239.127.255.255
+239.128.0.0/10 239.128.0.0 239.191.255.255
+239.196.0.0/14 239.196.0.0 239.199.255.255
+239.200.0.0/13 239.200.0.0 239.207.255.255
+239.208.0.0/12 239.208.0.0 239.223.255.255
+239.224.0.0/11 239.224.0.0 239.255.255.255
+.EE
+.sp
+.EX
+>>> ipv4_addr_space ^ available
+IPSet([\(aq10.0.0.0/8\(aq, \(aq172.16.0.0/12\(aq, \(aq192.0.2.0/24\(aq, \(aq192.168.0.0/16\(aq, \(aq225.0.0.0/8\(aq, \(aq226.0.0.0/7\(aq, \(aq228.0.0.0/6\(aq, \(aq234.0.0.0/7\(aq, \(aq236.0.0.0/7\(aq, \(aq238.0.0.0/8\(aq, \(aq239.192.0.0/14\(aq, \(aq240.0.0.0/4\(aq])
+.EE
+.SS Combined IPv4 and IPv6 support
+.sp
+In keeping with netaddr\(aqs pragmatic approach, you are free to mix and match IPv4 and IPv6 within the same data structure.
+.sp
+.EX
+>>> s1 = IPSet([\(aq192.0.2.0\(aq, \(aq::ffff:192.0.2.0\(aq, \(aq192.0.2.2\(aq, \(aq::ffff:192.0.2.2\(aq])
+>>> s2 = IPSet([\(aq192.0.2.2\(aq, \(aq::ffff:192.0.2.2\(aq, \(aq192.0.2.4\(aq, \(aq::ffff:192.0.2.4\(aq])
+.EE
+.sp
+.EX
+>>> s1
+IPSet([\(aq192.0.2.0/32\(aq, \(aq192.0.2.2/32\(aq, \(aq::ffff:192.0.2.0/128\(aq, \(aq::ffff:192.0.2.2/128\(aq])
+>>> s2
+IPSet([\(aq192.0.2.2/32\(aq, \(aq192.0.2.4/32\(aq, \(aq::ffff:192.0.2.2/128\(aq, \(aq::ffff:192.0.2.4/128\(aq])
+.EE
+.SS IPv4 and IPv6 set union
+.sp
+.EX
+>>> s1 | s2
+IPSet([\(aq192.0.2.0/32\(aq, \(aq192.0.2.2/32\(aq, \(aq192.0.2.4/32\(aq, \(aq::ffff:192.0.2.0/128\(aq, \(aq::ffff:192.0.2.2/128\(aq, \(aq::ffff:192.0.2.4/128\(aq])
+>>> s2 | s1
+IPSet([\(aq192.0.2.0/32\(aq, \(aq192.0.2.2/32\(aq, \(aq192.0.2.4/32\(aq, \(aq::ffff:192.0.2.0/128\(aq, \(aq::ffff:192.0.2.2/128\(aq, \(aq::ffff:192.0.2.4/128\(aq])
+.EE
+.SS set intersection
+.sp
+.EX
+>>> s1 & s2
+IPSet([\(aq192.0.2.2/32\(aq, \(aq::ffff:192.0.2.2/128\(aq])
+.EE
+.SS set difference
+.sp
+.EX
+>>> s1 \- s2
+IPSet([\(aq192.0.2.0/32\(aq, \(aq::ffff:192.0.2.0/128\(aq])
+>>> s2 \- s1
+IPSet([\(aq192.0.2.4/32\(aq, \(aq::ffff:192.0.2.4/128\(aq])
+.EE
+.SS set symmetric difference
+.sp
+.EX
+>>> s1 ^ s2
+IPSet([\(aq192.0.2.0/32\(aq, \(aq192.0.2.4/32\(aq, \(aq::ffff:192.0.2.0/128\(aq, \(aq::ffff:192.0.2.4/128\(aq])
+.EE
+.SS Disjointed IP sets
+.sp
+.EX
+>>> s1 = IPSet([\(aq192.0.2.0\(aq, \(aq192.0.2.1\(aq, \(aq192.0.2.2\(aq])
+>>> s2 = IPSet([\(aq192.0.2.2\(aq, \(aq192.0.2.3\(aq, \(aq192.0.2.4\(aq])
+>>> s1 & s2
+IPSet([\(aq192.0.2.2/32\(aq])
+>>> s1.isdisjoint(s2)
+False
+>>> s1 = IPSet([\(aq192.0.2.0\(aq, \(aq192.0.2.1\(aq])
+>>> s2 = IPSet([\(aq192.0.2.3\(aq, \(aq192.0.2.4\(aq])
+>>> s1 & s2
+IPSet([])
+>>> s1.isdisjoint(s2)
+True
+.EE
+.SS Updating an IP set
+.sp
+As with a normal Python set you can also update one IP set with the contents of another.
+.sp
+.EX
+>>> s1 = IPSet([\(aq192.0.2.0/25\(aq])
+>>> s1
+IPSet([\(aq192.0.2.0/25\(aq])
+>>> s2 = IPSet([\(aq192.0.2.128/25\(aq])
+>>> s2
+IPSet([\(aq192.0.2.128/25\(aq])
+>>> s1.update(s2)
+>>> s1
+IPSet([\(aq192.0.2.0/24\(aq])
+>>> s1.update([\(aq192.0.0.0/24\(aq, \(aq192.0.1.0/24\(aq, \(aq192.0.3.0/24\(aq])
+>>> s1
+IPSet([\(aq192.0.0.0/22\(aq])
+.EE
+.sp
+.EX
+>>> s2 = IPSet([\(aq10.0.0.0/16\(aq])
+>>> s2.update(IPRange(\(aq10.1.0.0\(aq, \(aq10.1.255.255\(aq))
+>>> s2
+IPSet([\(aq10.0.0.0/15\(aq])
+.EE
+.sp
+.EX
+>>> s2.clear()
+>>> s2
+IPSet([])
+.EE
+.SS Removing elements from an IP set
+.sp
+Removing an IP address from an IPSet will split the CIDR subnets within it into their constituent parts.
+.sp
+Here we create a set representing the entire IPv4 address space.
+.sp
+.EX
+>>> s1 = IPSet([\(aq0.0.0.0/0\(aq])
+>>> s1
+IPSet([\(aq0.0.0.0/0\(aq])
+.EE
+.sp
+Then we strip off the last address.
+.sp
+.EX
+>>> s1.remove(\(aq255.255.255.255\(aq)
+.EE
+.sp
+Leaving us with:
+.sp
+.EX
+>>> s1
+IPSet([\(aq0.0.0.0/1\(aq, \(aq128.0.0.0/2\(aq, ..., \(aq255.255.255.252/31\(aq, \(aq255.255.255.254/32\(aq])
+>>> list(s1.iter_cidrs())
+[IPNetwork(\(aq0.0.0.0/1\(aq), IPNetwork(\(aq128.0.0.0/2\(aq), ..., IPNetwork(\(aq255.255.255.252/31\(aq), IPNetwork(\(aq255.255.255.254/32\(aq)]
+>>> len(list(s1.iter_cidrs()))
+32
+.EE
+.sp
+Let\(aqs check the result using the \fIcidr_exclude\fP function.
+.sp
+.EX
+>>> list(s1.iter_cidrs()) == cidr_exclude(\(aq0.0.0.0/0\(aq, \(aq255.255.255.255\(aq)
+True
+.EE
+.sp
+Next, let\(aqs remove the first address from the original range.
+.sp
+.EX
+>>> s1.remove(\(aq0.0.0.0\(aq)
+.EE
+.sp
+This fractures the CIDR subnets further.
+.sp
+.EX
+>>> s1
+IPSet([\(aq0.0.0.1/32\(aq, \(aq0.0.0.2/31\(aq, ..., \(aq255.255.255.252/31\(aq, \(aq255.255.255.254/32\(aq])
+>>> len(list(s1.iter_cidrs()))
+62
+.EE
+.sp
+You can keep doing this but be aware that large IP sets can take up a lot of memory if they contain many thousands of entries.
+.SS Adding elements to an IP set
+.sp
+Let\(aqs fix up the fractured IP set from the previous section by re\-adding the IP addresses we removed.
+.sp
+.EX
+>>> s1.add(\(aq255.255.255.255\(aq)
+>>> s1
+IPSet([\(aq0.0.0.1/32\(aq, \(aq0.0.0.2/31\(aq, ..., \(aq64.0.0.0/2\(aq, \(aq128.0.0.0/1\(aq])
+.EE
+.sp
+Getting better.
+.sp
+.EX
+>>> list(s1.iter_cidrs())
+[IPNetwork(\(aq0.0.0.1/32\(aq), IPNetwork(\(aq0.0.0.2/31\(aq), ..., IPNetwork(\(aq64.0.0.0/2\(aq), IPNetwork(\(aq128.0.0.0/1\(aq)]
+.EE
+.sp
+.EX
+>>> len(list(s1.iter_cidrs()))
+32
+.EE
+.sp
+Add back the other IP address.
+.sp
+.EX
+>>> s1.add(\(aq0.0.0.0\(aq)
+.EE
+.sp
+And we\(aqre back to our original address.
+.sp
+.EX
+>>> s1
+IPSet([\(aq0.0.0.0/0\(aq])
+.EE
+.SS Convert an IP set to an IP Range
+.sp
+Sometimes you may want to convert an IPSet back to an IPRange.
+.sp
+.EX
+>>> s1 = IPSet([\(aq10.0.0.0/25\(aq, \(aq10.0.0.128/25\(aq])
+>>> s1.iprange()
+IPRange(\(aq10.0.0.0\(aq, \(aq10.0.0.255\(aq)
+.EE
+.sp
+This only works if the IPSet is contiguous
+.sp
+.EX
+>>> s1.iscontiguous()
+True
+>>> s1.remove(\(aq10.0.0.16\(aq)
+>>> s1
+IPSet([\(aq10.0.0.0/28\(aq, \(aq10.0.0.17/32\(aq, \(aq10.0.0.18/31\(aq, \(aq10.0.0.20/30\(aq, \(aq10.0.0.24/29\(aq, \(aq10.0.0.32/27\(aq, \(aq10.0.0.64/26\(aq, \(aq10.0.0.128/25\(aq])
+>>> s1.iscontiguous()
+False
+>>> s1.iprange()
+Traceback (most recent call last):
+  File \(dq<stdin>\(dq, line 1, in <module>
+ValueError: IPSet is not contiguous
+.EE
+.sp
+If it is not contiguous, you can still convert the IPSet, but you will get multiple IPRanges.
+>>> list(s1.iter_ipranges())
+[IPRange(\(aq10.0.0.0\(aq, \(aq10.0.0.15\(aq), IPRange(\(aq10.0.0.17\(aq, \(aq10.0.0.255\(aq)]
+.sp
+.EX
+>>> s2 = IPSet([\(aq0.0.0.0/0\(aq])
+>>> s2.iscontiguous()
+True
+>>> s2.iprange()
+IPRange(\(aq0.0.0.0\(aq, \(aq255.255.255.255\(aq)
+.EE
+.sp
+.EX
+>>> s3 = IPSet()
+>>> s3.iscontiguous()
+True
+>>> s3.iprange()
+.EE
+.sp
+.EX
+>>> s4 = IPSet(IPRange(\(aq10.0.0.0\(aq, \(aq10.0.0.8\(aq))
+>>> s4.iscontiguous()
+True
+.EE
+.SS Pickling IPSet objects
+.sp
+As with all other netaddr classes, you can use \fBpickle\fP to persist IP sets for later use.
+.sp
+.EX
+>>> import pickle
+>>> ip_data = IPSet([\(aq10.0.0.0/16\(aq, \(aqfe80::/64\(aq])
+>>> buf = pickle.dumps(ip_data)
+>>> ip_data_unpickled = pickle.loads(buf)
+>>> ip_data == ip_data_unpickled
+True
+.EE
+.SS Compare IPSet objects
+.sp
+.EX
+>>> x = IPSet([\(aqfc00::/2\(aq])
+>>> y = IPSet([\(aqfc00::/3\(aq])
+.EE
+.sp
+.EX
+>>> x > y
+True
+.EE
+.sp
+.EX
+>>> x < y
+False
+.EE
+.sp
+.EX
+>>> x != y
+True
+.EE
+.SH HOW-TO GUIDES
+.sp
+The pages in this section are recipes and provide steps to address common problems and use\-cases.
+.SS How to install netaddr
+.sp
+Various Linux distributions make it available via their package managers.
+.SS Installing from the Python Package Index
+.sp
+The easiest way to install netaddr is to use pip.
+.sp
+Download and install the latest version from PyPI \-
+\%<https://\:pypi\:.org/\:project/\:pip> and run the following command
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install netaddr
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you want better the Interactive shell \%<#\:interactive-shell>  experience you can install the extra
+IPython dependency like
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install \(aqnetaddr[nicer\-shell]\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+or install IPython directly
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install ipython
+.EE
+.UNINDENT
+.UNINDENT
+.SS Installing using your Linux distribution package manager
+.sp
+Various Linux distributions make netaddr available via their package managers.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+The netaddr versions provided by Linux distributions may be outdated.
+.UNINDENT
+.UNINDENT
+.sp
+Refer to your distribution\(aqs documentation for installation instructions.
+.sp
+Example commands:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# Debian, Ubuntu
+sudo apt install python3\-netaddr
+
+# Fedora
+# Base installation
+sudo dnf install python3\-netaddr
+# The CLI tool
+sudo dnf install python3\-netaddr\-shell
+.EE
+.UNINDENT
+.UNINDENT
+.SS Installing from a source package
+.sp
+Download the latest release tarball/zip file and extract it to a temporary
+directory or clone the repository into a local working directory.
+.sp
+Install the local package:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install .
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This automatically places the required files in the \fBlib/site\-packages\fP
+directory of the Python version you used to run the setup script, may
+also be part of a virtualenv or similar environment manager.
+.SH REFERENCE
+.sp
+The pages in this section contain technical description of various parts of netaddr machinery.
+.SS Compatibility
+.SS Supported Python versions
+.sp
+netaddr supports the following Python versions (CPython and PyPy):
+.INDENT 0.0
+.IP \(bu 2
+3.7
+.IP \(bu 2
+3.8
+.IP \(bu 2
+3.9
+.IP \(bu 2
+3.10
+.IP \(bu 2
+3.11
+.IP \(bu 2
+3.12
+.UNINDENT
+.sp
+Support for the following versions has been removed in 1.0.0:
+.INDENT 0.0
+.IP \(bu 2
+2.7
+.IP \(bu 2
+3.5
+.IP \(bu 2
+3.6
+.UNINDENT
+.sp
+Support \fBdeprecated and scheduled to be removed\fP in netaddr 2:
+.INDENT 0.0
+.IP \(bu 2
+3.7
+.UNINDENT
+.SS Supported operating systems
+.sp
+The library is operating system\-independent.
+.SS Supported hardware architectures
+.sp
+The library is hardware architecture\-independent.
+.SS API Reference
+.sp
+This page documents netaddr\(aqs public API. Only things explicitly mentioned in this documentation
+are supported and considered part of the public API.
+.sp
+Any of the following is considered private and unsupported:
+.INDENT 0.0
+.IP \(bu 2
+Anything within any of the \fBnetaddr\fP submodules (\fBfrom netaddr.X import Y\fP)
+.IP \(bu 2
+Anything with a name started with a single underscore (\fB_X\fP)
+.IP \(bu 2
+Anything not explicitly documented as part of the public API
+.UNINDENT
+.SS IP Class Hierarchy
+.sp
+Here the class hierarchy for IP related classes
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
++\-\-\-\-\-\-\-\-\-+                                                +\-\-\-\-\-\-\-\-\-+
+| ipv4(M) |                                                | ipv6(M) |
++\-\-\-\-\-\-\-\-\-+                                                +\-\-\-\-\-\-\-\-\-+
+     |                                                          |
+  (HAS A)                                                    (HAS A)
+     |                                                          |
+     +\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+                 |
+           |       +\-\-\-\-\-\-\-\-|\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-|\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-+
+           |       |        |       |         |        |
+           |       |        |       |         |        |
+           v       v        v       v         |        |
+         +\-\-\-\-\-\-\-\-\-\-\-+    +\-\-\-\-\-\-\-\-\-\-\-+       |        |
+         | IPAddress |    | IPNetwork |       |        |
+         +\-\-\-\-\-\-\-\-\-\-\-+    +\-\-\-\-\-\-\-\-\-\-\-+       |        |
+               |                |             |        |
+            (HAS A)          (HAS A)          |        |
+               |                |             v        v
+               +\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-+           +\-\-\-\-\-\-\-\-\-\-\-\-+
+                       |                    |  IPRange   |
+                       |                    +\-\-\-\-\-\-\-\-\-\-\-\-+
+                       v                          |
+                   +\-\-\-\-\-\-\-+                      |
+                   | IPSet |                      v
+                   +\-\-\-\-\-\-\-+                  +\-\-\-\-\-\-\-\-+
+                                              | IPGlob |
+                                              +\-\-\-\-\-\-\-\-+
+.EE
+.UNINDENT
+.UNINDENT
+.SS Constants
+.sp
+The following constants are used by the various \fIflags\fP arguments on netaddr class constructors.
+.INDENT 0.0
+.TP
+.B netaddr.INET_PTON
+Use inet_pton() semantics instead of inet_aton() when parsing IPv4.
+.sp
+See the \fBIPAddress.__init__()\fP documentation for details.
+.sp
+Changed in version 1.0.0: Started rejecting leading zeros regardless of the platform (it was previously allowed
+on some).
+
+.UNINDENT
+.INDENT 0.0
+.TP
+.B netaddr.INET_ATON
+Use \fBinet_aton()\fP semantics when parsing IPv4.
+.sp
+See the \fBIPAddress.__init__()\fP documentation for details.
+.sp
+Added in version 0.10.0.
+
+.UNINDENT
+.INDENT 0.0
+.TP
+.B netaddr.ZEROFILL
+Remove any preceding zeros from IPv4 address octets before parsing.
+.sp
+See the \fBIPAddress.__init__()\fP documentation for details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B netaddr.NOHOST
+Remove any host bits found to the right of an applied CIDR prefix.
+.sp
+See the \fBIPNetwork.__init__()\fP documentation for details.
+.UNINDENT
+.SS Custom Exceptions
+.SS IP addresses
+.sp
+An IP address is a virtual address used to identify the source and destination of (layer 3) packets being transferred between hosts in a switched network. This library fully supports both IPv4 and the new IPv6 standards.
+.sp
+The \fIIPAddress\fP class is used to identify individual IP addresses.
+.SS IPv6 formatting dialects
+.sp
+The following dialect classes can be used with the IPAddress.format method.
+.SS IP networks and subnets
+.sp
+The \fIIPNetwork\fP class is used to represent a group of IP addresses that comprise a network/subnet/VLAN containing hosts.
+.sp
+Nowadays, IP networks are usually specified using the CIDR format with a prefix indicating the size of the netmask. In the real world, there are a number of ways to express a \(dqnetwork\(dq\(dq and so the flexibility of the \fIIPNetwork\fP class constructor reflects this.
+.SS Arbitrary IP address ranges
+.sp
+netaddr was designed to accommodate the many different ways in which groups of IP addresses and IP networks are specified, not only in router configurations but also less standard but more human\-readable forms found in, for instance, configuration files.
+.sp
+Here are the options currently available.
+.SS bounded ranges
+.sp
+A bounded range is a group of IP addresses specified using a start and end address forming a contiguous block. No bit boundaries are assumed but the end address must be numerically greater than or equal to the start address.
+.SS IP glob ranges
+.sp
+A very useful way to represent IP network in configuration files and on the command line for those who do not speak CIDR.
+.sp
+The \fIIPGlob\fP class is used to represent individual glob ranges.
+.SS globbing functions
+.sp
+It is also very useful to be able to convert between glob ranges and CIDR and IP ranges. The following function enable these various conversions.
+.SS \fBnmap\fP ranges
+.sp
+\fBnmap\fP is a well known network security tool. It has a particularly flexible way of specifying IP address groupings.
+.sp
+Functions are provided that allow the verification and enumeration of IP address specified in this format.
+.SS IP sets
+.sp
+When dealing with large numbers of IP addresses and ranges it is often useful to manipulate them as sets so you can calculate intersections, unions and differences between various groups of them.
+.sp
+The \fIIPSet\fP class was built specifically for this purpose.
+.SS IP functions and generators
+.sp
+The following are a set of useful helper functions related to the various format supported in this library.
+.SS MAC addresses and the IEEE EUI standard
+.sp
+A MAC address is the 48\-bit hardware address associated with a particular physical interface on a networked host. They are found in all networked devices and serve to identify (layer 2) frames in the networking stack.
+.sp
+The \fIEUI\fP class is used to represents MACs (as well as their larger and less common 64\-bit cousins).
+.SS MAC formatting dialects
+.sp
+The following dialects are used to specify the formatting of MAC addresses.
+.SS Validation functions
+.SS A bit of fun
+.sp
+Who said networking was all about being serious? It\(aqs always good to lighten up and have a bit of fun.
+.sp
+Let\(aqs face it, no networking library worth its salt would be complete without support for RFC 1924 \- \%<http://\:www\:.ietf\:.org/\:rfc/\:rfc1924> \fB:\-)\fP
+.SS CLI tool
+.sp
+The netaddr package includes a \fBnetaddr\fP CLI application.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+The tool is meant to be used by humans. Its interface should not be considered stable.
+Exercise caution when using it in any kind of programmatic context (read: scripting).
+.sp
+If you want a stable interface use the programmatic API \%<>\&.
+.UNINDENT
+.UNINDENT
+.sp
+To see the usage
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+% netaddr \-\-help
+               __            __    __
+   ____  ___  / /_____ _____/ /___/ /____
+  / __ \e/ _ \e/ __/ __ \(ga/ __  / __  / ___/
+ / / / /  __/ /_/ /_/ / /_/ / /_/ / /
+/_/ /_/\e___/\e__/\e__,_/\e__,_/\e__,_/_/
+
+usage: netaddr [\-h]
+
+The netaddr CLI tool
+
+options:
+\-h, \-\-help  show this help message and exit
+
+Share and enjoy!
+.EE
+.UNINDENT
+.UNINDENT
+.SS Interactive shell
+.sp
+Calling \fBnetaddr\fP without any arguments will launch an interactive shell.
+.sp
+The shell uses IPython \%<https://\:pypi\:.org/\:project/\:ipython> if available or the built\-in Python REPL otherwise. The IPython REPL
+has more features and offers nicer experience overall.
+.sp
+The shell comes with all parts of the netaddr API \%<> pre\-imported so you can
+interact with it right away, with minimal friction:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+% netaddr
+               __            __    __
+   ____  ___  / /_____ _____/ /___/ /____
+  / __ \e/ _ \e/ __/ __ \(ga/ __  / __  / ___/
+ / / / /  __/ /_/ /_/ / /_/ / /_/ / /
+/_/ /_/\e___/\e__/\e__,_/\e__,_/\e__,_/_/
+
+netaddr shell 1.0.0 \- an interactive shell for the netaddr library
+
+In [1]: \(aq10.0.0.2\(aq in IPNetwork(\(aq10.0.0.0/24\(aq)
+Out[1]: True
+
+In [2]:
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Changed in version 1.2.0: Made IPython an optional dependency.
+
+.SS Network information
+.sp
+Run \fBnetaddr info <network>\fP to display information about an IP network:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+% netaddr info 192.2.2.27/24
+               __            __    __
+   ____  ___  / /_____ _____/ /___/ /____
+  / __ \e/ _ \e/ __/ __ \(ga/ __  / __  / ___/
+ / / / /  __/ /_/ /_/ / /_/ / /_/ / /
+/_/ /_/\e___/\e__/\e__,_/\e__,_/\e__,_/_/
+
+IP network information
+
+CIDR                     192.2.2.0/24
+Network IP               192.2.2.0
+Network IP (binary)      11000000.00000010.00000010.00000000
+Network IP (decimal)     3221357056
+Network IP (hex)         0xc0020200
+Subnet mask              255.255.255.0
+Subnet mask (binary)     11111111.11111111.11111111.00000000
+Broadcast IP             192.2.2.255
+Range                    192.2.2.0\-192.2.2.255
+Total addresses          256
+Usable range             192.2.2.1\-192.2.2.254
+Usable addresses         254
+.EE
+.UNINDENT
+.UNINDENT
+.SS Standards and References
+.sp
+The following references are applicable to the netaddr library.
+.SS RFCs
+.sp
+The following RFCs have guided netaddr\(aqs feature set and capabilities.
+.SS IPv4
+.INDENT 0.0
+.TP
+.B RFC 791 \- Internet Protocol
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc791>
+.UNINDENT
+.TP
+.B RFC 1918 \- Address Allocation for Private Internets
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc1918>
+.UNINDENT
+.TP
+.B RFC 3330 \- Special\-Use IPv4 Addresses
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3330>
+.UNINDENT
+.TP
+.B RFC 3927 \- Dynamic Configuration of IPv4 Link\-Local Addresses
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3927>
+.UNINDENT
+.UNINDENT
+.SS Multicast (IPv4)
+.INDENT 0.0
+.TP
+.B RFC 2365 \- Administratively Scoped IP Multicast
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc2365>
+.UNINDENT
+.TP
+.B RFC 3171 \- IANA IPv4 Multicast Guidelines
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3171>
+.UNINDENT
+.TP
+.B RFC 3927 \- Dynamic Configuration of IPv4 Link\-Local Addresses
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3927>
+.UNINDENT
+.UNINDENT
+.SS IPv6
+.INDENT 0.0
+.TP
+.B RFC 3330 \- Special\-Use IPv4 Addresses
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3330>
+.UNINDENT
+.TP
+.B RFC 4291 \- IPv6 Addressing Architecture
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc4291>
+.UNINDENT
+.TP
+.B RFC 3306 \- Unicast\-Prefix\-based IPv6 Multicast
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3306>
+.UNINDENT
+.TP
+.B RFC 3956 \- The RP Address in IPv6 Multicast Address
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3956>
+.UNINDENT
+.TP
+.B RFC 3879 \- Deprecating Site Local Addresses
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc3879>
+.UNINDENT
+.TP
+.B RFC 4193 \- Unique Local IPv6 Unicast Addresses
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc4193>
+.UNINDENT
+.TP
+.B RFC 4941 \- Privacy Extensions for Stateless Address
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc4941>
+.UNINDENT
+.TP
+.B RFC 1924 \- A Compact Representation of IPv6 Addresses
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc1924>
+.UNINDENT
+.UNINDENT
+.SS Classless Inter\-Domain Routing (CIDR)
+.INDENT 0.0
+.TP
+.B RFC 1338 \- Supernetting: an Address Assignment and Aggregation Strategy
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc1338>
+.UNINDENT
+.TP
+.B RFC 4632 \- Classless Inter\-domain Routing (CIDR): The Internet Address Assignment and Aggregation Plan
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.ietf\:.org/\:rfc/\:rfc4632>
+.UNINDENT
+.UNINDENT
+.SS Data Sources
+.sp
+Data from the following sources is exposed via the netaddr API.
+.SS Internet Assigned Numbers Authority (IANA)
+.INDENT 0.0
+.TP
+.B IANA Protocol Registry
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.iana\:.org/\:protocols>
+.UNINDENT
+.TP
+.B IPv4 Address Space
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.iana\:.org/\:assignments/\:ipv4-address-space>
+.UNINDENT
+.TP
+.B IPv6 Address Space
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.iana\:.org/\:assignments/\:ipv6-address-space>
+.UNINDENT
+.TP
+.B Multicast Registrations
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:www\:.iana\:.org/\:assignments/\:multicast-addresses>
+.UNINDENT
+.UNINDENT
+.SS Institute of Electrical and Electronics Engineers (IEEE)
+.INDENT 0.0
+.TP
+.B IEEE Organisation Registry
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:standards\:.ieee\:.org/\:regauth/\:oui/\:index\:.shtml>
+.UNINDENT
+.TP
+.B OUI (Organisationally Unique Identifier) Registrations
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:standards\:.ieee\:.org/\:regauth/\:oui/\:oui\:.txt>
+.UNINDENT
+.TP
+.B IAB (Individual Address Block) Registrations
+.INDENT 7.0
+.IP \(bu 2
+\%<http://\:standards\:.ieee\:.org/\:regauth/\:oui/\:iab\:.txt>
+.UNINDENT
+.UNINDENT
+.SH HOW-TO GUIDES
+.SS How to release netaddr
+.sp
+Here is how to go about releasing a new version of \fInetaddr\fP\&.
+.INDENT 0.0
+.IP \(bu 2
+Make sure you have the necessary dependencies installed:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+pip install \-\-upgrade wheel twine
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+Pull down the latest set of changes for the \fBmaster\fP branch.
+.sp
+The assumption is the \fBmaster\fP branch build is green and everything works correctly
+(we have a CI process in place).
+.IP \(bu 2
+Update the top\-most section in the \fBCHANGELOG.rst\fP with details of all notable
+changes since the last release that aren\(aqt there already.
+.sp
+Set the release date to the current day.
+.IP \(bu 2
+Decide what the new version should be (depending on the changes that will be present
+in this release):
+.INDENT 2.0
+.IP \(bu 2
+Fixes – patch version bump
+.IP \(bu 2
+New features – minor version bump
+.IP \(bu 2
+Substantial or breaking changes – major version bump
+.UNINDENT
+.IP \(bu 2
+Update the version numbers throughout the source code. That includes changing the currently
+version number in
+.INDENT 2.0
+.IP \(bu 2
+\fBnetaddr/__init__.py\fP
+.IP \(bu 2
+\fBdocs/source/conf.py\fP
+.UNINDENT
+.sp
+and replacing all \fBNEXT_NETADDR_VERSION\fP instances with the new version (except for places
+like this file, of course).
+.IP \(bu 2
+Commit all changes.
+.IP \(bu 2
+Build and publish the package:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+make build\-and\-publish
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+Tag the release and sync it to remote repo:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+git tag \-a x.y.z \-m \(aqRelease version x.y.z\(aq
+make push_tags
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+Create a GitHub Release \%<https://\:github\:.com/\:netaddr/\:netaddr/\:releases/\:new> based on
+the tag you just pushed.
+.sp
+Put the new \fBCHANGELOG.rst\fP contents there and add the \(dqFull changelog\(dq link at the
+end (copy and adapt from the previous release).
+.UNINDENT
+.SH CHANGELOG
+.SS NEXT_NETADDR_VERSION
+.sp
+Date: not released yet
+.SS Release: 1.3.0
+.sp
+Date: 2024\-05\-28
+.sp
+Added:
+.INDENT 0.0
+.IP \(bu 2
+Add partial address expansion in \fBIPNetwork\fP via the \fBexpand_partial\fP switch,
+this enables opting into pre\-1.1.0 behavior
+.UNINDENT
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+Fix running the test suite on musl systems
+.IP \(bu 2
+Fix \fBIPAddress\fP IPv6 parsing with \fBZEROFILL\fP \%<#\:netaddr\:.ZEROFILL> enabled
+.IP \(bu 2
+Fix handling of the \fBNOHOST\fP \%<#\:netaddr\:.NOHOST> flag in the \fBIPNetwork\fP copy constructor
+.UNINDENT
+.SS Release: 1.2.1
+.sp
+Date: 2024\-02\-17
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+Fix bad version 1.2.0 upload to PyPI – now yanked. No changes to the package.
+.UNINDENT
+.SS Release: 1.2.0
+.sp
+Date: 2024\-02\-17
+.sp
+Added:
+.INDENT 0.0
+.IP \(bu 2
+Add CLI tool subcommand to display Network information \%<#\:cli-network-info>\&.
+.UNINDENT
+.sp
+Changed:
+.INDENT 0.0
+.IP \(bu 2
+Support running Interactive shell \%<#\:interactive-shell> without IPython installed.
+.UNINDENT
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+Explicitly raise \fBTypeError\fP is a non\-string value is passed to \fBvalid_ipv4()\fP
+or \fBvalid_ipv6()\fP\&.
+.UNINDENT
+.SS Release: 1.1.0
+.sp
+Date: 2024\-02\-15
+.sp
+Added:
+.INDENT 0.0
+.IP \(bu 2
+Add the required Python version to the package metadata (GH #365 \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:365>).
+.IP \(bu 2
+Add \fBexpand_partial_ipv4_address()\fP to the public API.
+.UNINDENT
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+Fix \fBIPNetwork(...) in IPRange(...)\fP false negatives (GH #157 \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:157>).
+.IP \(bu 2
+Fix a few \fBIPNetwork\fP slicing edge cases (GH #214 \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:214>).
+.IP \(bu 2
+Fix support for partial IP addresses accidentally left in \fBIPNetwork\fP in 1.0.0.
+.sp
+When I removed the \fBimplicit_prefix\fP switch I missed the fact that there was some
+partial IPv4 address expansion triggered unconditionally.
+.sp
+If you need the old behavior use \fBexpand_partial_ipv4_address()\fP\&.
+.sp
+Related GH issue: #110 \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:110>\&.
+.IP \(bu 2
+Fixed an incorrect license classifier in the package metadata.
+.UNINDENT
+.SS Release: 1.0.0
+.sp
+Date: 2024\-02\-10
+.sp
+Removed:
+.INDENT 0.0
+.IP \(bu 2
+Drop support for Python versions lower than 3.7.
+.IP \(bu 2
+Remove the flag shorthands: \fBN\fP, \fBP\fP and \fBZ\fP\&. Use \fBNOHOST\fP \%<#\:netaddr\:.NOHOST>, \fBINET_PTON\fP \%<#\:netaddr\:.INET_PTON>
+and \fBZEROFILL\fP \%<#\:netaddr\:.ZEROFILL> instead.
+.IP \(bu 2
+Remove abbreviated CIDR format support in \fBIPNetwork\fP (\fBimplicit_prefix=True\fP),
+use \fBcidr_abbrev_to_verbose()\fP if you need this behavior.
+.IP \(bu 2
+Remove the \fBIPAddress.is_private\fP method.
+.sp
+There are more precise replacements for subset of the addresses that used to handled by \fBis_private\fP:
+.INDENT 2.0
+.IP \(bu 2
+\fBIPAddress.is_link_local()\fP
+.IP \(bu 2
+\fBIPAddress.is_ipv4_private_use()\fP
+.IP \(bu 2
+\fBIPAddress.is_ipv6_unique_local()\fP
+.IP \(bu 2
+\fBIPAddress.is_global()\fP
+.UNINDENT
+.sp
+The following address blocks used to be handled by \fBis_private\fP have no dedicated
+convenience methods and you\(aqll have to handle them manually or request a method
+addition:
+.INDENT 2.0
+.IP \(bu 2
+\fB100.64.0.0/10\fP – Shared Address Space
+.IP \(bu 2
+\fB192.0.0.0/24\fP – IETF Protocol Assignments (watch out – there are exceptions in there)
+.IP \(bu 2
+\fB198.18.0.0/15\fP – Benchmarking
+.IP \(bu 2
+\fB239.0.0.0\fP\-\fB239.255.255.255\fP –\ \fB240.0.0.0/4\fP is Reserved, \fB239.0.0.0/8\fP – unclear
+.UNINDENT
+.UNINDENT
+.sp
+Changed:
+.INDENT 0.0
+.IP \(bu 2
+Stop accepting leading zeros when parsing IPv4 addresses in \fBINET_PTON\fP \%<#\:netaddr\:.INET_PTON> mode
+(it\(aqs been allowed on some platforms).
+.sp
+If you need to allow and discard leading zeros use the \fBZEROFILL\fP \%<#\:netaddr\:.ZEROFILL> flag.
+.sp
+This change will affect implicit conversions from \fBstr\fP in all relevant contexts. If you need
+to control the IPv4 parsing mode construct \fBIPAddress\fP objects explicitly.
+.IP \(bu 2
+Stop parsing IPv4 addresses permissively (\fBinet_aton()\fP\-like) by default.
+.sp
+\fBINET_PTON\fP \%<#\:netaddr\:.INET_PTON> is the default mode.
+.sp
+If you need to be permissive and parse using \fBinet_aton()\fP semantics use the
+\fBINET_ATON\fP \%<#\:netaddr\:.INET_ATON> flag.
+.sp
+This change will affect implicit conversions from \fBstr\fP in all relevant contexts. If you
+need to control the IPv4 parsing mode construct \fBIPAddress\fP objects explicitly.
+.IP \(bu 2
+Apply the two changes above to \fBvalid_ipv4()\fP as well.
+.IP \(bu 2
+Update the address databases to the 2024\-02\-10 versions.
+.UNINDENT
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+Return \fBFalse\fP instead of raising \fBAddrFormatError\fP when an empty string is passed
+to \fBvalid_ipv4()\fP or \fBvalid_ipv6()\fP\&.
+.IP \(bu 2
+Fix handling of \fBdialect\fP provided to \fBEUI\fP during copy\-construction.
+.UNINDENT
+.SS Release: 0.10.1
+.sp
+Date: 2024\-01\-02
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+Get rid of some warnings
+.UNINDENT
+.sp
+Deprecated:
+.INDENT 0.0
+.IP \(bu 2
+Deprecate the flag shorthands: \fBN\fP, \fBP\fP and \fBZ\fP\&. Use \fBNOHOST\fP \%<#\:netaddr\:.NOHOST>, \fBINET_PTON\fP \%<#\:netaddr\:.INET_PTON>
+and \fBZEROFILL\fP \%<#\:netaddr\:.ZEROFILL> instead.
+.IP \(bu 2
+Deprecate importing objects from \fBnetaddr\fP subpackages. Only importing things from the
+top\-level \fBnetaddr\fP namespace is supported, everything else is considered private.
+.sp
+This has already been the case but we can use a reminder.
+.IP \(bu 2
+Deprecate permissive\-by\-default IPv4 parsing in \fBvalid_ipv4()\fP\&. The \fBinet_pton()\fP
+semantics (with leading zeros always disallowed) will become the default. Use \fBINET_ATON\fP \%<#\:netaddr\:.INET_ATON>
+and/or \fBZEROFILL\fP \%<#\:netaddr\:.ZEROFILL> flags if you need the legacy behavior.
+.UNINDENT
+.SS Release: 0.10.0
+.sp
+Date: 2023\-12\-31
+.sp
+Added:
+.INDENT 0.0
+.IP \(bu 2
+Add an \fBINET_ATON\fP \%<#\:netaddr\:.INET_ATON> flag to explicitly request \fBinet_aton()\fP IPv4 parsing semantics
+from \fBIPAddress\fP\&.
+.IP \(bu 2
+Add an \fBIPAddress.is_ipv4_private_use()\fP convenience method.
+.IP \(bu 2
+Add an \fBIPAddress.is_global()\fP convenience method to allow determining if an address is
+considered globally reachable.
+.IP \(bu 2
+Add an \fBIPAddress.is_ipv6_unique_local()\fP convenience method.
+.UNINDENT
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+Improve Python 3.13 compatibility, thank you John Eckersberg.
+.UNINDENT
+.sp
+Deprecated:
+.INDENT 0.0
+.IP \(bu 2
+Deprecate Python 3.7 support.
+.IP \(bu 2
+Deprecate abbreviated CIDR format support in \fBIPNetwork\fP
+(\fBimplicit_prefix=True\fP).
+.IP \(bu 2
+Deprecate accepting leading zeros when parsing IPv4 addresses in \fBINET_PTON\fP \%<#\:netaddr\:.INET_PTON> mode
+(it\(aqs been allowed on some platforms).
+.sp
+If you need to allow and discard leading zeros use the \fBZEROFILL\fP \%<#\:netaddr\:.ZEROFILL> flag.
+.sp
+This change will affect implicit conversions from \fBstr\fP in all relevant contexts. If you need
+to control the IPv4 parsing mode construct \fBIPAddress\fP objects explicitly.
+.IP \(bu 2
+Deprecate parsing IPv4 addresses permissively (\fBinet_aton()\fP\-like) by default.
+.sp
+\fBINET_PTON\fP \%<#\:netaddr\:.INET_PTON> will become the default mode.
+.sp
+If you need to be permissive and parse using \fBinet_aton()\fP semantics use the
+\fBINET_ATON\fP \%<#\:netaddr\:.INET_ATON> flag.
+.sp
+This change will affect implicit conversions from \fBstr\fP in all relevant contexts. If you need
+to control the IPv4 parsing mode construct \fBIPAddress\fP objects explicitly.
+.IP \(bu 2
+Deprecate the \fBIPAddress.is_private\fP method. Migration instructions in the
+documentation.
+.UNINDENT
+.sp
+Other:
+.INDENT 0.0
+.IP \(bu 2
+Raise an exception if invalid flags are passed to \fBIPAddress\fP, \fBIPNetwork\fP or \fBIPRange\fP\&.
+.IP \(bu 2
+Improve the documentation substantially.
+.IP \(bu 2
+Update the DB files to the latest versions (2023\-12\-23).
+.UNINDENT
+.SS Release: 0.9.0
+.sp
+Date: 2023\-09\-18
+.sp
+Added:
+.INDENT 0.0
+.IP \(bu 2
+Add hash capabilities to OUI (#225, amitmi704)
+.UNINDENT
+.sp
+Fixed:
+.INDENT 0.0
+.IP \(bu 2
+\fBBackwards incompatible:\fP Handle RFC 6164 IPv6 addresses (don\(aqt reserve first IP
+address in point\-to\-point subnets) ($267, Damien Claisse)
+.IP \(bu 2
+\fBTechnically backwards incompatible:\fP Fix for is_loopback behaviour – consider
+\fBIPNetwork(\(aq::1/128\(aq)\fP to be loopback (#222, #223, niels)
+.IP \(bu 2
+Include tutorials in source distributions (#215, Louis Sautier)
+.IP \(bu 2
+Fix a documentation typo (#242, Wouter)
+.IP \(bu 2
+Fix print syntax in the documentation to be Python 3 compatible (#221, François Magimel)
+.IP \(bu 2
+Fix the Sphinx syntax in the documentation (#220, François Magimel)
+.UNINDENT
+.sp
+Other:
+.INDENT 0.0
+.IP \(bu 2
+Update the databases (#266, Jakub Stasiak)
+.IP \(bu 2
+Deprecate Python 3.6 (#263, Jakub Stasiak)
+.IP \(bu 2
+Eliminate unnecessary evals (#228, KOLANICH)
+.UNINDENT
+.SS Release: 0.8.0
+.sp
+Date: 3 Jul 2020
+.SS Changes since 0.7.20
+.INDENT 0.0
+.IP \(bu 2
+Fixed weak reference support in classes with \fB__slots__\fP
+.IP \(bu 2
+Added \fB__bytes__\fP to \fBIPAddress\fP for intuitive usage, thanks to Michael Belousov.
+.IP \(bu 2
+Added \fBformat()\fP function to EUI, thanks to Omer Anson.
+.IP \(bu 2
+Added \fBIPNetwork.netmask\fP property setter, thanks to Naveen Nathan.
+.IP \(bu 2
+Added support for IABs in the \fB40:D8:55\fP OUI, thanks to Brian Maissy.
+.IP \(bu 2
+Drastically optimized \fBspanning_cidr()\fP, thanks to Brian Maissy.
+.IP \(bu 2
+Fixed \fB\(dqx.x.x.x/x\(dq in IPNetwork\fP tests, thanks to xpac1985.
+.IP \(bu 2
+Added support for passing iterables of \fBIPRange\fP to \fBIPSet\fP and \fBcidr_merge()\fP, based
+on a patch by Henry Stern.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 205: \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:205>
+.INDENT 7.0
+.IP \(bu 2
+N log N complexity instead of linear
+.UNINDENT
+.TP
+.B FIXED Issue 171: \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:171>
+.INDENT 7.0
+.IP \(bu 2
+Efficiently creating a large IPSet from a list of IPRanges?
+.UNINDENT
+.TP
+.B FIXED Issue 161: \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:161>
+.INDENT 7.0
+.IP \(bu 2
+Weak reference support
+.UNINDENT
+.UNINDENT
+.SS Miscellanea
+.INDENT 0.0
+.IP \(bu 2
+The next release (0.9.0) will contain a backwards incompatible change in IPNetwork\(aqs behaviour.
+It\(aqs connected to handling of RFC 6164 IPv6 addresses (/127 and /128): IPNetwork.broadcast will
+return None for those and first addresses in the networks will no longer be excluded when
+iterating IPNetwork and IPNetwork.iter_hosts(). See \%<https://\:github\:.com/\:netaddr/\:netaddr/\:pull/\:168>
+(or temporarily reverted commit 2984c0a40a70 in this repository) to see the actual patch.
+.UNINDENT
+.SS Release: 0.7.20
+.sp
+Date: 19 Jun 2020
+.SS Changes since 0.7.19
+.INDENT 0.0
+.IP \(bu 2
+Fixed returning from an iterator on Python 3.7+, by Sergey Kozlov.
+.IP \(bu 2
+Fixed Python 3.8 SyntaxWarning on using \fIis not\fP with a string literal, by Stefan Nordhausen.
+.IP \(bu 2
+Fixed DeprecationWarnings by using raw strings for escape characters used in regexes, by Sean McGinnis.
+.IP \(bu 2
+Improved IPGlob documentation, by obkmeta.
+.IP \(bu 2
+Fixed exception creation in corner cases by explicitly passing error message params as tuples, by
+Matthias Urlichs.
+.IP \(bu 2
+Stopped manually replacing shebang of an included script.
+.IP \(bu 2
+Stopped using __file__ in all code that\(aqs expected to run in environments that don\(aqt support it
+(like PyOxidizer\-produced binaries).
+.IP \(bu 2
+Updated all databases included in the package.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 182: \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:182>
+.INDENT 7.0
+.IP \(bu 2
+test_ip_splitter_remove_prefix_larger_than_input_range fails with python 3.7
+.UNINDENT
+.TP
+.B FIXED Issue 206: \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:206>
+.INDENT 7.0
+.IP \(bu 2
+\(dq\(dqis not\(dq with a literal.\(dq SyntaxWarning
+.UNINDENT
+.TP
+.B FIXED Issue 198: \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:198>
+.INDENT 7.0
+.IP \(bu 2
+oui databases are outdated
+.UNINDENT
+.TP
+.B FIXED Issue 188: \%<https://\:github\:.com/\:netaddr/\:netaddr/\:issues/\:188>
+.INDENT 7.0
+.IP \(bu 2
+Avoid use of __file__
+.UNINDENT
+.UNINDENT
+.SS Miscellanea
+.INDENT 0.0
+.IP \(bu 2
+Python 2 versions older than 2.7 and Python 3 versions older than 3.5 should be considered
+unsupported. No incompatible code has been introduced to the best of our knowledge but
+there\(aqs no CI infrastructure in place to verify this and if there are any issues with
+those versions they won\(aqt be fixed.
+.IP \(bu 2
+Consequently, Python 2.7 and 3.5 support should be considered deprecated as 2.7 has
+reached its end\-of\-life already and 3.5 will hit it soon.
+.IP \(bu 2
+A CI setup has been introduced which allows us to test on a variety of Python versions
+on all Mac, Linux and Windows.
+.UNINDENT
+.SS Release: 0.7.19
+.sp
+Date: 11 Jan 2017
+.SS Changes since 0.7.18
+.INDENT 0.0
+.IP \(bu 2
+added a new SubnetSplitter class for those looking to divide up subnets.
+Thanks alanwill and RyPeck and those on (Stack Overflow discussion).
+.IP \(bu 2
+removed bundled pytest dependency code for \(dqpython setup.py test\(dq.
+.IP \(bu 2
+setup.py now uses setuptools only (no more distutils) and setup_egg.py removed.
+.IP \(bu 2
+cleaned up INSTALL docs so they accurately reflect current Python packaging.
+.IP \(bu 2
+fixed broken parsing, generating and reading of IEEE index files when switching
+between Python 2.x and 3.x.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 133: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:133>
+.INDENT 7.0
+.IP \(bu 2
+Splitting a single network into multiple prefixed networks
+.UNINDENT
+.TP
+.B FIXED Issue 129: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:129>
+.INDENT 7.0
+.IP \(bu 2
+fix IPAddress().netmask_bits to return 0 for 0.0.0.0 and [::] addresses
+.UNINDENT
+.TP
+.B FIXED Issue 117: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:117>
+.INDENT 7.0
+.IP \(bu 2
+(python setup.py test) failing with python3 >= 3.5
+.UNINDENT
+.TP
+.B FIXED Issue 137: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:137>
+.INDENT 7.0
+.IP \(bu 2
+API reference is broken on ReadTheDocs
+.UNINDENT
+.TP
+.B FIXED Issue 143: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:143>
+.INDENT 7.0
+.IP \(bu 2
+Please refresh the bundled IANA and IEEE databases
+.UNINDENT
+.UNINDENT
+.SS Miscellanea
+.INDENT 0.0
+.IP \(bu 2
+Goodbye to NYSE Euronext (good times), hello Intercontinental Exchange ...
+.UNINDENT
+.SS Release: 0.7.18
+.sp
+Date: 4 Sep 2015
+.SS Changes since 0.7.17
+.INDENT 0.0
+.IP \(bu 2
+cidr_merge() algorithm is now O(n) and much faster.
+Thanks to Anand Buddhdev (aabdnn) and Stefan Nordhausen (snordhausen).
+.IP \(bu 2
+nmap target specification now fully supported including IPv4 CIDR
+prefixes and IPv6 addresses.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 100: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:100>
+.INDENT 7.0
+.IP \(bu 2
+nmap.py \- CIDR targets
+.UNINDENT
+.TP
+.B FIXED Issue 112: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:112>
+.INDENT 7.0
+.IP \(bu 2
+Observation: netaddr slower under pypy
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.17
+.sp
+Date: 31 Aug 2015
+.SS Changes since 0.7.16
+.INDENT 0.0
+.IP \(bu 2
+Fixed a regression with valid_mac due to shadow import in the
+netaddr module.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 114: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:114>
+.INDENT 7.0
+.IP \(bu 2
+netaddr.valid_mac(\(aq00\-B0\-D0\-86\-BB\-F7\(aq)==False for 0.7.16 but True for 0.7.15
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.16
+.sp
+Date: 30 Aug 2015
+.SS Changes since 0.7.15
+.INDENT 0.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B IPv4 networks with /31 and /32 netmasks are now treated according to
+RFC 3021. Thanks to kalombos and braaen.
+.UNINDENT
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 109: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:109>
+.INDENT 7.0
+.IP \(bu 2
+Identify registry of global IPv6 unicast allocations
+.UNINDENT
+.TP
+.B FIXED Issue 108: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:108>
+.INDENT 7.0
+.IP \(bu 2
+One part of docs unclear?
+.UNINDENT
+.TP
+.B FIXED Issue 106: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:106>
+.INDENT 7.0
+.IP \(bu 2
+Eui64 Updated (pull request for Issue 105)
+.UNINDENT
+.TP
+.B FIXED Issue 105: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:105>
+.INDENT 7.0
+.IP \(bu 2
+Support dialects for EUI\-64 addresses
+.UNINDENT
+.TP
+.B FIXED Issue 102: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/\:102>
+.INDENT 7.0
+.IP \(bu 2
+0.7.15 tarball is missing tests.
+.UNINDENT
+.TP
+.B FIXED Issue 96: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/96>
+.INDENT 7.0
+.IP \(bu 2
+Wrong hosts and broadcasts for /31 and /32 networks.
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.15
+.sp
+Date: 29 Jun 2015
+.SS Changes since 0.7.14
+.INDENT 0.0
+.IP \(bu 2
+Fix slowness in IPSet.__contains__. Thanks to novas0x2a for noticing.
+.IP \(bu 2
+Normalize IPNetworks when they are added to an IPSet
+.IP \(bu 2
+Converted test suite to py.test
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 98: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/98>
+.INDENT 7.0
+.IP \(bu 2
+Convert test suite to py.test
+.UNINDENT
+.TP
+.B FIXED Issue 94: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/94>
+.INDENT 7.0
+.IP \(bu 2
+IPSet.__contains__ is about 40 times slower than the equivalent IPRange
+.UNINDENT
+.TP
+.B FIXED Issue 95: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/95>
+.INDENT 7.0
+.IP \(bu 2
+Inconsistent Address Handling in IPSet
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.14
+.sp
+Date: 31st Mar 2015
+.SS Changes since 0.7.13
+.INDENT 0.0
+.IP \(bu 2
+Fix weird build breakage in 0.7.13 (wrong Python path, incorrect OUI DB).
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B EUI, OUI, and IAB objects can now be compared with strings. You can do
+my_mac = EUI(\(dq11:22:33:44:55:66\(dq)
+my_mac == \(dq11:22:33:44:55:66\(dq
+and Python will return True on the \(dq==\(dq operator.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B Implement the \(dq!=\(dq operator for OUI and IAB under Python2. It was already
+working under Python3.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B 64 bit EUIs could only be created from strings with \(dq\-\(dq as a separator.
+Now, \(dq:\(dq and no separator are supported, which already worked for 48 bit EUIs.
+.UNINDENT
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 80: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:pull/80>
+.INDENT 7.0
+.IP \(bu 2
+Compare L2 addresses with their representations
+.UNINDENT
+.TP
+.B FIXED Issue 81: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/81>
+.INDENT 7.0
+.IP \(bu 2
+OUI database tests fail in 0.7.13
+.UNINDENT
+.TP
+.B FIXED Issue 84: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/84>
+.INDENT 7.0
+.IP \(bu 2
+Incorrect python executable path in netaddr\-0.7.13\-py2.py3\-none\-any.whl
+.UNINDENT
+.TP
+.B FIXED Issue 87: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:pull/87>
+.INDENT 7.0
+.IP \(bu 2
+Handle eui64 addresses with colon as a delimiter and without delimiter.
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.13
+.sp
+Date: 31st Dec 2014
+.SS Changes since 0.7.12
+.INDENT 0.0
+.IP \(bu 2
+IPAddress objects can now be added to/subtracted from each other
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 73: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/73>
+.INDENT 7.0
+.IP \(bu 2
+Adding IP Addresses
+.UNINDENT
+.TP
+.B FIXED Issue 74: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/74>
+.INDENT 7.0
+.IP \(bu 2
+compute static global ipv6 addr from the net prefix and mac address
+.UNINDENT
+.TP
+.B FIXED Issue 75: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/75>
+.INDENT 7.0
+.IP \(bu 2
+add classifiers for python 3.3 and 3.4 support
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.12
+.sp
+Date: 6th Jul 2014
+.SS Changes since 0.7.11
+.INDENT 0.0
+.IP \(bu 2
+Added method IPSet.iter_ipranges().
+.IP \(bu 2
+bool(IPSet()) works now for large IPSets, e.g. IPSet([\(aq2405:8100::/32\(aq]).
+.IP \(bu 2
+IPNetwork.iter_hosts now skips the subnet\-router anycast address for IPv6.
+.IP \(bu 2
+Removed function fbsocket.inet_aton because it is unused and unnecessary
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.TP
+.B FIXED Issue 69: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/69>
+.INDENT 7.0
+.IP \(bu 2
+Add __nonzero__ method to IPSet
+.UNINDENT
+.TP
+.B FIXED Pull Request 68: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:pull/68>
+.INDENT 7.0
+.IP \(bu 2
+Fixed a bug related to allowing ::0 during iter_hosts for v6
+.UNINDENT
+.TP
+.B FIXED Issue 67: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/67>
+.INDENT 7.0
+.IP \(bu 2
+Remove function fbsocket.inet_aton
+.UNINDENT
+.TP
+.B FIXED Pull Request 66: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:pull/66>
+.INDENT 7.0
+.IP \(bu 2
+Added Function to create list of IPRange for non\-contiguous IPSet
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.11
+.sp
+Date: 19th Mar 2014
+.SS Changes since 0.7.10
+.INDENT 0.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B Performance of IPSet increased dramatically, implemented by
+Stefan Nordhausen and Martijn van Oosterhout. As a side effect,
+IPSet(IPNetwork(\(dq10.0.0.0/8\(dq)) is now as fast as you\(aqd expect.
+.UNINDENT
+.IP \(bu 2
+Various performance improvements all over the place.
+.IP \(bu 2
+netaddr is now hosted on PyPI and can be installed via pip.
+.IP \(bu 2
+Doing  \(dq10.0.0.42\(dq in IPNetwork(\(dq10.0.0.0/24\(dq)  works now.
+.IP \(bu 2
+IPSet has two new methods: iscontiguous() and iprange(), thanks to Louis des Landes.
+.IP \(bu 2
+Re\-added the IPAddress.netmask_bits() method that was accidentally removed.
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B Networks 128.0.0.0/16, 191.255.0.0/16, and 223.255.255.0/24 are not marked as
+reserved IPv4 addresses any more. Thanks to marnickv for pointing that out.
+.UNINDENT
+.IP \(bu 2
+Various bug fixes contributed by Wilfred Hughes, 2*yo and Adam Goodman.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 58: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/58>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+foo.bar doesn\(aqt throw AddrFormatError
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 57: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/57>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+netaddr packages not hosted on PyPI
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 56: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/56>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Fix comparison with large IPSet()
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 55: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:pull/55>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Fix smallest_matching_cidr and all_matching_cidrs
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 53: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/53>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Exclude 128.0.0.0/16 and possibly others from reserved range set?
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 51: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/51>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Encoding errors in netaddr/eui/oui.txt
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 46: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/46>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+len(IPSet()) fails on python3
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 43: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/43>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Method to check if IPSet is contiguous
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 38: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/38>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+netmask_bits is missing from the IPAddress
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 37: \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/37>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Test failures with Python 3.3
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.10
+.sp
+Date: 6th Sep 2012
+.SS Changes since 0.7.9
+.INDENT 0.0
+.IP \(bu 2
+A bunch of Python 3.x bug fixes. Thanks Arfrever.
+.IP \(bu 2
+Extended nmap support to cover full target specification.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 36 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/36>
+.INDENT 0.0
+.IP \(bu 2
+ResourceWarnings with Python >=3.2
+.UNINDENT
+.sp
+FIXED Issue 35 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/35>
+.INDENT 0.0
+.IP \(bu 2
+netaddr\-0.7.9: Test failure with Python 3
+.UNINDENT
+.sp
+FIXED Issue 34 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/34>
+.INDENT 0.0
+.IP \(bu 2
+netaddr.ip.iana.SaxRecordParser.endElement() incompatible with Python 3.1
+.UNINDENT
+.sp
+FIXED Issue 33 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/33>
+.INDENT 0.0
+.IP \(bu 2
+netaddr script not installed with Python 3
+.UNINDENT
+.sp
+FIXED Issue 23 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/23>
+.INDENT 0.0
+.IP \(bu 2
+valid_nmap_range() does not validate nmap format case.
+.UNINDENT
+.sp
+FIXED Issue 22 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/22>
+.INDENT 0.0
+.IP \(bu 2
+all_matching_cidrs: documentation incorrect
+.UNINDENT
+.SS Release: 0.7.9
+.sp
+Date: 28th Aug 2012
+.SS Changes since 0.7.8
+.INDENT 0.0
+.IP \(bu 2
+Re\-release to fix build removing Sphinx dependency.
+.UNINDENT
+.SS Release: 0.7.8
+.sp
+Date: 28th Aug 2012
+.SS Changes since 0.7.7
+.INDENT 0.0
+.IP \(bu 2
+New SAX parser for IANA data source files (contributed by Andrew Stromnov)
+.IP \(bu 2
+Fixed pickling failures with EUI, OUI and IAB classes.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 31 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/31>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Exclude \(aq39.0.0.0/8\(aq network from reserved set. Thanks Andrew Stromnov
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 28 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/28>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Fix algorithm in ipv6_link_local to fully conform to rfc4291. Thanks Philipp Wollermann
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 25 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/25>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+install_requires is too aggressive? Thanks Adam Lindsay and commenters.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 21 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/21>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+deepcopy for EUI fails. Thanks Ryan Nowakowski.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.7
+.sp
+Date: 30th May 2012
+.SS Changes since 0.7.6
+.INDENT 0.0
+.IP \(bu 2
+Comprehensive documentation update! It\(aqs only taken 4 years
+to get around to using Sphinx and I can confirm it is
+\fBTOTALLY AWESOME!\fP
+.IP \(bu 2
+Various bug fixes
+.IP \(bu 2
+Refreshed IEEE OUI and IAB data
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 24 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/24>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Fixed TypeError when comparing BaseIP instance with non\-BaseIP objects. Thanks pvaret
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 17 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/17>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+For large ipv6 networks the .subnet() method fails. Thanks daveyss
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 20 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/20>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Test failure with Python 3. Thanks Arfrever
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.6
+.sp
+Date: 13th Sep 2011
+.SS Changes since 0.7.5
+.INDENT 0.0
+.IP \(bu 2
+A bug fix point release
+.IP \(bu 2
+Refreshed 3rd party data caches
+.IP \(bu 2
+Tested against Python 3.2.x and PyPy 1.6.x
+.IP \(bu 2
+Fixed unit tests under for Mac OSX
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 15 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/15>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Incorrect and invalid glob produced when last octet is not *
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 13 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/13>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Added support for IPython 0.11 API changes. Thanks juliantaylor
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 11 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/11>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Calling valid_glob on cidr raises ValueError. Thanks radicand
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 7 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/7>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Unpickling Bug in IPSet. Thanks LuizOz and labeneator
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 2 \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues/2>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+UnboundLocalError raised in IPNetwork constructor. Thanks keesbos
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Miscellanea
+.INDENT 0.0
+.IP \(bu 2
+Has a famous soft drink company started making it own NICs?
+.UNINDENT
+.SS Release: 0.7.5
+.sp
+Date: 5th Oct 2010
+.SS Changes since 0.7.4
+.INDENT 0.0
+.IP \(bu 2
+Python 3.x is now fully supported. The paint is still drying on this so
+please help with testing and raise bug tickets when you find any issues!
+New Issue Tracker \- \%<https://\:github\:.com/\:drkjam/\:netaddr/\:issues>
+.IP \(bu 2
+Moved code hosting to github. History ported thanks to svn2git.
+\- (\%<https://\:github\:.com/\:nirvdrum/\:svn2git>)
+.IP \(bu 2
+All netaddr objects now use approx. 65% less memory due to the use of
+__slots__ in classes throughout the codebase. Thanks to Stefan Nordhausen
+and his Python guru for this suggestion!
+.IP \(bu 2
+Applied many optimisations and speedups throughout the codebase.
+.IP \(bu 2
+Fixed the behaviour of the IPNetwork constructor so it now behaves in
+a much more sensible and expected way (i.e. no longer uses inet_aton
+semantics which is just plain odd for network addresses).
+.IP \(bu 2
+One minor change to behaviour in this version is that the .value property
+on IPAddress and IPNetwork objects no longer support assignment using a
+string IP address. Only integer value assignments are now valid. The impact
+of this change should be minimal for the majority of users.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 49 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=49>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Incorrect IP range recognition on IPs with leading zeros
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 50 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=50>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+CIDR block parsing
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 52 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=52>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+ipv6 cidr matches incorrectly match ipv4 [sic]
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 53 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=53>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Error in online documentation
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 54 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=54>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+IP recognition failure
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 55 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=55>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Support for Python 3.x
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 56 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=56>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+checking IPAddress in IPNetwork
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 57 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=57>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+netaddr objects can\(aqt pickle
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 58 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=58>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+IPSet operations should accept the same arguments as IPAddress
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 59 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=59>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+netaddr fails to load when imported by a PowerDNS coprocess
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Miscellanea
+.INDENT 0.0
+.IP \(bu 2
+Welcome back to standards.ieee.org which seems to have been down for weeks!
+.IP \(bu 2
+Goodbye Sun Microsystems + Merrill Lynch, hello Oracle + Bank of America ...
+.UNINDENT
+.SS Release: 0.7.4
+.sp
+Date: 2nd Dec 2009
+.SS Changes since 0.7.3
+.INDENT 0.0
+.IP \(bu 2
+Applied speed patches by S. Nordhausen
+.IP \(bu 2
+Fixed an inconsistency between EUI and IPAddress interfaces. Made
+EUI.packed and EUI.bin properties (previously methods) and added a
+words() property.
+.UNINDENT
+.SS Release: 0.7.3
+.sp
+Date: 14th Sep 2009
+.SS Changes since 0.7.2
+.INDENT 0.0
+.IP \(bu 2
+Added __add__, __radd__, __sub__, __rsub__ operators to the IPAddress class.
+.IP \(bu 2
+Added support for validation and iteration of simple nmap style IPv4 ranges
+(raised in Issue 46).
+.IP \(bu 2
+Removed some unused constants from fallback socket module.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 44 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=44>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+int/long type error
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 46 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=46>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Question about IPv4 ranges
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 47 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=47>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+IPNetwork cannot be evaluated as a boolean when it has a large size
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.2
+.sp
+Date: 20th Aug 2009
+.SS Changes since 0.7.1
+.INDENT 0.0
+.TP
+.B FIXED a boundary problem with the iter_iprange() generator function
+and all associated calls to it throughout the codebase, including
+unit test coverage and adjustments.
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+Replaced regular expressions in cidr_merge() with pre\-compiled equivalents
+for a small speed boost.
+.IP \(bu 2
+Adjustments to README raised by John Eckersberg.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 43 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=43>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+IPNetwork(\(aq0.0.0.0/0\(aq) not usable in for loop
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7.1
+.sp
+Date: 14th Aug 2009
+.SS Changes since 0.7
+.INDENT 0.0
+.IP \(bu 2
+Renamed the netaddr shell script from \(aqnash\(aq to plain \(aqnetaddr\(aq. This
+is to avoid a potentially nasty clash with an important Linux tool
+with the same name.
+.sp
+Thanks to John Eckersberg for spotting this one early!
+.IP \(bu 2
+Updated IANA and IEEE data files with latest versions.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 42 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=42>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Bug in cidr_merge() function when passed the CIDRs 0.0.0.0/0 and/or ::/0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.7
+.sp
+Date: 11th Aug 2009
+.SS Changes since 0.6.x
+.sp
+Please Note \- This release represents a major overhaul of netaddr. It breaks
+backward compatibility with previous releases. See the API documentation for
+full details of what is available.
+.sp
+Some highlights of what has changed :\-
+.INDENT 0.0
+.IP \(bu 2
+Internal module hierarchy has been completely overhauled and redesigned. This
+fixes up a lot of inconsistencies and problems with interdependent imports.
+All public classes, objects, functions and constants are still published via
+the main netaddr module namespace as in previous releases.
+.IP \(bu 2
+No more AT_* and ST_* \(aqconstants\(aq.
+.IP \(bu 2
+The Addr base class is gone. This removes the link between EUI and IP
+functionality so the library is can now easily be split into distinct units
+without many interdependencies between layer 2 and layer 3 functionality.
+.IP \(bu 2
+The use of custom descriptor classes has been completely discontinued.
+.IP \(bu 2
+Strategy classes and singleton objects have been replaced with a group of
+strategy modules in their own netaddr.strategy namespace. Each IP or EUI
+address object now holds a reference to a module rather than a singleton
+object.
+.IP \(bu 2
+Many operations that were previously static class methods are now presented as
+functions in the relevant modules. See the API documentation for details.
+.IP \(bu 2
+The IP and CIDR classes have been replaced with two new classes called
+IPAddress and IPNetwork respectively. This name change is important as the IP
+part of netaddr has been completed redesigned. The notion of an individual IP
+address and an IP network or subnet has been made more obvious. IPAddress
+objects are now true scalars and do not evaluate in a list or tuple context.
+They also do not support any notion of a netmask or CIDR prefix; this is the
+primary function of an IPNetwork object.
+.IP \(bu 2
+Arbitrary IP ranges and are still supported but a lot of their functionality
+has also been exposed via handy functions.
+.IP \(bu 2
+IP globbing routines (previous known as Wildcards) have been moved into
+their own submodule.
+.IP \(bu 2
+Added a new IPSet class which fully emulates mutable Python sets. This
+replaces a lot of half\-baked experimental classes found in 0.5.x and 0.6.x
+such as IPRangeSet and CIDRGroup. See documentation for details.
+.IP \(bu 2
+All methods and properties that previously used or supported the \(aqfmt\(aq
+formatting property no longer do so. In all cases, objects are now returned to
+correctly support pass through calls without side effects. It is up to the
+user to extract data in the right format from the objects IPAddress objects
+returned as required.
+.IP \(bu 2
+Unit tests have been completed re\-written to support docstring style tests
+bundled into test suites. These are handy as they double up as documentation
+being combined with wiki syntax. Implemented code coverage checking using
+coverage 3.x.
+.IP \(bu 2
+nash \- a nascent shell like tool for the netaddr library (requires IPython).
+.IP \(bu 2
+Support for RFC 1924 added ;\-)
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 13 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=13>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Searching for a match in a list of CIDR objects
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 26 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=26>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Refactor out use of isinstance()
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 28 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=28>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Add support for network block operations
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 34 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=34>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Addition issue?
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.6.4
+.sp
+Date: 11th Aug 2009
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 40 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=40>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Building RPM with \(dqpython setup.py bdist_rpm\(dq fails, multiple errors
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.6.3
+.sp
+Date: 23rd Jun 2009
+.SS Changes since 0.6.2
+.INDENT 0.0
+.IP \(bu 2
+Fixed line endings in a number of new files created under Windows.
+.IP \(bu 2
+Tweaked the ordering of values in tuple passed into the hash() function in
+the __hash__ method of the IP and IPRange classes to make it the same as
+the values used for comparisons implemented in the __eq__ method (Python
+best practice).
+.IP \(bu 2
+Added a number of unit tests to improve code coverage.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 33 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=33>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+CIDR subtraction is broken for out\-of\-range CIDR objects
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 35 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=35>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+install error (on Python interpreters where socket.has_ipv6 is False)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 36 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=36>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+netaddr.CIDR fails to parse default route CIDR
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 37 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=37>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Bug in bitwise AND operator for IP addresses
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 38 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=38>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Feature request: Addr.__nonzero__
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 39 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=39>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+CIDR.abbrev_to_verbose() not applying implicit classful netmask
+rules consistently
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.6.2
+.sp
+Date: 13th Apr 2009
+.SS Changes since 0.6.1
+.INDENT 0.0
+.IP \(bu 2
+Refreshed IEEE and IANA data files with latest revisions from their
+respective URLs.
+.INDENT 2.0
+.IP \(bu 2
+IANA IPv4 Address Space Registry (last updated 2009\-03\-11)
+.IP \(bu 2
+Internet Multicast Addresses (last updated 2009\-03\-17)
+.IP \(bu 2
+IEEE OUI and IAB files (last updated 2009\-04\-13)
+.UNINDENT
+.IP \(bu 2
+Added get_latest_files() functions to both the netaddr.eui and
+netaddr.ip modules to assist in automating release builds.
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 32 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=32>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Addr.__ne__ returns wrong answer
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.6.1
+.sp
+Date: 6th Apr 2009
+.SS Changes since 0.6
+.INDENT 0.0
+.IP \(bu 2
+Added COPYRIGHT file with details and attribution for all 3rd party files
+bundled with netaddr.
+.IP \(bu 2
+Minimum Python version required is now 2.4.x changed from 2.3.x.
+.INDENT 2.0
+.IP \(bu 2
+Python 2.3 compatibility code in many sections of code have been removed.
+.IP \(bu 2
+the @property and @staticmethod decorators are now used throughout the
+code along with the reversed() and sorted() builtin iterators.
+.IP \(bu 2
+A specific version check has also been added that will raise RuntimeError
+exceptions if you run netaddr on a Python interpreter version < 2.4.x.
+.UNINDENT
+.IP \(bu 2
+Integer addresses passed to the IP() and EUI() constructors no longer
+require a mandatory second address type (AT_*) argument in most cases. This
+is now only really required to disambiguate between IPv4/IPv6 addresses with
+the same numerical value. The same behaviour applies to EUI\-48/EUI\-64
+identifiers. A small speed boost is achieved if the 2nd address type
+argument is explicitly provided.
+.IP \(bu 2
+IPv6 addresses returned by EUI.ipv6_link_local() now always have a subnet
+prefix of /64.
+.IP \(bu 2
+Default sort order of aggregate classes (IPRange, CIDR and Wildcard) has
+been changed (again). They now sort initially by first address and then
+by network block size from largest to smallest which feels more natural.
+.IP \(bu 2
+Fixed a bug in the CIDR.abbrev_to_verbose() static method where IPv4
+addresses with 4 octets (i.e. non\-partial addresses) were being assigned
+subnet prefixes using abbreviated rules. All complete IPv4 addresses should
+always get a /32 prefix where it is not explicitly provided.
+.IP \(bu 2
+Abbreviated address expansion in the CIDR constructor is now optional and
+can be controlled by a new \(aqexpand_abbrev\(aq boolean argument.
+.IP \(bu 2
+Added the new CIDR.summarize() static method which transforms lists of IP
+addresses and CIDRs into their most compact forms. Great for trimming down
+large ad hoc address lists!
+.IP \(bu 2
+Added the previous() and next() methods to the CIDR classes which return
+the CIDR subnets either side of a given CIDR that are of the same size.
+For the CIDR 192.0.2.0/24, previous will return 192.0.1.0/24 and next
+will return 192.0.3.0/24. Also accepts and optional step size (default
+is 1).
+.IP \(bu 2
+Added the supernet() method to the CIDR class which returns a generator of
+all the subnets that contain the current CIDR found by decrementing the
+prefixlen value for each step until it reaches zero.
+.IP \(bu 2
+Changed the way the fallback code works when the socket module is missing
+important constants and functions.
+.IP \(bu 2
+Removed the uppercase options from the Strategy constructors and internals
+as this behaviour can be easily replicated using the word_fmt option
+instead and requires less code (word_fmt=\(aq%X\(aq).
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.sp
+FIXED Issue 23 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=23>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Improve IPv6 IPv4 mapped/compatible address formatting
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 24 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=24>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+bug in CIDR.subnet() when using the fmt argument
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 29 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=29>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+CIDR.subnet method\(aqs count argument isn\(aqt working as documented
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 30 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=30>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+not compatible with Python 2.3
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+FIXED Issue 31 \- \%<http://\:code\:.google\:.com/\:p/\:netaddr/\:issues/\:detail?\:id=31>
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+byte order in documentation confusing or wrong
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Release: 0.6
+.sp
+Date: 20th Jan 2009
+.SS Changes since 0.5.x
+.INDENT 0.0
+.IP \(bu 2
+Namespace changes
+.sp
+3 new sub namespaces have been added :\-
+.INDENT 2.0
+.IP \(bu 2
+netaddr.eui
+.UNINDENT
+.sp
+Currently contains IEEE OUI and IAB classes and lookup code.
+.INDENT 2.0
+.IP \(bu 2
+netaddr.ip
+.UNINDENT
+.sp
+Currently contains IANA IPv4, IPv6 and IPv4 multicast lookup code.
+.INDENT 2.0
+.IP \(bu 2
+netaddr.core
+.UNINDENT
+.sp
+Currently contains only a couple of classes that are shared between code in
+netaddr.eui and netaddr.ip.
+.sp
+Please Note: This change is part of a two stage internal restructuring of
+netaddr. In future releases, layer\-2 MAC/EUI functionality will be separated
+from and layer\-3 IP, CIDR and Wildcard functionality. All shared code will
+be moved to netaddr.core. When the migration is complete (expected in 0.7)
+the netaddr.address and netaddr.strategy namespaces will be removed. Please
+endeavour to access everything you need via the top\-level netaddr namespace
+from this release onwards. See netaddr.__all__ for details of constants,
+objects, classes and functions intended for the public interface.
+.IP \(bu 2
+Addition of IEEE and IANA informational lookups
+.INDENT 2.0
+.IP \(bu 2
+the IP() and EUI() classes now have an additional info() method through
+which contextual information about your addresses can be accessed. This
+data is published by IANA and the IEEE respectively and sourced directly
+from text files bundled with netaddr that are available for download
+publicly online. Details are available in the docstring of the relevant
+parsing classes. Subsequent netaddr releases will endeavour to keep
+up\-to\-date with any updates to these files.
+.IP \(bu 2
+the EUI() class has been updated with the addition of the OUI() and IAB()
+classes. They provide object based access to returned via the EUI.info()
+method. Please see API docs included with netaddr for details.
+.IP \(bu 2
+added new NotRegisteredError exception that is raised when an EUI doesn\(aqt
+match any currently registration entries in the IEEE registry files.
+.UNINDENT
+.IP \(bu 2
+Addr() class removed from the public interface
+.INDENT 2.0
+.IP \(bu 2
+This class is only ever meant to be used internally and its usage may soon
+be deprecated in favour converting it into an abstract base class in
+future releases.
+.UNINDENT
+.IP \(bu 2
+Deletion of AddrRange() class
+.INDENT 2.0
+.IP \(bu 2
+replaced with the more specific IPRange() class. AddrRange() wasn\(aqt
+very useful in practice. Too much time has been spent explaining its
+theoretical merits over its actual practicality for every day use.
+.UNINDENT
+.IP \(bu 2
+Addition of new IPRange() class
+.INDENT 2.0
+.IP \(bu 2
+the new base class for CIDR() and Wildcard().
+.IP \(bu 2
+a \(aqkiller feature\(aq of this new class are the new methods iprange(),
+cidrs() and wildcard() which allow you to use and switch between all
+3 formats easily. IPRange(\(aqx\(aq, \(aqy\(aq).cidrs() is particularly useful
+returning all the intervening CIDRs between 2 arbitrary IP addresses.
+.IP \(bu 2
+IPRange() is a great place to expose several new methods available to
+sub classes. They are issupernet(), issubnet(), adjacent() and overlaps().
+.IP \(bu 2
+previous method called data_flavour() has been renamed (again) to a more
+suitable format().
+.UNINDENT
+.IP \(bu 2
+IP() class updates
+.INDENT 2.0
+.IP \(bu 2
+is_netmask() and is_hostmask() methods have been optimised and are now
+both approximately 4 times faster than previously!
+.IP \(bu 2
+added wildcard() and iprange() methods that return pre\-initialised
+objects of those classes based on the current netmask / subnet prefix.
+.IP \(bu 2
+copy constructor methods ipv4() and ipv6() now preserve the value of the
+prefixlen property now also support IPv6 options for returning IPv4\-mapped
+or IPv4\-compatible IPv6 addresses.
+.IP \(bu 2
+added new methods is_loopback(), is_private(), is_link_local(),
+is_ipv4_mapped() and is_ipv4_compat() which are all self explanatory.
+.IP \(bu 2
+added a bin() method which provides an IP address in the same format
+as the standard Python bin() builtin type (\(aq0bxxx\(aq) now available in
+Python 2.6.x and higher.
+.IP \(bu 2
+added a packed() method which provides an IP address in packed binary
+string format, suitable for passing directly to Python socket calls.
+.UNINDENT
+.IP \(bu 2
+nrange() generator function updates
+.INDENT 2.0
+.IP \(bu 2
+by default this now returns IP() objects instead of Addr() objects.
+.UNINDENT
+.IP \(bu 2
+CIDR() class updates
+.INDENT 2.0
+.IP \(bu 2
+the \(aqstrict_bitmask\(aq option in the CIDR class constructor has been had a
+name change and is now just \(aqstrict\(aq (less typing).
+.IP \(bu 2
+support for Cisco ACL\-style (hostmask) prefixes. Also available to the
+IP() class. They are converted to their netmask equivalents before being
+applied to the base address.
+.IP \(bu 2
+added a new subnet() generator method that returns iterators to subnet
+CIDRs found within the current CIDR object\(aqs boundaries e.g. a /24 CIDR
+can provide address with subnet prefixes between a /25 and /32.
+.IP \(bu 2
+added a new span() method which takes a list of IP, IPRange, CIDR and/or
+Wildcards returning a single CIDR that \(aqspans\(aq the lowest and highest
+boundary addresses. An important property of this class is that only a
+single CIDR is returned and that it (potentially) overlaps the start and
+end addresses. The most important aspect of this method is that it
+identifies the left\-most set of bits that are common to all supplied
+addresses. It is the plumbing that makes a lot of other features function
+correctly.
+.IP \(bu 2
+although IPv6 doesn\(aqt support the concept of a broadcast address, after
+some pondering I\(aqve decide to add network() and broadcast() methods to the
+CIDR class. It is an interface quirk that users expect so it has been
+added for ease of use.
+.IP \(bu 2
+the methods network(), broadcast(), hostmask() and netmask() have been
+wrapped in property() builtin calls to make them appear as read\-only
+properties.
+.UNINDENT
+.IP \(bu 2
+Many more MAC and IPv4 string address representation are now supported
+.INDENT 2.0
+.IP \(bu 2
+Improvements to both EUI and IP classes. They now accept many more valid
+address formats than previously. Thanks for all the bugs tickets raised.
+.UNINDENT
+.IP \(bu 2
+\fB__repr__()\fP method behaviour change
+.INDENT 2.0
+.IP \(bu 2
+Using \fBrepr()\fP now assume that you have performed a \fBfrom netaddr import *\fP
+before you execute them. They no longer specify the originating namespace
+of objects which is a bit unnecessary and a lot to read on\-screen.They
+will also be moving around within the namespace shortly anyway so its
+best not to think of them as being anywhere other than directly below
+netaddr itself.
+.UNINDENT
+.IP \(bu 2
+\(aqklass\(aq property renamed to \(aqfmt\(aq (format)
+.INDENT 2.0
+.IP \(bu 2
+now referred to as the \(aqformat callable\(aq property. An unfortunately but
+necessary change. \(aqklass\(aq was a bad initial name choice as it most often
+doesn\(aqt even reference a class object also supporting references to Python
+types, builtin functions and user defined callables.
+.UNINDENT
+.IP \(bu 2
+Complete re\-work and consolidation of unit tests.
+.INDENT 2.0
+.IP \(bu 2
+now over 100 tests covering all aspects of the API and library
+functionality.
+.IP \(bu 2
+Moved all tests into a single file. Lots of additional tests have been
+added along with interface checks to ensure netaddr\(aqs always presents
+a predictable set of properties and methods across releases.
+.UNINDENT
+.IP \(bu 2
+Nascent support for Python eggs and setuptools.
+.INDENT 2.0
+.IP \(bu 2
+Help is need to test this as it is not something I use personally.
+.UNINDENT
+.UNINDENT
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.IP \(bu 2
+Finally fixed the IPv6 string address compression algorithm so that it
+is now compliant with the socket modules inet_ntop() and inet_pton() calls.
+(not available on all platforms).
+.UNINDENT
+.SS Experimental Features
+.INDENT 0.0
+.IP \(bu 2
+added bitwise operators to the IP class
+.INDENT 2.0
+.IP \(bu 2
+does what it says on the tin. Does not effect that value of the IP object
+itself but rather, returns a new IP after the operation has been applied.
+.UNINDENT
+.IP \(bu 2
+IPRangeSet() class added (EXPERIMENTAL).
+.INDENT 2.0
+.IP \(bu 2
+the intention with this class is to allows you to create collections of
+unique IP(), IPRange(), CIDR() and Wildcard() objects. It provides
+iteration over IPs in the collection as well as several membership based
+operations such as any_match() all_matches(), min_match() and max_match().
+.IP \(bu 2
+lots more work to do here. Please raise bugs and feature requests against
+this as you find them. Improvements to this are coming in 0.7.
+.UNINDENT
+.UNINDENT
+.SS Release: 0.5.2
+.sp
+Date: 29th Sep 2008
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.IP \(bu 2
+Fixed Issue 15 in bug tracker. Bad validation and conversion of IPv4
+mapped IPv6 address values in IPv6Strategy class. Covered with unit
+test cases.
+.IP \(bu 2
+Updated PrefixLenDescriptor() class so that modifications to the property
+CIDR.prefixlen also update CIDR.first and CIDR.last keeping them in sync.
+Covered by unit test cases.
+.IP \(bu 2
+IP.hostname() method returns None when DNS lookup fails.
+.UNINDENT
+.SS Release: 0.5.1
+.sp
+Date: 23rd Sep 2008
+.SS Specific bug fixes addressed in this release
+.INDENT 0.0
+.IP \(bu 2
+CIDR constructor was throwing a TypeError for valid unicode string addresses
+which worked in previous releases. Fixed and covered with a unit test case.
+.IP \(bu 2
+The methods CIDR.netmask() and CIDR.hostmask() contained code errors that
+were causing them to fail. Problem fixed and covered with unit test case.
+.UNINDENT
+.SS Release: 0.5
+.sp
+Date: 19th Sep 2008
+.SS Changes since 0.4.x
+.sp
+\fBGeneral\fP
+.INDENT 0.0
+.IP \(bu 2
+Access to all important object attributes in all netaddr classes now takes
+place via custom Python descriptor protocol classes. This has greatly
+simplified internal class logic and made external attributes changes much
+safer and less error prone. It has also made aggregate classes such as CIDR
+and Wildcard effectively read\-write rather than read\-only which they have
+been up until this release.
+.IP \(bu 2
+Amended the way sort order is calculated for Addr and AddrRange (sub)class
+instances so that the address type is taken into account as well as as the
+numerical value of the address or address range. The ascending sort order
+is IPv4, IPv6, EUI\-48 and EUI\-64. Sequences of AddrRange (sub)class
+instances now sort correctly!
+.IP \(bu 2
+Comparisons between instances of Addr and AddrRange (sub)classes now return
+False, rather than raising an AttributeError.
+.IP \(bu 2
+Added checks and workaround code for Python runtime environments that suffer
+from the infamous socket module inet_aton(\(aq255.255.255.255\(aq) bug. This was
+discovered recently in Python 2.4.x on PowerPC under MacOS X. The fix also
+applies in cases where the socket module is not available (e.g. on Google
+App Engine).
+.IP \(bu 2
+All general Exception raising in the strategy module has now been replaced
+with more specific exceptions, mainly ValueError (these were unintentionally
+missed out of the 0.4 release).
+.IP \(bu 2
+Implemented __hash__() operations for the Addr and AddrStrategy classes. This
+allows you to use IP, CIDR and Wildcard objects as keys in dictionaries and
+as elements in sets. Please note \- this is currently an experimental feature
+which may change in future releases.
+.IP \(bu 2
+Added __ne__() operation to Addr and AddrRange classes.
+.IP \(bu 2
+Obeying the \(aqLaw of Demeter\(aq, the address type of Addr and AddrRange
+(sub)class instances can be accessed using the property directly :\-
+.INDENT 2.0
+.INDENT 3.5
+obj.addr_type  # 0.5 onwards
+.UNINDENT
+.UNINDENT
+.sp
+rather than having to go via the strategy object :\-
+.INDENT 2.0
+.INDENT 3.5
+obj.strategy.addr_type  # 0.4 and earlier
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+Renamed the AT_DESCR lookup dictionary to AT_NAMES. Removed invalid and
+duplicated imports from all modules.
+.UNINDENT
+.sp
+\fBAddr class changes\fP
+.INDENT 0.0
+.IP \(bu 2
+Removed the setvalue() method from the Addr class and replaced all uses of
+__setattr__() replaced by custom descriptors throughout.
+.UNINDENT
+.sp
+\fBIP class changes\fP
+.INDENT 0.0
+.IP \(bu 2
+Removed the ambiguity with masklen and prefixlen attributes in the IP class.
+prefixlen now denotes the number of bits that define the netmask for an IP
+address. The new method netmask_bits() returns the number of non\-zero bits
+in an IP object if the is_netmask() method returns True. A prefixlen value
+other than /32 for an address where is_netmask() returns True is invalid
+and will raise a ValueError exception.
+.IP \(bu 2
+Removed the family() method from the IP class. It duplicates information
+now provided by the prefixlen property.
+.IP \(bu 2
+IP class has several new methods. is_multicast() and is_unicast() quickly
+tell you what category of IP address you have and while ipv4() and ipv6()
+act as IPv4 <\-> IPv6 conversions or copy constructors depending on context.
+.IP \(bu 2
+Reverse DNS lookup entries now contain a trailing, top\-level period (.)
+character appended to them.
+.IP \(bu 2
+Added the hostname() method to IP instances which performs a reverse DNS
+.IP \(bu 2
+The IP class __str__() method now omits the subnet prefix is now implicit
+for IPv4 addresses that are /32 and IPv6 addresses that are /128. Subnet
+prefix is maintained in return value for all other values.
+.UNINDENT
+.sp
+\fBAddrRange class changes\fP
+.INDENT 0.0
+.IP \(bu 2
+The AddrRange class no longer stores instances of Addr (sub)classes for the
+first and last address in the range. The instance variables self.start_addr
+and self.stop_addr have been renamed to self.first and self.last and the
+methods obj.first() and obj.last() have been removed.
+.sp
+Instead, self.first and self.last contain integer values and a reference
+to a strategy object is stored. Doing this is a lot more useful and cleaner
+for implementing internal logic.
+.sp
+To get Addr (sub)class objects (or strings, hex etc when manipulating the
+the klass property) use the index values obj[0] and obj[\-1] as a substitute
+for obj.first() and obj.last() respectively.
+.IP \(bu 2
+AddrRange (sub)class instances now define the increment, __iadd__(), and
+decrement, __isub__(), operators. This allows you to \(aqslide\(aq CIDRs and
+Wildcards upwards and downwards based on their block sizes.
+.IP \(bu 2
+The _retval() method has now been renamed data_flavour() \- yes, the UK
+spelling ;\-) You shouldn\(aqt really care much about this as it mostly for
+internal use. I gave it a decent name as I didn\(aqt see any real need to hide
+the functionality if users wanted it.
+.UNINDENT
+.sp
+\fBCIDR class changes\fP
+.INDENT 0.0
+.IP \(bu 2
+The strictness of the CIDR class constructor in relation to non\-zero bits
+once the prefix bitmask has been applied can be disabled use the optional
+argument strict_bitmask=False. It is True (strictness enabled) by default.
+.IP \(bu 2
+Fixed a bug in abbreviated CIDR conversion. Subnet prefix for multicast
+address 224.0.0.0 is now /4 instead of /8.
+.IP \(bu 2
+The CIDR class now supports subtraction between two CIDR objects, returning
+a list of the remainder. Please note that the bigger of the two CIDR objects
+must be on the left hand side of the the expression, otherwise an empty list
+is return. Sorry, you are not allowed to create negative CIDRs ;\-)
+.IP \(bu 2
+The function abbrev_to_cidr() has been renamed to and turned into the static
+method CIDR.abbrev_to_verbose(). No major changes to the logic have been
+made.
+.UNINDENT
+.sp
+\fBWildcard class changes\fP
+.INDENT 0.0
+.IP \(bu 2
+The Wildcard class now defines a static method Wildcard.is_valid() that
+allows you to perform validity tests on wildcard strings without fully
+instantiation a Wildcard object.
+.UNINDENT
+.SS Release: 0.4
+.sp
+Date: 7th Aug 2008
+.SS Changes since 0.3.x
+.INDENT 0.0
+.IP \(bu 2
+All general Exception raising has been replaced with more specific
+exceptions such as TypeError and ValueError and with the addition of two
+custom exception classes, AddrFormatError and AddrConversionError.
+.IP \(bu 2
+The IP class now accepts a subnet prefix. It is \fINOT\fP strict about non\-zero
+bits to the right of implied subnet mask, unlike the CIDR class (see below).
+.IP \(bu 2
+The CIDR class is now completely strict about non\-zero bits to the right of
+the implied subnet netmask and raises a ValueError if they exist, with a
+handy hint as to the correct CIDR to be used based on the supplied subnet
+prefix.
+.IP \(bu 2
+The CIDR class now also supports abbreviated CIDR ranges and uses older
+classful network address rules to decided on a subnet prefix if one is not
+explicitly provided. Supported forms now include 10, 10/8 and 192.168/16.
+Currently only supports these options for IPv4 CIDR address ranges.
+.IP \(bu 2
+__repr__() methods have been defined for all classes in the netaddr module
+producing executable Python statements that can be used to re\-create the
+state of any object.
+.IP \(bu 2
+CIDR and Wildcard classes now have methods that support conversions between
+these two aggregate types :\-
+.INDENT 2.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+CIDR \-> Wildcard
+.IP \(bu 2
+Wildcard \-> CIDR
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Housekeeping Changes
+.INDENT 0.0
+.IP \(bu 2
+Massive docstring review and tidy up with the inclusino of epydoc specific
+syntax to spruce up auto\-generated API documentation.
+.IP \(bu 2
+Thorough review of code using pylint.
+.IP \(bu 2
+Netaddr module now has the special __version__ variable defined which is
+also referenced by setup.py.
+.IP \(bu 2
+Some minor changes to setup.py and MANIFEST.in.
+.IP \(bu 2
+Constants and custom Exception classes have been moved to __init__.py from
+strategy.py
+.IP \(bu 2
+An import * friendly __all__ has been defined for the netaddr namespace
+which should remove the need to delve too much into the address and strategy
+submodules.
+.IP \(bu 2
+Fixed a number of line\-ending issues in several files.
+.UNINDENT
+.SH "حق نشر (COPYRIGHT)"
+.sp
+Here are the copyright notices applicable to the netaddr library.
+.SS netaddr
+.sp
+Copyright (c) 2008 David P. D. Moss
+Portions Copyright (c) 2020 netaddr contributors
+.sp
+Released under the BSD license. See the LICENSE file for details.
+.SS IANA (Internet Assigned Numbers Authority)
+.sp
+netaddr is not sponsored nor endorsed by IANA.
+.sp
+Use of data from IANA (Internet Assigned Numbers Authority) is subject to
+copyright and is provided with prior written permission.
+.sp
+IANA data files included with netaddr are not modified in any way but are
+parsed and made available to end users through an API.
+.sp
+See README file and source code for URLs to latest copies of the relevant
+files.
+.SS IEEE (Institution of Electrical Engineers)
+.sp
+netaddr is not sponsored nor endorsed by the IEEE.
+.sp
+Use of data from the IEEE (Institute of Electrical and Electronics
+Engineers) is subject to copyright. See the following URL for
+details :
+.sp
+\%<http://\:www\:.ieee\:.org/\:web/\:publications/\:rights/\:legal\:.html>
+.sp
+IEEE data files included with netaddr are not modified in any way but are
+parsed and made available to end users through an API. There is no
+guarantee that referenced files are not out of date.
+.sp
+See README file and source code for URLs to latest copies of the relevant
+files.
+.SH "مجوز (LICENSE)"
+.sp
+Here are the licenses applicable to the use of the netaddr library.
+.SS netaddr
+.sp
+COPYRIGHT AND LICENSE
+.sp
+Copyright (c) 2008 David P. D. Moss
+Portions Copyright (c) 2020 netaddr contributors
+.sp
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+.INDENT 0.0
+.IP \(bu 2
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+.IP \(bu 2
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+.IP \(bu 2
+Neither the name of David P. D. Moss nor the names of contributors
+may be used to endorse or promote products derived from this
+software without specific prior written permission.
+.UNINDENT
+.sp
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+\(dqAS IS\(dq AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.SH "نویسندگان (AUTHORS)"
+.INDENT 0.0
+.IP \(bu 2
+David P. D. Moss (author, maintainer) \%<drkjam@\:gmail\:.com>
+.IP \(bu 2
+Stefan Nordhausen (maintainer) \%<stefan\:.nordhausen@\:immobilienscout24\:.de>
+.IP \(bu 2
+Jakub Stasiak (maintainer) \%<jakub@\:stasiak\:.at>
+.UNINDENT
+.sp
+Released under the BSD License (see License \%<> for details).
+.SH CONTRIBUTORS
+.sp
+netaddr is written by David P. D. Moss and currently maintained by Jakub Stasiak.
+.sp
+It is released under the BSD License.
+.sp
+Many people further contributed to netaddr by reporting problems, suggesting
+various improvements or submitting actual code. Here is a list of these people
+(in alphabetical order). Help me keep it complete and free of errors.
+.INDENT 0.0
+.INDENT 3.5
+Vincent Bernat <bernat AT debian.org>
+.sp
+Sebastien Douche <sdouche AT gmail.com>
+.sp
+John Eckersberg <john DOT eckersberg AT gmail.com>
+.sp
+Yi\-Jheng Lin <yzlin AT cs.nctu.edu.tw>
+.sp
+Clay McClure <clay AT daemons.net>
+.sp
+Duncan McGreggor <duncan DOT mcgreggor AT gmail.com>
+.sp
+Stefan Nordhausen <stefan DOT nordhausen AT axiros.com>
+.sp
+Brian F. Peters <brianfpeters AT gmail.com>
+.sp
+James William Pye <jwp AT gmail.com>
+.sp
+Chaitan Rogers <chaitan DOT rogers AT gmail.com>
+.sp
+Victor Stinner <victor DOT stinner AT haypocalc.com>
+.sp
+Andrew Stromnov <stromnov AT gmail.com>
+.UNINDENT
+.UNINDENT
+.sp
+Thanks to everyone on the netaddr mailing list, those who raised bug reports
+and to all those who have, directly and indirectly, guided and influenced the
+development and distribution of this library.
+.sp
+Thanks also for the use of the following code contributions :\-
+.INDENT 0.0
+.IP a. 3
+Python Cookbook recipe 18.11: \(dqFormatting Integers as Binary Strings\(dq
+.INDENT 3.0
+.INDENT 3.5
+Python Cookbook 2d ed. (O\(aqReilly Media 2005) ISBN 0596\-00797\-3
+Alex Martelli, Anna Martelli Ravenscroft and David Ascher
+.UNINDENT
+.UNINDENT
+.IP b. 3
+ASPN Cookbook Recipe 466286: \(dqInteger set type\(dq by Heiko Wundram
+.INDENT 3.0
+.INDENT 3.5
+\%<http://\:code\:.activestate\:.com/\:recipes/\:466286>
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+And last but not least, thanks to Guido van Rossum for his encouraging words
+and for giving us all Python.
+.SH INDICES AND TABLES
+.INDENT 0.0
+.IP \(bu 2
+Index \%<>
+.IP \(bu 2
+Search Page \%<>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+David P. D. Moss
+.SH "حق نشر (COPYRIGHT)"
+2008 David P. D. Moss, 2020 netaddr contributors
+.\" End of generated man page.

@@ -1,0 +1,310 @@
+.\" -*- coding: UTF-8 -*-
+.if \n(.g .ds T< \\FC
+.if \n(.g .ds T> \\F[\n[.fam]]
+.de URL
+\\$2 \(la\\$1\(ra\\$3
+..
+.if \n(.g .mso www.tmac
+.TH lxc-attach 1 2026-08-01 "" ""
+.SH "نام (NAME)"
+lxc-attach \- start a process inside a running container. 
+.SH "خلاصه دستور (SYNOPSIS)"
+'nh
+.fi
+.ad l
+\fBlxc-attach\fR \kx
+.if (\nx>(\n(.l/2)) .nr x (\n(.l/5)
+'in \n(.iu+\nxu
+{-n, --name \fIname\fR} [-f, --rcfile \fIconfig_file\fR] [-a, --arch \fIarch\fR] [-e, --elevated-privileges \fIprivileges\fR] [-s, --namespaces \fInamespaces\fR] [-R, --remount-sys-proc] [--keep-env] [--clear-env] [-v, --set-var \fIvariable\fR] [--keep-var \fIvariable\fR] [-u, --uid \fIuid\fR] [-g, --gid \fIgid\fR] [-- \fIcommand\fR]
+'in \n(.iu-\nxu
+.ad b
+'hy
+.SH "توضیحات (DESCRIPTION)"
+\fBlxc-attach\fR runs the specified
+\fIcommand\fR inside the container
+specified by \fIname\fR. The container
+has to be running already.
+.PP
+If no \fIcommand\fR is specified, the
+current default shell of the user running
+\fBlxc-attach\fR will be looked up inside the
+container and executed. This will fail if no such user exists
+inside the container or the container does not have a working
+nsswitch mechanism.
+.PP
+Previous versions of \fBlxc-attach\fR simply attached to the
+specified namespaces of a container and ran a shell or the specified command
+without first allocating a pseudo terminal. This made them vulnerable to
+input faking via a TIOCSTI \fBioctl\fR call after switching
+between userspace execution contexts with different privilege levels. Newer
+versions of \fBlxc-attach\fR will try to allocate a pseudo
+terminal file descriptor pair on the host and attach any standard file
+descriptors which refer to a terminal to the container side of the pseudo
+terminal before executing a shell or command. Note, that if none of the
+standard file descriptors refer to a terminal \fBlxc-attach\fR
+will not try to allocate a pseudo terminal. Instead it will simply attach
+to the containers namespaces and run a shell or the specified command.
+.SH "گزینه‌ها (OPTIONS)"
+.TP 
+\*(T<\fB\-f, \-\-rcfile \fR\*(T>\fIconfig_file\fR 
+Specify the configuration file to configure the virtualization
+and isolation functionalities for the container.
+
+This configuration file if present will be used even if there is
+already a configuration file present in the previously created
+container (via lxc-create).
+.TP 
+\*(T<\fB\-a, \-\-arch \fR\*(T>\fIarch\fR 
+Specify the architecture which the kernel should appear to be
+running as to the command executed. This option will accept the
+same settings as the \*(T<\fBlxc.arch\fR\*(T> option in
+container configuration files, see
+\fB\*(T<\fIlxc.conf\fR\*(T>\fR(5). By default, the current architecture of the
+running container will be used.
+.TP 
+\*(T<\fB\-e, \-\-elevated\-privileges \fR\*(T>\fIprivileges\fR\*(T<\fB \fR\*(T>
+Do not drop privileges when running
+\fIcommand\fR inside the container. If
+this option is specified, the new process will
+\fInot\fR be added to the container's cgroup(s)
+and it will not drop its capabilities before executing.
+
+You may specify privileges, in case you do not want to elevate all of
+them, as a pipe-separated list, e.g.
+\fICGROUP|LSM\fR. Allowed values are
+\fICGROUP\fR, \fICAP\fR and
+\fILSM\fR representing cgroup, capabilities and
+restriction privileges respectively. (The pipe symbol needs to be escaped,
+e.g. \fICGROUP\e|LSM\fR or quoted, e.g.
+\fI"CGROUP|LSM"\fR.)
+
+\fIWarning:\fR This may leak privileges into the
+container if the command starts subprocesses that remain active
+after the main process that was attached is terminated. The
+(re-)starting of daemons inside the container is problematic,
+especially if the daemon starts a lot of subprocesses such as
+\fBcron\fR or \fBsshd\fR.
+\fIUse with great care.\fR
+.TP 
+\*(T<\fB\-s, \-\-namespaces \fR\*(T>\fInamespaces\fR 
+Specify the namespaces to attach to, as a pipe-separated list,
+e.g. \fINETWORK|IPC\fR. Allowed values are
+\fIMOUNT\fR, \fIPID\fR,
+\fIUTSNAME\fR, \fIIPC\fR,
+\fIUSER \fRand
+\fINETWORK\fR. This allows one to change
+the context of the process to e.g. the network namespace of the
+container while retaining the other namespaces as those of the
+host. (The pipe symbol needs to be escaped, e.g.
+\fIMOUNT\e|PID\fR or quoted, e.g.
+\fI"MOUNT|PID"\fR.)
+
+\fIImportant:\fR This option implies
+\*(T<\fB\-e\fR\*(T>.
+.TP 
+\*(T<\fB\-R, \-\-remount\-sys\-proc\fR\*(T> 
+When using \*(T<\fB\-s\fR\*(T> and the mount namespace is not
+included, this flag will cause \fBlxc-attach\fR
+to remount \fI/proc\fR and
+\fI/sys\fR to reflect the current other
+namespace contexts.
+
+Please see the \fINotes\fR section for more
+details.
+
+This option will be ignored if one tries to attach to the
+mount namespace anyway.
+.TP 
+\*(T<\fB\-\-keep\-env\fR\*(T> 
+Keep the current environment for attached programs. This is
+the current default behaviour (as of version 0.9), but is
+is likely to change in the future, since this may leak
+undesirable information into the container. If you rely on
+the environment being available for the attached program,
+please use this option to be future-proof. In addition to
+current environment variables, container=lxc will be set.
+.TP 
+\*(T<\fB\-\-clear\-env\fR\*(T> 
+Clear the environment before attaching, so no undesired
+environment variables leak into the container. The variable
+container=lxc will be the only environment with which the
+attached program starts.
+.TP 
+\*(T<\fB\-v, \-\-set\-var \fR\*(T>\fIvariable\fR 
+Set an additional environment variable that is seen by the
+attached program in the container. It is specified in the
+form of "VAR=VALUE", and can be specified multiple times.
+.TP 
+\*(T<\fB\-\-keep\-var \fR\*(T>\fIvariable\fR 
+Keep a specified environment variable. It can only be
+specified in conjunction
+with \fI--clear-env\fR, and can be
+specified multiple times.
+.TP 
+\*(T<\fB\-u, \-\-uid \fR\*(T>\fIuid\fR 
+Executes the \fIcommand\fR with user ID (use numerical value)
+\fIuid\fR inside the container.
+.TP 
+\*(T<\fB\-\-g, \-\-gid \fR\*(T>\fIgid\fR 
+Executes the \fIcommand\fR with group ID (use numerical value)
+\fIgid\fR inside the container.
+.SH "COMMON OPTIONS"
+These options are common to most of lxc commands.
+.TP 
+\*(T<\fB\-?, \-h, \-\-help\fR\*(T>
+Print a longer usage message than normal.
+.TP 
+\*(T<\fB\-\-usage\fR\*(T>
+Give the usage message
+.TP 
+\*(T<\fB\-q, \-\-quiet\fR\*(T>
+mute on
+.TP 
+\*(T<\fB\-P, \-\-lxcpath=\fR\*(T>\fIPATH\fR
+Use an alternate container path. The default is /var/lib/lxc.
+.TP 
+\*(T<\fB\-o, \-\-logfile=\fR\*(T>\fIFILE\fR
+Output to an alternate log
+\fIFILE\fR. The default is no log.
+.TP 
+\*(T<\fB\-l, \-\-logpriority=\fR\*(T>\fILEVEL\fR
+Set log priority to
+\fILEVEL\fR. The default log
+priority is \*(T<ERROR\*(T>. Possible values are :
+\*(T<FATAL\*(T>, \*(T<ALERT\*(T>,
+\*(T<CRIT\*(T>,
+\*(T<WARN\*(T>, \*(T<ERROR\*(T>,
+\*(T<NOTICE\*(T>, \*(T<INFO\*(T>,
+\*(T<DEBUG\*(T>, \*(T<TRACE\*(T>.
+
+Note that this option is setting the priority of the events
+log in the alternate log file. It do not have effect on the
+ERROR events log on stderr.
+.TP 
+\*(T<\fB\-n, \-\-name=\fR\*(T>\fINAME\fR
+Use container identifier \fINAME\fR.
+The container identifier format is an alphanumeric string.
+.TP 
+\*(T<\fB\-\-rcfile=\fR\*(T>\fIFILE\fR
+Specify the configuration file to configure the virtualization
+and isolation functionalities for the container.
+
+This configuration file if present will be used even if there is
+already a configuration file present in the previously created
+container (via lxc-create).
+.TP 
+\*(T<\fB\-\-version\fR\*(T>
+Show the version number.
+.SH "مثال‌ها (EXAMPLES)"
+To spawn a new shell running inside an existing container, use
+
+.nf
+\*(T<
+          lxc\-attach \-n container
+        \*(T>
+.fi
+.PP
+To restart the cron service of a running Debian container, use
+
+.nf
+\*(T<
+          lxc\-attach \-n container \-\- /etc/init.d/cron restart
+        \*(T>
+.fi
+.PP
+To deactivate the network link eth1 of a running container that
+does not have the NET_ADMIN capability, use either the
+\*(T<\fB\-e\fR\*(T> option to use increased capabilities,
+assuming the \fBip\fR tool is installed:
+
+.nf
+\*(T<
+          lxc\-attach \-n container \-e \-\- /sbin/ip link delete eth1
+        \*(T>
+.fi
+
+Or, alternatively, use the \*(T<\fB\-s\fR\*(T> to use the
+tools installed on the host outside the container:
+
+.nf
+\*(T<
+          lxc\-attach \-n container \-s NETWORK \-\- /sbin/ip link delete eth1
+        \*(T>
+.fi
+.SH COMPATIBILITY
+Attaching completely (including the pid and mount namespaces) to a
+container requires a kernel of version 3.8 or higher, or a
+patched kernel, please see the lxc website for
+details. \fBlxc-attach\fR will fail in that case if
+used with an unpatched kernel of version 3.7 and prior.
+.PP
+Nevertheless, it will succeed on an unpatched kernel of version 3.0
+or higher if the \*(T<\fB\-s\fR\*(T> option is used to restrict the
+namespaces that the process is to be attached to to one or more of
+\fINETWORK\fR, \fIIPC\fR
+and \fIUTSNAME\fR.
+.PP
+Attaching to user namespaces is supported by kernel 3.8 or higher
+with enabling user namespace.
+.SH "نکات (NOTES)"
+The Linux \fI/proc\fR and
+\fI/sys\fR filesystems contain information
+about some quantities that are affected by namespaces, such as
+the directories named after process ids in
+\fI/proc\fR or the network interface information
+in \fI/sys/class/net\fR. The namespace of the
+process mounting the pseudo-filesystems determines what information
+is shown, \fInot\fR the namespace of the process
+accessing \fI/proc\fR or
+\fI/sys\fR.
+.PP
+If one uses the \*(T<\fB\-s\fR\*(T> option to only attach to
+the pid namespace of a container, but not its mount namespace
+(which will contain the \fI/proc\fR of the
+container and not the host), the contents of \*(T<\fB/proc\fR\*(T>
+will reflect that of the host and not the container. Analogously,
+the same issue occurs when reading the contents of
+\fI/sys/class/net\fR and attaching to just
+the network namespace.
+.PP
+To work around this problem, the \*(T<\fB\-R\fR\*(T> flag provides
+the option to remount \fI/proc\fR and
+\fI/sys\fR in order for them to reflect the
+network/pid namespace context of the attached process. In order
+not to interfere with the host's actual filesystem, the mount
+namespace will be unshared (like \fBlxc-unshare\fR
+does) before this is done, essentially giving the process a new
+mount namespace, which is identical to the hosts's mount namespace
+except for the \fI/proc\fR and
+\fI/sys\fR filesystems.
+.PP
+Previous versions of \fBlxc-attach\fR suffered a bug whereby
+a user could attach to a containers namespace without being placed in a
+writeable cgroup for some critical subsystems. Newer versions of
+\fBlxc-attach\fR will check whether a user is in a writeable
+cgroup for those critical subsystems. \fBlxc-attach\fR might
+thus fail unexpectedly for some users (E.g. on systems where an
+unprivileged user is not placed in a writeable cgroup in critical
+subsystems on login.). However, this behavior is correct and more secure.
+.SH SECURITY
+The \*(T<\fB\-e\fR\*(T> and \*(T<\fB\-s\fR\*(T> options should
+be used with care, as it may break the isolation of the containers
+if used improperly.
+.SH "همچنین ببینید (SEE ALSO)"
+\fBlxc\fR(7),
+\fBlxc-create\fR(1),
+\fBlxc-copy\fR(1),
+\fBlxc-destroy\fR(1),
+\fBlxc-start\fR(1),
+\fBlxc-stop\fR(1),
+\fBlxc-execute\fR(1),
+\fBlxc-console\fR(1),
+\fBlxc-monitor\fR(1),
+\fBlxc-wait\fR(1),
+\fBlxc-cgroup\fR(1),
+\fBlxc-ls\fR(1),
+\fBlxc-info\fR(1),
+\fBlxc-freeze\fR(1),
+\fBlxc-unfreeze\fR(1),
+\fBlxc-attach\fR(1),
+\fBlxc.conf\fR(5)

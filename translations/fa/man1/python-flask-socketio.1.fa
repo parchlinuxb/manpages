@@ -1,0 +1,2297 @@
+'\" t
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "FLASK-SOCKETIO" "1" "Mar 14, 2026" "" "Flask-SocketIO"
+.SH "نام (NAME)"
+flask-socketio \- flask-socketio Documentation
+.sp
+\fBFlask\-SocketIO\fP gives Flask applications access to low latency
+bi\-directional communications between the clients and the server. The
+client\-side application can use any of the SocketIO \%<http://\:socket\:.io>
+client libraries in Javascript, Python, C++, Java and Swift, or any other
+compatible client to establish a permanent connection to the server.
+.SH INTRODUCTION
+.SS Installation
+.sp
+You can install this package in the usual way using \fBpip\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install flask\-socketio
+.EE
+.UNINDENT
+.UNINDENT
+.SS Requirements
+.sp
+Flask\-SocketIO is compatible with Python 3.8+. The asynchronous services that
+this package relies on can be selected among three choices:
+.INDENT 0.0
+.IP \(bu 2
+The \fBthreading\fP package from the Python standard library is the easier and
+most compatible solution, with full support of long\-polling and WebSocket
+transports. The Flask development web server can be used during development,
+and Gunicorn in multi\-threaded mode can be used in production deployments.
+.IP \(bu 2
+gevent \%<http://\:www\:.gevent\:.org> is supported in a number of different
+configurations, also with support for the long\-polling and WebSocket
+transports. The Flask development web server, gevent\(aqs own web server,
+Gunicorn (with the gevent worker) and uWSGI (in gevent mode) are all
+supported when using \fBgevent\fP\&.
+.IP \(bu 2
+eventlet \%<http://\:eventlet\:.net> used to be a good option with support for
+long\-polling and WebSocket transports, but it is not actively maintained
+anymore, so \fBgevent\fP should be preferred. The Flask development web server,
+eventlet\(aqs own web server and Gunicorn (with the eventlet worker) are all
+supported when using \fBeventlet\fP\&.
+.UNINDENT
+.sp
+The extension automatically detects which asynchronous framework to use based
+on what is installed. Preference is given to eventlet, followed by gevent. If
+neither eventlet nor gevent are installed, Python\(aqs \fBthreading\fP package is
+used.
+.sp
+If using multiple processes, a message queue service must be configured to
+allow the servers to coordinate operations such as broadcasting. The supported
+queues are Redis \%<http://\:redis\:.io>, RabbitMQ \%<https://\:www\:.rabbitmq\:.com>,
+Kafka \%<http://\:kafka\:.apache\:.org>, and any other message queues supported by
+the Kombu \%<http://\:kombu\:.readthedocs\:.org/\:en/\:latest> package.
+.sp
+On the client\-side, the official Socket.IO Javascript client library can be
+used to establish a connection to the server. There are also official clients
+written in Swift, Java and C++. Unofficial clients may also work, as long as
+they implement the
+Socket.IO protocol \%<https://\:github\:.com/\:socketio/\:socket\:.io-protocol>\&.
+The python\-socketio \%<https://\:github\:.com/\:miguelgrinberg/\:python-socketio>
+package (which provides the Socket.IO server implementation used by
+Flask\-SocketIO) includes a Python client.
+.SS Version compatibility
+.sp
+The Socket.IO protocol has been through a number of revisions, and some of these
+introduced backward incompatible changes, which means that the client and the
+server must use compatible versions for everything to work.
+.sp
+The version compatibility chart below maps versions of this package to versions
+of the JavaScript reference implementation and the versions of the Socket.IO and
+Engine.IO protocols.
+.TS
+box center;
+l|l|l|l|l|l.
+T{
+JavaScript Socket.IO version
+T}	T{
+Socket.IO protocol revision
+T}	T{
+Engine.IO protocol revision
+T}	T{
+Flask\-SocketIO version
+T}	T{
+python\-socketio version
+T}	T{
+python\-engineio version
+T}
+_
+T{
+0.9.x
+T}	T{
+1, 2
+T}	T{
+1, 2
+T}	T{
+Not supported
+T}	T{
+Not supported
+T}	T{
+Not supported
+T}
+_
+T{
+1.x and 2.x
+T}	T{
+3, 4
+T}	T{
+3
+T}	T{
+4.x
+T}	T{
+4.x
+T}	T{
+3.x
+T}
+_
+T{
+3.x and 4.x
+T}	T{
+5
+T}	T{
+4
+T}	T{
+5.x
+T}	T{
+5.x
+T}	T{
+4.x
+T}
+.TE
+.SH GETTING STARTED
+.SS Initialization
+.sp
+The following code example shows how to add Flask\-SocketIO to a Flask
+application:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import Flask, render_template
+from flask_socketio import SocketIO
+
+app = Flask(__name__)
+app.config[\(aqSECRET_KEY\(aq] = \(aqsecret!\(aq
+socketio = SocketIO(app)
+
+if __name__ == \(aq__main__\(aq:
+    socketio.run(app)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBinit_app()\fP style of initialization is also supported:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import Flask, render_template
+from flask_socketio import SocketIO
+
+socketio = SocketIO()
+
+def create_app():
+    app = Flask(__name__)
+    app.config[\(aqSECRET_KEY\(aq] = \(aqsecret!\(aq
+    socketio.init_app(app)
+    return app
+
+if __name__ == \(aq__main__\(aq:
+    app = create_app()
+    socketio.run(app)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To start the web server simply execute your script. Note the way the web server
+is started. The \fBsocketio.run()\fP function encapsulates the start up of the
+web server and replaces the \fBapp.run()\fP standard Flask development server
+start up. When the application is in debug mode the Werkzeug development server
+is still used and configured properly inside \fBsocketio.run()\fP\&. In production
+mode the eventlet web server is used if available, else the gevent web server
+is used. If eventlet and gevent are not installed, the Werkzeug development web
+server is used.
+.sp
+The \fBflask run\fP command introduced in Flask 0.11 can be used to start a
+Flask\-SocketIO development server based on Werkzeug, but this method of starting
+the Flask\-SocketIO server is not recommended due to lack of WebSocket support.
+Previous versions of this package included a customized version of the
+\fBflask run\fP command that allowed the use of WebSocket on eventlet and gevent
+production servers, but this functionality has been discontinued in favor of the
+\fBsocketio.run(app)\fP startup method shown above which is more robust.
+.sp
+The application must serve a page to the client that loads the Socket.IO
+library and establishes a connection:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+<script src=\(dqhttps://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js\(dq integrity=\(dqsha512\-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==\(dq crossorigin=\(dqanonymous\(dq></script>
+<script type=\(dqtext/javascript\(dq charset=\(dqutf\-8\(dq>
+    var socket = io();
+    socket.on(\(aqconnect\(aq, function() {
+        socket.emit(\(aqmy event\(aq, {data: \(aqI\e\(aqm connected!\(aq});
+    });
+</script>
+.EE
+.UNINDENT
+.UNINDENT
+.SS Receiving Messages
+.sp
+When using SocketIO, messages are received by both parties as events. On the
+client side Javascript callbacks are used. With Flask\-SocketIO the server
+needs to register handlers for these events, similarly to how routes are
+handled by view functions.
+.sp
+The following example creates a server\-side event handler for an unnamed
+event:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmessage\(aq)
+def handle_message(data):
+    print(\(aqreceived message: \(aq + data)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The above example uses string messages. Another type of unnamed events use
+JSON data:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqjson\(aq)
+def handle_json(json):
+    print(\(aqreceived json: \(aq + str(json))
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The most flexible type of event uses custom event names. The message data for
+these events can be string, bytes, int, or JSON:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(json):
+    print(\(aqreceived json: \(aq + str(json))
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Custom named events can also support multiple arguments:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy_event\(aq)
+def handle_my_custom_event(arg1, arg2, arg3):
+    print(\(aqreceived args: \(aq + arg1 + arg2 + arg3)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When the name of the event is a valid Python identifier that does not collide
+with other defined symbols, the \fB@socketio.event\fP decorator provides a more
+compact syntax that takes the event name from the decorated function:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.event
+def my_custom_event(arg1, arg2, arg3):
+    print(\(aqreceived args: \(aq + arg1 + arg2 + arg3)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Named events are the most flexible, as they eliminate the need to include
+additional metadata to describe the message type. The names \fBmessage\fP,
+\fBjson\fP, \fBconnect\fP and \fBdisconnect\fP are reserved and cannot be used for
+named events.
+.sp
+Flask\-SocketIO also supports SocketIO namespaces, which allow the client to
+multiplex several independent connections on the same physical socket:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy event\(aq, namespace=\(aq/test\(aq)
+def handle_my_custom_namespace_event(json):
+    print(\(aqreceived json: \(aq + str(json))
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When a namespace is not specified a default global namespace with the name
+\fB\(aq/\(aq\fP is used.
+.sp
+For cases when a decorator syntax isn\(aqt convenient, the \fBon_event\fP method
+can be used:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+def my_function_handler(data):
+    pass
+
+socketio.on_event(\(aqmy event\(aq, my_function_handler, namespace=\(aq/test\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Clients may request an acknowledgement callback that confirms receipt of a
+message they sent. Any values returned from the handler function will be
+passed to the client as arguments in the callback function:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(json):
+    print(\(aqreceived json: \(aq + str(json))
+    return \(aqone\(aq, 2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In the above example, the client callback function will be invoked with
+two arguments, \fB\(aqone\(aq\fP and \fB2\fP\&. If a handler function does not return any
+values, the client callback function will be invoked without arguments.
+.SS Sending Messages
+.sp
+SocketIO event handlers defined as shown in the previous section can send
+reply messages to the connected client using the \fBsend()\fP and \fBemit()\fP
+functions.
+.sp
+The following examples bounce received events back to the client that sent
+them:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_socketio import send, emit
+
+@socketio.on(\(aqmessage\(aq)
+def handle_message(message):
+    send(message)
+
+@socketio.on(\(aqjson\(aq)
+def handle_json(json):
+    send(json, json=True)
+
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(json):
+    emit(\(aqmy response\(aq, json)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note how \fBsend()\fP and \fBemit()\fP are used for unnamed and named events
+respectively.
+.sp
+When working with namespaces, \fBsend()\fP and \fBemit()\fP use the namespace of
+the incoming message by default. A different namespace can be specified with
+the optional \fBnamespace\fP argument:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmessage\(aq)
+def handle_message(message):
+    send(message, namespace=\(aq/chat\(aq)
+
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(json):
+    emit(\(aqmy response\(aq, json, namespace=\(aq/chat\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To send an event with multiple arguments, send a tuple:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(json):
+    emit(\(aqmy response\(aq, (\(aqfoo\(aq, \(aqbar\(aq, json), namespace=\(aq/chat\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+SocketIO supports acknowledgment callbacks that confirm that a message was
+received by the client:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+def ack():
+    print(\(aqmessage was received!\(aq)
+
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(json):
+    emit(\(aqmy response\(aq, json, callback=ack)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When using callbacks, the Javascript client receives a callback function to
+invoke upon receipt of the message. After the client application invokes the
+callback function the server invokes the corresponding server\-side callback.
+If the client\-side callback is invoked with arguments, these are provided as
+arguments to the server\-side callback as well.
+.SS Broadcasting
+.sp
+Another very useful feature of SocketIO is the broadcasting of messages.
+Flask\-SocketIO supports this feature with the \fBbroadcast=True\fP optional
+argument to \fBsend()\fP and \fBemit()\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(data):
+    emit(\(aqmy response\(aq, data, broadcast=True)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When a message is sent with the broadcast option enabled, all clients
+connected to the namespace receive it, including the sender. When namespaces
+are not used, the clients connected to the global namespace receive the
+message. Note that callbacks are not invoked for broadcast messages.
+.sp
+In all the examples shown until this point the server responds to an event
+sent by the client. But for some applications, the server needs to be the
+originator of a message. This can be useful to send notifications to clients
+of events that originated in the server, for example in a background thread.
+The \fBsocketio.send()\fP and \fBsocketio.emit()\fP methods can be used to
+broadcast to all connected clients:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+def some_function():
+    socketio.emit(\(aqsome event\(aq, {\(aqdata\(aq: 42})
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that \fBsocketio.send()\fP and \fBsocketio.emit()\fP are not the same
+functions as the context\-aware \fBsend()\fP and \fBemit()\fP\&. Also note that in the
+above usage there is no client context, so \fBbroadcast=True\fP is assumed and
+does not need to be specified.
+.SS Rooms
+.sp
+For many applications it is necessary to group users into subsets that can be
+addressed together. The best example is a chat application with multiple rooms,
+where users receive messages from the room or rooms they are in, but not from
+other rooms where other users are. Flask\-SocketIO supports this concept of
+rooms through the \fBjoin_room()\fP and \fBleave_room()\fP functions:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_socketio import join_room, leave_room
+
+@socketio.on(\(aqjoin\(aq)
+def on_join(data):
+    username = data[\(aqusername\(aq]
+    room = data[\(aqroom\(aq]
+    join_room(room)
+    send(username + \(aq has entered the room.\(aq, to=room)
+
+@socketio.on(\(aqleave\(aq)
+def on_leave(data):
+    username = data[\(aqusername\(aq]
+    room = data[\(aqroom\(aq]
+    leave_room(room)
+    send(username + \(aq has left the room.\(aq, to=room)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBsend()\fP and \fBemit()\fP functions accept an optional \fBto\fP argument
+that cause the message to be sent to all the clients that are in the given
+room.
+.sp
+All clients are assigned a room when they connect, named with the session ID
+of the connection, which can be obtained from \fBrequest.sid\fP\&. A given client
+can join any rooms, which can be given any names. When a client disconnects it
+is removed from all the rooms it was in. The context\-free \fBsocketio.send()\fP
+and \fBsocketio.emit()\fP functions also accept a \fBto\fP argument to broadcast
+to all clients in a room.
+.sp
+Since all clients are assigned a personal room, to address a message to a
+single client, the session ID of the client can be used as the \fBto\fP argument.
+.SS Connection Events
+.sp
+Flask\-SocketIO also dispatches connection and disconnection events. The
+following example shows how to register handlers for them:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqconnect\(aq)
+def test_connect(auth):
+    emit(\(aqmy response\(aq, {\(aqdata\(aq: \(aqConnected\(aq})
+
+@socketio.on(\(aqdisconnect\(aq)
+def test_disconnect(reason):
+    print(\(aqClient disconnected, reason:\(aq, reason)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBauth\fP argument in the connection handler is optional. The client can
+use it to pass authentication data such as tokens in dictionary format. If the
+client does not provide authentication details, then this argument is set to
+\fBNone\fP\&. If the server defines a connection event handler without this
+argument, then any authentication data passed by the client is discarded.
+.sp
+The connection event handler can return \fBFalse\fP to reject the connection, or
+it can also raise \fIConnectionRefusedError\fP\&. This is so that the client can be
+authenticated at this point. When using the exception, any arguments passed to
+the exception are returned to the client in the error packet. Examples:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_socketio import ConnectionRefusedError
+
+@socketio.on(\(aqconnect\(aq)
+def connect():
+    if not self.authenticate(request.args):
+        raise ConnectionRefusedError(\(aqunauthorized!\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The disconnection event handler receives a \fBreason\fP argument that indicates
+the cause of the disconnection. The \fBflask_socketio.SocketIO.reason\fP \%<#\:flask_socketio\:.SocketIO\:.reason>
+member includes constants for all the possible reasons.
+.sp
+Note that connection and disconnection events are sent individually on each
+namespace used.
+.SS Class\-Based Namespaces
+.sp
+As an alternative to the decorator\-based event handlers described above, the
+event handlers that belong to a namespace can be created as methods of a
+class. The \fBflask_socketio.Namespace\fP \%<#\:flask_socketio\:.Namespace> is provided as a base class to
+create class\-based namespaces:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_socketio import Namespace, emit
+
+class MyCustomNamespace(Namespace):
+    def on_connect(self):
+        pass
+
+    def on_disconnect(self, reason):
+        pass
+
+    def on_my_event(self, data):
+        emit(\(aqmy_response\(aq, data)
+
+socketio.on_namespace(MyCustomNamespace(\(aq/test\(aq))
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When class\-based namespaces are used, any events received by the server are
+dispatched to a method named as the event name with the \fBon_\fP prefix. For
+example, event \fBmy_event\fP will be handled by a method named \fBon_my_event\fP\&.
+If an event is received for which there is no corresponding method defined in
+the namespace class, then the event is ignored. All event names used in
+class\-based namespaces must use characters that are legal in method names.
+.sp
+As a convenience to methods defined in a class\-based namespace, the namespace
+instance includes versions of several of the methods in the
+\fBflask_socketio.SocketIO\fP \%<#\:flask_socketio\:.SocketIO> class that default to the proper namespace
+when the \fBnamespace\fP argument is not given.
+.sp
+If an event has a handler in a class\-based namespace, and also a
+decorator\-based function handler, only the decorated function handler is
+invoked.
+.SS Error Handling
+.sp
+Flask\-SocketIO can also deal with exceptions:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on_error()        # Handles the default namespace
+def error_handler(e):
+    pass
+
+@socketio.on_error(\(aq/chat\(aq) # handles the \(aq/chat\(aq namespace
+def error_handler_chat(e):
+    pass
+
+@socketio.on_error_default  # handles all namespaces without an explicit error handler
+def default_error_handler(e):
+    pass
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Error handler functions take the exception object as an argument.
+.sp
+The message and data arguments of the current request can also be inspected
+with the \fBrequest.event\fP variable, which is useful for error logging and
+debugging outside the event handler:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import request
+
+@socketio.on(\(dqmy error event\(dq)
+def on_my_event(data):
+    raise RuntimeError()
+
+@socketio.on_error_default
+def default_error_handler(e):
+    print(request.event[\(dqmessage\(dq]) # \(dqmy error event\(dq
+    print(request.event[\(dqargs\(dq])    # (data,)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Debugging and Troubleshooting
+.sp
+To help you debug issues, the server can be configured to output logs to the
+terminal:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+socketio = SocketIO(logger=True, engineio_logger=True)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBlogger\fP argument controls logging related to the Socket.IO protocol,
+while \fBengineio_logger\fP controls logs that originate in the low\-level
+Engine.IO transport. These arguments can be set to \fBTrue\fP to output logs to
+\fBstderr\fP, or to an object compatible with Python\(aqs \fBlogging\fP package
+where the logs should be emitted to. A value of \fBFalse\fP disables logging.
+.sp
+Logging can help identify the cause of connection problems, 400 responses,
+bad performance and other issues.
+.SH IMPLEMENTATION NOTES
+.SS Access to Flask\(aqs Context Globals
+.sp
+Handlers for SocketIO events are different than handlers for routes and that
+introduces a lot of confusion around what can and cannot be done in a SocketIO
+handler. The main difference is that all the SocketIO events generated for a
+client occur in the context of a single long running request.
+.sp
+In spite of the differences, Flask\-SocketIO attempts to make working with
+SocketIO event handlers easier by making the environment similar to that of a
+regular HTTP request. The following list describes what works and what doesn\(aqt:
+.INDENT 0.0
+.IP \(bu 2
+An application context is pushed before invoking an event handler making
+\fBcurrent_app\fP and \fBg\fP available to the handler.
+.IP \(bu 2
+A request context is also pushed before invoking a handler, also making
+\fBrequest\fP and \fBsession\fP available. But note that WebSocket events do not
+have individual requests associated with them, so the request context that
+started the connection is pushed for all the events that are dispatched
+during the life of the connection.
+.IP \(bu 2
+The \fBrequest\fP context global is enhanced with a \fBsid\fP member that is set
+to a unique session ID for the connection. This value is used as an initial
+room where the client is added.
+.IP \(bu 2
+The \fBrequest\fP context global is enhanced with \fBnamespace\fP and \fBevent\fP
+members that contain the currently handled namespace and event arguments.
+The \fBevent\fP member is a dictionary with \fBmessage\fP and \fBargs\fP keys.
+.IP \(bu 2
+The \fBsession\fP context global behaves in a different way than in regular
+requests. A copy of the user session at the time the SocketIO connection is
+established is made available to handlers invoked in the context of that
+connection. If a SocketIO handler modifies the session, the modified session
+will be preserved for future SocketIO handlers, but regular HTTP route
+handlers will not see these changes. Effectively, when a SocketIO handler
+modifies the session, a \(dqfork\(dq of the session is created exclusively for
+these handlers. The technical reason for this limitation is that to save the
+user session a cookie needs to be sent to the client, and that requires HTTP
+request and response, which do not exist in a SocketIO connection. When
+using server\-side sessions such as those provided by the Flask\-Session or
+Flask\-KVSession extensions, changes made to the session in HTTP route
+handlers can be seen by SocketIO handlers, as long as the session is not
+modified in the SocketIO handlers.
+.IP \(bu 2
+The \fBbefore_request\fP and \fBafter_request\fP hooks are not invoked for
+SocketIO event handlers.
+.IP \(bu 2
+SocketIO handlers can take custom decorators, but most Flask decorators will
+not be appropriate to use for a SocketIO handler, given that there is no
+concept of a \fBResponse\fP object during a SocketIO connection.
+.UNINDENT
+.SS Authentication
+.sp
+A common need of applications is to validate the identity of their users. The
+traditional mechanisms based on web forms and HTTP requests cannot be used in
+a SocketIO connection, since there is no place to send HTTP requests and
+responses. If necessary, an application can implement a customized login form
+that sends credentials to the server as a SocketIO message when the submit
+button is pressed by the user.
+.sp
+However, in most cases it is more convenient to perform the traditional
+authentication process before the SocketIO connection is established. The
+user\(aqs identity can then be recorded in the user session or in a cookie, and
+later when the SocketIO connection is established that information will be
+accessible to SocketIO event handlers.
+.sp
+Recent revisions of the Socket.IO protocol include the ability to pass a
+dictionary with authentication information during the connection. This is an
+ideal place for the client to include a token or other authentication details.
+If the client uses this capability, the server will provide this dictionary as
+an argument to the \fBconnect\fP event handler, as shown above.
+.SS Using Flask\-Login with Flask\-SocketIO
+.sp
+Flask\-SocketIO can access login information maintained by
+Flask\-Login \%<https://\:flask-login\:.readthedocs\:.org/\:en/\:latest>\&. After a
+regular Flask\-Login authentication is performed and the \fBlogin_user()\fP
+function is called to record the user in the user session, any SocketIO
+connections will have access to the \fBcurrent_user\fP context variable:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqconnect\(aq)
+def connect_handler():
+    if current_user.is_authenticated:
+        emit(\(aqmy response\(aq,
+             {\(aqmessage\(aq: \(aq{0} has joined\(aq.format(current_user.name)},
+             broadcast=True)
+    else:
+        return False  # not allowed here
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that the \fBlogin_required\fP decorator cannot be used with SocketIO event
+handlers, but a custom decorator that disconnects non\-authenticated users can
+be created as follows:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import functools
+from flask import request
+from flask_login import current_user
+from flask_socketio import disconnect, emit
+
+def authenticated_only(f):
+    @functools.wraps(f)
+    def wrapped(*args, **kwargs):
+        if not current_user.is_authenticated:
+            disconnect()
+        else:
+            return f(*args, **kwargs)
+    return wrapped
+
+@socketio.on(\(aqmy event\(aq)
+@authenticated_only
+def handle_my_custom_event(data):
+    emit(\(aqmy response\(aq, {\(aqmessage\(aq: \(aq{0} has joined\(aq.format(current_user.name)},
+         broadcast=True)
+.EE
+.UNINDENT
+.UNINDENT
+.SH DEPLOYMENT
+.sp
+There are many options to deploy a Flask\-SocketIO server, ranging from simple
+to the insanely complex. In this section, the most commonly used options are
+described.
+.SS Embedded Server
+.sp
+The simplest deployment strategy is to start the web server by calling
+\fBsocketio.run(app)\fP as shown in examples above. This will look through the
+packages that are installed for the best available web server and start the
+application on it. The current web server choices that are evaluated are
+\fBeventlet\fP, \fBgevent\fP and the Flask development server.
+.sp
+If eventlet or gevent are available, \fBsocketio.run(app)\fP starts a
+production\-ready server using one of these frameworks. If neither of these are
+installed, then the Flask development web server is used, and in this case the
+server is not intended to be used in a production deployment.
+.sp
+Unfortunately this option is not available when using gevent with uWSGI. See
+the uWSGI section below for information on this option.
+.SS Gunicorn Web Server
+.sp
+An alternative to \fBsocketio.run(app)\fP is to use
+gunicorn \%<http://\:gunicorn\:.org> as web server, using the eventlet or gevent
+workers. For this option, eventlet or gevent need to be installed, in addition
+to gunicorn. The command line that starts the eventlet server via gunicorn is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gunicorn \-\-worker\-class eventlet \-w 1 module:app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you prefer to use gevent, the command to start the server is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gunicorn \-k gevent \-w 1 module:app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When using gunicorn with the gevent worker and the WebSocket support provided
+by gevent\-websocket, the command that starts the server must be changed to
+select a custom gevent web server that supports the WebSocket protocol. The
+modified command is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gunicorn \-k geventwebsocket.gunicorn.workers.GeventWebSocketWorker \-w 1 module:app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A third option with Gunicorn is to use the threaded worker, along with the
+simple\-websocket \%<https://\:github\:.com/\:miguelgrinberg/\:simple-websocket>
+package for WebSocket support. This is a particularly good solution for
+applications that are CPU heavy or are otherwise incompatible with eventlet
+and gevent use of green threads. The command to start a threaded web server
+is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gunicorn \-w 1 \-\-threads 100 module:app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In all these commands, \fBmodule\fP is the Python module or package that defines
+the application instance, and \fBapp\fP is the application instance itself.
+.sp
+Due to the limited load balancing algorithm used by gunicorn, it is not possible
+to use more than one worker process when using this web server. For that reason,
+all the examples above include the \fB\-w 1\fP option.
+.sp
+The workaround to use multiple worker processes with gunicorn is to launch
+several single\-worker instances and put them behind a more capable load
+balancer such as nginx \%<https://\:www\:.nginx\:.com>\&.
+.SS uWSGI Web Server
+.sp
+When using the uWSGI server in combination with gevent, the Socket.IO server
+can take advantage of uWSGI’s native WebSocket support.
+.sp
+A complete explanation of the configuration and usage of the uWSGI server is
+beyond the scope of this documentation. The uWSGI server is a fairly complex
+package that provides a large and comprehensive set of options. It must be
+compiled with WebSocket and SSL support for the WebSocket transport to be
+available. As way of an introduction, the following command starts a uWSGI
+server for the example application app.py on port 5000:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ uwsgi \-\-http :5000 \-\-gevent 1000 \-\-http\-websockets \-\-master \-\-wsgi\-file app.py \-\-callable app
+.EE
+.UNINDENT
+.UNINDENT
+.SS Using nginx as a WebSocket Reverse Proxy
+.sp
+It is possible to use nginx as a front\-end reverse proxy that passes requests
+to the application. However, only releases of nginx 1.4 and newer support
+proxying of the WebSocket protocol. Below is a basic nginx configuration that
+proxies HTTP and WebSocket requests:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        include proxy_params;
+        proxy_pass http://127.0.0.1:5000;
+    }
+
+    location /static/ {
+        alias <path\-to\-your\-application>/static/;
+        expires 30d;
+    }
+
+    location /socket.io {
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection \(dqUpgrade\(dq;
+        proxy_pass http://127.0.0.1:5000/socket.io;
+    }
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The next example adds the support for load balancing multiple Socket.IO
+servers:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+upstream socketio_nodes {
+    ip_hash;
+
+    server 127.0.0.1:5000;
+    server 127.0.0.1:5001;
+    server 127.0.0.1:5002;
+    # to scale the app, just add more nodes here!
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        include proxy_params;
+        proxy_pass http://127.0.0.1:5000;
+    }
+
+    location /static/ {
+        alias <path\-to\-your\-application>/static/;
+        expires 30d;
+    }
+
+    location /socket.io {
+        include proxy_params;
+        proxy_http_version 1.1;
+        proxy_buffering off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection \(dqUpgrade\(dq;
+        proxy_pass http://socketio_nodes/socket.io;
+    }
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+While the above examples can work as an initial configuration, be aware that a
+production install of nginx will need a more complete configuration covering
+other deployment aspects such as SSL support.
+.SS Using Multiple Workers
+.sp
+Flask\-SocketIO supports multiple workers behind a load balancer starting with
+release 2.0. Deploying multiple workers gives applications that use
+Flask\-SocketIO the ability to spread the client connections among multiple
+processes and hosts, and in this way scale to support very large numbers of
+concurrent clients.
+.sp
+There are two requirements to use multiple Flask\-SocketIO workers:
+.INDENT 0.0
+.IP \(bu 2
+The load balancer must be configured to forward all HTTP requests from a
+given client always to the same worker. This is sometimes referenced as
+\(dqsticky sessions\(dq. For nginx, use the \fBip_hash\fP directive to achieve this.
+Gunicorn cannot be used with multiple workers because its load balancer
+algorithm does not support sticky sessions.
+.IP \(bu 2
+Since each of the servers owns only a subset of the client connections, a
+message queue such as Redis or RabbitMQ is used by the servers to coordinate
+complex operations such as broadcasting and rooms.
+.UNINDENT
+.sp
+When working with a message queue, there are additional dependencies that need to
+be installed:
+.INDENT 0.0
+.IP \(bu 2
+For Redis, the package \fBredis\fP must be installed (\fBpip install redis\fP).
+.IP \(bu 2
+For RabbitMQ, the package \fBkombu\fP must be installed (\fBpip install kombu\fP).
+.IP \(bu 2
+For Kafka, the package \fBkafka\-python\fP must be installed (\fBpip install kafka\-python\fP).
+.IP \(bu 2
+For other message queues supported by Kombu, see the Kombu documentation \%<http://\:docs\:.celeryproject\:.org/\:projects/\:kombu/\:en/\:latest/\:introduction\:.html#\:transport-comparison>
+to find out what dependencies are needed.
+.IP \(bu 2
+If eventlet or gevent are used, then monkey patching the Python standard
+library is normally required to force the message queue package to use
+coroutine friendly functions and classes.
+.UNINDENT
+.sp
+For eventlet, monkey patching is done with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import eventlet
+eventlet.monkey_patch()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For gevent, you can monkey patch the standard library with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from gevent import monkey
+monkey.patch_all()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In both cases it is recommended that you apply the monkey patching at the top
+of your main script, even above your imports.
+.sp
+To start multiple Flask\-SocketIO servers, you must first ensure you have the
+message queue service running. To start a Socket.IO server and have it connect to
+the message queue, add the \fBmessage_queue\fP argument to the \fBSocketIO\fP
+constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+socketio = SocketIO(app, message_queue=\(aqredis://\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The value of the \fBmessage_queue\fP argument is the connection URL of the
+queue service that is used. For a redis queue running on the same host as the
+server, the \fB\(aqredis://\(aq\fP URL can be used. Likewise, for a default RabbitMQ
+queue the \fB\(aqamqp://\(aq\fP URL can be used. For Kafka, use a \fBkafka://\fP URL.
+The Kombu package has a documentation
+section \%<http://\:docs\:.celeryproject\:.org/\:projects/\:kombu/\:en/\:latest/\:userguide/\:connections\:.html?\:highlight=urls#\:urls>
+that describes the format of the URLs for all the supported queues.
+.SS Emitting from an External Process
+.sp
+For many types of applications, it is necessary to emit events from a process
+that is not the SocketIO server, for an example a Celery worker. If the
+SocketIO server or servers are configured to listen on a message queue as
+shown in the previous section, then any other process can create its own
+\fBSocketIO\fP instance and use it to emit events in the same way the server
+does.
+.sp
+For example, for an application that runs on an eventlet web server and uses
+a Redis message queue, the following Python script broadcasts an event to
+all clients:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+socketio = SocketIO(message_queue=\(aqredis://\(aq)
+socketio.emit(\(aqmy event\(aq, {\(aqdata\(aq: \(aqfoo\(aq}, namespace=\(aq/test\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When using the \fBSocketIO\fP instance in this way, the Flask application
+instance is not passed to the constructor.
+.sp
+The \fBchannel\fP argument to \fBSocketIO\fP can be used to select a specific
+channel of communication through the message queue. Using a custom channel
+name is necessary when there are multiple independent SocketIO services
+sharing the same queue.
+.sp
+Flask\-SocketIO does not apply monkey patching when eventlet or gevent are
+used. But when working with a message queue, it is very likely that the Python
+package that talks to the message queue service will hang if the Python
+standard library is not monkey patched.
+.sp
+It is important to note that an external process that wants to connect to
+a SocketIO server does not need to use eventlet or gevent like the main
+server. Having a server use a coroutine framework, while an external process
+is not a problem. For example, Celery workers do not need to be
+configured to use eventlet or gevent just because the main server does. But if
+your external process does use a coroutine framework for whatever reason, then
+monkey patching is likely required, so that the message queue accesses
+coroutine friendly functions and classes.
+.SS Cross\-Origin Controls
+.sp
+For security reasons, this server enforces a same\-origin policy by default. In
+practical terms, this means the following:
+.INDENT 0.0
+.IP \(bu 2
+If an incoming HTTP or WebSocket request includes the \fBOrigin\fP header,
+this header must match the scheme and host of the connection URL. In case
+of a mismatch, a 400 status code response is returned and the connection is
+rejected.
+.IP \(bu 2
+No restrictions are imposed on incoming requests that do not include the
+\fBOrigin\fP header.
+.UNINDENT
+.sp
+If necessary, the \fBcors_allowed_origins\fP option can be used to allow other
+origins. This argument can be set to a string to set a single allowed origin, or
+to a list to allow multiple origins. A special value of \fB\(aq*\(aq\fP can be used to
+instruct the server to allow all origins, but this should be done with care, as
+this could make the server vulnerable to Cross\-Site Request Forgery (CSRF)
+attacks.
+.SH UPGRADING TO FLASK-SOCKETIO 5.X FROM THE 4.X RELEASES
+.sp
+The Socket.IO protocol recently introduced a series of backwards incompatible
+changes. The 5.x releases of Flask\-SocketIO adopted these changes, and for
+that reason it can only be used with clients that have also been updated to
+the current version of the protocol. In particular, this means that the
+JavaScript client must be upgraded to a 3.x release, and if your client hasn\(aqt
+been upgraded to the latest version of the Socket.IO protocol, then you must
+use a Flask\-SocketIO 4.x release.
+.sp
+The following protocol changes are of importance, as they may affect existing
+applications:
+.INDENT 0.0
+.IP \(bu 2
+The default namespace \fB\(aq/\(aq\fP is not automatically connected anymore, and is
+now treated in the same way as other namespaces.
+.IP \(bu 2
+Each namespace connection has its own \fBsid\fP value, different from the others
+and different from the Engine.IO \fBsid\fP\&.
+.IP \(bu 2
+Flask\-SocketIO now uses the same ping interval and timeout values as the
+JavaScript reference implementation, which are 25 and 5 seconds respectively.
+.IP \(bu 2
+The ping/pong mechanism has been reversed. In the current version of the
+protocol, the server issues a ping and the client responds with a pong.
+.IP \(bu 2
+The default allowed payload size for long\-\-polling packets has been lowered
+from 100MB to 1MB.
+.IP \(bu 2
+The \fIio\fP cookie is not sent to the client anymore by default.
+.UNINDENT
+.SH API REFERENCE
+.INDENT 0.0
+.TP
+.B class flask_socketio.SocketIO(app=None, **kwargs)
+Create a Flask\-SocketIO server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBapp\fP \-\- The flask application instance. If the application instance
+isn\(aqt known at the time this class is instantiated, then call
+\fBsocketio.init_app(app)\fP once the application instance is
+available.
+.IP \(bu 2
+\fBmanage_session\fP \-\- If set to \fBTrue\fP, this extension manages the user
+session for Socket.IO events. If set to \fBFalse\fP,
+Flask\(aqs own session management is used. When using
+Flask\(aqs cookie based sessions it is recommended that
+you leave this set to the default of \fBTrue\fP\&. When
+using server\-side sessions, a \fBFalse\fP setting
+enables sharing the user session between HTTP routes
+and Socket.IO events.
+.IP \(bu 2
+\fBmessage_queue\fP \-\- A connection URL for a message queue service the
+server can use for multi\-process communication. A
+message queue is not required when using a single
+server process.
+.IP \(bu 2
+\fBchannel\fP \-\- The channel name, when using a message queue. If a channel
+isn\(aqt specified, a default channel will be used. If
+multiple clusters of SocketIO processes need to use the
+same message queue without interfering with each other,
+then each cluster should use a different channel.
+.IP \(bu 2
+\fBpath\fP \-\- The path where the Socket.IO server is exposed. Defaults to
+\fB\(aqsocket.io\(aq\fP\&. Leave this as is unless you know what you are
+doing.
+.IP \(bu 2
+\fBresource\fP \-\- Alias to \fBpath\fP\&.
+.IP \(bu 2
+\fBkwargs\fP \-\- Socket.IO and Engine.IO server options.
+.UNINDENT
+.UNINDENT
+.sp
+The Socket.IO server options are detailed below:
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBclient_manager\fP \-\- The client manager instance that will manage the
+client list. When this is omitted, the client list
+is stored in an in\-memory structure, so the use of
+multiple connected servers is not possible.
+.IP \(bu 2
+\fBlogger\fP \-\- To enable logging set to \fBTrue\fP or pass a logger object to
+use. To disable logging set to \fBFalse\fP\&. The default is
+\fBFalse\fP\&. Note that fatal errors are logged even when
+\fBlogger\fP is \fBFalse\fP\&.
+.IP \(bu 2
+\fBserializer\fP \-\- The serialization method to use when transmitting
+packets. Valid values are \fB\(aqdefault\(aq\fP, \fB\(aqpickle\(aq\fP,
+\fB\(aqmsgpack\(aq\fP and \fB\(aqcbor\(aq\fP\&. Alternatively, a subclass
+of the \fBPacket\fP class with custom implementations
+of the \fBencode()\fP and \fBdecode()\fP methods can be
+provided. Client and server must use compatible
+serializers.
+.IP \(bu 2
+\fBjson\fP \-\- An alternative JSON module to use for encoding and decoding
+packets. Custom json modules must have \fBdumps\fP and \fBloads\fP
+functions that are compatible with the standard library
+versions. This is a process\-wide setting, all instantiated
+servers and clients must use the same JSON module.
+.IP \(bu 2
+\fBasync_handlers\fP \-\- If set to \fBTrue\fP, event handlers for a client are
+executed in separate threads. To run handlers for a
+client synchronously, set to \fBFalse\fP\&. The default
+is \fBTrue\fP\&.
+.IP \(bu 2
+\fBalways_connect\fP \-\- When set to \fBFalse\fP, new connections are
+provisory until the connect handler returns
+something other than \fBFalse\fP, at which point they
+are accepted. When set to \fBTrue\fP, connections are
+immediately accepted, and then if the connect
+handler returns \fBFalse\fP a disconnect is issued.
+Set to \fBTrue\fP if you need to emit events from the
+connect handler and your client is confused when it
+receives events before the connection acceptance.
+In any other case use the default of \fBFalse\fP\&.
+.IP \(bu 2
+\fBnamespaces\fP \-\- a list of namespaces that are accepted, in addition to
+any namespaces for which handlers have been defined. The
+default is \fI[\(aq/\(aq]\fP, which always accepts connections to
+the default namespace. Set to \fI\(aq*\(aq\fP to accept all
+namespaces.
+.UNINDENT
+.UNINDENT
+.sp
+The Engine.IO server configuration supports the following settings:
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBasync_mode\fP \-\- The asynchronous model to use. See the Deployment
+section in the documentation for a description of the
+available options. Valid async modes are \(dqthreading\(dq,
+\(dqeventlet\(dq, \(dqgevent\(dq and \(dqgevent_uwsgi\(dq. If this
+argument is not given, \(dqeventlet\(dq is tried first, then
+\(dqgevent_uwsgi\(dq, then \(dqgevent\(dq, and finally \(dqthreading\(dq.
+The first async mode that has all its dependencies
+installed is the one that is chosen.
+.IP \(bu 2
+\fBping_interval\fP \-\- The interval in seconds at which the server pings
+the client. The default is 25 seconds. For advanced
+control, a two element tuple can be given, where
+the first number is the ping interval and the second
+is a grace period added by the server.
+.IP \(bu 2
+\fBping_timeout\fP \-\- The time in seconds that the client waits for the
+server to respond before disconnecting. The default
+is 20 seconds.
+.IP \(bu 2
+\fBmax_http_buffer_size\fP \-\- The maximum size that is accepted for incoming
+messages.  The default is 1,000,000 bytes. In
+spite of its name, the value set in this
+argument is enforced for HTTP long\-polling and
+WebSocket connections.
+.IP \(bu 2
+\fBallow_upgrades\fP \-\- Whether to allow transport upgrades or not. The
+default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBhttp_compression\fP \-\- Whether to compress packages when using the
+polling transport. The default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBcompression_threshold\fP \-\- Only compress messages when their byte size
+is greater than this value. The default is
+1024 bytes.
+.IP \(bu 2
+\fBcookie\fP \-\- If set to a string, it is the name of the HTTP cookie the
+server sends back tot he client containing the client
+session id. If set to a dictionary, the \fB\(aqname\(aq\fP key
+contains the cookie name and other keys define cookie
+attributes, where the value of each attribute can be a
+string, a callable with no arguments, or a boolean. If set
+to \fBNone\fP (the default), a cookie is not sent to the
+client.
+.IP \(bu 2
+\fBcors_allowed_origins\fP \-\- Origin or list of origins that are allowed to
+connect to this server. Only the same origin
+is allowed by default. Set this argument to
+\fB\(aq*\(aq\fP or \fB[\(aq*\(aq]\fP to allow all origins, or
+to \fB[]\fP to disable CORS handling.
+.IP \(bu 2
+\fBcors_credentials\fP \-\- Whether credentials (cookies, authentication) are
+allowed in requests to this server. The default
+is \fBTrue\fP\&.
+.IP \(bu 2
+\fBmonitor_clients\fP \-\- If set to \fBTrue\fP, a background task will ensure
+inactive clients are closed. Set to \fBFalse\fP to
+disable the monitoring task (not recommended). The
+default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBtransports\fP \-\- The list of allowed transports. Valid transports
+are \fB\(aqpolling\(aq\fP and \fB\(aqwebsocket\(aq\fP\&. Defaults to
+\fB[\(aqpolling\(aq, \(aqwebsocket\(aq]\fP\&.
+.IP \(bu 2
+\fBengineio_logger\fP \-\- To enable Engine.IO logging set to \fBTrue\fP or pass
+a logger object to use. To disable logging set to
+\fBFalse\fP\&. The default is \fBFalse\fP\&. Note that
+fatal errors are logged even when
+\fBengineio_logger\fP is \fBFalse\fP\&.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B class reason
+Disconnection reasons.
+.INDENT 7.0
+.TP
+.B CLIENT_DISCONNECT = \(aqclient disconnect\(aq
+Client\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PING_TIMEOUT = \(aqping timeout\(aq
+Ping timeout.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B SERVER_DISCONNECT = \(aqserver disconnect\(aq
+Server\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_CLOSE = \(aqtransport close\(aq
+Transport close.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_ERROR = \(aqtransport error\(aq
+Transport error.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on(message, namespace=None)
+Decorator to register a SocketIO event handler.
+.sp
+This decorator must be applied to SocketIO event handlers. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy event\(aq, namespace=\(aq/chat\(aq)
+def handle_my_custom_event(json):
+    print(\(aqreceived json: \(aq + str(json))
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBmessage\fP \-\- The name of the event. This is normally a user defined
+string, but a few event names are already defined. Use
+\fB\(aqmessage\(aq\fP to define a handler that takes a string
+payload, \fB\(aqjson\(aq\fP to define a handler that takes a
+JSON blob payload, \fB\(aqconnect\(aq\fP or \fB\(aqdisconnect\(aq\fP
+to create handlers for connection and disconnection
+events.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace on which the handler is to be
+registered. Defaults to the global namespace.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on_error(namespace=None)
+Decorator to define a custom error handler for SocketIO events.
+.sp
+This decorator can be applied to a function that acts as an error
+handler for a namespace. This handler will be invoked when a SocketIO
+event handler raises an exception. The handler function must accept one
+argument, which is the exception raised. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on_error(namespace=\(aq/chat\(aq)
+def chat_error_handler(e):
+    print(\(aqAn error has occurred: \(aq + str(e))
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+\fBnamespace\fP \-\- The namespace for which to register the error
+handler. Defaults to the global namespace.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on_error_default(exception_handler)
+Decorator to define a default error handler for SocketIO events.
+.sp
+This decorator can be applied to a function that acts as a default
+error handler for any namespaces that do not have a specific handler.
+Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on_error_default
+def error_handler(e):
+    print(\(aqAn error has occurred: \(aq + str(e))
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on_event(message, handler, namespace=None)
+Register a SocketIO event handler.
+.sp
+\fBon_event\fP is the non\-decorator version of \fB\(aqon\(aq\fP\&.
+.sp
+Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+def on_foo_event(json):
+    print(\(aqreceived json: \(aq + str(json))
+
+socketio.on_event(\(aqmy event\(aq, on_foo_event, namespace=\(aq/chat\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBmessage\fP \-\- The name of the event. This is normally a user defined
+string, but a few event names are already defined. Use
+\fB\(aqmessage\(aq\fP to define a handler that takes a string
+payload, \fB\(aqjson\(aq\fP to define a handler that takes a
+JSON blob payload, \fB\(aqconnect\(aq\fP or \fB\(aqdisconnect\(aq\fP
+to create handlers for connection and disconnection
+events.
+.IP \(bu 2
+\fBhandler\fP \-\- The function that handles the event.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace on which the handler is to be
+registered. Defaults to the global namespace.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B event(*args, **kwargs)
+Decorator to register an event handler.
+.sp
+This is a simplified version of the \fBon()\fP method that takes the
+event name from the decorated function.
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.event
+def my_event(data):
+    print(\(aqReceived data: \(aq, data)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The above example is equivalent to:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy_event\(aq)
+def my_event(data):
+    print(\(aqReceived data: \(aq, data)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A custom namespace can be given as an argument to the decorator:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.event(namespace=\(aq/test\(aq)
+def my_event(data):
+    print(\(aqReceived data: \(aq, data)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B emit(event, *args, **kwargs)
+Emit a server generated SocketIO event.
+.sp
+This function emits a SocketIO event to one or more connected clients.
+A JSON blob can be attached to the event as payload. This function can
+be used outside of a SocketIO event context, so it is appropriate to
+use when the server is the originator of an event, outside of any
+client context, such as in a regular HTTP request handler or a
+background task. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@app.route(\(aq/ping\(aq)
+def ping():
+    socketio.emit(\(aqping event\(aq, {\(aqdata\(aq: 42}, namespace=\(aq/chat\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The name of the user event to emit.
+.IP \(bu 2
+\fBargs\fP \-\- A dictionary with the JSON data to send as payload.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace under which the message is to be sent.
+Defaults to the global namespace.
+.IP \(bu 2
+\fBto\fP \-\- Send the message to all the users in the given room, or to
+the user with the given session ID. If this parameter is not
+included, the event is sent to all connected users.
+.IP \(bu 2
+\fBinclude_self\fP \-\- \fBTrue\fP to include the sender when broadcasting
+or addressing a room, or \fBFalse\fP to send to
+everyone but the sender.
+.IP \(bu 2
+\fBskip_sid\fP \-\- The session id of a client to ignore when broadcasting
+or addressing a room. This is typically set to the
+originator of the message, so that everyone except
+that client receive the message. To skip multiple sids
+pass a list.
+.IP \(bu 2
+\fBcallback\fP \-\- If given, this function will be called to acknowledge
+that the client has received the message. The
+arguments that will be passed to the function are
+those provided by the client. Callback functions can
+only be used when addressing an individual client.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B call(event, *args, **kwargs)
+Emit a SocketIO event and wait for the response.
+.sp
+This method issues an emit with a callback and waits for the callback
+to be invoked by the client before returning. If the callback isn’t
+invoked before the timeout, then a TimeoutError exception is raised. If
+the Socket.IO connection drops during the wait, this method still waits
+until the specified timeout. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+def get_status(client, data):
+    status = call(\(aqstatus\(aq, {\(aqdata\(aq: data}, to=client)
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The name of the user event to emit.
+.IP \(bu 2
+\fBargs\fP \-\- A dictionary with the JSON data to send as payload.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace under which the message is to be sent.
+Defaults to the global namespace.
+.IP \(bu 2
+\fBto\fP \-\- The session ID of the recipient client.
+.IP \(bu 2
+\fBtimeout\fP \-\- The waiting timeout. If the timeout is reached before
+the client acknowledges the event, then a
+\fBTimeoutError\fP exception is raised. The default is 60
+seconds.
+.IP \(bu 2
+\fBignore_queue\fP \-\- Only used when a message queue is configured. If
+set to \fBTrue\fP, the event is emitted to the
+client directly, without going through the queue.
+This is more efficient, but only works when a
+single server process is used, or when there is a
+single addressee. It is recommended to always
+leave this parameter with its default value of
+\fBFalse\fP\&.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B send(data, json=False, namespace=None, to=None, callback=None, include_self=True, skip_sid=None, **kwargs)
+Send a server\-generated SocketIO message.
+.sp
+This function sends a simple SocketIO message to one or more connected
+clients. The message can be a string or a JSON blob. This is a simpler
+version of \fBemit()\fP, which should be preferred. This function can be
+used outside of a SocketIO event context, so it is appropriate to use
+when the server is the originator of an event.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBdata\fP \-\- The message to send, either a string or a JSON blob.
+.IP \(bu 2
+\fBjson\fP \-\- \fBTrue\fP if \fBmessage\fP is a JSON blob, \fBFalse\fP
+otherwise.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace under which the message is to be sent.
+Defaults to the global namespace.
+.IP \(bu 2
+\fBto\fP \-\- Send the message to all the users in the given room, or to
+the user with the given session ID. If this parameter is not
+included, the event is sent to all connected users.
+.IP \(bu 2
+\fBinclude_self\fP \-\- \fBTrue\fP to include the sender when broadcasting
+or addressing a room, or \fBFalse\fP to send to
+everyone but the sender.
+.IP \(bu 2
+\fBskip_sid\fP \-\- The session id of a client to ignore when broadcasting
+or addressing a room. This is typically set to the
+originator of the message, so that everyone except
+that client receive the message. To skip multiple sids
+pass a list.
+.IP \(bu 2
+\fBcallback\fP \-\- If given, this function will be called to acknowledge
+that the client has received the message. The
+arguments that will be passed to the function are
+those provided by the client. Callback functions can
+only be used when addressing an individual client.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B close_room(room, namespace=None)
+Close a room.
+.sp
+This function removes any users that are in the given room and then
+deletes the room from the server. This function can be used outside
+of a SocketIO event context.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBroom\fP \-\- The name of the room to close.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace under which the room exists. Defaults
+to the global namespace.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B run(app, host=None, port=None, **kwargs)
+Run the SocketIO web server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBapp\fP \-\- The Flask application instance.
+.IP \(bu 2
+\fBhost\fP \-\- The hostname or IP address for the server to listen on.
+Defaults to 127.0.0.1.
+.IP \(bu 2
+\fBport\fP \-\- The port number for the server to listen on. Defaults to
+5000.
+.IP \(bu 2
+\fBdebug\fP \-\- \fBTrue\fP to start the server in debug mode, \fBFalse\fP to
+start in normal mode.
+.IP \(bu 2
+\fBuse_reloader\fP \-\- \fBTrue\fP to enable the Flask reloader, \fBFalse\fP
+to disable it.
+.IP \(bu 2
+\fBreloader_options\fP \-\- A dictionary with options that are passed to
+the Flask reloader, such as \fBextra_files\fP,
+\fBreloader_type\fP, etc.
+.IP \(bu 2
+\fBextra_files\fP \-\- A list of additional files that the Flask
+reloader should watch. Defaults to \fBNone\fP\&.
+Deprecated, use \fBreloader_options\fP instead.
+.IP \(bu 2
+\fBlog_output\fP \-\- If \fBTrue\fP, the server logs all incoming
+connections. If \fBFalse\fP logging is disabled.
+Defaults to \fBTrue\fP in debug mode, \fBFalse\fP
+in normal mode. Unused when the threading async
+mode is used.
+.IP \(bu 2
+\fBallow_unsafe_werkzeug\fP \-\- Set to \fBTrue\fP to allow the use of the
+Werkzeug web server in a production
+setting. Default is \fBFalse\fP\&. Set to
+\fBTrue\fP at your own risk.
+.IP \(bu 2
+\fBkwargs\fP \-\- Additional web server options. The web server options
+are specific to the server used in each of the supported
+async modes. Note that options provided here will
+not be seen when using an external web server such
+as gunicorn, since this method is not called in that
+case.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B stop()
+Stop a running SocketIO web server.
+.sp
+This method must be called from a HTTP or SocketIO handler function.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B start_background_task(target, *args, **kwargs)
+Start a background task using the appropriate async model.
+.sp
+This is a utility function that applications can use to start a
+background task using the method that is compatible with the
+selected async mode.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBtarget\fP \-\- the target function to execute.
+.IP \(bu 2
+\fBargs\fP \-\- arguments to pass to the function.
+.IP \(bu 2
+\fBkwargs\fP \-\- keyword arguments to pass to the function.
+.UNINDENT
+.UNINDENT
+.sp
+This function returns an object that represents the background task,
+on which the \fBjoin()\fP method can be invoked to wait for the task to
+complete.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B sleep(seconds=0)
+Sleep for the requested amount of time using the appropriate async
+model.
+.sp
+This is a utility function that applications can use to put a task to
+sleep without having to worry about using the correct call for the
+selected async mode.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B test_client(app, namespace=None, query_string=None, headers=None, auth=None, flask_test_client=None)
+The Socket.IO test client is useful for testing a Flask\-SocketIO
+server. It works in a similar way to the Flask Test Client, but
+adapted to the Socket.IO server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBapp\fP \-\- The Flask application instance.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the client. If not provided, the
+client connects to the server on the global
+namespace.
+.IP \(bu 2
+\fBquery_string\fP \-\- A string with custom query string arguments.
+.IP \(bu 2
+\fBheaders\fP \-\- A dictionary with custom HTTP headers.
+.IP \(bu 2
+\fBauth\fP \-\- Optional authentication data, given as a dictionary.
+.IP \(bu 2
+\fBflask_test_client\fP \-\- The instance of the Flask test client
+currently in use. Passing the Flask test
+client is optional, but is necessary if you
+want the Flask user session and any other
+cookies set in HTTP routes accessible from
+Socket.IO events.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_socketio.emit(event, *args, **kwargs)
+Emit a SocketIO event.
+.sp
+This function emits a SocketIO event to one or more connected clients. A
+JSON blob can be attached to the event as payload. This is a function that
+can only be called from a SocketIO event handler, as in obtains some
+information from the current client context. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmy event\(aq)
+def handle_my_custom_event(json):
+    emit(\(aqmy response\(aq, {\(aqdata\(aq: 42})
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The name of the user event to emit.
+.IP \(bu 2
+\fBargs\fP \-\- A dictionary with the JSON data to send as payload.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace under which the message is to be sent.
+Defaults to the namespace used by the originating event.
+A \fB\(aq/\(aq\fP can be used to explicitly specify the global
+namespace.
+.IP \(bu 2
+\fBcallback\fP \-\- Callback function to invoke with the client\(aqs
+acknowledgement.
+.IP \(bu 2
+\fBbroadcast\fP \-\- \fBTrue\fP to send the message to all clients, or \fBFalse\fP
+to only reply to the sender of the originating event.
+.IP \(bu 2
+\fBto\fP \-\- Send the message to all the users in the given room, or to the
+user with the given session ID. If this argument is not set and
+\fBbroadcast\fP is \fBFalse\fP, then the message is sent only to the
+originating user.
+.IP \(bu 2
+\fBinclude_self\fP \-\- \fBTrue\fP to include the sender when broadcasting or
+addressing a room, or \fBFalse\fP to send to everyone
+but the sender.
+.IP \(bu 2
+\fBskip_sid\fP \-\- The session id of a client to ignore when broadcasting
+or addressing a room. This is typically set to the
+originator of the message, so that everyone except
+that client receive the message. To skip multiple sids
+pass a list.
+.IP \(bu 2
+\fBignore_queue\fP \-\- Only used when a message queue is configured. If
+set to \fBTrue\fP, the event is emitted to the
+clients directly, without going through the queue.
+This is more efficient, but only works when a
+single server process is used, or when there is a
+single addressee. It is recommended to always leave
+this parameter with its default value of \fBFalse\fP\&.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_socketio.send(message, **kwargs)
+Send a SocketIO message.
+.sp
+This function sends a simple SocketIO message to one or more connected
+clients. The message can be a string or a JSON blob. This is a simpler
+version of \fBemit()\fP, which should be preferred. This is a function that
+can only be called from a SocketIO event handler.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBmessage\fP \-\- The message to send, either a string or a JSON blob.
+.IP \(bu 2
+\fBjson\fP \-\- \fBTrue\fP if \fBmessage\fP is a JSON blob, \fBFalse\fP
+otherwise.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace under which the message is to be sent.
+Defaults to the namespace used by the originating event.
+An empty string can be used to use the global namespace.
+.IP \(bu 2
+\fBcallback\fP \-\- Callback function to invoke with the client\(aqs
+acknowledgement.
+.IP \(bu 2
+\fBbroadcast\fP \-\- \fBTrue\fP to send the message to all connected clients, or
+\fBFalse\fP to only reply to the sender of the originating
+event.
+.IP \(bu 2
+\fBto\fP \-\- Send the message to all the users in the given room, or to the
+user with the given session ID. If this argument is not set and
+\fBbroadcast\fP is \fBFalse\fP, then the message is sent only to the
+originating user.
+.IP \(bu 2
+\fBinclude_self\fP \-\- \fBTrue\fP to include the sender when broadcasting or
+addressing a room, or \fBFalse\fP to send to everyone
+but the sender.
+.IP \(bu 2
+\fBskip_sid\fP \-\- The session id of a client to ignore when broadcasting
+or addressing a room. This is typically set to the
+originator of the message, so that everyone except
+that client receive the message. To skip multiple sids
+pass a list.
+.IP \(bu 2
+\fBignore_queue\fP \-\- Only used when a message queue is configured. If
+set to \fBTrue\fP, the event is emitted to the
+clients directly, without going through the queue.
+This is more efficient, but only works when a
+single server process is used, or when there is a
+single addressee. It is recommended to always leave
+this parameter with its default value of \fBFalse\fP\&.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_socketio.join_room(room, sid=None, namespace=None)
+Join a room.
+.sp
+This function puts the user in a room, under the current namespace. The
+user and the namespace are obtained from the event context. This is a
+function that can only be called from a SocketIO event handler. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqjoin\(aq)
+def on_join(data):
+    username = session[\(aqusername\(aq]
+    room = data[\(aqroom\(aq]
+    join_room(room)
+    send(username + \(aq has entered the room.\(aq, to=room)
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBroom\fP \-\- The name of the room to join.
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the client. If not provided, the client is
+obtained from the request context.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the room. If not provided, the
+namespace is obtained from the request context.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_socketio.leave_room(room, sid=None, namespace=None)
+Leave a room.
+.sp
+This function removes the user from a room, under the current namespace.
+The user and the namespace are obtained from the event context. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqleave\(aq)
+def on_leave(data):
+    username = session[\(aqusername\(aq]
+    room = data[\(aqroom\(aq]
+    leave_room(room)
+    send(username + \(aq has left the room.\(aq, to=room)
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBroom\fP \-\- The name of the room to leave.
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the client. If not provided, the client is
+obtained from the request context.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the room. If not provided, the
+namespace is obtained from the request context.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_socketio.close_room(room, namespace=None)
+Close a room.
+.sp
+This function removes any users that are in the given room and then deletes
+the room from the server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBroom\fP \-\- The name of the room to close.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the room. If not provided, the
+namespace is obtained from the request context.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_socketio.rooms(sid=None, namespace=None)
+Return a list of the rooms the client is in.
+.sp
+This function returns all the rooms the client has entered, including its
+own room, assigned by the Socket.IO server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the client. If not provided, the client is
+obtained from the request context.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the room. If not provided, the
+namespace is obtained from the request context.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_socketio.disconnect(sid=None, namespace=None, silent=False)
+Disconnect the client.
+.sp
+This function terminates the connection with the client. As a result of
+this call the client will receive a disconnect event. Example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@socketio.on(\(aqmessage\(aq)
+def receive_message(msg):
+    if is_banned(session[\(aqusername\(aq]):
+        disconnect()
+    else:
+        # ...
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the client. If not provided, the client is
+obtained from the request context.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the room. If not provided, the
+namespace is obtained from the request context.
+.IP \(bu 2
+\fBsilent\fP \-\- this option is deprecated.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_socketio.Namespace(namespace=None)
+.INDENT 7.0
+.TP
+.B trigger_event(event, *args)
+Dispatch an event to the proper handler method.
+.sp
+In the most common usage, this method is not overloaded by subclasses,
+as it performs the routing of events to methods. However, this
+method can be overridden if special dispatching rules are needed, or if
+having a single method that catches all events is desired.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B emit(event, data=None, room=None, include_self=True, namespace=None, callback=None)
+Emit a custom event to one or more connected clients.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B send(data, room=None, include_self=True, namespace=None, callback=None)
+Send a message to one or more connected clients.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B close_room(room, namespace=None)
+Close a room.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_socketio.SocketIOTestClient(app, socketio, namespace=None, query_string=None, headers=None, auth=None, flask_test_client=None)
+This class is useful for testing a Flask\-SocketIO server. It works in a
+similar way to the Flask Test Client, but adapted to the Socket.IO server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBapp\fP \-\- The Flask application instance.
+.IP \(bu 2
+\fBsocketio\fP \-\- The application\(aqs \fBSocketIO\fP instance.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the client. If not provided, the client
+connects to the server on the global namespace.
+.IP \(bu 2
+\fBquery_string\fP \-\- A string with custom query string arguments.
+.IP \(bu 2
+\fBheaders\fP \-\- A dictionary with custom HTTP headers.
+.IP \(bu 2
+\fBauth\fP \-\- Optional authentication data, given as a dictionary.
+.IP \(bu 2
+\fBflask_test_client\fP \-\- The instance of the Flask test client
+currently in use. Passing the Flask test
+client is optional, but is necessary if you
+want the Flask user session and any other
+cookies set in HTTP routes accessible from
+Socket.IO events.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B is_connected(namespace=None)
+Check if a namespace is connected.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBnamespace\fP \-\- The namespace to check. The global namespace is
+assumed if this argument is not provided.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B connect(namespace=None, query_string=None, headers=None, auth=None)
+Connect the client.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace for the client. If not provided, the
+client connects to the server on the global
+namespace.
+.IP \(bu 2
+\fBquery_string\fP \-\- A string with custom query string arguments.
+.IP \(bu 2
+\fBheaders\fP \-\- A dictionary with custom HTTP headers.
+.IP \(bu 2
+\fBauth\fP \-\- Optional authentication data, given as a dictionary.
+.UNINDENT
+.UNINDENT
+.sp
+Note that it is usually not necessary to explicitly call this method,
+since a connection is automatically established when an instance of
+this class is created. An example where it this method would be useful
+is when the application accepts multiple namespace connections.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B disconnect(namespace=None)
+Disconnect the client.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBnamespace\fP \-\- The namespace to disconnect. The global namespace is
+assumed if this argument is not provided.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B emit(event, *args, **kwargs)
+Emit an event to the server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The event name.
+.IP \(bu 2
+\fB*args\fP \-\- 
+.sp
+The event arguments.
+
+.IP \(bu 2
+\fBcallback\fP \-\- \fBTrue\fP if the client requests a callback, \fBFalse\fP
+if not. Note that client\-side callbacks are not
+implemented, a callback request will just tell the
+server to provide the arguments to invoke the
+callback, but no callback is invoked. Instead, the
+arguments that the server provided for the callback
+are returned by this function.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace of the event. The global namespace is
+assumed if this argument is not provided.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B send(data, json=False, callback=False, namespace=None)
+Send a text or JSON message to the server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBdata\fP \-\- A string, dictionary or list to send to the server.
+.IP \(bu 2
+\fBjson\fP \-\- \fBTrue\fP to send a JSON message, \fBFalse\fP to send a text
+message.
+.IP \(bu 2
+\fBcallback\fP \-\- \fBTrue\fP if the client requests a callback, \fBFalse\fP
+if not. Note that client\-side callbacks are not
+implemented, a callback request will just tell the
+server to provide the arguments to invoke the
+callback, but no callback is invoked. Instead, the
+arguments that the server provided for the callback
+are returned by this function.
+.IP \(bu 2
+\fBnamespace\fP \-\- The namespace of the event. The global namespace is
+assumed if this argument is not provided.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_received(namespace=None)
+Return the list of messages received from the server.
+.sp
+Since this is not a real client, any time the server emits an event,
+the event is simply stored. The test code can invoke this method to
+obtain the list of events that were received since the last call.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBnamespace\fP \-\- The namespace to get events from. The global
+namespace is assumed if this argument is not
+provided.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+Index \%<>
+.IP \(bu 2
+Module Index \%<>
+.IP \(bu 2
+Search Page \%<>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Miguel Grinberg
+.SH "حق نشر (COPYRIGHT)"
+2018, Miguel Grinberg
+.\" End of generated man page.

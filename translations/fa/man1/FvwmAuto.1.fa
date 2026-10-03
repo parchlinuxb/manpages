@@ -1,0 +1,187 @@
+'\" t
+.\"     Title: FvwmAuto
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-06-28
+.\"    Manual: Fvwm Modules
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "FVWMAUTO" "1" "2026-06-28" "\ \&" "Fvwm Modules"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+FvwmAuto \- the fvwm auto\-raise module
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBModule FvwmAuto Timeout [\-passid] [\-menter|\-menterleave|\-mfocus] [EnterCommand [LeaveCommand]]\fP
+.sp
+\fIFvwmAuto\fP can only be invoked by fvwm. Command line invocation of the
+\fIFvwmAuto\fP will not work.
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The \fIFvwmAuto\fP module is most often used to automatically raise focused
+windows.
+.SH "INVOCATION"
+.sp
+The correct syntax is:
+.sp
+.if n .RS 4
+.nf
+.fam C
+Module FvwmAuto Timeout [\-passid] [\-menter|\-menterleave|\-mfocus] [EnterCommand [LeaveCommand]]
+
+AddToMenu Modules
++ "Auto Raise (300 ms)"\&  Module FvwmAuto 300
++ "Auto Raise/Lower"\&     Module FvwmAuto 300 "Silent Raise" "Silent Lower"
+.fam
+.fi
+.if n .RE
+.sp
+The \fITimeout\fP argument is required. It specifies how long a window must
+retain the keyboard input focus before the command is executed. The
+delay is measured in milliseconds, and any integer greater than zero is
+valid.
+.sp
+If the literal option \fI\-passid\fP is given, the window id of the window
+just entered or left is appended to the command that is sent to fvwm.
+This can be used with the \fBWindowId\fP command of fvwm.
+.sp
+The options \fI\-menter\fP, \fI\-menterleave\fP and \fI\-mfocus\fP influence the
+actions FvwmAuto reacts to. No more than one of the options can be
+chosen. In \fI\-mfocus\fP mode, FvwmAuto raises the window that has the
+focus. In \fI\-menter\fP mode, FvwmAuto raises the window under the pointer
+when the pointer enters a window. The \fILeaveCommand\fP is executed on the
+window that was below the pointer before it entered the new window. When
+the pointer leaves a window and enters the root window, the
+\fIEnterCommand\fP is executed too, but without a window to operate on. In
+\fI\-menterleave\fP mode, FvwmAuto works just like in \fI\-menter\fP mode, but the
+\fILeaveCommand\fP is also executed if the pointer moves out of a window but
+does not enter a new window. The latter two modes of operation are
+useful with windows that do not accept the focus.
+.sp
+Note: \-menterleave mode can interfere with popup windows of some
+applications. One example is the zoom menu of Ghostview. Please do not
+complain about this to us \- it is a bug in Ghostview.
+.sp
+\fIEnterCommand\fP and \fILeaveCommand\fP are optional. \fIEnterCommand\fP is
+executed \fITimeout\fP milliseconds after a window gets the input focus,
+\fILeaveCommand\fP is executed \fITimeout\fP milliseconds after the window has
+lost focus. Note that you always should use the \*(AqSilent\*(Aq keyword before
+the command itself. FvwmAuto prepends "Silent " to the command string on
+its own if yor forget this. Without this prefix fvwm would ask you for a
+window to act on if the window has died before the command sent by
+FvwmAuto has been processed by fvwm. This can for example happen with
+popup menus.
+.sp
+"Silent Raise" is the default for \fIEnterCommand\fP, but any fvwm function
+is allowed. I would not use "Close" or "Destroy" with a low timeout,
+though. The \fILeaveCommand\fP can be handy for a tidy desktop. Experiment
+with:
+.sp
+.if n .RS 4
+.nf
+.fam C
+Module FvwmAuto 0 Nop "Silent Lower"
+Module FvwmAuto 0 Nop "Silent Iconify"
+.fam
+.fi
+.if n .RE
+.sp
+An example for auto raising windows with ClickToFocus:
+.sp
+.if n .RS 4
+.nf
+.fam C
+Style * ClickToFocus
+FvwmAuto 0 \-menter "Silent Raise"
+.fam
+.fi
+.if n .RE
+.sp
+An example for auto raising and lowering only some windows:
+.sp
+.if n .RS 4
+.nf
+.fam C
+To start FvwmAuto:
+FvwmAuto 0 \-passid \-menter \(rs
+"Silent selective_raiselower raise" \(rs
+"Silent selective_raiselower lower"
+.fam
+.fi
+.if n .RE
+.sp
+And put this in your .fvwm2rc:
+.sp
+.if n .RS 4
+.nf
+.fam C
+AddToFunc selective_raiselower
++ I WindowId $1 (FvwmIconMan) $0
++ I WindowId $1 (FvwmButtons) $0
++ IWindowId $1 (xclock) $0
+\&...
+.fam
+.fi
+.if n .RE
+.sp
+More complex example (three FvwmAuto\(cqs are running):
+.sp
+.if n .RS 4
+.nf
+.fam C
+DestroyFunc RestoreIconified
+AddToFunc\&   RestoreIconified
++ I Current (Iconic) Iconify false
+
+DestroyFunc RegisterFocus
+AddToFunc\&   RegisterFocus
++ I Exec date +"%T $n focused" >>/tmp/focus\-stats.txt
+
+DestroyFunc RegisterUnfocus
+AddToFunc\&   RegisterUnfocus
++ I Exec date +"%T $n unfocused" >>/tmp/focus\-stats.txt
+
+KillModule FvwmAuto
+Module FvwmAuto 250 Raise Nop
+Module FvwmAuto 800 RestoreIconified Nop
+Module FvwmAuto\&   0 RegisterFocus RegisterUnfocus
+.fam
+.fi
+.if n .RE
+.SH "نکات (NOTES)"
+.sp
+There is a special Raise/Lower support in FvwmAuto. It was added to
+improve Raise/Lower callbacks, since most of FvwmAuto usages is
+auto\-raising or auto\-lowering. This improvement includes locking on
+M_RAISE_WINDOW and M_LOWER_WINDOW packets and not raising/lowering
+explicitly raised windows. The special Raise/Lower support is enabled
+only when either \fIEnterCommand\fP or \fILeaveCommand\fP contain substring
+"Raise" or "Lower". You can use this fact to enable/disable any special
+support by renaming these commands, if FvwmAuto does not automatically
+do want you expect it to do.
+.sp
+Using \fIFvwmAuto\fP in conjunction with \fIEdgeCommand\fP can be even more
+powerful. There is a short example in the \fIfvwm\fP man page.
+.SH "نویسنده (AUTHOR)"
+.sp
+FvwmAuto just appeared one day, nobody knows how.
+FvwmAuto was simply rewritten 09/96, nobody knows by whom.

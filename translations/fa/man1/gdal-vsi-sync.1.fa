@@ -1,0 +1,145 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "GDAL-VSI-SYNC" "1" "Aug 18, 2026" "" "GDAL"
+.SH "نام (NAME)"
+gdal-vsi-sync \- Synchronize source and target file/directory located on GDAL Virtual System Interface (VSI)
+.sp
+Added in version 3.11.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Usage: gdal vsi sync [OPTIONS] <SOURCE> <DESTINATION>
+
+Synchronize source and target file/directory located on GDAL Virtual System Interface (VSI).
+
+Positional arguments:
+  \-\-source <SOURCE>                Source file or directory name [required]
+  \-\-destination <DESTINATION>      Destination file or directory name [required]
+
+Common Options:
+  \-h, \-\-help                       Display help message and exit
+  \-\-json\-usage                     Display usage as JSON document and exit
+  \-\-config <KEY>=<VALUE>           Configuration option [may be repeated]
+  \-q, \-\-quiet                      Quiet mode (no progress bar or warning message) [not available in pipelines]
+
+Options:
+  \-r, \-\-recursive                  Synchronize recursively
+  \-\-strategy <STRATEGY>            Synchronization strategy. STRATEGY=timestamp|ETag|overwrite (default: timestamp)
+  \-j, \-\-num\-threads <NUM\-THREADS>  Number of jobs (or ALL_CPUS)
+.EE
+.UNINDENT
+.UNINDENT
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgdal vsi sync\fP synchronize files and directories located on \fI\%GDAL Virtual File Systems (compressed, network hosted, etc...): /vsimem, /vsizip, /vsitar, /vsicurl, ...\fP\&.
+.sp
+This is an analog to the UNIX \fBrsync\fP command. In the current implementation,
+\fBrsync\fP would be more efficient for local file copying, but \fBgdal vsi sync\fP main
+interest is when the source or target is a remote
+file system like /vsis3/ or /vsigs/, in which case it can take into account
+the timestamps of the files (or optionally the ETag/MD5Sum) to avoid
+unneeded copy operations.
+.sp
+This is implemented efficiently for:
+.INDENT 0.0
+.IP \(bu 2
+local filesystem <\-\-> remote filesystem.
+.IP \(bu 2
+remote filesystem <\-\-> remote filesystem, where the source and target remote
+filesystems are the same and one of /vsis3/, /vsigs/ or /vsiaz/.
+Or when the target is /vsiaz/ and the source is /vsis3/, /vsigs/, /vsiadls/ or /vsicurl/
+.UNINDENT
+.sp
+Similarly to \fBrsync\fP behavior, if the source filename ends with a slash,
+it means that the content of the directory must be copied, but not the
+directory name. For example, assuming \fB/home/even/foo\fP contains a file \fBbar\fP,
+\fBgdal vsi sync \-r /home/even/foo/ /mnt/media\fP will create a \fB/mnt/media/bar\fP
+file. Whereas \fBgdal vsi sync \-r /home/even/foo /mnt/media\fP will create a
+\fB/mnt/media/foo\fP directory which contains a \fBbar\fP file.
+.sp
+This is implemented by \fI\%VSISync()\fP\&.
+.SS Options
+.INDENT 0.0
+.TP
+.B \-r, \-\-recursive
+Synchronize recursively.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-strategy timestamp|ETag|overwrite
+Determines which criterion is used to determine if a target file must be
+replaced when it already exists and has the same file size as the source.
+Only applies for a source or target being a network filesystem.
+.sp
+The default is \fBtimestamp\fP (similarly to how \fBaws s3 sync\fP works).
+For an upload operation, a remote file is replaced if it has a different size
+or if it is older than the source.
+For a download operation, a local file is  replaced if it has a different
+size or if it is newer than the remote file.
+.sp
+The \fBETag\fP strategy assumes that the ETag metadata of the remote file is
+the MD5Sum of the file content, which is only true in the case of /vsis3/
+for files not using KMS server side encryption and uploaded in a single
+PUT operation (so smaller than 50 MB given the default used by GDAL).
+Only to be used for /vsis3/, /vsigs/ or other filesystems using a
+MD5Sum as ETAG.
+.sp
+The \fBoverwrite\fP strategy will always overwrite the target file with the
+source one.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-j, \-\-num\-threads <value>
+Number of jobs to run at once
+.UNINDENT
+.SH RETURN STATUS CODE
+.sp
+The program returns status code 0 in case of success, and non\-zero in case of
+error (non\-blocking errors emitted as warnings are considered as a successful
+execution).
+.SH "مثال‌ها (EXAMPLES)"
+.SS Example 1: Synchronize a local directory onto a S3 bucket
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal vsi sync \-r my_directory/ /vsis3/bucket/my_directory
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Even Rouault <even.rouault@spatialys.com>
+.SH "حق نشر (COPYRIGHT)"
+1998-2026
+.\" Generated by docutils manpage writer.
+.

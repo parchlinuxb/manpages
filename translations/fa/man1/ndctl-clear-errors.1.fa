@@ -1,0 +1,209 @@
+'\" t
+.\"     Title: ndctl-clear-errors
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-06-30
+.\"    Manual: ndctl Manual
+.\"    Source: ndctl
+.\"  Language: English
+.\"
+.TH "NDCTL\-CLEAR\-ERRORS" "1" "2026-06-30" "ndctl" "ndctl Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+ndctl-clear-errors \- clear all errors (badblocks) on the given namespace
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.nf
+\fIndctl clear\-errors\fP <namespace> [<options>]
+.fi
+.br
+.SH "توضیحات (DESCRIPTION)"
+.sp
+A namespace may have one or more \fImedia errors\fP, either known to the kernel
+or in a latent state. These error locations, or \fIbadblocks\fP can cause poison
+consumption events if read in an unsafe manner.
+.sp
+Moreover, these badblocks also indicate that due to media corruption, any data
+that may have been in these locations has been unrecoverably lost.
+.sp
+Normally, in the presence of such errors, the administrator is expected to
+recover the data from out of band means (such as backups), destroy the
+namespace, recreate it, and then restore the data. When the data is re\-written,
+the writes will allow any errors to be cleared as they are encountered. In such
+a workflow, one should \fBnever\fP need to use the \fIclear\-errors\fP command.
+.sp
+However, there may be special use cases, where the data currently on the
+namespace does not matter \- for example, if a \fIdevdax\fP mode namespace is being
+prepared for use as \fIsystem\-ram\fP. In such cases, it may be desirable to clear
+any errors on the namespace prior to switching its mode to prevent disruptive
+machine checks due to poison consumption.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+\fBOnly\fP use this command when the data on the namespace is immaterial.
+For any blocks that are cleared via this command, any data on the blocks in
+question will be lost, and replaced with content that is implementation
+(platform) defined, and unpredictable.
+.sp .5v
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Warning
+.ps -1
+.br
+.sp
+This is a DANGEROUS command, and should only be used after fully
+understanding its implications and consequences. This WILL erase your data.
+.sp .5v
+.RE
+.sp
+For namespaces in one of \fIfsdax\fP or \fIdevdax\fP modes, this command will
+only consider the \fIdata\fP area for error clearing. Namespace metadata, such as
+info\-blocks, will not be touched. For namespaces in \fIraw\fP mode, the full
+available capacity of the namespace is considered for error clearing.
+Namespaces that are in \fIsector\fP mode are not supported, and will be skipped.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+It is expected that the command is run with the namespace \fIenabled\fP.
+A namespace in the \fIdisabled\fP state will appear as, and will be treated as a
+\fIraw\fP namespace, and error clearing will be performed for the full available
+capacity of the namespace, including any potential metadata areas. If there
+happen to be errors in the metadata area, clearing them may result in
+unpredictable outcomes. You have been warned!
+.sp .5v
+.RE
+.sp
+Known errors are ones that the kernel has encountered before, either via a
+previous scrub, or by an attempted read from those locations. These can be
+listed by running \fIndctl list \-\-media\-errors\fP for a given namespace. Latent
+errors, as the name indicates, are unknown to the kernel. These can be found
+by running a scrub operation on the NVDIMMs in question. By default, the
+ndctl\-clear\-errors command only clears known errors. This can be overridden
+using the \fI\-\-scrub\fP option to clear \fBall\fP errors.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+If a scrub is in progress when the command is called, it will
+unconditionally wait for it to complete.
+.sp .5v
+.RE
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Clear errors on namespace 0.0
+.sp
+.nf
+    ndctl clear\-errors namespace0.0
+.fi
+.br
+.sp
+Clear errors on all namespaces belonging to region1, including scrubbing for
+latent errors
+.sp
+.nf
+    ndctl clear\-errors \-\-scrub \-\-region=region1 all
+.fi
+.br
+.SH "گزینه‌ها (OPTIONS)"
+.sp
+\-s, \-\-scrub
+.RS 4
+Perform a \fIscrub\fP on the bus prior to clearing errors. This allows
+for the clearing of any latent media errors in addition to errors
+the kernel already knows about.
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+This will cause the command to start and wait for a full scrub, and this
+can potentially be a very long\-running operation.
+.sp .5v
+.RE
+.sp
+\-v, \-\-verbose
+.RS 4
+Emit debug messages.
+.RE
+.sp
+\-r, \-\-region=
+.RS 4
+A \fIregionX\fP device name, or a region id number. Restrict the operation to
+the specified region(s). The keyword \fIall\fP can be specified to indicate
+the lack of any restriction, however this is the same as not supplying a
+\-\-region option at all.
+.RE
+.sp
+\-b, \-\-bus=
+.RS 4
+A bus id number, or a provider string (e.g. "ACPI.NFIT"). Restrict the
+operation to the specified bus(es). The keyword \fIall\fP can be specified
+to indicate the lack of any restriction, however this is the same as
+not supplying a \-\-bus option at all.
+.RE
+.SH "حق نشر (COPYRIGHT)"
+.sp
+Copyright \(co 2016 \- 2022, Intel Corporation. License GPLv2: GNU GPL
+version 2 \c
+.URL "http://gnu.org/licenses/gpl.html" "" "."
+This is free software:
+you are free to change and redistribute it.  There is NO WARRANTY, to
+the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+ndctl\-start\-scrub(1),
+ndctl\-list(1)

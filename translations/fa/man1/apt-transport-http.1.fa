@@ -1,0 +1,163 @@
+'\" t
+.\"     Title: apt-transport-http
+.\"    Author: APT team
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 04\ \&April\ \&2019
+.\"    Manual: APT
+.\"    Source: APT 3.3.3
+.\"  Language: English
+.\"
+.TH "APT\-TRANSPORT\-HTTP" "1" "04\ \&April\ \&2019" "APT 3.3.3" "APT"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+apt-transport-http \- APT transport for downloading via the Hypertext Transfer Protocol (HTTP)
+.SH "توضیحات (DESCRIPTION)"
+.PP
+This APT transport allows the use of repositories accessed via the Hypertext Transfer Protocol (HTTP)\&. It is available by default and probably the most used of all transports\&. Note that a transport is never called directly by a user but used by APT tools based on user configuration\&.
+.PP
+HTTP is an unencrypted transport protocol meaning that the whole communication with the remote server (or proxy) can be observed by a sufficiently capable attacker commonly referred to as a "man in the middle" (MITM)\&. However, such an attacker can
+\fInot\fR
+modify the communication to compromise the security of your system, as APT\*(Aqs data security model is independent of the chosen transport method\&. This is explained in detail in
+\fBapt-secure\fR(8)\&. An overview of available transport methods is given in
+\fBsources.list\fR(5)\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+Various options can be set in an
+\fBapt.conf\fR(5)
+file to modify its behavior, ranging from proxy configuration to workarounds for specific server limitations\&.
+.SS "Proxy Configuration"
+.PP
+The environment variable
+\fBhttp_proxy\fR
+is supported for system wide configuration\&. Proxies specific to APT can be configured via the option
+Acquire::http::Proxy\&. Proxies which should be used only for certain hosts can be specified via
+Acquire::http::Proxy::\fIhost\fR\&. Even more fine\-grained control can be achieved via proxy autodetection, detailed further below\&. All these options use the URI format
+\fIscheme\fR://[[\fIuser\fR][:\fIpass\fR]@]\fIhost\fR[:\fIport\fR]/\&. Supported URI schemes are
+socks5h
+(SOCKS5 with remote DNS resolution),
+http
+and
+https\&. Authentication details can be supplied via
+\fBapt_auth.conf\fR(5)
+instead of including it in the URI directly\&.
+.PP
+The various APT configuration options support the special value
+DIRECT
+meaning that no proxy should be used\&. The environment variable
+\fBno_proxy\fR
+is also supported for the same purpose\&.
+.PP
+Furthermore, there are three settings provided for cache control with HTTP/1\&.1 compliant proxy caches:
+Acquire::http::No\-Cache
+tells the proxy not to use its cached response under any circumstances\&.
+Acquire::http::Max\-Age
+sets the allowed maximum age (in seconds) of an index file in the cache of the proxy\&.
+Acquire::http::No\-Store
+specifies that the proxy should not store the requested archive files in its cache, which can be used to prevent the proxy from polluting its cache with (big) \&.deb files\&.
+.SS "Automatic Proxy Configuration"
+.PP
+Acquire::http::Proxy\-Auto\-Detect
+can be used to specify an external command to discover the HTTP proxy to use\&. The first and only parameter is a URI denoting the host to be contacted, to allow for host\-specific configuration\&. APT expects the command to output the proxy on stdout as a single line in the previously specified URI format or the word
+DIRECT
+if no proxy should be used\&. No output indicates that the generic proxy settings should be used\&.
+.PP
+Note that auto\-detection will not be used for a host if a host\-specific proxy configuration is already set via
+Acquire::http::Proxy::\fIhost\fR\&.
+.PP
+See the
+\fBsquid-deb-proxy-client\fR(1)
+and
+\fBauto-apt-proxy\fR(1)
+packages for example implementations\&.
+.PP
+This option takes precedence over the legacy option name
+Acquire::http::ProxyAutoDetect\&.
+.SS "Connection Configuration"
+.PP
+The option
+Acquire::http::Timeout
+sets the timeout timer used by the method; this value applies to the connection as well as the data timeout\&.
+.PP
+The used bandwidth can be limited with
+Acquire::http::Dl\-Limit
+which accepts integer values in kilobytes per second\&. The default value is 0 which deactivates the limit and tries to use all available bandwidth\&. Note that this option implicitly disables downloading from multiple servers at the same time\&.
+.PP
+The setting
+Acquire::http::Pipeline\-Depth
+can be used to enable HTTP pipelining (RFC 2616 section 8\&.1\&.2\&.2) which can be beneficial e\&.g\&. on high\-latency connections\&. It specifies how many requests are sent in a pipeline\&. APT tries to detect and work around misbehaving webservers and proxies at runtime, but if you know that yours does not conform to the HTTP/1\&.1 specification, pipelining can be disabled by setting the value to 0\&. It is enabled by default with the value 10\&.
+.PP
+Acquire::http::AllowRedirect
+controls whether APT will follow redirects, which is enabled by default\&.
+.PP
+Acquire::http::User\-Agent
+can be used to set a different User\-Agent for the http download method as some proxies allow access for clients only if the client uses a known identifier\&.
+.PP
+Acquire::http::SendAccept
+is enabled by default and sends an
+Accept: text/*
+header field to the server for requests without file extensions to prevent the server from attempting content negotiation\&.
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Acquire::http {
+	Proxy::example\&.org "DIRECT";
+	Proxy "socks5h://apt:pass@127\&.0\&.0\&.1:9050";
+	Proxy\-Auto\-Detect "/usr/local/bin/apt\-http\-proxy\-auto\-detect";
+	No\-Cache "true";
+	Max\-Age "3600";
+	No\-Store "true";
+	Timeout "10";
+	Dl\-Limit "42";
+	Pipeline\-Depth "0";
+	AllowRedirect "false";
+	User\-Agent "My APT\-HTTP";
+	SendAccept "false";
+};
+.fi
+.if n \{\
+.RE
+.\}
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBapt.conf\fR(5)
+\fBapt_auth.conf\fR(5)
+\fBsources.list\fR(5)
+.SH "اشکالات (BUGS)"
+.PP
+\m[blue]\fBAPT bug page\fR\m[]\&\s-2\u[1]\d\s+2\&. If you wish to report a bug in APT, please see
+/usr/share/doc/debian/bug\-reporting\&.txt
+or the
+\fBreportbug\fR(1)
+command\&.
+.SH "نویسنده (AUTHOR)"
+.PP
+\fBAPT team\fR
+.RS 4
+.RE
+.SH "نکات (NOTES)"
+.IP " 1." 4
+APT bug page
+.RS 4
+\%https://bugs.debian.org/src:apt
+.RE

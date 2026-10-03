@@ -1,0 +1,359 @@
+.TH SQ 1 1.4.0 "Sequoia PGP" "User Commands"
+.SH "نام (NAME)"
+sq\-pki \- Authenticate certs using the Web of Trust
+.SH "خلاصه دستور (SYNOPSIS)"
+.br
+\fBsq pki authenticate\fR [\fIOPTIONS\fR]  
+.br
+\fBsq pki lookup\fR [\fIOPTIONS\fR]  
+.br
+\fBsq pki identify\fR [\fIOPTIONS\fR]  
+.br
+\fBsq pki vouch\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq pki link\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq pki path\fR [\fIOPTIONS\fR] \fIFINGERPRINT|KEYID\fR
+.SH "توضیحات (DESCRIPTION)"
+Authenticate certs using the Web of Trust.
+.PP
+The "Web of Trust" is a decentralized trust model popularized by PGP. It is a superset of X.509, which is a hierarchical trust model, and is the most popular trust model on the public internet today.  As used on the public internet, however, X.509 relies on a handful of global certification authorities (CAs) who often undermine its security.
+.PP
+The Web of Trust is more nuanced than X.509.  Using the Web of Trust, require multiple, independent paths to authenticate a binding by only partially trusting CAs.  This prevents a single bad actor from compromising their security.  And those who have stronger security requirements can use the Web of Trust in a completely decentralized manner where only the individuals they select – who are not necessarily institutions – act as trusted introducers.
+.PP
+
+.SH SUBCOMMANDS
+.SS "sq pki authenticate"
+Authenticate a binding.
+.PP
+Authenticate a binding (a certificate and User ID) by looking for a path from the trust roots to the specified binding in the Web of Trust.  Because certifications may express uncertainty (i.e., certifications may be marked as conveying only partial or marginal trust), multiple paths may be needed.
+.PP
+An error is return if no binding could be authenticated to the specified level (by default: fully authenticated, i.e., a trust amount of 120).
+.PP
+If any valid paths to the binding are found, they are printed on stdout whether they are sufficient to authenticate the binding or not.
+.PP
+
+.SS "sq pki lookup"
+Lookup the certificates associated with a User ID.
+.PP
+Identifies authenticated bindings (User ID and certificate pairs) where the User ID matches the specified User ID.
+.PP
+An error is return if no binding could be authenticated to the specified level (by default: fully authenticated, i.e., a trust amount of 120).
+.PP
+If a binding could be partially authenticated (i.e., its trust amount is greater than 0), then the binding is displayed, even if the trust is below the specified threshold.
+.PP
+
+.SS "sq pki identify"
+Identify a certificate.
+.PP
+Identify a certificate by finding authenticated bindings (User ID and certificate pairs).
+.PP
+An error is return if no binding could be authenticated to the specified level (by default: fully authenticated, i.e., a trust amount of 120).
+.PP
+If a binding could be partially authenticated (i.e., its trust amount is greater than 0), then the binding is displayed, even if the trust is below the specified threshold.
+.PP
+
+.SS "sq pki vouch"
+Manage certifications.
+.PP
+A vouch is a potentially public statement that something is true.  In OpenPGP there are two main types of statements that you can make: certifications, and authorizations.
+.PP
+You can assert that a certificate belongs to a particular entity. This says nothing about an entity's trustworthiness.  For instance, you might certify `bob@nsa.gov` for a given certificate.  This just means that you think the person behind the email address `bob@nsa.gov` really controls that certificate.  That's a useful statement to make even if you don't trust that person to act in your interest.
+.PP
+Alternatively you can say that you believe a certificate is a reasonable trusted introducer.  A trusted introducer is a third\-party that you authorize to make introductions.  For instance, your bank might have a certification authority (CA).  If you verify the CA's fingerprint, you can authorize it to make certifications.  That means that sq will use those certifications almost as if you made them. This is convenient as now you can authenticate any of the bank's employee.
+.PP
+Authorizing a trusted introducer gives the trusted introducer a lot of power.  You can constrain the amount of power that you give it by saying that it is only authorized to certify user IDs that have an email address in one or more domains, for instance.  In this way, you can take advantage of the places where your and a CA's interests are aligned, and protect yourself from potentially malicious actions.  For example, you could authorize your bank's CA to certify user IDs that have an email address in `bank.com`.  sq will then ignore any other certifications made by the CA.
+.PP
+
+
+.SS "sq pki link"
+Manage authenticated certificate and User ID links.
+.PP
+Linking a certificate and User ID is one way of making `sq` consider a binding to be authentic.  Another way is to use `sq pki vouch add` to certify the binding with an explicitly configured trust root.  The linking functionality is often easier to work with, and the information is private by default.
+.PP
+Authenticated bindings can be used to designate a certificate using a symbolic name.  For instance, using `sq encrypt`'s `\-\-for\-userid` and `\-\-for\-email` options, a user can designate a certificate using a User ID or an email address that is authenticated for that certificate.
+.PP
+`sq` also uses authenticated certificates to authenticate other data.  For instance, `sq verify` considers signatures made by an authenticated certificate to be authentic.
+.PP
+Users can create a link using `sq pki link add`.  That link can later be retracted using `sq pki link retract`.  A certificate can also be accepted as a trusted introducer by using `sq pki link authorize`.
+.PP
+`sq` implements linking using non\-exportable certifications, and an implicit trust root.  An OpenPGP certificate directory, the default certificate store used by `sq`, includes a local trust root, which is stored under the `trust\-root` special name.  When the user instructs `sq` to accept a binding, `sq` uses the local trust root to create a non\-exportable certification, which it stores in the certificate directory.  In this way, operations that use the Web of Trust to authenticate a binding automatically use links.
+.PP
+When a user retracts a link, `sq` creates a new, non\-exportable certification with zero trust.  This certification suppresses the previous link.
+.PP
+
+
+.SS "sq pki path"
+Verify the specified path.
+.PP
+A path is a sequence of certificates starting at the root, and a User ID.  This function checks that each path segment has a valid certification, which also satisfies any constraints (trust amount, trust depth, regular expressions).
+.PP
+If a valid path is not found, then this subcommand also lints the path.  In particular, it report if any certifications are insufficient, e.g., not enough trust depth, or invalid, e.g., because they use SHA\-1, but the use of SHA\-1 has been disabled.
+.PP
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS "sq pki authenticate"
+.PP
+
+.PP
+Authenticate a specific binding.
+.PP
+.nf
+.RS
+sq pki authenticate \-\-cert \\
+.RE
+.RS
+.RS
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \-\-userid \\
+.RE
+.RE
+.RS
+.RS
+"Alice <alice@example.org>"
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Check whether we can authenticate any user ID with the specified email
+address for the given certificate.
+.PP
+.nf
+.RS
+sq pki authenticate \-\-cert \\
+.RE
+.RS
+.RS
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \-\-email \\
+.RE
+.RE
+.RS
+.RS
+alice@example.org
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki lookup"
+.PP
+
+.PP
+Lookup certificates that can be authenticated for the given user ID.
+.PP
+.nf
+.RS
+sq pki lookup \-\-userid "Alice <alice@example.org>"
+.RE
+.PP
+.fi
+
+.PP
+Lookup certificates that have a user ID with the specified email
+address, and that user ID can be authenticated.
+.PP
+.nf
+.RS
+sq pki lookup \-\-email alice@example.org
+.RE
+.fi
+.PP
+.SS "sq pki identify"
+.PP
+
+.PP
+Identify the user IDs that can be authenticated for the certificate.
+.PP
+.nf
+.RS
+sq pki identify \-\-cert \\
+.RE
+.RS
+.RS
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.RE
+.PP
+.fi
+
+.PP
+List all user IDs that have that have been certified by anyone.
+.PP
+.nf
+.RS
+sq pki identify \-\-gossip \-\-cert \\
+.RE
+.RS
+.RS
+511257EBBF077B7AEDAE5D093F68CB84CE537C9A
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki vouch"
+.PP
+
+.PP
+Certify EB28F26E2739A4870ECC47726F0073F60FD0CBF0 for alice@example.org.
+.PP
+.nf
+.RS
+sq pki vouch add \\
+.RE
+.RS
+.RS
+\-\-certifier=E7FC51AD886BBB5C4F44C3D7A9DA14F3E740F63F \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-email=alice@example.org
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Certify EB28F26E2739A4870ECC47726F0073F60FD0CBF0 as a trusted introducer
+for example.org.
+.PP
+.nf
+.RS
+sq pki vouch authorize \\
+.RE
+.RS
+.RS
+\-\-certifier=E7FC51AD886BBB5C4F44C3D7A9DA14F3E740F63F \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-domain=example.org \-\-all
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki link"
+.PP
+
+.PP
+Link the certificate EB28F26E2739A4870ECC47726F0073F60FD0CBF0 with the
+email address alice@example.org.
+.PP
+.nf
+.RS
+sq pki link add \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-email=alice@example.org
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Then, temporarily accept the certificate
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0 with all of its self\-signed
+user IDs for a week.
+.PP
+.nf
+.RS
+sq pki link add \-\-expiration=1w \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \-\-all
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Accept the certificate EB28F26E2739A4870ECC47726F0073F60FD0CBF0 with
+all of its self\-signed user IDs as a trusted certification authority
+constrained to the domain example.org.  That is, the certificate is
+considered a trusted introducer for example.org.
+.PP
+.nf
+.RS
+sq pki link authorize \-\-domain=example.org \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \-\-all
+.RE
+.RE
+.PP
+.fi
+
+.PP
+List all links.
+.PP
+.nf
+.RS
+sq pki link list
+.RE
+.PP
+.fi
+
+.PP
+Retract the acceptance of certificate
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0 and any associated user IDs.
+This effectively invalidates all links.
+.PP
+.nf
+.RS
+sq pki link retract \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \-\-all
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki path"
+.PP
+
+.PP
+Verify that Alice ceritified a particular User ID for Bob's certificate.
+.PP
+.nf
+.RS
+sq pki path EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RS
+.RS
+511257EBBF077B7AEDAE5D093F68CB84CE537C9A \-\-userid \\
+.RE
+.RE
+.RS
+.RS
+"Bob <bob@example.org>"
+.RE
+.RE
+.fi
+.SH "همچنین ببینید (SEE ALSO)"
+.nh
+\fBsq\fR(1), \fBsq\-pki\-authenticate\fR(1), \fBsq\-pki\-lookup\fR(1), \fBsq\-pki\-identify\fR(1), \fBsq\-pki\-vouch\fR(1), \fBsq\-pki\-link\fR(1), \fBsq\-pki\-path\fR(1).
+.hy
+.PP
+For the full documentation see <https://book.sequoia\-pgp.org>.
+.SH "نسخه (VERSION)"
+1.4.0

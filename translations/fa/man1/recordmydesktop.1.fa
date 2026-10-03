@@ -1,0 +1,644 @@
+.TH recordMyDesktop 1 2017-04-05
+.SH "نام (NAME)"
+recordMyDesktop \- record desktop sessions to an Ogg Theora video file with \
+Vorbis audio
+.SH "خلاصه دستور (SYNOPSIS)"
+.B recordmydesktop
+.PP
+.B recordmydesktop
+.I output-filename
+.PP
+.B recordmydesktop \-\-rescue
+.I path-to-data
+.PP
+.B recordmydesktop
+.RI { image-options | sound-options | encoding-options | miscellaneous-options \
+"| ... }
+.PP
+.B recordmydesktop
+.RB { \-h | \-\-help }
+.PP
+.B recordmydesktop \-\-version
+.PP
+.B recordmydesktop \-\-print\-config
+.SH "توضیحات (DESCRIPTION)"
+.B recordMyDesktop
+produces a file
+.RI ( out.ogv
+by default) containing a video and audio recording of an X Window System
+session.
+.PP
+For a typical scenario, recording your session is as simple as
+.RS
+$
+.B recordmydesktop
+.RE
+which will produce a full-screen recording named
+.I out.ogv
+in the current working directory, while the command
+.RS
+$
+.B recordmydesktop ../foo
+.RE
+will save the recording in
+.I foo.ogv
+in the parent of the current working directory.
+.PP
+To end a recording, press
+.BR Control+C .
+(This action sends a
+.B SIGINT
+to
+.BR recordMyDesktop .)
+.PP
+To designate a region of the screen for recording you can type this:
+.RS
+$
+.B recordmydesktop \-x
+.I x-pos
+.B \-y
+.I y-pos
+.B \-\-width
+.I w
+.B \-\-height
+.I h
+.B \-o foo.ogv
+.RE
+where
+.I x-pos
+and
+.I y-pos
+specify the offset in pixels from the upper-left corner of your screen and
+.I w
+and
+.I h
+the size of the region to be recorded, again in pixels.
+.\" It would be nice to take an X-style geometry specification.
+If the area extends beyond your current resolution, you will be notified
+appropriately and nothing will happen.
+.PP
+.IR Note :
+If
+.I any
+options are used, and you wish to use an output filename other than the default,
+you must specify it with the
+.B \-o
+option.
+.\" That's not consistent with argv parsing in most of the Unix world.
+.PP
+Since version 0.3 of
+.BR recordMyDesktop ,
+encoding is done immediately after recording finishes.
+While this behavior saves a lot of CPU, you can revert to the old one by
+specifying the
+.B \-\-on\-the\-fly\-encoding
+option.
+.PP
+The default behavior of recording is to mark areas that have changed (as
+determined by the X Damage extension) and update the frame.
+This behavior can be changed through the option
+.B \-\-full\-shots
+to produce a more accurate result or capture windows that do not generate X
+events on change, such as windows with accelerated 3D context, but this will
+notably increase the workload.
+.PP
+.B recordMyDesktop
+doesn't have a user interface in the conventional sense.
+After startup, it can be controlled only through the following signals:
+.TP
+.B SIGUSR1
+causes the program to pause if it's currently recording, and vice-versa.
+.TP
+.B SIGTERM
+.TQ
+.B SIGINT
+cause normal termination of the recording.
+.TP
+.B SIGABRT
+terminates the program and removes the output file.
+.PP
+These signals can also be delivered to the application through the configuration
+of keyboard shortcuts.
+See
+.B \-\-pause\-shortcut
+and
+.B \-\-stop\-shortcut
+in the
+.B Miscellaneous
+subsection of the
+.B Options
+section below.
+.PP
+For further manipulation of the end result, consult the
+.B Options
+and
+.B Notes
+sections below.
+.SH "گزینه‌ها (OPTIONS)"
+If
+.I and only if
+no options are specified,
+.B recordMyDesktop
+accepts a single operand which it interprets as an output filename.
+.PP
+.B recordMyDesktop
+accepts many command-line options.
+The following discussion groups them into families.
+.SS General
+.TP
+.B \-h \fRor\fP \-\-help
+Print a summary of usage and exit.
+.TP
+.B \-\-version
+Print program version and exit.
+.TP
+.B
+\-\-print\-config
+Print information about options selected during compilation and exit.
+Currently indicates whether Jack capture is enabled and if ALSA or OSS is used;
+may report more information in the future.
+.SS Image
+.TP
+.BI \-\-windowid " wid"
+Record the region of the screen corresponding to the X window
+.IR wid
+at the time
+.B recordMyDesktop
+starts.
+Recording a window doesn't track the window itself, but instead the region that
+it covers; if the window is moved,
+.B recordMyDesktop
+does not follow it.
+If the window is obscured by another, the obscuring window's contents within the
+recording region are captured.
+An X client's window ID can be obtained with the
+.BR xwininfo (1)
+program; see the
+.B Notes
+section below.
+.TP
+.BI \-\-display " x-display"
+Connect to the X Window System display at
+.IR x-display .
+By default, the value of the
+.B DISPLAY
+environment variable are used to the determine the display.
+.TP
+.BI \-x " x-offset"
+Restrict the recording region to start at
+.I x-offset
+pixels from the left edge of the screen or the X window ID designated with
+.BR \-\-windowid.
+The default is 0.
+.TP
+.BI \-y " y-offset"
+Restrict the recording region to start at
+.I y-offset
+pixels from the top edge of the screen or the X window ID designated with
+.BR \-\-windowid.
+The default is 0.
+.TP
+.BI \-\-width " w"
+Restrict the recording region to
+.I w
+pixels in width.
+The default is the full width of the screen or the X window ID designated with
+.BR \-\-windowid.
+.TP
+.BI \-\-height " h"
+Restrict the recording region to
+.I h
+pixels in height.
+The default is the full height of the screen or the X window ID designated with
+.BR \-\-windowid.
+.TP
+.BI \-\-dummy\-cursor " color"
+Draw a dummy cursor instead of the normal one.
+The given
+.I color
+must be a string, either
+.RB \(lq black \(rq
+or
+.RB \(lq white \(rq.
+.TP
+.B \-\-no\-cursor
+Disable drawing of the cursor.
+.TP
+.B \-\-no\-shared
+Do not use the
+.UR https://www.x.org/releases/X11R7.7/doc/xextproto/shm.html
+MIT shared memory extension (MIT-SHM)
+.UE .
+.I Use of this option is not recommended.
+.TP
+.B \-\-full\-shots
+Take a full screenshot at every frame.
+.I Use of this option is not recommended.
+.TP
+.B \-\-follow\-mouse
+When this option is enabled, the capture area follows the mouse cursor.
+This is meaningful only when the selected area is a subset of the full screen.
+This option implies
+.BR \-\-full-shots .
+.TP
+.B \-\-quick\-subsampling
+Sub-sample chroma planes by discarding extra pixels.
+.TP
+.BI \-\-fps " n"
+Attempt to capture
+.I n
+frames per second, where
+.I n
+is positive and may be an integral or floating-point number.
+The achievable frame rate is limited by your system's hardware and workload.
+The default is 15.
+.SS Sound
+.TP
+.BI \-\-channels " n"
+Record up to
+.I n
+channels, where
+.I n
+is a positive integer.
+The default is 2 (stereo).
+.TP
+.BI \-\-freq " n"
+Record at a sample rate of
+.I n
+hertz, where
+.I n
+is a positive integer.
+The default is 22050 (22.05 kHz).
+.TP
+.BI \-\-buffer\-size " n"
+Buffer
+.I n
+bytes of sound data when using the ALSA or OSS sound systems, where
+.I n
+is a positive integer.
+The default is 4096 (4 kiB).
+.TP
+.BI \-\-ring\-buffer\-size " n"
+Set the size of the JACK ring buffer in seconds, where
+.I n
+is a positive floating-point number.
+The default is 3.0.
+.IP ""
+The total size of the buffer in bytes can be expressed as a C language
+expression:
+.EX
+ring_buffer_size * sample_rate * number_of_ports
+        * sizeof(jack_default_audio_sample_t),
+.EE
+where
+.ft CR
+sizeof(jack_default_audio_sample_t)
+.ft
+is normally 4.
+.TP
+.BI \-\-device " sound-device"
+Capture audio from
+.IR sound-device .
+The default is
+.IR default
+or
+.IR /dev/dsp ,
+depending on whether ALSA or OSS is used, respectively.
+.TP
+.BI \-\-use\-jack " port \fR...\fP"
+Record audio from the specified list of space-separated JACK ports.
+When using this option, all other audio-related options (except
+.BR \-\-no-sound )
+.\" ...and --ring-buffer-size?
+are ignored.
+.TP
+.B \-\-no\-sound
+Do not record sound.
+.SS Encoding
+.TP
+.B \-\-on\-the\-fly\-encoding
+Encode the audio/video data while recording.
+The default is to defer encoding until after recording is complete.
+.TP
+.BI \-\-v_quality " n"
+Set the desired video quality to
+.IR n ,
+an integer between 0 and 63 inclusive; higher is better.
+The default is 63.
+See the
+.B Notes
+section below.
+.TP
+.BI \-\-v_bitrate " n"
+Set the desired bit rate of the encoded video to
+.I n
+bits per second.
+The accepted range of
+.I n
+is between 0 and 200,000,000 inclusive; the default is 0.
+(The thousands separator is shown here for clarity; do not use it in the option
+argument.)
+.TP
+.BI \-\-s_quality " n"
+Set the desired audio quality to
+.IR n ,
+an integer between -1 and 10 inclusive; higher is better.
+The default is 10.
+.SS Miscellaneous
+.TP
+.BI \-\-rescue " path-to-data"
+Encode cache data from a previous session into an Ogg Theora file.
+The filename will be the one that was chosen initially.
+Any other option specified with this one will be implicitly ignored and
+.B recordMyDesktop
+will exit after the end of the encoding.
+This option was added in
+.B recordMyDesktop
+0.3.7 and it will not work with cache files produced from earlier versions.
+When using this option, note that
+.BR recordMyDesktop 's
+cache is not safe with respect to data type sizes and endianness.
+To locate the cached data, see the
+.B \-\-workdir
+option below.
+.TP
+.B \-\-no\-wm\-check
+When a 3D compositing window manager is detected, the program will function as
+if the
+.B \-\-full\-shots
+option had been specified.
+This option disables the check.
+.TP
+.B \-\-no\-frame
+Normally, a frame is drawn around the recording region to assist the user to
+identify what does and doesn't get captured.
+When the
+.B \-\-follow\-mouse
+is given, this frame will also follow the pointer around.
+However, the frame might cause problems for drag-and-drop operations.
+If you do not wish this frame to appear, use this option.
+.TP
+.BI \-\-pause\-shortcut " mod" + key
+Designate a key combination to toggle the pause state of the recording.
+.I mod
+can be any combination of the following modifier keys: Control, Shift, and Mod1
+to Mod5.
+The modifiers can be separated by any character
+.RI ( "except a space" )
+or none at all.
+.I key
+can be any key defined in
+.\" If outputting HTML, make the filename a clickable link.
+.ie '\*(.T'html' \{\
+.UR file:///usr/include/X11/keysymdef.h
+.UE . \}
+.el \{\
+.IR /usr/include/X11/keysymdef.h . \}
+Omit the XK_ prefixes to the key names found in that file.
+The list of modifiers must be separated from the key with a plus sign \(lq+\(rq.
+The default is
+.BR Control+Mod1+p .
+(Mod1 usually corresponds to the left Alt key).
+.TP
+.BI \-\-stop\-shortcut " mod" + key
+Designate a key combination to stop the recording.
+For details, see
+.B \-\-pause\-shortcut
+above.
+The default is
+.BR Control+Mod1+s .
+.TP
+.B \-\-compress\-cache
+Image data are cached with a light compression.
+.TP
+.BI \-\-workdir " dir"
+.B recordMyDesktop
+creates a temporary directiory in
+.I dir
+to cache intermediate files.
+The default is read from the environment variable
+.B TMPDIR
+if set, otherwise
+.IR /tmp
+is used.
+.TP
+.BI \-\-delay " n\fR[\fP" H \fR|\fP h \fR|\fP M \fR|\fP m \fR]\fP
+Wait
+.I n
+units of time (seconds, if not specified) before starting the recording, where
+.I n
+is a non-negative integral or floating-point value.
+An optional suffix of
+.B H
+or
+.BR h ,
+.B M
+or
+.BR m ;
+indicates time units of hours or minutes, respectively.
+The default is no delay.
+.TP
+.B \-\-overwrite
+If the output filename already exists, delete it.
+The default is to refuse to overwrite, interpolating a numeric discriminator
+into the filename instead (see the
+.B Files
+section below).
+.TP
+.BI \-o " filename"
+Write the encoded video to
+.IR filename .
+The default is
+.IR out.ogv .
+.SH "وضعیت خروج (EXIT STATUS)"
+An exit status of 0 means success per the usual Unix conventions.
+.PP
+A non-zero exit status means that an error occurred; these are accompanied by
+diagnostic messages to the standard error.
+Furthermore, several exceptional conditions are distinguished by exit status.
+.IP 1
+Argument parsing failed or argument input was nonsensical.
+.IP 2
+Encoder initialization failed (Vorbis or Theora).
+.IP 3
+Could not open or configure sound device.
+.IP 4
+XDamage extension is not present.
+.IP 5
+MIT-SHM extension is not present.
+.IP 6
+XFixes extension is not present.
+.IP 7
+.BR XInitThreads (3)
+failed.
+.IP 8
+The
+.B DISPLAY
+environment variable is not set and no
+.B \-\-display
+option was specified.
+.IP 9
+Could not connect to the X server.
+.IP 10
+The color depth of the root window is not 32, 24, or 16 bits per pixel.
+.IP 11
+The recording window specification was invalid.
+.IP 12
+Could not attach shared memory to process.
+.IP 13
+Could not open file for writing.
+.\" The following exit codes seem to no longer be used.
+.\" .IP 14
+.\" Could not load the JACK library (unused since
+.\" .B recordMyDesktop
+.\" 0.3.8).
+.\" .IP 15
+.\" Could not create new (JACK?) client.
+.\" .IP 16
+.\" Cannot activate (JACK?) client.
+.\" .IP 17
+.\" (JACK?) port registration/connection failure.
+.SH "محیط (ENVIRONMENT)"
+.TP
+.B DISPLAY
+specifies the X server to connect to.
+For typical use cases, this variable is already set correctly in the environment
+and corresponds to the X display the user is already interacting with (in other
+words,
+.B recordMyDesktop
+\(lqdoes the right thing\(rq).
+See section
+.B Display Names
+in
+.BR X (7)
+for more information.
+.SH "فایل‌ها (FILES)"
+.B recordMyDesktop
+adds the suffix
+.I .ogv
+to any output filename that does not already possess one (in any letter case).
+.PP
+If you try to save to a filename that already exists, a numeric discriminator of
+the form
+.I \-n
+is interpolated into the filename before the
+.I .ogv
+suffix.
+The number
+.I n
+starts at 1 and is incremented if the filename with that discriminator exists
+already.
+.PP
+For example, when not specifying a name, if
+.I out.ogv
+exists, the new file will be
+.IR out\-1.ogv ,
+and if that exists too,
+.I out\-2.ogv
+is used, and so on
+.I ad infinitum
+(not really, more like
+.IR "ad unsigned short" ).
+.SH "نکات (NOTES)"
+.SS Recoding using an X window ID
+When using the
+.B \-\-windowid
+option, read carefully its description in the
+.B Options
+section above, as well as those of the
+.BR \-x ,
+.BR \-y ,
+.BR \-\-width ,
+and
+.B \-\-height
+options.
+.PP
+An easy way to find out the ID of a window is by using the
+.BR xwininfo (1)
+program.
+Running a command like
+.RS
+$
+.B xwininfo | awk \(aq/Window id:/ {print $4}\(aq
+.RE
+will report only the window ID, which will be a hexadecimal integer in C literal
+format, like \(lq0x4800005\(rq.
+More conveniently, you can put all that in the command that launches
+.B recordMyDesktop
+like this:
+.RS
+$
+.B
+recordmydesktop \-\-windowid $(xwininfo | awk \(aq/Window id:/ {print $4}\(aq)
+.RE
+.SS Tuning the video quality
+The lower the quality you select on a video recording (by using the
+.B \-\-v_quality
+option), the more CPU performance you will require.
+So if you are also using the
+.B \-\-on\-the\-fly\-encoding
+option, it's better to start with default values and manipulate the end result
+with another program.
+An excellent converter is the
+.BR vlc (1)
+media player, which can perform a variety of transcoding operations, using
+either a graphical interface or the command line.
+.B vlc
+is a complex piece of software; you should consult its documentation before
+using it.
+An example follows which will resize a recording named
+.I out.ogv
+to 512\(mu384.
+.RS
+$
+.B
+vlc \-I dummy out.ogv vlc:quit \-\-sout "#transcode{ vcodec = theo, \
+width = 512, height = 384 }:duplicate{ dst = std{ access = file, mux=ogg, \
+dst = \\"out_512x384.ogv\\" }}"
+.RE
+.PP
+If you wish to change the video quality you can append the option
+.BI \-\-sout\-theora\-quality= n\fR,\fP
+with
+.I n
+in the range
+[1,10]; for example,
+.RS
+$
+.B
+vlc \-I dummy out.ogv vlc:quit \-\-sout "#transcode{ vcodec = theo, \
+width = 512, height = 384 }:duplicate{ dst = std{ access = file, mux=ogg, \
+dst = \\"out_512x384.ogv\\" }}" \-\-sout\-theora\-quality=3
+.RE
+produces a file of a video quality 18 (in a range of 0\(en63), appropriate for
+web publishing.
+.PP
+Another option is
+.BR ffmpeg2theora (1),
+which\(emdespite its name\(emis also a Theora-to-Theora converter.
+Changing the quality of a recordng with it can be as simple as:
+.RS
+$
+.B
+ffmpeg2theora infile.ogv \-v 3 \-a 4 \-o outfile.ogv
+.RE
+It can even perform resizing on the geometry of the recording, or change the
+overall duration.
+.SH "اشکالات (BUGS)"
+.IP \(bu
+Does not record 3D windows if
+.B \-\-full\-shots
+isn't specified.
+.IP \(bu
+Saving 65536 files with the same name will result in unpredictable behavior,
+which might manifest as an endless loop or a segmentation fault.
+.\" ...or a full disk.
+.SH "نویسندگان (AUTHORS)"
+John Varouhakis
+.SH "همچنین ببینید (SEE ALSO)"
+.BR X (7),
+.BR ffmpeg2theora (1),
+.BR jack_lsp (1),
+.BR vlc (1),
+.BR xwininfo (1)
+.\" vim:set et ft=nroff tw=80:

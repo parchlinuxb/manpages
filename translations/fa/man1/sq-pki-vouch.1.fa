@@ -1,0 +1,290 @@
+.TH SQ 1 1.4.0 "Sequoia PGP" "User Commands"
+.SH "نام (NAME)"
+sq\-pki\-vouch \- Manage certifications
+.SH "خلاصه دستور (SYNOPSIS)"
+.br
+\fBsq pki vouch add\fR [\fIOPTIONS\fR]  
+.br
+\fBsq pki vouch authorize\fR [\fIOPTIONS\fR]  
+.br
+\fBsq pki vouch list\fR [\fIOPTIONS\fR]  
+.br
+\fBsq pki vouch replay\fR [\fIOPTIONS\fR]  
+.SH "توضیحات (DESCRIPTION)"
+Manage certifications.
+.PP
+A vouch is a potentially public statement that something is true.  In OpenPGP there are two main types of statements that you can make: certifications, and authorizations.
+.PP
+You can assert that a certificate belongs to a particular entity. This says nothing about an entity's trustworthiness.  For instance, you might certify `bob@nsa.gov` for a given certificate.  This just means that you think the person behind the email address `bob@nsa.gov` really controls that certificate.  That's a useful statement to make even if you don't trust that person to act in your interest.
+.PP
+Alternatively you can say that you believe a certificate is a reasonable trusted introducer.  A trusted introducer is a third\-party that you authorize to make introductions.  For instance, your bank might have a certification authority (CA).  If you verify the CA's fingerprint, you can authorize it to make certifications.  That means that sq will use those certifications almost as if you made them. This is convenient as now you can authenticate any of the bank's employee.
+.PP
+Authorizing a trusted introducer gives the trusted introducer a lot of power.  You can constrain the amount of power that you give it by saying that it is only authorized to certify user IDs that have an email address in one or more domains, for instance.  In this way, you can take advantage of the places where your and a CA's interests are aligned, and protect yourself from potentially malicious actions.  For example, you could authorize your bank's CA to certify user IDs that have an email address in `bank.com`.  sq will then ignore any other certifications made by the CA.
+.PP
+
+
+.SH SUBCOMMANDS
+.SS "sq pki vouch add"
+Certify a User ID for a Certificate.
+.PP
+Using a certification a keyholder may vouch for the fact that another certificate legitimately belongs to a user id.  In the context of emails this means that the same entity controls the key and the email address.  These kind of certifications form the basis for the Web of Trust.
+.PP
+This command emits the certificate with the new certification.  The updated certificate has to be distributed, preferably by sending it to the certificate holder for approval.  See also `sq key approvals`.
+.PP
+By default a certification expires after 10 years. Using the `\-\-expiration` argument specific validity periods may be defined. It allows for providing a point in time for validity to end or a validity duration.
+.PP
+`sq pki vouch add` respects the reference time set by the top\-level `\-\-time` argument.  It sets the certification's creation time to the reference time.
+.PP
+
+
+.SS "sq pki vouch authorize"
+Mark a certificate as a trusted introducer.
+.PP
+Creates a certification that says that the issuer considers the certificate to be a trusted introducer.  Trusted introducer is another word for certification authority (CA).  When a user relies on a trusted introducer, the user considers certifications made by the trusted introducer to be valid.  A trusted introducer can also designate further trusted introducers.
+.PP
+As is, a trusted introducer has a lot of power.  This power can be limited in several ways.
+.PP
+  \- The ability to specify further introducers can be constrained using the `\-\-depth` parameter.
+.PP
+  \- The degree to which an introducer is trusted can be changed using the `\-\-amount` parameter.
+.PP
+  \- The user IDs that an introducer can certify can be constrained by domain using the `\-\-domain` parameter or a regular expression using the `\-\-regex` parameter.
+.PP
+These mechanisms allow Alice to say that she is willing to rely on the CA for example.org, but only for user IDs that have an email address for example.org, for instance.
+.PP
+By default a delegation expires after 10 years. Use the `\-\-expiration` argument to override this.
+.PP
+This subcommand respects the reference time set by the top\-level `\-\-time` argument.  It sets the certification's creation time to the reference time.
+.PP
+
+
+.SS "sq pki vouch list"
+List certifications.
+.PP
+If the certifier argument is provided, then certifications made by the specified certificate are shown.  If the certificate argument is provided, then certifications of the specified certificate are shown. If both are provided, then certifications of the specified certificate made by the specified certifier are shown.
+.PP
+This command lists all of certifications, not just the active certification.
+.PP
+Because certifications are associated with the certificated certificate and not the certifier's certificate, this list is likely incomplete.
+.PP
+Stable since 1.2.0.
+.PP
+
+
+.SS "sq pki vouch replay"
+Replays vouches.
+.PP
+This command replays the vouches made by one certificate using another certificate.  This is primarily useful when you replace a certificate, and you want the new certificate to have made the same certifications as you made with the old certificate.
+.PP
+Because certifications are associated with the certificated certificate, and not the certifier's certificate, this may not replay all of the certifications that the source ever made.
+.PP
+This command only copies the active certification for a given user ID and certificate.  This includes both exportable certifications (vouches) as well as non\-exportable certifications (links).  It excludes expired certifications.  It also doesn't replay certifications made on invalid, expired or revoked certificates, or revoked user IDs.
+.PP
+This command replays all of the certifications parameters including any expiration time, but the creation time is set to the current time.
+.PP
+Stable since 1.2.0.
+.PP
+
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS "sq pki vouch"
+.PP
+
+.PP
+Certify EB28F26E2739A4870ECC47726F0073F60FD0CBF0 for alice@example.org.
+.PP
+.nf
+.RS
+sq pki vouch add \\
+.RE
+.RS
+.RS
+\-\-certifier=E7FC51AD886BBB5C4F44C3D7A9DA14F3E740F63F \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-email=alice@example.org
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Certify EB28F26E2739A4870ECC47726F0073F60FD0CBF0 as a trusted introducer
+for example.org.
+.PP
+.nf
+.RS
+sq pki vouch authorize \\
+.RE
+.RS
+.RS
+\-\-certifier=E7FC51AD886BBB5C4F44C3D7A9DA14F3E740F63F \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-domain=example.org \-\-all
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki vouch add"
+.PP
+
+.PP
+Alice certifies that Bob controls 3F68CB84CE537C9A and bob@example.org.
+.PP
+.nf
+.RS
+sq pki vouch add \\
+.RE
+.RS
+.RS
+\-\-certifier=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=511257EBBF077B7AEDAE5D093F68CB84CE537C9A \\
+.RE
+.RE
+.RS
+.RS
+\-\-email=bob@example.org
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Alice certifies that Bob controls 3F68CB84CE537C9A and
+bob@bobs.lair.net, which is not a self\-signed user ID.
+.PP
+.nf
+.RS
+sq pki vouch add \\
+.RE
+.RS
+.RS
+\-\-certifier=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=511257EBBF077B7AEDAE5D093F68CB84CE537C9A \\
+.RE
+.RE
+.RS
+.RS
+\-\-add\-email=bob@bobs.lair.net
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki vouch authorize"
+.PP
+
+.PP
+Certify that E7FC51AD886BBB5C4F44C3D7A9DA14F3E740F63F is a trusted
+introducer for example.org and example.com.
+.PP
+.nf
+.RS
+sq pki vouch authorize \\
+.RE
+.RS
+.RS
+\-\-certifier=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=E7FC51AD886BBB5C4F44C3D7A9DA14F3E740F63F \\
+.RE
+.RE
+.RS
+.RS
+\-\-domain=example.org \-\-domain=example.com \-\-all
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki vouch list"
+.PP
+
+.PP
+List certifications made by Alice.
+.PP
+.nf
+.RS
+sq pki vouch list \\
+.RE
+.RS
+.RS
+\-\-certifier=EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.RE
+.PP
+.fi
+
+.PP
+List certifications made by Alice for Bob's certificate.
+.PP
+.nf
+.RS
+sq pki vouch list \\
+.RE
+.RS
+.RS
+\-\-certifier=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=511257EBBF077B7AEDAE5D093F68CB84CE537C9A
+.RE
+.RE
+.fi
+.PP
+.SS "sq pki vouch replay"
+.PP
+
+.PP
+Alice generates a new certificate, and replays the certifications she
+made with the old certificate using the new one.
+.PP
+.nf
+.RS
+sq pki vouch replay \\
+.RE
+.RS
+.RS
+\-\-source=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-target=C5999E8191BF7B503653BE958B1F7910D01F86E5
+.RE
+.RE
+.fi
+.SH "همچنین ببینید (SEE ALSO)"
+.nh
+\fBsq\fR(1), \fBsq\-pki\fR(1), \fBsq\-pki\-vouch\-add\fR(1), \fBsq\-pki\-vouch\-authorize\fR(1), \fBsq\-pki\-vouch\-list\fR(1), \fBsq\-pki\-vouch\-replay\fR(1).
+.hy
+.PP
+For the full documentation see <https://book.sequoia\-pgp.org>.
+.SH "نسخه (VERSION)"
+1.4.0

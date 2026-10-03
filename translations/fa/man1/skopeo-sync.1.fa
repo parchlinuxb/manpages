@@ -1,0 +1,384 @@
+.nh
+.TH skopeo-sync(1)
+.SH "نام (NAME)"
+skopeo-sync \- Synchronize images between registry repositories and local directories.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBskopeo sync\fP [\fIoptions\fP] --src \fItransport\fP --dest \fItransport\fP \fIsource\fP \fIdestination\fP
+
+.SH "توضیحات (DESCRIPTION)"
+Synchronize images between registry repositories and local directories. Synchronization is achieved by copying all the images found at \fIsource\fP to \fIdestination\fP - useful when synchronizing a local container registry mirror or for populating registries running inside of air-gapped environments.
+
+.PP
+Differently from other skopeo commands, skopeo sync requires both source and destination transports to be specified separately from \fIsource\fP and \fIdestination\fP\&.
+One of the problems of prefixing a destination with its transport is that, the registry \fBdocker://hostname:port\fR would be wrongly interpreted as an image reference at a non-fully qualified registry, with \fBhostname\fR and \fBport\fR the image name and tag.
+
+.PP
+Available \fIsource\fP transports:
+ - \fIdocker\fP (i.e. \fB--src docker\fR): \fIsource\fP is a repository hosted on a container registry (e.g.: \fBregistry.example.com/busybox\fR).
+ If no image tag is specified, skopeo sync copies all the tags found in that repository.
+ - \fIdir\fP (i.e. \fB--src dir\fR): \fIsource\fP is a local directory path (e.g.: \fB/media/usb/\fR). Refer to skopeo(1) \fBdir:\fP\fIpath\fP for the local image format.
+ - \fIyaml\fP (i.e. \fB--src yaml\fR): \fIsource\fP is local YAML file path.
+ The YAML file should specify the list of images copied from different container registries (local directories are not supported). Refer to EXAMPLES for the file format.
+
+.PP
+Available \fIdestination\fP transports:
+ - \fIdocker\fP (i.e. \fB--dest docker\fR): \fIdestination\fP is a container registry (e.g.: \fBmy-registry.local.lan\fR).
+ - \fIdir\fP (i.e. \fB--dest dir\fR): \fIdestination\fP is a local directory path (e.g.: \fB/media/usb/\fR).
+ One directory per source 'image:tag' is created for each copied image.
+
+.PP
+When the \fB--scoped\fR option is specified, images are prefixed with the source image path so that multiple images with the same
+name can be stored at \fIdestination\fP\&.
+
+.SH "گزینه‌ها (OPTIONS)"
+See also skopeo(1) for options placed before the subcommand name.
+
+.PP
+\fB--all\fP, \fB-a\fP
+If one of the images in \fBsrc\fP refers to a list of images, instead of copying just the image which matches the current OS and
+architecture (subject to the use of the global --override-os, --override-arch and --override-variant options), attempt to copy all of
+the images in the list, and the list itself.
+
+.PP
+\fB--authfile\fP \fIpath\fP
+
+.PP
+Path of the primary registry credentials file. On Linux, the default is ${XDG_RUNTIME_DIR}/containers/auth.json.
+See \fBcontainers-auth.json\fP(5) for more details about the credential search mechanism and defaults on other platforms.
+
+.PP
+Use \fBskopeo login\fR to manage the credentials.
+
+.PP
+The default value of this option is read from the \fBREGISTRY\\_AUTH\\_FILE\fR environment variable.
+
+.PP
+\fB--src-authfile\fP \fIpath\fP
+
+.PP
+Path of the primary registry credentials file for the source registry. Uses path given by \fB--authfile\fR, if not provided.
+
+.PP
+\fB--dest-authfile\fP \fIpath\fP
+
+.PP
+Path of the primary registry credentials file for the destination registry. Uses path given by \fB--authfile\fR, if not provided.
+
+.PP
+\fB--dry-run\fP
+
+.PP
+Run the sync without actually copying data to the destination.
+
+.PP
+\fB--src\fP, \fB-s\fP \fItransport\fP Transport for the source repository.
+
+.PP
+\fB--dest\fP, \fB-d\fP \fItransport\fP Destination transport.
+
+.PP
+\fB--format\fP, \fB-f\fP \fImanifest-type\fP Manifest Type (oci, v2s1, or v2s2) to use when syncing image(s) to a destination (default is manifest type of source, with fallbacks).
+
+.PP
+\fB--help\fP, \fB-h\fP
+
+.PP
+Print usage statement
+
+.PP
+\fB--scoped\fP Prefix images with the source image path, so that multiple images with the same name can be stored at \fIdestination\fP\&.
+
+.PP
+\fB--append-suffix\fP \fItag-suffix\fP String to append to destination tags.
+
+.PP
+\fB--digestfile\fP \fIpath\fP
+
+.PP
+After copying the images from source, write the digest of the resulting images along with Image Reference.
+
+.EX
+sha256:bf91f90823248017a4f920fb541727fa8368dc6cf377a7debbd271cf6a31c8a7 docker://myhost.com/alpine:edge
+sha256:31603596830fc7e56753139f9c2c6bd3759e48a850659506ebfb885d1cf3aef5 docker://myhost.com/postgres:14.3
+
+.EE
+
+.PP
+\fB--preserve-digests\fP
+
+.PP
+Preserve the digests during copying. Fail if the digest cannot be preserved.
+
+.PP
+This option does not change what will be copied; consider using \fB--all\fR at the same time.
+
+.PP
+\fB--remove-signatures\fP Do not copy signatures, if any, from \fIsource-image\fP\&. This is necessary when copying a signed image to a destination which does not support signatures.
+
+.PP
+\fB--remove-list-signatures\fP
+
+.PP
+Do not copy the manifest list signature while preserving per-instance signatures. This provides more granular control than \fB--remove-signatures\fP, which removes all signatures.
+
+.PP
+\fB--sign-by\fP \fIkey-id\fP
+
+.PP
+Add a “simple signing” signature using that key ID for an image name corresponding to \fIdestination-image\fP
+
+.PP
+\fB--sign-by-sigstore\fP \fIparam-file\fP
+
+.PP
+Add a sigstore signature based on the options in the specified containers sigstore signing parameter file, \fIparam-file\fP\&.
+See containers-sigstore-signing-params.yaml(5) for details about the file format.
+
+.PP
+\fB--sign-by-sigstore-private-key\fP \fIpath\fP
+
+.PP
+Add a sigstore signature using a private key at \fIpath\fP for an image name corresponding to \fIdestination-image\fP
+
+.PP
+\fB--sign-by-sq-fingerprint\fP \fIfingerprint\fP
+
+.PP
+Add a “simple signing” signature using a Sequoia-PGP key with the specified \fIfingerprint\fP\&.
+
+.PP
+\fB--sign-passphrase-file\fP \fIpath\fP
+
+.PP
+The passphrase to use when signing with \fB--sign-by\fR, \fB--sign-by-sigstore-private-key\fR or \fB--sign-by-sq-fingerprint\fR\&.
+Only the first line will be read. A passphrase stored in a file is of questionable security if other users can read this file. Do not use this option if at all avoidable.
+
+.PP
+\fB--src-creds\fP \fIusername[:password]\fP for accessing the source registry.
+
+.PP
+\fB--dest-creds\fP \fIusername[:password]\fP for accessing the destination registry.
+
+.PP
+\fB--src-cert-dir\fP \fIpath\fP Use certificates (*.crt, *.cert, *.key) at \fIpath\fP to connect to the source registry or daemon.
+
+.PP
+\fB--src-no-creds\fP Access the registry anonymously.
+
+.PP
+\fB--src-tls-verify\fP=\fIbool\fP Require HTTPS and verify certificates when talking to a container source registry or daemon. Default to source registry entry in registry.conf setting.
+
+.PP
+\fB--dest-cert-dir\fP \fIpath\fP Use certificates (*.crt, *.cert, *.key) at \fIpath\fP to connect to the destination registry or daemon.
+
+.PP
+\fB--dest-no-creds\fP Access the registry anonymously.
+
+.PP
+\fB--dest-tls-verify\fP=\fIbool\fP Require HTTPS and verify certificates when talking to a container destination registry or daemon. Default to destination registry entry in registry.conf setting.
+
+.PP
+\fB--src-registry-token\fP \fIBearer token\fP for accessing the source registry.
+
+.PP
+\fB--dest-registry-token\fP \fIBearer token\fP for accessing the destination registry.
+
+.PP
+\fB--retry-times\fP
+
+.PP
+The number of times to retry. By default, no retries are attempted.
+
+.PP
+\fB--retry-delay\fP
+
+.PP
+Fixed delay between retries. If not set (or set to 0s), retry wait time will be exponentially increased based on the number of failed attempts.
+
+.PP
+\fB--keep-going\fP
+If any errors occur during copying of images, those errors are logged and the process continues syncing rest of the images and finally fails at the end.
+
+.PP
+\fB--src-username\fP
+
+.PP
+The username to access the source registry.
+
+.PP
+\fB--src-password\fP
+
+.PP
+The password to access the source registry.
+
+.PP
+\fB--dest-username\fP
+
+.PP
+The username to access the destination registry.
+
+.PP
+\fB--dest-password\fP
+
+.PP
+The password to access the destination registry.
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS Synchronizing to a local directory
+.EX
+$ skopeo sync --src docker --dest dir registry.example.com/busybox /media/usb
+.EE
+
+.PP
+Images are located at:
+
+.EX
+/media/usb/busybox:1-glibc
+/media/usb/busybox:1-musl
+/media/usb/busybox:1-ubuntu
+\&...
+/media/usb/busybox:latest
+.EE
+
+.SS Synchronizing to a container registry from local
+Images are located at:
+
+.EX
+/media/usb/busybox:1-glibc
+.EE
+
+.PP
+Sync run
+
+.EX
+$ skopeo sync --src dir --dest docker /media/usb/busybox:1-glibc my-registry.local.lan/test/
+.EE
+
+.PP
+Destination registry content:
+
+.EX
+REPO                                 TAGS
+my-registry.local.lan/test/busybox   1-glibc
+.EE
+
+.SS Synchronizing to a local directory, scoped
+.EX
+$ skopeo sync --src docker --dest dir --scoped registry.example.com/busybox /media/usb
+.EE
+
+.PP
+Images are located at:
+
+.EX
+/media/usb/registry.example.com/busybox:1-glibc
+/media/usb/registry.example.com/busybox:1-musl
+/media/usb/registry.example.com/busybox:1-ubuntu
+\&...
+/media/usb/registry.example.com/busybox:latest
+.EE
+
+.SS Synchronizing to a container registry
+.EX
+$ skopeo sync --src docker --dest docker registry.example.com/busybox my-registry.local.lan
+.EE
+
+.PP
+Destination registry content:
+
+.EX
+REPO                         TAGS
+registry.local.lan/busybox   1-glibc, 1-musl, 1-ubuntu, ..., latest
+.EE
+
+.SS Synchronizing to a container registry keeping the repository
+.EX
+$ skopeo sync --src docker --dest docker registry.example.com/repo/busybox my-registry.local.lan/repo
+.EE
+
+.PP
+Destination registry content:
+
+.EX
+REPO                              TAGS
+registry.local.lan/repo/busybox   1-glibc, 1-musl, 1-ubuntu, ..., latest
+.EE
+
+.SS Synchronizing to a container registry with tag suffix
+.EX
+$ skopeo sync --src docker --dest docker --append-suffix '-mirror' registry.example.com/busybox my-registry.local.lan
+.EE
+
+.PP
+Destination registry content:
+
+.EX
+REPO                         TAGS
+registry.local.lan/busybox   1-glibc-mirror, 1-musl-mirror, 1-ubuntu-mirror, ..., latest-mirror
+.EE
+
+.SS YAML file content (used \fIsource\fP for \fB**--src yaml**\fR)
+.EX
+registry.example.com:
+    images:
+        busybox: []
+        redis:
+            - "1.0"
+            - "2.0"
+            - "sha256:0000000000000000000000000000000011111111111111111111111111111111"
+    images-by-tag-regex:
+        nginx: ^1\\.13\\.[12]-alpine-perl$
+    images-by-semver:
+        alpine: ">= 3.12.0"
+    credentials:
+        username: john
+        password: this is a secret
+    tls-verify: true
+    cert-dir: /home/john/certs
+quay.io:
+    tls-verify: false
+    images:
+        coreos/etcd:
+            - latest
+.EE
+
+.PP
+If the yaml filename is \fBsync.yml\fR, sync run:
+
+.EX
+$ skopeo sync --src yaml --dest docker sync.yml my-registry.local.lan/repo/
+.EE
+
+.PP
+This will copy the following images:
+- Repository \fBregistry.example.com/busybox\fR: all images, as no tags are specified.
+- Repository \fBregistry.example.com/redis\fR: images tagged "1.0" and "2.0" along with image with digest "sha256:0000000000000000000000000000000011111111111111111111111111111111".
+- Repository \fBregistry.example.com/nginx\fR: images tagged "1.13.1-alpine-perl" and "1.13.2-alpine-perl".
+- Repository \fBquay.io/coreos/etcd\fR: images tagged "latest".
+- Repository \fBregistry.example.com/alpine\fR: all images with tags match the semantic version constraint ">= 3.12.0" ("3.12.0, "3.12.1", ... ,"4.0.0", ...)
+
+.PP
+The full list of possible semantic version comparisons can be found in the
+upstream library's documentation:
+https://github.com/Masterminds/semver/tree/v3.2.0#basic-comparisons.
+
+.PP
+Version ordering and precedence is understood as defined here:
+https://semver.org/#spec-item-11.
+
+.PP
+For the registry \fBregistry.example.com\fR, the "john"/"this is a secret" credentials are used, with server TLS certificates located at \fB/home/john/certs\fR\&.
+
+.PP
+TLS verification is normally enabled, and it can be disabled setting \fBtls-verify\fR to \fBfalse\fR\&.
+In the above example, TLS verification is enabled for \fBregistry.example.com\fR, while is
+disabled for \fBquay.io\fR\&.
+
+.SH "همچنین ببینید (SEE ALSO)"
+skopeo(1), skopeo-login(1), docker-login(1), containers-auth.json(5), containers-policy.json(5), containers-transports(5)
+
+.SH "نویسندگان (AUTHORS)"
+Flavio Castelli fcastelli@suse.com
+\[la]mailto:fcastelli@suse.com\[ra], Marco Vedovati mvedovati@suse.com
+\[la]mailto:mvedovati@suse.com\[ra]

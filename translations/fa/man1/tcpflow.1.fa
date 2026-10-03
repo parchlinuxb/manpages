@@ -1,0 +1,645 @@
+.\"edit the file tcpflow.1.in, not tcpflow.1"
+.\""
+.\""
+.TH tcpflow 1 "2013-04-13" "tcpflow 1.6.1" "tcpflow 1.6.1"
+.SH "نام (NAME)"
+tcpflow \- TCP flow recorder 
+.SH "خلاصه دستور (SYNOPSIS)"
+.na
+.B tcpflow
+[\c
+.BI \-aBcCDIpsZ\fR\c
+]
+[\c
+.BI \-b \ max_bytes\fR\c
+]
+[\c
+.BI \-d \ debug_level\fR\c
+]
+[\c
+.BI \-[eE] \ scanner\fR\c
+]
+[\c
+.BI \-f \ max_fds\fR\c
+]
+[\c
+.BI \-F[ctTXMkmg]\fR\c
+]
+[\c
+.BI \-h\fR\c
+|\c
+.BI \--help\fR\c
+]
+[\c
+.BI \-i \ iface\fR\c
+]
+[\c
+.BI \-l \ file1.pcap\ file2.pcap...\fR\c
+]
+[\c
+.BI \-L \ semlock\fR\c
+]
+[\c
+.BI \-m \ min_bytes\fR\c
+]
+[\c
+.BI \-o \ outdir\fR\c
+]
+[\c
+.BI \-r \ file1.pcap\fR\c
+]
+[\c
+.BI \-R \ file0.pcap\fR\c
+]
+[\c
+.BI \-S \ name=value\fR\c
+]
+[\c
+.BI \-T[filename\ template]\fR\c
+]
+[\c
+.BI \-U\fR\c
+|\c
+.BI \--relinquish-privileges \ username\fR\c
+]
+[\c
+.BI \-v\fR\c
+|\c
+.BI \--verbose\fR\c
+]
+[\c
+.BI \-V\fR\c
+|\c
+.BI \--version\fR\c
+]
+[\c
+.BI \-w \ file\fR\c
+]
+[\c
+.BI \-x \ scanner\fR\c
+]
+[\c
+.BI \-X \ file.xml\fR\c
+]
+[\c
+.BI \-z\fR\c
+|\c
+.BI \--chroot \ directory\fR\c
+]
+[\c
+.BI expression\fR\c
+]
+.SH "توضیحات (DESCRIPTION)"
+.LP
+.B tcpflow
+is a program that captures data transmitted as part of TCP connections
+(flows), and stores the data in a way that is convenient for protocol
+analysis or debugging.  Rather than showing packet-by-packet information, \fBtcpflow\fP
+reconstructs the actual data streams and stores each flow in a
+separate file for later analysis.  \fBtcpflow\fP understands TCP sequence
+numbers and will correctly reconstruct data streams regardless of
+retransmissions or out-of-order delivery. \fBtcpflow\fP provides control over filenames
+for automatic binning of connections by protocol, IP address or connection number, and has a sophisticated
+plug-in system for decompressing compressed HTTP connections, undoing MIME encoding, or calling user-provided
+programs for post-processing.
+.LP
+By default \fBtcpflow\fP stores all captured data in files that have names of the form:
+.in +.5i
+.nf
+
+\fB192.168.101.102.02345-010.011.012.013.45103\fP
+
+.fi
+.in -.5i
+\,...where the contents of the above file would be data transmitted from
+host 192.168.101.102 port 2345, to host 10.11.12.13 port 45103.
+.LP
+If you want to simply process a few hundred thousand packets and see what you have, try this:
+.in +.5i
+.nf
+
+\fBtcpflow -a -o outdir -Fk -r packets.pcap\fP
+
+.fi
+.in -.5i
+This will cause \fBtcpflow\fP to perform (-a) all processing, store the output in a directory
+called 
+.BI outdir,
+bin the output in directories of 1000 connections each, and read its input from the file
+\fBpackets.pcap\fP. More sophisticated processing is possible, of course.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B \-a
+Enable all processing. Same as 
+.B \-e all.
+.TP
+.B \-B
+Force binary output even when printing to console with 
+.B -C 
+or 
+.B -c.
+.TP
+.B \-b \fImax_bytes\fP
+Specifies the maximum size of a captured flow.  Any bytes beyond \fImax_bytes\fP from the
+first byte captured will be discarded.  The default is to store an
+unlimited number of bytes per flow. \fBNote:\fP before version 1.4, \fBtcpflow\fP could only store
+a maximum of 4GiB per flow.
+.TP
+.B \-c
+Console print.  Print the contents of packets to stdout as they
+are received, without storing any captured data to files (implies \fB\-s\fP).
+.TP
+.B \-C
+Console print without the packet source and destination details being printed.  Print the contents of packets to stdout as they
+are received, without storing any captured data to files (implies \fB\-s\fP).
+.TP
+.B \-D
+Console output should be in hex. 
+.TP
+.B \-d
+Debug level.  Set the level of debugging messages printed to stderr to
+\fIdebug_level\fP.  Higher numbers produce more messages.
+.B \-d 0
+causes completely silent operation.
+.B \-d 1
+, the default, produces minimal status messages.
+.B \-d 10
+produces verbose output equivalent to
+.B \-v .
+Numbers higher than 10 can produce a large
+amount of debugging information useful only to developers.
+.TP
+.B \-E name
+Disable all scanners and then enable scanner
+.B name
+.TP
+.B \-e name
+Enable scanner 
+.B name.
+.TP
+.B \-e all
+Enables all scanners. Same as 
+.B \-a
+.TP
+.B \-e http
+Perform HTTP post-processing ("After" processing). If the output file is
+.in +.5i
+.nf
+
+\fB208.111.153.175.00080-192.168.001.064.37314,\fP
+
+.fi
+.in -.5i
+Then the post-processing will create the files:
+.in +.5i
+.nf
+
+\fB208.111.153.175.00080-192.168.001.064.37314-HTTP\fP
+\fB208.111.153.175.00080-192.168.001.064.37314-HTTPBODY\fP
+
+.fi
+.in -.5i
+If the HTTPBODY was compressed with GZIP, you may get a 
+third file as well:
+.in +.5i
+.nf
+
+\fB208.111.153.175.00080-192.168.001.064.37314-HTTPBODY-GZIP\fP
+
+.fi
+.in -.5i
+Additional information about these streams, such as their MD5
+hash value, is also written to the
+.B DFXML report
+file.
+.TP
+.B \-e python \-S py_path=path \-S py_module=module \-S py_function=foo
+Post-process TCP payload by an external python function.
+.RS
+.PP
+The python function must take a single string parameter.
+The python function can return a string (else the function does must not return).
+The returned string (if any) is written in the
+.B DFXML report
+file inside the XML tag \fB<scan_python_result>...</scan_python_result>\fP.
+A sample python script is available within the tcpflow source code
+in directory \fBpython/plugins\fP.
+.PP
+Example:
+.PP
+.nf
+    \fBtcpflow -r my.cap -e python -S py_path=python/plugins -S py_module=samplePlugin -S py_function=sampleFunction\fP
+.fi
+.RE
+.TP
+.B \-F[format]
+Specifies format for output filenames.
+.RS
+.TP
+Format specifiers:
+.TP
+.B c
+Appends the connection counter to ALL filenames.
+.TP
+.B t
+Prepends each filename with a Unix timestamp (seconds since epoch).
+.TP
+.B T
+Prepends each filename with an ISO-8601 timestamp.
+.TP
+.B X
+Do not output any files (other than the 
+.B DFXML report
+file).
+.RE
+.TP
+.B \-FM
+Include MD5 of each flow in the
+.B DFXML report
+file.
+.TP
+.B \-FX
+Suppresses file output entirely,
+.B DFXML report
+file is still produced.
+.TP
+.B \-Fk
+bin output in 1K directories
+.TP
+.B \-Fm
+bin output in 1M directories (2 levels)
+.TP
+.B \-Fg
+bin output in 1G directories (3 levels)
+.TP
+.B \-f\fImax_fds\fP
+Max file descriptors used.  Limit the number of file descriptors used
+by \fBtcpflow\fP to \fImax_fds\fP.  Higher numbers use more system
+resources, but usually perform better.  If the underlying operating
+system supports the
+.B setrlimit()
+system call, the OS will be asked to enforce the requested limit.  The
+default is for \fBtcpflow\fP to use the maximum number of file descriptors
+allowed by the OS.  The
+.B \-v
+option will report how many file descriptors \fBtcpflow\fP is using.
+.TP
+.B \-g
+Output flow information to console in multiple colors. (Blue for client to server flows, red for server to client flows, green for undecided flows.)
+Note: This option was different from \fBtcpflow\fP 1.3 (-e) and 1.4.4 (-J).
+.TP
+.B \-h \--help
+Help.  Print usage information and exit.
+.TP
+.B \-hh
+More help.  Print more usage information and exit.
+.TP
+.B \-i \fIiface\fP
+Interface name.  Capture packets from the network interface
+named \fIiface\fP.  If no interface is specified with
+.B \-i
+, a reasonable default will be used by libpcap automatically.
+.TP
+.B \-I
+Store the reception timestamps (of TCP packets) in a companion file \fB*.findx\fP.
+Therefore each flow will have two files: (1) the usual file containing payload bytes
+and (2) the text file containing the corresponding timestamps.
+This last file \fB*.findx\fP has three columns using the pipe \fB'|'\fP as separator:
+.nf
+
+    \fBbyte-index|timestamp|length\fP
+
+.fi
+The \fBbyte-index\fP column is the postion within the file containing the payload bytes.
+The \fBtimestamp\fP column represents the number of seconds since epoch as a floating point number.
+The precision is the microsecond but may also be the nanosecond in a future \fBtcpflow\fP version.
+The \fBlength\fP column is the number of successive bytes concerned by \fBtimestamp\fP
+and can include several TCP frames (TCP packets).
+The extension \fBfindx\fP may become from the fact that the timestamps are \fBframe indexed\fP.
+.TP
+.B \-L \fIsemlock_name\fP
+Specifies that \fIsemlock_name\fP should be used as a Unix semaphore to prevent two different copies
+of \fBtcpflow\fP running in two different processes but outputting to the same standard output from printing
+on top of each other. This is an application of Unix named semaphores; bet you have never seen
+one before.
+.TP
+.B \-l
+Treat the following arguments as filenames with an assumed \fB-r\fP command before each one. 
+This allows you to read a lot of files at once with shell globbing. For example, to process
+all of the pcap files in the current directory, use this:
+.in +.5i
+.nf
+
+\fBtcpflow -o out -a -l *.pcap\fP
+
+.fi
+.in -.5i
+.TP
+.B \-m \fImin_size\fP
+Forces a new connection output file when there is a skip in the TCP session
+of \fImin_size\fP bytes or more.
+.TP
+.B \-o \fIoutdir\fP
+Specifies the output directory where the transcript files will be written.
+.TP
+.B \-P
+No purge. Normally \fBtcpflow\fP removes connections from the hash table
+after the connection is closed with a FIN. This conserves memory but
+takes additional CPU time. Selecting this option causes the
+std::tr1:unordered_map to grow without bounds, as \fBtcpflow\fP did prior to
+version 1.1. That makes \fBtcpflow\fP run faster if there are less than 10
+million connections, but can lead to out-of-memory errors.
+.TP
+.B \-p
+No promiscuous mode.  Normally, \fBtcpflow\fP attempts to put the network
+interface into promiscuous mode before capturing packets.  The
+\fB-p\fP option tells \fBtcpflow\fP \fInot\fP to put the interface into
+promiscuous mode.  Note that it might already be in promiscuous mode
+for some other reason.
+.TP
+.B \-q
+Quiet mode --- don't print warnings. Currently the only warning that \fBtcpflow\fP
+prints is a warning when more than 10,000 files are created that the user should
+have provided the \fB-Fk\fP, \fB-Fm\fP, or \fB-Fg\fP options. We might have other warnings
+in the future.
+.TP
+.B \--relinquish-privileges\fB=\fIusername\fP
+When \fBtcpflow\fP is run as root, this option changes
+the user ID and group ID to write files owned by \fIusername\fP.
+The group ID is the first one from the \fIusername\fP groups list.
+This operation is performed just after opening
+the capture device or just after opening the first input PCAP file.
+This option does not support multi root-only readable input files
+as the root privileges are dropped after opening the first file
+(e.g.
+.B \-r \fIroot-only-access.pcap\fP
+.B \-R \fIroot-only.pcap\fP
+.B \-l \fIroot-only*.pcap\fP\c
+).
+This option has the same behaviour as the
+.IR tcpdump (1)
+option having the same name
+.B \--relinquish-privileges\fB
+.
+.TP
+.B \-r
+Read from file.  Read packets from \fIfile\fP, which was created using the
+.B \-w
+option of
+.IR tcpdump (1).
+This option may be repeated any number of times. Standard input is used if \fIfile\fP is "-".
+Note that for this option to be useful, tcpdump's
+.B \-s
+option should be used to set the snaplen to the MTU of the interface
+(e.g., 1500) while capturing packets.
+.TP
+.B \-R
+Read from a file, but only to complete TCP flows. This option is used when 
+.IR tcpflow
+is used to process a series of files that are captured over time.
+For each time period
+\fIn,\fP file  \fIfile(n).pcap\fP should be processed with  \fB-R \fIfile(n).pcap\fP,
+while \fIfile(n-1).pcap\fP should be processed with \fI-r file(n-1).pcap.\fP
+.TP
+.B \-S\fIname\fB=\fIvalue\fP
+Sets a \fIname\fP parameter to be equal to \fIvalue\fP for a plug-in. 
+Use \fB-hh\fP to find out all of the settable parameters.
+.TP
+.B \-s
+Strip non-printables.  Convert all non-printable characters to the
+"." character before printing packets to the console or storing them
+to a file.
+.TP
+.B \-T[format]
+Specifies an arbitrary template for filenames.
+.RS
+.TP
+.B %A
+expands to source IP address.
+.TP
+.B %a
+expands to source IP port.
+.TP
+.B %B
+expands to destination IP address.
+.TP
+.B %b
+expands to destination IP port.
+.TP
+.B %T
+expands to timestamp in ISO8601 format.
+.TP
+.B %t
+expands to timestamp in Unix time_t format.
+.TP
+.B %V
+expands to "--" if a VLAN is present.
+.TP
+.B %v
+expands to the VLAN number if a VLAN is present.
+.TP
+.B %C
+expands to "c" if the connection count>0.
+.TP
+.B %c
+expands to the connection count if the connection count>0.
+.TP
+.B %#
+always expands to the connection count.
+.TP
+.B %N
+(connection_number )             % 1000
+.TP
+.B %K
+(connection_number / 1000)       % 1000
+.TP
+.B %M
+(connection_number / 1000000)    % 1000
+.TP
+.B %G
+(connection_number / 1000000000) % 1000
+.TP
+.B %%
+prints a "%".
+.TP
+.RE
+When the option \fB\-T\fP is used, \fBtcpflow\fP ignores options \fB\-Fk\fP, \fB\-Fm\fP and \fB\-Fg\fP.
+However, the option \fB\-T\fP handles \fB'/'\fP within the filename template patern to create sub-directories.
+For example the following line will create a directory tree \fBout/IP-src/port-src/IP-dst/port-dst\fP.
+.nf
+
+    \fBtcpflow -r packets.pcap -o out -T %A/%a/%B/%b/%c%N.flow\fP
+.fi
+.TP
+.B \-V \--version
+Print the version number and exit.
+.TP
+.B \-v \--verbose
+Verbose operation.  Verbosely describe \fBtcpflow\fP's operation.
+Equivalent to \fB \-d 10\fP.
+.TP
+.B \-w \fIfilename.pcap\fP
+Write packets that were not processed to \fIfilename.pcap\fP. Typically this will be 
+UDP packets.
+.TP
+.B \-X \fIfilename.xml\fP
+Write a
+.B DFXML report
+to \fIfilename.xml\fP. The file contains a record of every
+tcp connection, how the \fBtcpflow\fP program was compiled, and the computer on which \fBtcpflow\fP was run.
+By default
+.B tcpflow
+writes the
+.B DFXML report
+in file \fIreport.xml\fP.
+.TP
+.B \-Z
+Don't decompress gzip-compressed streams. 
+.\"START -- tcpdump excerpt"
+.B \-K
+Retain per flow isolated pcap structure.
+.TP
+\fIexpression\fP
+selects which packets will be captured.  If no \fIexpression\fP
+is given, all packets on the net will be captured.  Otherwise,
+only packets for which \fIexpression\fP is `true' will be captured.
+.IP
+For the \fIexpression\fP syntax, see
+.BR pcap-filter (7).
+.IP
+The \fIexpression\fP argument can be passed to \fItcpflow\fP as either a single
+Shell argument, or as multiple Shell arguments, whichever is more convenient.
+Generally, if the expression contains Shell metacharacters, such as
+backslashes used to escape protocol names, it is easier to pass it as
+a single, quoted argument rather than to escape the Shell metacharacters.
+Multiple arguments are concatenated with spaces before being parsed.
+
+.SH DFXML report
+.LP
+The
+.B DFXML report
+is the XML file written by
+.B tcpflow
+to provide
+.B tcpflow
+build details, command line arguments
+and information about processed flows.
+.LP
+By default the
+.B DFXML file
+is named \fIreport.xml\fP.
+But this filename can be changed
+using command line option \fB\-X\fP.
+.LP
+.B DFXML file
+respects the
+.B DFXML schema
+defined by project
+\fIhttps://github.com/dfxml-working-group/dfxml_schema\fP.
+.br
+Moreover
+.B tcpflow
+adds two extra XML tags,
+as illustrated by the following example:
+.RS
+.nf
+
+\fB
+<tcpflow startime='2017-07-22T00:12:21.962782Z' endtime='2017-07-22T00:12:22.097591Z'
+         family='2' mac_daddr='40:3d:78:57:ed:d4' mac_saddr='00:c5:42:d2:cb:f2'
+         src_ipn='141.134.34.12' dst_ipn='192.168.0.40' srcport='80' dstport='38797'
+         packets='4' len='677' caplen='611' />
+
+<tcpflow:result scanner="python" path="python/plugins" module="samplePlugin"
+                function="sampleFunction">bla bla bla</tcpflow:result>
+\fP
+.fi
+.RE
+.LP
+The first XML tag \fB<tcpflow>\fP provide information about the captured flow.
+This tag should be renamed \fB<tcpflow:cap>\fP in a future version
+in order to conform better to \fBDFXML schema\fP.
+.LP
+The second XML tag \fB<tcpflow:result>\fP collects processing results.
+For the moment, only the scanner \fIpython\fP uses this feature.
+.PP
+The XML attributes of \fB<tcpflow>\fP are:
+.IP \(bu
+\fBstartime\fP Reception time of first packet
+.IP \(bu
+\fBendtime\fP Reception time of last packet
+.IP \(bu
+\fBfamily\fP
+.IP \(bu
+\fBmac_daddr\fP Destination MAC address of first packet (printed if any)
+.IP \(bu
+\fBmac_saddr\fP Source MAC address of first packet (printed if any)
+.IP \(bu
+\fBsrc_ipn\fP IP source
+.IP \(bu
+\fBdst_ipn\fP IP destination
+.IP \(bu
+\fBsrcport\fP TCP port source
+.IP \(bu
+\fBdstport\fP TCP port destination
+.IP \(bu
+\fBpackets\fP Nummber of packets
+.IP \(bu
+\fBout_of_order_count\fP Number of times
+.B tcpflow
+has replaced missing payload by zeros in the flow file,
+for example when capture does not contain the TCP session begin (printed if any)
+.IP \(bu
+\fBviolations\fP Number of protocol violations (printed if any)
+.IP \(bu
+\fBlen\fP Sum of un-truncated length of all packet data
+(including headers, see https://stackoverflow.com/q/1491660)
+.IP \(bu
+\fBcaplen\fP Sum of captured bytes of all packet data
+(including headers, printed if different from \fBlen\fP)
+.PP
+The XML attributes of \fB<tcpflow:result>\fP are:
+.IP \(bu
+\fBscanner\fP Name of the scanner
+.IP \(bu
+\fBpath\fP Directory of the scanner module (printed if relevant)
+.IP \(bu
+\fBmodule\fP Module name (printed if relevant, used to indicate the python script)
+.IP \(bu
+\fBfunction\fP Function name (printed if relevant,
+used to indicate the function within the python module)
+.SH "مثال‌ها (EXAMPLES)"
+.LP
+To record all packets arriving at or departing from \fIsundown\fP and extract all of the HTTP attachments:
+.RS
+.nf
+\fBtcpflow -e http -o outdir host sundown\fP
+.fi
+.RE
+.LP
+To record traffic between \fIhelios\fR and either \fIhot\fR or \fIace\fR and bin the results into 1000 files per directory and calculate the MD5 of each flow:
+.RS
+.nf
+\fBtcpflow -X report.xml -e md5 -o outdir -Fk host helios and \\( hot or ace \\)\fP
+.fi
+.SH "اشکالات (BUGS)"
+Please send bug reports to simsong@acm.org.
+.LP
+\fBtcpflow\fP currently does not understand IP fragments.  Flows containing
+IP fragments will not be recorded correctly.
+.SH "نویسندگان (AUTHORS)"
+Originally by Jeremy Elson <jelson@circlemud.org>.
+Substantially modified and maintained by Simson L. Garfinkel <simsong@acm.org>.
+Network visualization code by Michael Shick <mike@shick.in>
+.LP
+The current version of this software is available at
+.RS
+.I http://digitalcorpora.org/downloads/tcpflow/
+.LP
+.RE
+An announcement mailing list for this program is at:
+.RS
+.I http://groups.google.com/group/tcpflow-users
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+tcpdump(1), nit(4P), bpf(4), pcap(3), pcap-savefile(5), pcap-filter(7)

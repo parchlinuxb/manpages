@@ -1,0 +1,155 @@
+.TH "hub-api" "1" "12 Jul 2024" "hub version 2.14.2" "hub manual"
+.nh
+.ad l
+.SH "نام (NAME)"
+hub\-api \- Low\-level GitHub API request interface.
+.SH "خلاصه دستور (SYNOPSIS)"
+.P
+\fB\fChub api\fR [\-it] [\-X \fIMETHOD\fP] [\-H \fIHEADER\fP] [\-\-cache \fITTL\fP] \fIENDPOINT\fP [\-F \fIFIELD\fP|\-\-input \fIFILE\fP]
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\-X, \-\-method \fIMETHOD\fP
+.RS 4
+The HTTP method to use for the request (default: "GET"). The method is
+automatically set to "POST" if \fB\fC\-\-field\fR, \fB\fC\-\-raw\-field\fR, or \fB\fC\-\-input\fR
+are used.
+.sp
+Use \fB\fC\-XGET\fR to force serializing fields into the query string for the GET
+request instead of JSON body of the POST request.
+.RE
+.PP
+\-F, \-\-field \fIKEY\fP=\fIVALUE\fP
+.RS 4
+Data to serialize with the request. \fIVALUE\fP has some magic handling; use
+\fB\fC\-\-raw\-field\fR for sending arbitrary string values.
+.sp
+If \fIVALUE\fP starts with "@", the rest of the value is interpreted as a
+filename to read the value from. Use "@\-" to read from standard input.
+.sp
+If \fIVALUE\fP is "true", "false", "null", or looks like a number, an
+appropriate JSON type is used instead of a string.
+.sp
+It is not possible to serialize \fIVALUE\fP as a nested JSON array or hash.
+Instead, construct the request payload externally and pass it via
+\fB\fC\-\-input\fR.
+.sp
+Unless \fB\fC\-XGET\fR was used, all fields are sent serialized as JSON within
+the request body. When \fIENDPOINT\fP is "graphql", all fields other than
+"query" are grouped under "variables". See
+\[la]https://graphql.org/learn/queries/#variables\[ra]
+.RE
+.PP
+\-f, \-\-raw\-field \fIKEY\fP=\fIVALUE\fP
+.RS 4
+Same as \fB\fC\-\-field\fR, except that it allows values starting with "@", literal
+strings "true", "false", and "null", as well as strings that look like
+numbers.
+.RE
+.PP
+\-\-input \fIFILE\fP
+.RS 4
+The filename to read the raw request body from. Use "\-" to read from standard
+input. Use this when you want to manually construct the request payload.
+.RE
+.PP
+\-H, \-\-header \fIKEY\fP:\fIVALUE\fP
+.RS 4
+Set an HTTP request header.
+.RE
+.PP
+\-i, \-\-include
+.RS 4
+Include HTTP response headers in the output.
+.RE
+.PP
+\-t, \-\-flat
+.RS 4
+Parse response JSON and output the data in a line\-based key\-value format
+suitable for use in shell scripts.
+.RE
+.PP
+\-\-paginate
+.RS 4
+Automatically request and output the next page of results until all
+resources have been listed. For GET requests, this follows the \fB\fC<next\>\fR
+resource as indicated in the "Link" response header. For GraphQL queries,
+this utilizes \fB\fCpageInfo\fR that must be present in the query; see EXAMPLES.
+.sp
+Note that multiple JSON documents will be output as a result. If the API
+rate limit has been reached, the final document that is output will be the
+HTTP 403 notice, and the process will exit with a non\-zero status. One way
+this can be avoided is by enabling \fB\fC\-\-obey\-ratelimit\fR.
+.RE
+.PP
+\-\-color[=\fIWHEN\fP]
+.RS 4
+Enable colored output even if stdout is not a terminal. \fIWHEN\fP can be one
+of "always" (default for \fB\fC\-\-color\fR), "never", or "auto" (default).
+.RE
+.PP
+\-\-cache \fITTL\fP
+.RS 4
+Cache valid responses to GET requests for \fITTL\fP seconds.
+.sp
+When using "graphql" as \fIENDPOINT\fP, caching will apply to responses to POST
+requests as well. Just make sure to not use \fB\fC\-\-cache\fR for any GraphQL
+mutations.
+.RE
+.PP
+\-\-obey\-ratelimit
+.RS 4
+After exceeding the API rate limit, pause the process until the reset time
+of the current rate limit window and retry the request. Note that this may
+cause the process to hang for a long time (maximum of 1 hour).
+.RE
+.PP
+\fIENDPOINT\fP
+.RS 4
+The GitHub API endpoint to send the HTTP request to (default: "/").
+.sp
+To learn about available endpoints, see \[la]https://developer.github.com/v3/\[ra].
+To make GraphQL queries, use "graphql" as \fIENDPOINT\fP and pass \fB\fC\-F query=QUERY\fR.
+.sp
+If the literal strings "{owner}" or "{repo}" appear in \fIENDPOINT\fP or in the
+GraphQL "query" field, fill in those placeholders with values read from the
+git remote configuration of the current git repository.
+.RE
+.br
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+.RS 4
+.nf
+# fetch information about the currently authenticated user as JSON
+$ hub api user
+
+# list user repositories as line\-based output
+$ hub api \-\-flat users/octocat/repos
+
+# post a comment to issue #23 of the current repository
+$ hub api repos/{owner}/{repo}/issues/23/comments \-\-raw\-field \'body=Nice job!\'
+
+# perform a GraphQL query read from a file
+$ hub api graphql \-F query=@path/to/myquery.graphql
+
+# perform pagination with GraphQL
+$ hub api \-\-paginate graphql \-f query=\'
+  query($endCursor: String) {
+    repositoryOwner(login: "USER") {
+      repositories(first: 100, after: $endCursor) {
+        nodes {
+          nameWithOwner
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+\'
+.fi
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.P
+hub(1)
+

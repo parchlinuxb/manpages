@@ -1,0 +1,441 @@
+.TH lcalc 1
+
+.SH "نام (NAME)"
+lcalc \- Compute zeros and values of L-functions
+.SH "خلاصه دستور (SYNOPSIS)"
+
+\fBlcalc\fR [\fIOPTIONS\fR]
+
+.SH "توضیحات (DESCRIPTION)"
+
+lcalc is a command-line program for computing the zeros and values of
+L-functions. Several L-functions are built-in, and the default is the
+Riemann zeta function. You can also specify your own L-function in the
+form of a data file that describes it; see the \fBDATA FILE FORMAT\fR
+section below.
+
+.SH COMPUTING ZEROS
+
+Given an L-function (by default, the Riemann zeta), lcalc can compute
+its zeros using either the \fI--zeros\fR or \fI--zeros-interval\fR
+flags. For example,
+
+.nf
+.I $ lcalc --zeros 1000
+.fi
+
+will compute the first thousand zeros of the Riemann zeta function,
+while checking the (generalized) Riemann hypothesis and making sure
+that no zeros are missed. The output consists only of the imaginary
+parts of the zeros, since all of the real parts should be \fI0.5\fR.
+
+The (generalized) Riemann hypothesis is confirmed by comparing the
+number of zeros found to the main term in the formula for
+\fIN(T)\fR. The difference, \fIS(T)\fR, should be small on average.
+If not, then missing zeros are detected and the program backtracks
+looking for sign changes in more refined steps. This is repeated until
+the missing zeros are found within reasonable time. Otherwise, the
+program exits.
+
+The found zeros are also verified before being output, using the
+explicit formula to compare sums over the zeros to sums over
+primes. The program uses this comparison to dynamically set the output
+precision, and exits if both sides do not agree to at least two places
+after the decimal. More precisely, the Riemann-Weil explicit formula
+is checked repeatedly, as zeros are outputted. Let the non-trivial
+zeros of \fIL(s)\fR be \fI1/2 + i gamma\fR.  Let \fIf\fR be a function
+of the form \fIf(x) = exp(-A(x-x_0)^2)\fR, where \fIA =
+log(10)/Digits\fR and \fIDigits\fR is the working number of digits of
+precision (fifteen for built in doubles), and \fIx_0\fR varies as
+explained shortly.
+
+Then, the sums over the zeros
+\fI
+
+         -----
+          \\
+           )    f(gamma)
+          /
+         -----
+         gamma
+
+\fRare computed in two ways to working precision: first using the
+numerically computed zeros, and second using the explicit formula to
+express the sum over zeros as a sum over primes powers. These two are
+compared, and the program uses the amount of agreement between the two
+to help decide the output precision of the zeros. If the two do not
+agree to at least two digits after the decimal, then the program
+quits.
+
+The value \fIx_0\fR is chosen to coincide with a zero of \fIL(s)\fR,
+say \fIgamma_j\fR, but translated by \fI0.5\fR so as to desymmetrize
+the function \fIf\fR (not translating would leave it an even function,
+and it would be quadratically, rather than linearly, sensitive to
+inaccuracies in the zeros).
+
+At first, a separate test function \fIf\fR is used for each of the
+zeros, with \fIx_0\fR coinciding with those zeros. After a while,
+however, a new \fIf\fR is taken only once every five zeros, with
+\fIx_0\fR coinciding similarly.
+
+You can also start after the Nth zero. For example,
+
+.nf
+.I $ lcalc --zeros 5 --N 5
+.fi
+
+outputs the sixth through tenth zeros. Caution: the \fI--N\fR option
+evaluates \fIN(T)\fR by using the formula involving the main term
+(from the Gamma factors) and \fIS(T)\fR. \fIS(T)\fR is computed by
+looking at the change of arg of \fIL(s)\fR as one goes from \fI1/2 -
+iT\fR to \fIinfinity - iT\fR and then up to \fIinfinity + iT\fR and to
+\fI1/2 + iT\fR. This can take a long time if \fIT\fR is near the
+ordinate of a zero. One could improve this by implementing Turing's
+method for finding the Nth zero (only looking at sign changes on the
+critical line), or by tweaking the starting point and suppressing a
+corresponding number of zeros should the program take too long, but
+for now, only the contour integral is computed.
+
+A variant of Turing's method which only looks on the critical line
+\fBis\fR used for the \fI--zeros\fR option, to test that all zeros
+have been found. However, with regards to the \fI--N\fR option,
+\fIS(T)\fR is initially computed via contour integration to zoom in on
+the Nth zero.
+
+If you aren't concerned about verifying the (generalized) Riemann
+hypothesis, or if you don't expect it to hold (for instance, if you
+plan to study Dirichlet series without Euler products) then you can
+search for zeros in an \(dqinterval\(dq using the
+\fI--zeros-interval\fR option. For example,
+
+.nf
+.I $ lcalc --zeros-interval --x=10 --y=100 --stepsize=0.1
+.fi
+
+searches for zeros of the Riemann zeta function in the interval from
+\fI1/2 + 10i\fR to 1/2 + 100i\fR, checking for sign changes advancing
+in steps of size \fI0.1\fR. The first column of the output contains
+the imaginary part of the zero, and the second column contains a
+quantity related to \fIS(T)\fR --- it increases roughly by two
+whenever a sign change, that is, a pair of zeros, is missed. Higher up
+the critical strip you should use a smaller stepsize so as not to miss
+zeros. The \fI--zeros-interval\fR options makes sense if you want to
+output zeros as they are found.
+
+The \fI--zeros\fR option, which \fBdoes\fR verify the (generalized)
+Riemann hypothesis, looks for several dozen zeros to make sure none
+have been missed before outputting any zeros at all; as a result, it
+takes longer than \fI--zeros-interval\fR to output the first few
+zeros. For collecting more than just a handful of zeros, or to make
+certain that no zeros have been missed, one should use the
+\fI--zeros\fR option.
+
+.SH COMPUTING VALUES
+
+The lcalc program can also compute the \fBvalues\fR of an L-function
+by using the \fI--value\fR flag. For example,
+
+.nf
+.I $ lcalc --value --x=0.5 --y=100
+.fi
+
+will compute the value of the (default) Riemann zeta function at the
+point \fIx + yi = 0.5 + 100i\fR. Both real and complex parts are
+output, separated by a space; in this case, the output is
+approximately \fI2.692619886 -0.0203860296\fR which represents
+\fIzeta(x+yi) = 2.692619886 - 0.0203860296i\fR.
+
+You can also compute values along a line segment at equally spaced
+points:
+
+.nf
+.I $ lcalc --value-line-segment --x=0.5 --X=0.5 --y=0 --Y=10 --number-samples=100
+.fi
+
+computes the values of the Riemann zeta function from \fI0.5 + 0i\fR
+through \fI0.5 + 100i\fR at \fI1000\fR equally-spaced points. The
+output contains four columns: the real and imaginary parts of the
+current point (two columns), followed by the real and imaginary parts
+of the function value (two columns).
+
+.SH ELLIPTIC CURVE L-FUNCTIONS
+
+If lcalc was built with PARI support, the \fI--elliptic-curve\fR
+option can be combined with the \fI--a1\fR through \fI--a6\fR flags to
+specify an elliptic curve L-function. For example,
+
+.nf
+.I $ lcalc --zeros=5 --elliptic-curve --a1=0 --a2=0 --a3=0 --a4=0 --a6=1
+.fi
+
+computes the first five zeros of the L-function associated with the
+elliptic curve \fIy^2 = x^3 + 1\fR.
+
+.SH TWISTS
+
+Twists by Dirichlet characters are currently available for all zeta
+and cusp-form L-functions. For example,
+
+.nf
+.I $ lcalc --value --x=0.5 --y=0 --twist-quadratic --start -100 --finish 100
+.fi
+
+will output \fIL(1/2, chi_d)\fR for \fId\fR between \fI-100\fR and
+\fI100\fR, inclusive. Other twisting options are available. For
+example
+
+.nf
+.I $ lcalc --zeros=200 --twist-primitive --start 3 --finish 100
+.fi
+
+gives the first two-hundred zeros of all primitive \fIL(s,chi)\fR with
+a conductor between \fI3\fR and \fI100\fR, inclusive.
+
+Notice that with the \fI--twist-quadratic\fR option one is specifying
+the discriminant which can be negative, while with the
+\fI--twist-primitive\fR option one is specifying the conductor which
+should be positive.
+
+When using the various twisting options, other than
+\fI--twist-quadratic\fR, the second output column is a label for the
+character modulo \fIn\fR. It is an integer between \fI1\fR and
+\fIphi(n)\fR. If one is restricting to primitive characters, then only
+a subset of these integers appear in the second column.
+
+One can obtain a table of characters using the
+\fI--output-character\fR option. This doesn't work with the
+\fI--twist-quadratic\fR option, but does with the other twisting
+options.
+
+The \fI--output-character\fR option takes an argument of either
+\fI1\fR or \fI2\fR. An argument of \fI1\fR, for example, will print a
+comprehensive table of \fIchi(n)\fR for all \fIgcd(n,conductor) =
+1\fR.
+
+The characters are constructed multiplicatively in terms of generators
+of the cyclic groups mod the prime powers that divide \fIn\fR, and
+there's no simple formula to go from the label to the character. As a
+result, \fI--output-character\fR will also output a table for each
+character before outputting the zeros of the corresponding L-function
+(but not with the \fI--twist-quadratic\fR option).
+
+.nr step 1 1
+These tables contain six columns:
+
+.IP \n[step] 6
+the value of \fIn\fR
+.IP \n+[step]
+a label for the character, an integer between \fI1\fR and \fIphi(n)\fR
+.IP \n+[step]
+the conductor of the inducing character (same as the first column, if
+primitive).
+.IP \n+[step]
+column 4: \fIm\fR, an integer that is coprime with \fIn\fR
+.IP \n+[step]
+\fIRe(chi(m))\fR
+.IP \n+[step]
+\fIIm(chi(m))\fR
+
+.P
+If, instead, \fI--output-character=2\fR is given, then only the value
+of \fIchi(-1)\fR (that is, whether \fIchi\fR is even or odd) and
+whether \fIchi\fR is primitive or not will be printed.
+
+.SH "گزینه‌ها (OPTIONS)"
+
+For basic program usage, run
+
+.nf
+.I $ lcalc --help
+.fi
+
+Most of lcalc's options are sufficiently explained by its output. Here
+we collect some further information about specific options.
+
+.IP \fB\-\-rank-compute\fR,\ \fB\-r\fR
+Compute the analytic rank. Analytic rank works well even for high rank
+since the method used does not compute derivatives, but rather looks
+at the behaviour of the L-function near the critical point.
+
+.IP \fB\-\-derivative=<n>\fR,\ \fB\-d\ <n>\fR
+Compute the \fIn\fRth derivative. Presently the derivative option uses
+numeric differentiation (taking linear combinations of \fIL(s + mh)\fR
+for integers \fIm\fR, to pull out the relevant Taylor coefficient of
+\fIL(s)\fR). To get good results with higher derivatives, one should
+build libLfunction/lcalc with more precision.
+
+.SH "مثال‌ها (EXAMPLES)"
+
+.IP \[bu] 2
+Compute the first thousand zeros of the Riemann zeta function using
+the \fI--zeros\fR option, and output their imaginary parts (after
+verifying that their real parts are all one-half):
+
+.nf
+.I $ lcalc --zeros 1000
+.fi
+.IP \[bu]
+Compute the value of the Riemann zeta function at \fIx + iy\fR using
+the --value, --x, and --y options:
+
+.nf
+.I $ lcalc --value --x=0.5 --y=14.134725141738
+.fi
+.IP \[bu]
+Compute the first 10 zeros of the Ramanujan tau L-function using the
+--tau and --zeros (-z) options:
+
+.nf
+.I $ lcalc --tau --zeros=10
+.fi
+.IP \[bu]
+Compute the first zero of the real quadratic Dirichlet L-function of
+conductor 4 after using the --twist-quadratic, --start, and --finish
+options to specify the L-function:
+
+.nf
+.I $ lcalc --twist-quadratic --start=-4 --finish=-4 --zeros=1
+.fi
+
+.SH DATA FILE FORMAT
+
+The \fIlcalc -F\fR option allows you to load L-function data from a
+file.  Here we explain the format of this file. Basically it must
+contain the functional equation, Dirichlet coefficients, and some
+other helpful information.
+
+The first line should contain an integer, either \fI1\fR, \fI2\fR, or
+\fI3\fR: \fI1\fR specifies that the Dirichlet coefficients are to be
+given as integers (up to thirty-two bits long), \fI2\fR that they are
+floating point numbers, \fI3\fR that they are complex numbers. So, for
+example, the first line would be a 2 for cusp form or Maass form
+L-function (we normalize the L-functional so that the functional
+equation is \fIs <-> 1-s\fR, so the normalized Dirichlet coefficients
+for a cusp form L-function are not integers).
+
+The second line specifies info that the calculator can exploit (or
+will exploit at some future date). It is an integer that is assigned
+to different types of L-functions. Currently:
+.IP \[bu] 2
+\fI-2\fR for \fIL(s,chi)\fR but where the number of coefficients
+computed is less than the period
+.IP \[bu]
+\fI-1\fR for zeta
+.IP \[bu]
+\fI0\fR for unknown
+.IP \[bu]
+\fI1\fR for periodic, including \fIL(s,chi)\fR
+.IP \[bu]
+\fI2\fR for cusp form (in \fIS_K(Gamma_0(N)\fR)
+.IP \[bu]
+\fI3\fR for Maass form for \fISL_2(Z)\fR
+.IP \[bu]
+other integers reserved for future types.
+
+The third line is an integer that specifies how many Dirichlet
+coefficients to read from the file; there should be at least this many
+Dirichlet coefficients in the file. This is a useful quantity to
+specify sincethe data file might have, say, a million coefficients,
+but one might want to read in just ten thousand of them.
+
+The fourth line is either \fI0\fR, if the Dirichlet coefficients are
+\fBnot\fR periodic, or a positive integer specifying the period
+otherwise (this happens in the case of Dirichlet L-functions). For a
+Maass form it should be \fI0\fR.
+
+The fifth line is a positive integer, the quasi-degree. This is the
+number of gamma factors of the form \fIGamma(gamma s + lambda)\fR in
+the functional equation, where gamma is either \fI0.5\fR or \fI1\fR,
+and lambda is a complex number with \fIRe(lambda) >= 0\fR. For
+example, it is \fI1\fR for Dirichlet L-functions, \fI1\fR for cusp
+form L-functions, \fI2\fR for Maass form L-functions, etc. Note that
+the \(dq1\(dq for cusp form L-functions could be a \(dq2\(dq if you
+wish to split the gamma factor up using the Legendre duplication
+formula. But it's better not to.
+
+Next come the gamma factors, with two lines for each gamma factor. The
+first of each pair of lines contains gamma (either \fI0.5\fR or
+\fI1\fR), and the second line contains a pair of floating point
+numbers separated by a space specifying the real and imaginary parts
+of lambda (even if purely real, lambda should be given as a pair of
+numbers, the second one then being \fI0\fR).
+
+Next you specify the functional equation. Let
+\fI
+
+                     a
+                  --------'
+                 '  |  |
+                    |  |
+  Lambda(s) = Q^s   |  |  Gamma(gamma_j*s + lambda_j)*L(s)
+                    |  |
+                   j = 1
+
+\fRsatisfy \fILambda(s) = \fIomega*conj(Lambda(1-conj(s)))\fR, where
+\fIQ\fR is a real number, \fIomega\fR is complex,and \(dqconj\(dq
+denotes the complex conjugate. Notice that the functional equation is
+\fIs\fR into \fI1-s\fR; that is, the gamma factors and Dirichlet
+coefficients of \fIL(s)\fR should be normalized correctly so as to
+have critical line \fIRe(s) = 1/2\fR.
+
+The next line in the datafile is \fIQ\fR giving as a floating point
+number, and the one after that gives omega as a pair \fIx y\fR of
+floating point numbers, specifying the real and imaginary parts of
+omega (even when omega is unity, it should be given as a pair of
+floating points, for example \fI1 0\fR to indicate \fI1 + 0i\fR).
+
+We need to allow for the possibility of poles. For example, if \fIL(s)
+= zeta(s)\fR then \fILambda(s)\fR has simple poles with residue
+\fI1\fR at \fIs=1\fR and residue \fI-1\fR at \fIs=0\fR.  To take into
+account such possibilities I assume that Lambda(s) has at most simple
+poles.  So, the next line specifies the number of poles (usually
+\fI0\fR) and then, for each pole there are two lines. The first line
+in each pair gives the pole \fIx+iy\fR as a pair \fIx y\fR of floating
+point numbers. The second line specifies the residue at that pole,
+also as a pair of floating point numbers.
+
+Finally the Dirichlet coefficients. The remaining lines in the file
+contain a list of Dirichlet coefficients, at least as many as
+indicated in line three of the datafile. The coefficients can be
+integers, real, or complex. If complex they should, as usual, be given
+as a pair \fIx y\fR of floating point numbers separated by a
+space. Otherwise they should be given as single column of integers or
+floating point numbers respectively.
+
+The datafile should only contain numbers and no comments. The comments
+below are for the sake of understanding the structure of the
+datafile.
+
+An example data file for the Maass form for \fISL_2(Z)\fR associated
+to the eigenvalue with \fIR = 13.779751351891\fR is given below
+(beware: the Dirichlet coefficients for this particular L-function are
+only accurate to a handful of decimal places, especially near the tail
+of the file).
+
+.nf
+\fI
+2                    the Dirichlet coefficients are real
+3                    this is a Maass form L-function
+29900                use this many of the Dirichlet coefficients
+0                    zero since the coefficients are not periodic
+2                    two gamma factors
+\[char46]5                   the first gamma factor
+0 6.88987567594535   the first lambda
+\[char46]5                   the second gamma factor
+0 -6.88987567594535  the second lambda
+\[char46]3183098861837906715 the Q in the functional equation
+1 0                  the omega 1 + 0i in the functional equation
+0                    the number of poles of Lambda(s)
+1                    the first Dirichlet coefficient
+1.549304477941       the second Dirichlet coefficient
+0.246899772454       the third Dirichlet coefficient
+1.400344365369       the fourth Dirichlet coefficient
+\[char46]\.\.
+\fR
+.fi
+
+Several such example data files are included with lcalc.
+
+.SH "اشکالات (BUGS)"
+.P
+Report bugs to https://gitlab.com/sagemath/lcalc/issues

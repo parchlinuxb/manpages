@@ -1,0 +1,218 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "GDAL-MDIM-MOSAIC" "1" "Aug 18, 2026" "" "GDAL"
+.SH "نام (NAME)"
+gdal-mdim-mosaic \- Build a mosaic, either virtual (VRT) or materialized, from multidimensional datasets
+.sp
+Added in version 3.12.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Usage: gdal mdim mosaic [OPTIONS] <INPUT>... <OUTPUT>
+
+Build a mosaic, either virtual (VRT) or materialized, from multidimensional datasets.
+
+Positional arguments:
+  \-i, \-\-input <INPUT>                                  Input multidimensional raster datasets [1.. values] [required]
+  \-o, \-\-output <OUTPUT>                                Output multidimensional raster dataset (created by algorithm) [required]
+
+Common Options:
+  \-h, \-\-help                                           Display help message and exit
+  \-\-json\-usage                                         Display usage as JSON document and exit
+  \-\-config <KEY>=<VALUE>                               Configuration option [may be repeated]
+  \-q, \-\-quiet                                          Quiet mode (no progress bar or warning message) [not available in pipelines]
+
+Options:
+  \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>  Output format
+  \-\-co, \-\-creation\-option <KEY>=<VALUE>                Creation option [may be repeated]
+  \-\-overwrite                                          Whether overwriting existing output dataset is allowed
+  \-\-array <ARRAY>                                      Name of array(s) to mosaic. [may be repeated]
+
+Advanced Options:
+  \-\-oo, \-\-open\-option <KEY>=<VALUE>                    Open options [may be repeated]
+  \-\-if, \-\-input\-format <INPUT\-FORMAT>                  Input formats [may be repeated]
+.EE
+.UNINDENT
+.UNINDENT
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgdal mdim mosaic\fP builds a mosaic of multidimensional array(s),
+from a list of input GDAL multidimensional datasets,
+that can be either a virtual mosaic in the
+\fI\%Multidimensional VRT (Virtual Dataset)\fP format,
+or in a more conventional multidimensional format such as \fI\%NetCDF: Network Common Data Form\fP or \fI\%Zarr\fP\&.
+.sp
+Wildcards \(aq*\(aq, \(aq?\(aq or \(aq[\(aq] of \fI\%VSIGlob()\fP can be used for input dataset
+names, even on files located on network file systems such as /vsis3/, /vsigs/, /vsiaz/, etc.
+Alternatively if a input dataset name is prefixed by the \fI@\fP character, it will
+be assumed to contain the list of actual dataset names (one per line) to use
+as input datasets.
+.sp
+To create a mosaic from an array, certain structural constraints apply to all
+contributing arrays from the input datasets:
+.INDENT 0.0
+.IP \(bu 2
+All contributing arrays must have the same array name and path (e.g. \(dq/measurements/pressure\(dq)
+.IP \(bu 2
+They must have the same data type and nodata value
+.IP \(bu 2
+They must share the same number of dimensions, in the same order, and with the same names.
+.IP \(bu 2
+each dimension of the array must have an associated one\-dimensional numeric indexing variable.
+.UNINDENT
+.sp
+A typical use case is when a multidimensional array is sliced into several files,
+and it is desired to reconstruct the full array.
+.sp
+The program can support mosaicing along several axes.
+.sp
+There might be \(dqholes\(dq among the source datasets along the mosaiced dimensions,
+and possibly overlaps (but only when regularly spacing along a mosaiced dimension).
+Holes are filled with the nodata value, if defined in the source arrays,
+or zero\-initialized otherwise. In case of overlap, the order of the input list
+is used to determine priority. Files that are listed at the end are the ones
+from which the content will be fetched.
+.sp
+Different typical use cases that can be addressed by this program are:
+.INDENT 0.0
+.IP \(bu 2
+a 3D array is sliced along a single dimension (for example a temporal one)
+into several files with each slice having a sample along that dimension. In
+that use case, the timestamps of the slices do not need to be regularly spaced.
+.IP \(bu 2
+a 2D array is chunked/tiled along X and Y dimensions, with a regular spacing
+along those X and Y dimensions, and where the coordinate values are aligned on
+the same grid among chunks.
+.UNINDENT
+.sp
+By default, a target array is created for each array with two or more dimensions.
+This behavior can be restricted to specific arrays using the \fI\%\-\-array\fP option.
+.sp
+The following options are available:
+.SS Standard options
+.INDENT 0.0
+.TP
+.B \-i, \-\-input <INPUT>
+Input multidimensional dataset names. Required.
+.sp
+Wildcards \(aq*\(aq, \(aq?\(aq or \(aq[\(aq] of \fI\%VSIGlob()\fP can be used for input dataset
+names, even on files located on network file systems such as /vsis3/, /vsigs/, /vsiaz/, etc.
+Alternatively if a input dataset name is prefixed by the \fI@\fP character, it will
+be assumed to contain the list of actual dataset names (one per line) to use
+as input datasets.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-o, \-\-output <OUTPUT>
+Output multidimensional dataset name. Required.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>
+Select the output format. This can be a format that supports multidimensional
+output (such as \fI\%NetCDF: Network Common Data Form\fP, \fI\%Multidimensional VRT\fP).
+When this option is not specified, the format is guessed when possible from
+the extension of the destination filename.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-co, \-\-creation\-option <KEY>=<VALUE>
+Many formats have one or more optional creation options that can be
+used to control particulars about the file created.
+.sp
+The creation options available vary by format driver, and some
+simple formats have no creation options at all. A list of options
+supported for a format can be listed with the
+\fI\%\-\-format\fP
+command line option but the documentation for the format is the
+definitive source of information on driver creation options.
+See \fI\%Raster drivers\fP format
+specific documentation for legal creation options for each format.
+.sp
+Array\-level creation options may be passed by prefixing them with \fBARRAY:\fP\&.
+See \fI\%GDALGroup::CopyFrom()\fP for further details regarding such options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-overwrite
+Allow program to overwrite existing target file or dataset.
+Otherwise, by default, \fBgdal\fP errors out if the target file or
+dataset already exists.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-array <ARRAYS>
+Name or full path of one or several arrays to mosaic. If not specified,
+a target array is created for each array with two or more dimensions.
+.UNINDENT
+.SS Advanced options
+.INDENT 0.0
+.TP
+.B \-\-oo, \-\-open\-option <NAME>=<VALUE>
+Dataset open option (format specific).
+.sp
+May be repeated.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-if, \-\-input\-format <format>
+Format/driver name to be attempted to open the input file(s). It is generally
+not necessary to specify it, but it can be used to skip automatic driver
+detection, when it fails to select the appropriate driver.
+This option can be repeated several times to specify several candidate drivers.
+Note that it does not force those drivers to open the dataset. In particular,
+some drivers have requirements on file extensions.
+.sp
+May be repeated.
+.UNINDENT
+.SH RETURN STATUS CODE
+.sp
+The program returns status code 0 in case of success, and non\-zero in case of
+error (non\-blocking errors emitted as warnings are considered as a successful
+execution).
+.SH "مثال‌ها (EXAMPLES)"
+.SS Example 1: Mosaic together several all netCDF files starting with slice that are slices of a 3D array
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+gdal mdim mosaic slice*.nc out.vrt
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Even Rouault <even.rouault@spatialys.com>
+.SH "حق نشر (COPYRIGHT)"
+1998-2026
+.\" Generated by docutils manpage writer.
+.

@@ -1,0 +1,704 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "ABIPKGDIFF" "1" "May 01, 2026" "" "Libabigail"
+.SH "نام (NAME)"
+abipkgdiff \- compare ABIs of ELF files in software packages 
+.sp
+\fBabipkgdiff\fP compares the Application Binary Interfaces (ABI) of the
+ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> binaries contained in two sets of software packages.  The
+software package formats currently supported are Deb \%<https://\:en\:.wikipedia\:.org/\:wiki/\:Deb_%28file_format%29>, RPM \%<https://\:en\:.wikipedia\:.org/\:wiki/\:RPM_Package_Manager>,
+tar \%<https://\:en\:.wikipedia\:.org/\:wiki/\:Tar_%28computing%29> archives (either compressed or not) and plain directories that
+contain binaries.
+.sp
+The ABI of the binaries contained in the second set of packages is
+compared against the ABI of the binaries contained in the first set of
+packages.
+.sp
+For a comprehensive ABI change report that includes changes about
+function and variable sub\-types, the two input package sets must be
+accompanied with their debug information packages that contain debug
+information either in DWARF \%<http://\:www\:.dwarfstd\:.org>, CTF \%<https://\:raw\:.githubusercontent\:.com/\:wiki/\:oracle/\:binutils-gdb/\:files/\:ctf-spec\:.pdf> or in BTF \%<https://\:docs\:.kernel\:.org/\:bpf/\:btf\:.html> formats.  Please
+note however that some packages contain binaries that embed the debug
+information directly in a section of said binaries.  In those cases,
+obviously, no separate debug information package is needed as the tool
+will find the debug information inside the binaries.
+.sp
+By default, \fBabipkgdiff\fP uses debug information in DWARF \%<http://\:www\:.dwarfstd\:.org> format,
+if present, otherwise it compares binaries interfaces using debug
+information in CTF \%<https://\:raw\:.githubusercontent\:.com/\:wiki/\:oracle/\:binutils-gdb/\:files/\:ctf-spec\:.pdf> or in BTF \%<https://\:docs\:.kernel\:.org/\:bpf/\:btf\:.html> formats, if present. Finally, if no
+debug info in these formats is found, it only considers ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols
+and report about their addition or removal.
+.sp
+This tool uses the libabigail library to analyze the binary as well as its
+associated debug information.  Here is its general mode of operation.
+.sp
+When instructed to do so, a binary and its associated debug
+information is read and analyzed.  To that effect, libabigail analyzes
+by default the descriptions of the types reachable by the interfaces
+(functions and variables) that are visible outside of their
+translation unit.  Once that analysis is done, an Application Binary
+Interface Corpus is constructed by only considering the subset of
+types reachable from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are
+defined and exported by the binary.  It\(aqs that final ABI corpus which
+libabigail considers as representing the ABI of the analyzed binary.
+.sp
+Libabigail then has capabilities to generate textual representations
+of ABI Corpora, compare them, analyze their changes and report about
+them.
+.SH INVOCATION
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+abipkgdiff [options] <package1> <package2>
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBpackage1\fP and \fBpackage2\fP are the packages that contain the
+binaries to be compared.
+.sp
+An alternate invocation style would be:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+abipkgdiff [options] \-\-set1 <pkg1\-v1> <pkg2\-v1> <pkg3\-v1> \e
+                     \-\-set2 <pkg1\-v2> <pkg2\-v2> <pkg3\-v2>
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+where the ABI of binaries contained in the second set of packages are
+compared against binaries contained in the first set of packages.
+.SH "محیط (ENVIRONMENT)"
+.sp
+abipkgdiff loads two default suppression specifications files \%<#\:suppr-spec-label>, merges their content and use it to filter out ABI
+change reports that might be considered as false positives to users.
+.INDENT 0.0
+.IP \(bu 2
+Default system\-wide suppression specification file
+.sp
+It\(aqs located by the optional environment variable
+LIBABIGAIL_DEFAULT_SYSTEM_SUPPRESSION_FILE.  If that environment
+variable is not set, then abipkgdiff tries to load the suppression file
+$libdir/libabigail/libabigail\-default.abignore.  If that file is not
+present, then no default system\-wide suppression specification file
+is loaded.
+.IP \(bu 2
+Default user suppression specification file.
+.sp
+It\(aqs located by the optional environment
+LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE.  If that environment
+variable is not set, then abipkgdiff tries to load the suppression file
+$HOME/.abignore.  If that file is not present, then no default user
+suppression specification is loaded.
+.UNINDENT
+.sp
+In addition to those default suppression specification files,
+abipkgdiff will also look inside the packages being compared and if it
+sees a file that ends with the extension \fB\&.abignore\fP, then it will
+consider it as a suppression specification and it will combine it to the
+default suppression specification that might be already loaded.
+.sp
+The user might as well use the \fB\-\-suppressions\fP option (that is
+documented further below) to provide a suppression specification.
+.SH "گزینه‌ها (OPTIONS)"
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-allow\-non\-exported\-interfaces\fP
+.sp
+When looking at the debug information accompanying a binary, this
+tool analyzes the descriptions of the types reachable by the
+interfaces (functions and variables) that are visible outside of
+their translation unit.  Once that analysis is done, an ABI corpus
+is constructed by only considering the subset of types reachable
+from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are defined and
+exported by the binary.  It\(aqs those final ABI Corpora that are
+compared by this tool.
+.sp
+The problem with that approach however is that analyzing all the
+interfaces that are visible from outside their translation unit
+can amount to a lot of data, especially when those binaries are
+applications, as opposed to shared libraries.  One example of such
+applications is the Linux Kernel \%<https://\:kernel\:.org>\&.  Analyzing massive ABI
+Corpora like these can be extremely slow.
+.sp
+In the presence of an \(dqaverage sized\(dq binary however one can
+afford having libabigail analyze all interfaces that are visible
+outside of their translation unit, using this option.
+.sp
+Note that this option is turned on by default, unless we are in
+the presence of the Linux Kernel \%<https://\:kernel\:.org>\&.
+.IP \(bu 2
+\fB\-\-btf\fP
+.INDENT 2.0
+.INDENT 3.5
+This is used to compare packages with BTF \%<https://\:docs\:.kernel\:.org/\:bpf/\:btf\:.html> debug information,
+if present.
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-ctf\fP
+.INDENT 2.0
+.INDENT 3.5
+This is used to compare packages with CTF \%<https://\:raw\:.githubusercontent\:.com/\:wiki/\:oracle/\:binutils-gdb/\:files/\:ctf-spec\:.pdf> debug information,
+if present.
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-debug\-info\-pkg1 | \-\-d1\fP <path>
+.sp
+For cases where the debug information for \fIpackage1\fP is split out
+into a separate file, tells \fBabipkgdiff\fP where to find that
+separate debug information package.
+.sp
+Note that the debug info for \fIpackage1\fP can have been split into
+several different debug info packages.  In that case, several
+instances of this options can be provided, along with those
+several different debug info packages.
+.IP \(bu 2
+\fB\-\-debug\-info\-pkg2 | \-\-d2\fP <path>
+.sp
+For cases where the debug information for \fIpackage2\fP is split out
+into a separate file, tells \fBabipkgdiff\fP where to find that
+separate debug information package.
+.sp
+Note that the debug info for \fIpackage2\fP can have been split into
+several different debug info packages.  In that case, several
+instances of this options can be provided, along with those
+several different debug info packages.
+.IP \(bu 2
+\fB\-\-devel\-pkg1 | \-\-devel1\fP <path>
+.sp
+Specifies where to find the Development Package \%<https://\:fedoraproject\:.org/\:wiki/\:Packaging:Guidelines?\:rd=Packaging/\:Guidelines#\:Devel_Packages> associated with
+the first package to be compared.  That Development Package \%<https://\:fedoraproject\:.org/\:wiki/\:Packaging:Guidelines?\:rd=Packaging/\:Guidelines#\:Devel_Packages> at
+\fBpath\fP should at least contain header files in which public
+types exposed by the libraries (of the first package to be
+compared) are defined.  When this option is provided, the tool
+filters out reports about ABI changes to types that are \fINOT\fP
+defined in these header files.
+.IP \(bu 2
+\fB\-\-devel\-pkg2 | \-\-devel2\fP <path>
+.sp
+Specifies where to find the Development Package \%<https://\:fedoraproject\:.org/\:wiki/\:Packaging:Guidelines?\:rd=Packaging/\:Guidelines#\:Devel_Packages> associated with
+the second package to be compared.  That Development Package \%<https://\:fedoraproject\:.org/\:wiki/\:Packaging:Guidelines?\:rd=Packaging/\:Guidelines#\:Devel_Packages> at
+\fBpath\fP should at least contains header files in which public
+types exposed by the libraries (of the second package to be
+compared) are defined.  When this option is provided, the tool
+filters out reports about ABI changes to types that are \fINOT\fP
+defined in these header files.
+.IP \(bu 2
+\fB\-\-drop\-private\-types\fP
+.sp
+This option is to be used with the \fB\-\-devel\-pkg1\fP and
+\fB\-\-devel\-pkg2\fP options.  With this option, types that are \fINOT\fP
+defined in the headers are entirely dropped from the internal
+representation build by Libabigail to represent the ABI.  They
+thus don\(aqt have to be filtered out from the final ABI change
+report because they are not even present in Libabigail\(aqs
+representation.
+.sp
+Without this option however, those private types are kept in the
+internal representation and later filtered out from the report.
+.sp
+This options thus potentially makes Libabigail consume less
+memory.  It\(aqs meant to be mainly used to optimize the memory
+consumption of the tool on binaries with a lot of publicly defined
+and exported types.
+.IP \(bu 2
+\fB\-\-dso\-only\fP
+.sp
+Compare ELF files that are shared libraries, only.  Do not compare
+executable files, for instance.
+.IP \(bu 2
+\fB\-\-exported\-interfaces\-only\fP
+.sp
+By default, when looking at the debug information accompanying a
+binary, this tool analyzes the descriptions of the types reachable
+by the interfaces (functions and variables) that are visible
+outside of their translation unit.  Once that analysis is done, an
+ABI corpus is constructed by only considering the subset of types
+reachable from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are
+defined and exported by the binary.  It\(aqs those final ABI Corpora
+that are compared by this tool.
+.sp
+The problem with that approach however is that analyzing all the
+interfaces that are visible from outside their translation unit
+can amount to a lot of data, especially when those binaries are
+applications, as opposed to shared libraries.  One example of such
+applications is the Linux Kernel \%<https://\:kernel\:.org>\&.  Analyzing massive ABI
+corpora like these can be extremely slow.
+.sp
+To mitigate that performance issue, this option allows libabigail
+to only analyze types that are reachable from interfaces
+associated with defined and exported ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols.
+.sp
+Note that this option is turned on by default when analyzing the
+Linux Kernel \%<https://\:kernel\:.org>\&.  Otherwise, it\(aqs turned off by default.
+.IP \(bu 2
+\fB\-\-fail\-no\-dbg\fP
+.sp
+Make the program fail and return a non\-zero exit code if couldn\(aqt
+read any of the debug information that comes from the debug info
+packages that were given on the command line.  If no debug info
+package were provided on the command line then this option is not
+active.
+.sp
+Note that the non\-zero exit code returned by the program as a
+result of this option is the constant \fBABIDIFF_ERROR\fP\&.  To know
+the numerical value of that constant, please refer to the
+exit code documentation \%<#\:abidiff-return-value-label>\&.
+.IP \(bu 2
+\fB\-\-full\-impact|\-f\fP
+.sp
+When comparing two Linux Kernel packages, this function instructs
+\fBabipkgdiff\fP to emit the so\-called \fBfull impact report\fP, which
+is the default report kind emitted by the \fBabidiff\fP tool:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff libtest\-v0.so libtest\-v1.so
+Functions changes summary: 0 Removed, 1 Changed, 0 Added function
+Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+
+1 function with some indirect sub\-type change:
+
+  [C]\(aqfunction void fn(C&)\(aq at test\-v1.cc:13:1 has some indirect sub\-type changes:
+    parameter 1 of type \(aqC&\(aq has sub\-type changes:
+      in referenced type \(aqstruct C\(aq at test\-v1.cc:7:1:
+        type size hasn\(aqt changed
+        1 data member change:
+         type of \(aqleaf* C::m0\(aq changed:
+           in pointed to type \(aqstruct leaf\(aq at test\-v1.cc:1:1:
+             type size changed from 32 to 64 bits
+             1 data member insertion:
+               \(aqchar leaf::m1\(aq, at offset 32 (in bits) at test\-v1.cc:4:1
+
+$
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-harmless\fP
+.sp
+In the diff report, display only the harmless \%<#\:harmlesschangeconcept-label> changes.  By default, the harmless
+changes are filtered out of the diff report keep the clutter to a
+minimum and have a greater chance to spot real ABI issues.
+.IP \(bu 2
+\fB\-\-help | \-h\fP
+.sp
+Display a short help about the command and exit.
+.IP \(bu 2
+\fB\-\-ignore\-soname\fP
+.sp
+If two binaries with different SONAMEs have the same name in the
+old and new packages to be compared, this option forces abipkgdiff
+to compare them regardless of their obvious SONAME change. This
+allows the analysis of the ABI changes that might have led
+developers to change the SONAME.
+.IP \(bu 2
+\fB\-\-impacted\-interfaces\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+When showing leaf changes, this option instructs abipkgdiff to
+show the list of impacted interfaces.  This option is thus to be
+used in addition to the \fB\-\-leaf\-changes\-only\fP option, or, when
+comparing two Linux Kernel packages.  Otherwise, it\(aqs simply
+ignored.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-keep\-tmp\-files\fP
+.sp
+Do not erase the temporary directory files that are created during
+the execution of the tool.
+.IP \(bu 2
+\fB\-\-leaf\-changes\-only|\-l\fP only show leaf changes, so don\(aqt show
+impact analysis report.  This option implies \fB\-\-redundant\fP
+.sp
+The typical output of \fBabipkgdiff\fP and \fBabidiff\fP when
+comparing two binaries, that we shall call \fBfull impact report\fP,
+looks like this
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff libtest\-v0.so libtest\-v1.so
+Functions changes summary: 0 Removed, 1 Changed, 0 Added function
+Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+
+1 function with some indirect sub\-type change:
+
+  [C]\(aqfunction void fn(C&)\(aq at test\-v1.cc:13:1 has some indirect sub\-type changes:
+    parameter 1 of type \(aqC&\(aq has sub\-type changes:
+      in referenced type \(aqstruct C\(aq at test\-v1.cc:7:1:
+        type size hasn\(aqt changed
+        1 data member change:
+         type of \(aqleaf* C::m0\(aq changed:
+           in pointed to type \(aqstruct leaf\(aq at test\-v1.cc:1:1:
+             type size changed from 32 to 64 bits
+             1 data member insertion:
+               \(aqchar leaf::m1\(aq, at offset 32 (in bits) at test\-v1.cc:4:1
+
+$
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+So in that example the report emits information about how the data
+member insertion change of \(dqstruct leaf\(dq is reachable from
+function \(dqvoid fn(C&)\(dq.  In other words, the report not only shows
+the data member change on \(dqstruct leaf\(dq, but it also shows the
+impact of that change on the function \(dqvoid fn(C&)\(dq.
+.sp
+In abidiff (and abipkgdiff) parlance, the change on \(dqstruct leaf\(dq
+is called a leaf change.  So the \fB\-\-leaf\-changes\-only
+\-\-impacted\-interfaces\fP options show, well, only the leaf change.
+And it goes like this:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff \-l libtest\-v0.so libtest\-v1.so
+\(aqstruct leaf\(aq changed:
+  type size changed from 32 to 64 bits
+  1 data member insertion:
+    \(aqchar leaf::m1\(aq, at offset 32 (in bits) at test\-v1.cc:4:1
+
+  one impacted interface:
+    function void fn(C&)
+$
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note how the report ends up by showing the list of interfaces
+impacted by the leaf change.  That\(aqs the effect of the additional
+\fB\-\-impacted\-interfaces\fP option.
+.sp
+Now if you don\(aqt want to see that list of impacted interfaces,
+then you can just avoid using the \fB\-\-impacted\-interface\fP option.
+You can learn about that option below, in any case.
+.sp
+Please note that when comparing two Linux Kernel packages, it\(aqs
+this \fBleaf changes report\fP that is emitted, by default.  The
+normal so\-called \fBfull impact report\fP can be emitted with the
+option \fB\-\-full\-impact\fP which is documented later below.
+.IP \(bu 2
+\fB\-\-linux\-kernel\-abi\-whitelist | \-w\fP <\fIpath\-to\-whitelist\fP>
+.sp
+When comparing two Linux kernel RPM packages, this option points
+to the white list of names of ELF symbols of functions and
+variables that must be compared for ABI changes.  That white list
+is called a \(dqLinux kernel ABI white list\(dq.
+.sp
+Any other function or variable which ELF symbol are not present in
+that white list will not be considered by the ABI comparison
+process.
+.sp
+If this option is not provided \-\- thus if no white list is
+provided \-\- then the ABI of all publicly defined and exported
+functions and global variables by the Linux Kernel binaries are
+compared.
+.sp
+Please note that if a white list package is given in parameter,
+this option handles it just fine, like if the \-\-wp option was
+used.
+.IP \(bu 2
+\fB\-\-no\-abignore\fP
+.sp
+Do not search the package for the presence of suppression files.
+.IP \(bu 2
+\fB\-\-no\-added\-binaries\fP
+.sp
+Do not show the list of binaries that got added to the second
+package.
+.sp
+Please note that the presence of such added binaries is not
+considered like an ABI change by this tool; as such, it doesn\(aqt
+have any impact on the exit code of the tool.  It does only have
+an informational value.  Removed binaries are, however, considered
+as an ABI change.
+.IP \(bu 2
+\fB\-\-no\-added\-syms\fP
+.sp
+Do not show the list of functions, variables, or any symbol that
+was added.
+.IP \(bu 2
+\fB\-\-no\-assume\-odr\-for\-cplusplus\fP
+.sp
+When analysing a binary originating from C++ code using DWARF \%<http://\:www\:.dwarfstd\:.org>
+debug information, libabigail assumes the One Definition Rule \%<https://\:en\:.wikipedia\:.org/\:wiki/\:One_Definition_Rule>
+to speed\-up the analysis.  In that case, when several types have
+the same name in the binary, they are assumed to all be equal.
+.sp
+This option disables that assumption and instructs libabigail to
+actually actually compare the types to determine if they are
+equal.
+.IP \(bu 2
+\fB\-\-no\-default\-suppression\fP
+.sp
+Do not load the default suppression specification files\&.
+.IP \(bu 2
+\fB\-\-no\-leverage\-dwarf\-factorization\fP
+.sp
+When analysing a binary which DWARF \%<http://\:www\:.dwarfstd\:.org> debug information was
+processed with the DWZ \%<https://\:sourceware\:.org/\:dwz> tool, the type information is supposed
+to be already factorized.  That context is used by libabigail to
+perform some speed optimizations.
+.sp
+This option disables those optimizations.
+.IP \(bu 2
+\fB\-\-no\-linkage\-name\fP
+.sp
+In the resulting report, do not display the linkage names of
+the added, removed, or changed functions or variables.
+.IP \(bu 2
+\fB\-\-no\-parallel\fP
+.sp
+By default, \fBabipkgdiff\fP will use all the processors it has available to
+execute concurrently.  This option tells it not to extract packages or run
+comparisons in parallel.
+.IP \(bu 2
+\fB\-\-non\-reachable\-types|\-t\fP
+.sp
+Analyze and emit change reports for all the types of the binary,
+including those that are not reachable from global functions and
+variables.
+.sp
+This option might incur some serious performance degradation as
+the number of types analyzed can be huge.  However, if paired with
+the \fB\-\-devel\-pkg{1,2}\fP options, the additional non\-reachable
+types analyzed are restricted to those defined in the public
+headers files carried by the referenced development packages, thus
+hopefully making the performance hit acceptable.
+.sp
+Also, using this option alongside suppression specifications (by
+also using the \fB\-\-suppressions\fP option) might help keep the number of
+analyzed types (and the potential performance degradation) in
+control.
+.sp
+Note that without this option, only types that are reachable from
+global functions and variables are analyzed, so the tool detects
+and reports changes on these reachable types only.
+.IP \(bu 2
+\fB\-\-no\-show\-locs\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+Do not show information about where in the \fIsecond shared library\fP
+the respective type was changed.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-no\-show\-relative\-offset\-changes\fP
+.INDENT 2.0
+.INDENT 3.5
+Without this option, when the offset of a data member changes,
+the change report not only mentions the older and newer offset,
+but it also mentions by how many bits the data member changes.
+With this option, the latter is not shown.
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-no\-unreferenced\-symbols\fP
+.sp
+In the resulting report, do not display change information about
+function and variable symbols that are not referenced by any debug
+information.  Note that for these symbols not referenced by any
+debug information, the change information displayed is either
+added or removed symbols.
+.IP \(bu 2
+\fB\-\-show\-bits\fP
+.sp
+Show sizes and offsets in bits, not bytes.  This option is
+activated by default.
+.IP \(bu 2
+\fB\-\-show\-bytes\fP
+.sp
+Show sizes and offsets in bytes, not bits.  By default, sizes and
+offsets are shown in bits.
+.IP \(bu 2
+\fB\-\-show\-dec\fP
+.sp
+Show sizes and offsets in decimal base.  This option is activated
+by default.
+.IP \(bu 2
+\fB\-\-show\-hex\fP
+.sp
+Show sizes and offsets in hexadecimal base.
+.IP \(bu 2
+\fB\-\-show\-identical\-binaries\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+Show the names of the all binaries compared, including the
+binaries whose ABI compare equal.  By default, when this option is
+not provided, only binaries with ABI changes are mentionned in the
+output.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-private\-dso\fP
+.sp
+By default, \fBabipkgdiff\fP does not compare DSOs that are private
+to the RPM package.  A private DSO is a DSO which SONAME is \fINOT\fP
+advertised in the \(dqprovides\(dq property of the RPM.
+.sp
+This option instructs \fBabipkgdiff\fP to \fIalso\fP compare DSOs that
+are \fINOT\fP advertised in the \(dqprovides\(dq property of the RPM.
+.sp
+Please note that the fact that (by default) \fBabipkgdiff\fP skips
+private DSO is a feature that is available only for RPMs, at the
+moment.  We would happily accept patches adding that feature for
+other package formats.
+.IP \(bu 2
+\fB\-\-redundant\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+In the diff reports, do display redundant changes.  A redundant
+change is a change that has been displayed elsewhere in a given
+report.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-self\-check\fP
+.sp
+This is used to test the underlying Libabigail library.  When in
+used, the command expects only on input package, along with its
+associated debug info packages.  The command then compares each
+binary inside the package against its own ABIXML
+representation. The result of the comparison should yield the
+empty set if Libabigail behaves correctly.  Otherwise, it means
+there is an issue that ought to be fixed.  This option is used by
+people interested in Libabigail development for regression testing
+purposes.  Here is an example of the use of this option:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abipkgdiff \-\-self\-check \-\-d1 mesa\-libGLU\-debuginfo\-9.0.1\-3.fc33.x86_64.rpm  mesa\-libGLU\-9.0.1\-3.fc33.x86_64.rpm
+ ==== SELF CHECK SUCCEEDED for \(aqlibGLU.so.1.3.1\(aq ====
+$
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-set1\fP <package1\-path> <package2\-path> <package2\-path> ...
+.sp
+Specifies the first set of packages whose binaries are to be
+compared against the second one.  Note that the second set of
+packages is to be specified using the option \fB\-\-set2\fP\&.
+.IP \(bu 2
+\fB\-\-set2\fP <package1\-path> <package2\-path> <package2\-path> ...
+.sp
+Specifies the second set of packages whose binaries are to be
+compared against the second one.  Note that the first set of
+packages is to be specified using the option \fB\-\-set1\fP\&.
+.IP \(bu 2
+\fB\-\-suppressions | \-\-suppr\fP <\fIpath\-to\-suppressions\fP>
+.sp
+Use a suppression specification \%<#\:suppr-spec-label> file
+located at \fIpath\-to\-suppressions\fP\&.  Note that this option can
+appear multiple times on the command line.  In that case, all of
+the suppression specification files are taken into account.
+.sp
+Please note that, by default, if this option is not provided, then
+the default suppression specification files are loaded .
+.IP \(bu 2
+\fI\-\-version | \-v\fP
+.sp
+Display the version of the program and exit.
+.IP \(bu 2
+\fB\-\-wp\fP <\fIpath\-to\-whitelist\-package\fP>
+.sp
+When comparing two Linux kernel RPM packages, this option points
+an RPM package containining several white lists of names of ELF
+symbols of functions and variables that must be compared for ABI
+changes.  Those white lists are called \(dqLinux kernel ABI white
+lists\(dq.
+.sp
+From the content of that white list package, this program then
+chooses the appropriate Linux kernel ABI white list to consider
+when comparing the ABI of Linux kernel binaries contained in the
+Linux kernel packages provided on the command line.
+.sp
+That choosen Linux kernel ABI white list contains the list of
+names of ELF symbols of functions and variables that must be
+compared for ABI changes.
+.sp
+Any other function or variable which ELF symbol are not present in
+that white list will not be considered by the ABI comparison
+process.
+.sp
+Note that this option can be provided twice (not mor than twice),
+specifying one white list package for each Linux Kernel package
+that is provided on the command line.
+.sp
+If this option is not provided \-\- thus if no white list is
+provided \-\- then the ABI of all publicly defined and exported
+functions and global variables by the Linux Kernel binaries are
+compared.
+.IP \(bu 2
+\fB\-\-verbose\fP
+.sp
+Emit verbose progress messages.
+.IP \(bu 2
+\fB\-\-verbose\-diff\fP
+.sp
+Emit timed verbose progress messages about the diffing process.
+This option implies the \-\-verbose one.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH RETURN VALUE
+.sp
+The exit code of the \fBabipkgdiff\fP command is either 0 if the ABI of
+the binaries compared are equal, or non\-zero if they differ or if the
+tool encountered an error.
+.sp
+In the later case, the value of the exit code is the same as for the
+abidiff tool \%<#\:abidiff-return-value-label>\&.
+.SH "نویسنده (AUTHOR)"
+Dodji Seketeli
+.SH "حق نشر (COPYRIGHT)"
+2014-2025, Red Hat, Inc.
+.\" End of generated man page.

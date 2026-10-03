@@ -1,0 +1,185 @@
+'\" t
+.\"     Title: xdg-dbus-proxy
+.\"    Author: Alexander Larsson
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 08/12/2026
+.\"    Manual: User Commands
+.\"    Source: flatpak
+.\"  Language: English
+.\"
+.TH "XDG\-DBUS\-PROXY" "1" "" "flatpak" "User Commands"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+xdg-dbus-proxy \- D\-Bus proxy
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBxdg\-dbus\-proxy\fR\ 'u
+\fBxdg\-dbus\-proxy\fR [\fIOPTION\fR...] [\fIADDRESS\fR\ \fIPATH\fR\ [\fIOPTION\fR...]...]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBxdg\-dbus\-proxy\fR
+is a filtering proxy for D\-Bus connections\&. Its arguments are one or more
+\fIADDRESS\fR\-\fIPATH\fR
+pairs specifying the buses to proxy, with options that specify what filtering to apply\&.
+.SS "Basic Operation"
+.PP
+The proxy listens to the unix domain socket at
+\fIPATH\fR, and for each client that connects to the socket, it opens up a new connection to the specified D\-Bus
+\fIADDRESS\fR
+(typically the session bus) and forwards data between the two\&. During the authentication phase all data is forwarded as received, and additionally for the first 1 byte zero we also send the proxy credentials to the bus\&.
+.PP
+Once the connection is authenticated there are two modes, filtered and unfiltered\&. In the unfiltered mode all messages are sent on as they are received\&. In the filtering mode policy is applied to determine which messages to allow, and which to drop\&.
+.PP
+Filtering is applied only to outgoing signals and method calls and incoming broadcast signals\&. All replies (errors or method returns) are allowed once for an outstanding method call, and never otherwise\&.
+.PP
+If a client ever receives a message from another peer on the bus, the senders unique name is made visible, so the client can track caller lifetimes via NameOwnerChanged signals\&. If a client calls a method on or receives a broadcast signal from a name (even if filtered to some subset of paths or interfaces), that names basic policy is considered to be (at least) TALK, from then on\&.
+.SS "Policy"
+.PP
+The policy for the filtering consists of a mapping from well\-known names to a policy that is either SEE, TALK or OWN\&. The default initial policy is that the the user is only allowed to TALK to the bus itself (org\&.freedesktop\&.DBus, or no destination specified), and TALK to its own unique ID\&. All other clients are invisible\&.
+.PP
+Here is a description of the policy levels (each level implies the ones before it):
+.PP
+SEE
+.RS 4
+The name/ID is visible in the ListNames reply
+.sp
+The name/ID is visible in the ListActivatableNames reply
+.sp
+You can call GetNameOwner on the name
+.sp
+You can call NameHasOwner on the name
+.sp
+You see NameOwnerChanged signals on the name
+.sp
+You see NameOwnerChanged signals on the ID when the client disconnects
+.sp
+You can call the GetXXX methods on the name/ID to get e\&.g\&. the peer pid
+.sp
+You get AccessDenied rather than NameHasNoOwner when sending messages to the name/ID
+.RE
+.PP
+TALK
+.RS 4
+You can send any method calls and signals to the name/ID
+.sp
+You will receive broadcast signals from the name/ID (if you have a match rule for them)
+.sp
+You can call StartServiceByName on the name
+.RE
+.PP
+OWN
+.RS 4
+You are allowed to call RequestName/ReleaseName/ListQueuedOwners on the name
+.RE
+.PP
+Policy is specified with the
+\fB\-\-see\fR,
+\fB\-\-talk\fR
+and
+\fB\-\-own\fR
+options\&. The well\-known names in these options can have a \*(Aq\&.*\*(Aq suffix\&. A name of "org\&.foo\&.*" matches "org\&.foo", org\&.foo\&.bar", and "org\&.foo\&.bar\&.gazonk", but not "org\&.foobar"\&.
+.PP
+Polices are specified for well\-known names, but they also affect the owner of that name, so that the policy for a unique ID is the union of the polices for all the names it owns\&. For technical reasons, the policy for a unique name is "sticky", in that the highest policy granted by a once\-owned name is kept, even when the client releases that name\&. This is impossible to avoid in a race\-free way in a proxy\&. But it is rarely a problem in practice, as few clients release names and stay on the bus\&.
+.PP
+In addition to the basic SEE/TALK/OWN policy, it is possible to specify more complicated rules about what method calls can be made on and what broadcast signals can be received from well\-known names\&. A rule can restrict the allowed calls/signals to a specific object path or a subtree of object paths, and it can restrict the allowed interface down to an individual method or signal name\&.
+.PP
+Rules are specified with the
+\fB\-\-call\fR
+and
+\fB\-\-broadcast\fR
+options\&. The
+\fIRULE\fR
+in these options determines what interfaces, methods and object paths are allowed\&. It must be of the form [\fIMETHOD\fR][@\fIPATH\fR], where
+\fIMETHOD\fR
+can be either \*(Aq*\*(Aq or a D\-Bus interface, possible with a \*(Aq\&.*\*(Aq suffix, or a fully\-qualified method name, and
+\fIPATH\fR
+is a D\-Bus object path, possible with a \*(Aq/*\*(Aq suffix\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+When options are used multiple times, the last option wins, unless otherwise specified\&.
+.PP
+General options:
+.PP
+\fB\-\-help\fR
+.RS 4
+Print help and exit
+.RE
+.PP
+\fB\-\-version\fR
+.RS 4
+Print version
+.RE
+.PP
+\fB\-\-fd=\fR\fBFD\fR
+.RS 4
+Write to FD when the proxies are ready, and stop when it is closed\&.
+.RE
+.PP
+\fB\-\-args=\fR\fBFD\fR
+.RS 4
+Parse nul\-separated arguments from the given file descriptor\&. This option can be used multiple times to parse options from multiple sources\&.
+.RE
+.PP
+Proxy Options:
+.PP
+These options can only be used after an ADDRESS and apply to the proxy for that address\&.
+.PP
+\fB\-\-filter\fR
+.RS 4
+Enable filtering
+.RE
+.PP
+\fB\-\-log\fR
+.RS 4
+Turn on logging
+.RE
+.PP
+\fB\-\-sloppy\-names\fR
+.RS 4
+Make all unique names visible\&.
+.RE
+.PP
+\fB\-\-see=\fR\fB\fINAME\fR\fR
+.RS 4
+Set the SEE policy for the given name\&.
+.RE
+.PP
+\fB\-\-talk=\fR\fB\fINAME\fR\fR
+.RS 4
+Set the TALK policy for the given name\&.
+.RE
+.PP
+\fB\-\-own=\fR\fB\fINAME\fR\fR
+.RS 4
+Set the OWN policy for the given name\&.
+.RE
+.PP
+\fB\-\-call=\fR\fB\fINAME\fR\fR\fB=\fR\fB\fIRULE\fR\fR
+.RS 4
+Set a rule for calls on the given name\&.
+.RE
+.PP
+\fB\-\-broadcast=\fR\fB\fINAME\fR\fR\fB=\fR\fB\fIRULE\fR\fR
+.RS 4
+Set a rule for broadcast signals from the given name\&.
+.RE
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+\fB$ xdg\-dbus\-proxy \-\-fd=26 unix:path=/run/usr/1000/bus /run/usr/1000/\&.dbus\-proxy/session\-bus\-proxy \-\-filter \-\-own=org\&.gnome\&.ghex\&.* \-\-talk=ca\&.desrt\&.dconf \-\-call=org\&.freedesktop\&.portal\&.*=* \-\-broadcast=org\&.freedesktop\&.portal\&.*=@/org/freedesktop/portal/*\fR

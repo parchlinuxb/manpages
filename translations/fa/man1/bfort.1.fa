@@ -1,0 +1,174 @@
+.TH bfort 1 "6/25/2019" " " ""
+.SH "نام (NAME)"
+bfort \-  program to extract short definitions for a Fortran to C interface 
+.SH INPUT
+.PD 0
+.TP
+.B filenames 
+- Names the files from which lint definitions are to be extracted
+.PD 1
+.PD 0
+.TP
+.B -nomsgs   
+- Do not generate messages for routines that can not be converted
+to Fortran.
+.PD 1
+.PD 0
+.TP
+.B -nofort   
+- Generate messages for all routines/macros without a Fortran
+counterpart.
+.PD 1
+.PD 0
+.TP
+.B -dir name 
+- Directory for output file
+.PD 1
+.PD 0
+.TP
+.B -I name   
+- file that contains common includes
+.PD 1
+.PD 0
+.TP
+.B -mapptr   
+- translate pointers to integer indices
+.PD 1
+.PD 0
+.TP
+.B -ptrprefix 
+- prefix for names of functions to convert to/from pointers
+(default is __).  The macro that selects the form based on the
+pointer size can be changed with -ptr64.
+.PD 1
+.PD 0
+.TP
+.B -anyname   
+- Generate a single Fortran wrapper that works for almost all
+systems, by adding C preprocessor names (see below).  These
+names can be changed with -fcaps, -fuscore, and -fduscore.
+.PD 1
+.PD 0
+.TP
+.B -ferr     
+- Fortran versions return the value of the routine as the last
+argument (an integer).  This is used in MPI and is a not
+uncommon approach for handling error returns.
+.PD 1
+.PD 0
+.TP
+.B -shortargname 
+- Use short (single character) argument names instead of the
+name in the C definition.
+.PD 1
+.PD 0
+.TP
+.B -fstring  
+- Enable handling of Fortran character parameters, using the most
+common call interface.  This is the default unless the
+environment variable BFORT_STRINGHANDLING is set to IGNORE.
+.PD 1
+.PD 0
+.TP
+.B -fnostring 
+- Disable handling of Fortran character parameters.  Routines
+with 
+.I char
+arguments in C will not have interface routines
+generated for them.
+.PD 1
+.PD 0
+.TP
+.B -fstring
+- asis - No special processing for string arguments.  Provided
+for backward compatiblity to older versions of bfort that
+did not handle strings
+.PD 1
+.PD 0
+.TP
+.B -mpi      
+- Handle MPI types (some things are pointers by definition)
+.PD 1
+.PD 0
+.TP
+.B -no_pmpi  
+- Do not generate PMPI names
+.PD 1
+.PD 0
+.TP
+.B -pmpi name 
+- Change macro used to select MPI profiling version
+.PD 1
+.PD 0
+.TP
+.B -noprofile 
+- Turn off the generation of the profiling version
+.PD 1
+.PD 0
+.TP
+.B -mnative  
+- Multiple indirects are native datatypes (no coercion)
+.PD 1
+.PD 0
+.TP
+.B -voidisptr 
+- Consider "void *" as a pointer to a structure.
+.PD 1
+.PD 0
+.TP
+.B -nodebug  
+- Do not add
+.PD 1
+.nf
+#ifndef DEBUG_ALL
+#define DEBUG_ALL
+#endif
+.fi
+
+to the wrapper file.
+.PD 0
+.TP
+.B -anyname   
+- Generate a single wrapper that can handle the three most common
+cases: trailing underscore, no underscore, and all caps.  The
+choice is based on whether
+.PD 1
+.nf
+FORTRANCAPS:       Names are uppercase, no trailing underscore
+FORTRANUNDERSCORE: Names are lowercase, trailing underscore
+are defined.
+FORTRANDOUBLEUNDERSCORE: Names are lowercase, with TWO trailing
+.fi
+
+underscores.  This is needed when some versions of "f2c" are
+used to generate C for Fortran routines.  Note that f2c uses two
+underscores ONLY when the name already contains an underscore
+(at least on the FreeBSD system that I use that uses f2c).
+To handle this case, the generated code contains the second
+underscore only when the name already contains one.
+
+If -mapptr is also chosen, then
+.nf
+POINTER_64_BITS
+.fi
+
+will also be used to determine if pointers are to long to
+fit in a 32-bit Fortran integer.  Routines that destroy
+a pointer will need to manually insert a call to
+__RmPointer.  The routines for managing the pointers are
+in ptrcvt.c
+
+In addition, if -mpi is used and -no_pmpi is not, the MPI
+profiling names are also generated, surrounded by
+MPI_BUILD_PROFILING.
+
+.SH "نکته (NOTE)"
+We really need a way to specify a general type as a pointer, so that it
+will be handled as a pointer.  The -mpi option is a kludge for a pressing
+need.  Eventually should provide a "-ptr name" option and keep in a
+search space when looking for known types.
+
+.SH "نویسنده (AUTHOR)"
+Bill Gropp
+.SH LOCATION
+bfort.c

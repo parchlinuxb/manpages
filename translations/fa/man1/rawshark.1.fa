@@ -1,0 +1,1015 @@
+'\" t
+.\"     Title: rawshark
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-09-03
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "RAWSHARK" "1" "2026-09-03" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+rawshark \- Dump and analyze raw pcap data
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBrawshark\fP
+[\~\fB\-d\fP\~<encap:linktype>|<proto:protoname>\~]
+[\~\fB\-F\fP\~<field\~to\~display>\~]
+[\~\fB\-l\fP\~]
+[\~\fB\-m\fP\~<bytes>\~]
+[\~\fB\-o\fP\~<preference\~setting>\~]\~.\|.\|.
+[\~\fB\-p\fP\~]
+[\~\fB\-r\fP\~<pipe>|\-\~]
+[\~\fB\-R\fP\~<read\~(display)\~filter>\~]
+[\~\fB\-s\fP\~]
+[\~\fB\-S\fP\~<field\~format>\~]
+[\~\fBoptions\fP\~]
+.sp
+\fBrawshark\fP
+\fB\-h|\-\-help\fP
+.sp
+\fBrawshark\fP
+\fB\-v|\-\-version\fP
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBRawshark\fP reads a stream of packets from a file or pipe, and prints a line
+describing its output, followed by a set of matching fields for each packet
+on stdout.
+.SH "INPUT"
+.sp
+Unlike \fBTShark\fP, \fBRawshark\fP makes no assumptions about encapsulation or
+input. The \fB\-d\fP and \fB\-r\fP flags must be specified in order for it to run.
+One or more \fB\-F\fP flags should be specified in order for the output to be
+useful. The other flags listed above follow the same conventions as
+\fBWireshark\fP and \fBTShark\fP.
+.sp
+\fBRawshark\fP expects input records with the following format by default. This
+matches the format of the packet header and packet data in a pcap\-formatted
+file on disk.
+.sp
+.if n .RS 4
+.nf
+.fam C
+struct rawshark_rec_s {
+    uint32_t ts_sec;\&      /* Time stamp (seconds) */
+    uint32_t ts_usec;\&     /* Time stamp (microseconds) */
+    uint32_t caplen;\&      /* Length of the packet buffer */
+    uint32_t len;\&         /* "On the wire" length of the packet */
+    uint8_t data[caplen]; /* Packet data */
+};
+.fam
+.fi
+.if n .RE
+.sp
+If \fB\-p\fP is supplied \fBrawshark\fP expects the following format.  This
+matches the \fIstruct pcap_pkthdr\fP structure and packet data used in
+libpcap or Npcap.  This structure\(cqs format is platform\-dependent; the
+size of the \fItv_sec\fP field in the \fIstruct timeval\fP structure could be
+32 bits or 64 bits.  For \fBrawshark\fP to work, the layout of the
+structure in the input must match the layout of the structure in
+\fBrawshark\fP.  Note that this format will probably be the same as the
+previous format if \fBrawshark\fP is a 32\-bit program, but will not
+necessarily be the same if \fBrawshark\fP is a 64\-bit program.
+.sp
+.if n .RS 4
+.nf
+.fam C
+struct rawshark_rec_s {
+    struct timeval ts;\&    /* Time stamp */
+    uint32_t caplen;\&      /* Length of the packet buffer */
+    uint32_t len;\&         /* "On the wire" length of the packet */
+    uint8_t data[caplen]; /* Packet data */
+};
+.fam
+.fi
+.if n .RE
+.sp
+In either case, the endianness (byte ordering) of each integer must match the
+system on which \fBrawshark\fP is running.
+.SH "OUTPUT"
+.sp
+If one or more fields are specified via the \fB\-F\fP flag, \fBRawshark\fP prints
+the number, field type, and display format for each field on the first line
+as "packet number" 0. For each record, the packet number, matching fields,
+and a "1" or "0" are printed to indicate if the field matched any supplied
+display filter. A "\-" is used to signal the end of a field description and
+at the end of each packet line. For example, the flags \fB\-F ip.src \-F
+dns.qry.type\fP might generate the following output:
+.sp
+.if n .RS 4
+.nf
+.fam C
+0 FT_IPv4 BASE_NONE \- 1 FT_UINT16 BASE_HEX \-
+1 1="1" 0="192.168.77.10" 1 \-
+2 1="1" 0="192.168.77.250" 1 \-
+3 0="192.168.77.10" 1 \-
+4 0="74.125.19.104" 1 \-
+.fam
+.fi
+.if n .RE
+.sp
+Note that packets 1 and 2 are DNS queries, and 3 and 4 are not. Adding \fB\-R "not dns"\fP still prints each line, but there\(cqs an indication
+that packets 1 and 2 didn\(cqt pass the filter:
+.sp
+.if n .RS 4
+.nf
+.fam C
+0 FT_IPv4 BASE_NONE \- 1 FT_UINT16 BASE_HEX \-
+1 1="1" 0="192.168.77.10" 0 \-
+2 1="1" 0="192.168.77.250" 0 \-
+3 0="192.168.77.10" 1 \-
+4 0="74.125.19.104" 1 \-
+.fam
+.fi
+.if n .RE
+.sp
+Also note that the output may be in any order, and that multiple matching
+fields might be displayed.
+.SH "گزینه‌ها (OPTIONS)"
+.sp
+\-d  <encapsulation>
+.RS 4
+.sp
+Specify how the packet data should be dissected. The encapsulation is of the
+form \fItype:value\fP, where \fItype\fP is one of:
+.sp
+\fBencap\fP:\fIname\fP Packet data should be dissected using the
+libpcap/Npcap data link type (DLT) \fIname\fP, e.g. \fBencap:EN10MB\fP for
+Ethernet.  Names are converted using pcap_datalink_name_to_val().
+A complete list of DLTs can be found at
+.URL "https://www.tcpdump.org/linktypes.html" "" "."
+.sp
+\fBencap\fP:\fInumber\fP Packet data should be dissected using the
+libpcap/Npcap LINKTYPE_ \fInumber\fP, e.g. \fBencap:105\fP for raw IEEE
+802.11 or \fBencap:101\fP for raw IP.
+.sp
+\fBproto\fP:\fIprotocol\fP Packet data should be passed to the specified Wireshark
+protocol dissector, e.g. \fBproto:http\fP for HTTP data.
+.RE
+.sp
+\-F  <field to display>
+.RS 4
+.sp
+Add the matching field to the output. Fields are any valid display filter
+field. More than one \fB\-F\fP flag may be specified, and each field can match
+multiple times in a given packet. A single field may be specified per \fB\-F\fP
+flag. If you want to apply a display filter, use the \fB\-R\fP flag.
+.RE
+.sp
+\-h|\-\-help
+.RS 4
+Print the version number and options and exit.
+.RE
+.sp
+\-l
+.RS 4
+.sp
+Flush the standard output after the information for each packet is
+printed.  (This is not, strictly speaking, line\-buffered if \fB\-V\fP
+was specified; however, it is the same as line\-buffered if \fB\-V\fP wasn\(cqt
+specified, as only one line is printed for each packet, and, as \fB\-l\fP is
+normally used when piping a live capture to a program or script, so that
+output for a packet shows up as soon as the packet is seen and
+dissected, it should work just as well as true line\-buffering.  We do
+this as a workaround for a deficiency in the Microsoft Visual C++ C
+library.)
+.sp
+This may be useful when piping the output of \fBTShark\fP to another
+program, as it means that the program to which the output is piped will
+see the dissected data for a packet as soon as \fBTShark\fP sees the
+packet and generates that output, rather than seeing it only when the
+standard output buffer containing that data fills up.
+.RE
+.sp
+\-m  <memory limit bytes>
+.RS 4
+Limit rawshark\(cqs memory usage to the specified number of bytes. POSIX
+(non\-Windows) only.
+.RE
+.sp
+\-o  <preference>:<value>
+.RS 4
+.sp
+Set a preference value, overriding the default value and any value read
+from a preference file.  The argument to the option is a string of the
+form \fIprefname:value\fP, where \fIprefname\fP is the name of the
+preference (which is the same name that would appear in the preference
+file), and \fIvalue\fP is the value to which it should be set.
+.RE
+.sp
+\-p
+.RS 4
+.sp
+Assume that packet data is preceded by a pcap_pkthdr struct as defined in
+pcap.h. On some systems the size of the timestamp data will be different from
+the data written to disk. On other systems they are identical and this flag has
+no effect.
+.RE
+.sp
+\-r  <pipe>|\-
+.RS 4
+.sp
+Read packet data from \fIinput source\fP. It can be either the name of a FIFO
+(named pipe) or ``\-\*(Aq\*(Aq to read data from the standard input, and must have
+the record format specified above.
+.sp
+If you are sending data to rawshark from a parent process on Windows you
+should not close rawshark\(cqs standard input handle prematurely, otherwise
+the C runtime might trigger an exception.
+.RE
+.sp
+\-R|\-\-read\-filter <read (display) filter>
+.RS 4
+.sp
+Cause the specified filter (which uses the syntax of read/display filters,
+rather than that of capture filters) to be applied before printing the output.
+Read filters and display filters are synonymous in \fBrawshark\fP.
+.RE
+.sp
+\-s
+.RS 4
+Allows standard pcap files to be used as input, by skipping over the 24
+byte pcap file header.
+.RE
+.sp
+\-S
+.RS 4
+.sp
+Use the specified format string to print each field. The following formats
+are supported:
+.sp
+\fB%D\fP Field name or description, e.g. "Type" for dns.qry.type
+.sp
+\fB%N\fP Base 10 numeric value of the field.
+.sp
+\fB%S\fP String value of the field.
+.sp
+For something similar to Wireshark\(cqs standard display ("Type: A (1)") you
+could use \fB%D: %S (%N)\fP.
+.RE
+.sp
+\-v|\-\-version
+.RS 4
+Print the full version information and exit.
+.RE
+.sp
+\-Y|\-\-display\-filter <read (display) filter>
+.RS 4
+.sp
+Cause the specified filter (which uses the syntax of read/display filters,
+rather than that of capture filters) to be applied before printing the output.
+Read filters and display filters are synonymous in \fBrawshark\fP.
+.RE
+.SH "DISSECTION OPTIONS"
+.sp
+\-\-disable\-all\-protocols
+.RS 4
+Disable dissection of all protocols.
+.RE
+.sp
+\-\-disable\-protocol <proto_name>[,<proto_name>,.\|.\|.]
+.RS 4
+Disable dissection of proto_name.
+Use a proto_name of \fBALL\fP to override
+your chosen profile\(cqs default enabled protocol list and temporarily
+disable all protocols.
+.RE
+.sp
+\-\-disable\-heuristic <short_name>
+.RS 4
+Disable dissection of heuristic protocol.
+.RE
+.sp
+\-\-enable\-protocol <proto_name>[,<proto_name>,.\|.\|.]
+.RS 4
+.sp
+Enable dissection of proto_name.
+Use a proto_name of \fBALL\fP to override
+your chosen profile\(cqs default disabled protocol list and temporarily
+enable all protocols which are enabled by default.
+.sp
+If a protocol is implicated in both \fB\-\-disable\-protocol\fP
+and \fB\-\-enable\-protocol\fP, the protocol is enabled. This allows you to
+temporarily disable all protocols but a list of exceptions.
+Example: \fB\-\-disable\-protocol ALL \-\-enable\-protocol eth,ip\fP
+.RE
+.sp
+\-\-enable\-heuristic <short_name>
+.RS 4
+Enable dissection of heuristic protocol.
+.RE
+.sp
+\-K  <keytab>
+.RS 4
+.sp
+Load kerberos crypto keys from the specified keytab file.
+This option can be used multiple times to load keys from several files.
+.sp
+Example: \fB\-K krb5.keytab\fP
+.RE
+.sp
+\-n
+.RS 4
+Disable network object name resolution (such as hostname, TCP and UDP port
+names); the \fB\-N\fP option might override this one.
+.RE
+.sp
+\-N  <name resolving flags>
+.RS 4
+.sp
+Turn on name resolving only for particular types of addresses and port
+numbers, with name resolving for other types of addresses and port
+numbers turned off.  This option (along with \fB\-n\fP) can be specified
+multiple times; the last value given overrides earlier ones. This option
+and \fB\-n\fP override the options from the preferences, including preferences
+set via the \fB\-o\fP option. If both \fB\-N\fP and \fB\-n\fP options are not present,
+the values from the preferences are used, which default to \fB\-N dmN\fP.
+.sp
+The argument is a string that may contain the letters:
+.sp
+\fBd\fP to enable resolution from captured DNS packets
+.sp
+\fBg\fP to enable IP address geolocation information lookup from configured
+MaxMind databases
+.sp
+\fBm\fP to enable MAC address resolution
+.sp
+\fBn\fP to enable network address resolution
+.sp
+\fBN\fP to enable using external resolvers (e.g., DNS) for network address
+resolution; no effect without \fBn\fP also enabled.
+.sp
+\fBs\fP to enable address resolution using SNI information found in captured
+handshake packets
+.sp
+\fBt\fP to enable transport\-layer port number resolution
+.sp
+\fBv\fP to enable VLAN IDs to names resolution
+.RE
+.sp
+\-\-only\-protocols <protocols>
+.RS 4
+Only enable dissection of these protocols, comma separated. Disable everything else.
+.RE
+.sp
+\-t  (a|ad|adoy|d|dd|e|r|rc|u|ud|udoy)[.[N]]|.[N]
+.RS 4
+.sp
+Set the format of the packet timestamp displayed in the default time
+column.  The format can be one of:
+.sp
+\fBa\fP absolute: The absolute time, as local time in your time zone,
+is the actual time the packet was captured, with no date displayed
+.sp
+\fBad\fP absolute with date: The absolute date, displayed as YYYY\-MM\-DD,
+and time, as local time in your time zone, is the actual time and date
+the packet was captured
+.sp
+\fBadoy\fP absolute with date using day of year: The absolute date,
+displayed as YYYY/DOY, and time, as local time in your time zone,
+is the actual time and date the packet was captured
+.sp
+\fBd\fP delta: The delta time is the time since the previous packet was
+captured
+.sp
+\fBdd\fP delta_displayed: The delta_displayed time is the time since the
+previous displayed packet was captured
+.sp
+\fBe\fP epoch: The time in seconds since epoch (Jan 1, 1970 00:00:00)
+.sp
+\fBr\fP relative: The relative time is the time elapsed between the first packet
+and the current packet
+.sp
+\fBrc\fP relative to capture start: The relative to capture start time is the
+time elapsed between the start of the capturing and the current packet
+.sp
+\fBu\fP UTC: The absolute time, as UTC with a "Z" suffix, is the actual time
+the packet was captured, with no date displayed
+.sp
+\fBud\fP UTC with date: The absolute date, displayed as YYYY\-MM\-DD,
+and time, as UTC with a "Z" suffix, is the actual time and date the packet
+was captured
+.sp
+\fBudoy\fP UTC with date using day of year: The absolute date, displayed
+as YYYY/DOY, and time, as UTC with a "Z" suffix, is the actual time and date
+the packet was captured
+.sp
+\fB.[N]\fP Set the precision: N is the number of decimals (0 through 9).
+If using "." without N, automatically determine precision from trace.
+.sp
+The default format is relative with precision based on capture format.
+.RE
+.sp
+\-u <s|hms>
+.RS 4
+.sp
+Specifies how packet timestamp formats in \fB\-t\fP which are relative times
+(i.e.  relative, delta, and delta_displayed) are displayed.  Valid choices are:
+.sp
+\fBs\fP for seconds
+.sp
+\fBhms\fP for hours, minutes, and seconds
+.sp
+The default format is seconds.
+.RE
+.SH "DIAGNOSTIC OPTIONS"
+.sp
+\-\-log\-level <level>
+.RS 4
+Set the active log level.
+Supported levels in lowest to highest order are "noisy", "debug", "info", "message", "warning", "critical", and "error".
+Messages at each level and higher will be printed, for example "warning" prints "warning", "critical", and "error" messages and "noisy" prints all messages.
+Levels are case insensitive.
+.RE
+.sp
+\-\-log\-fatal <level>
+.RS 4
+Abort the program if any messages are logged at the specified level or higher.
+For example, "warning" aborts on any "warning", "critical", or "error" messages.
+.RE
+.sp
+\-\-log\-fatal\-count <count>
+.RS 4
+The amount of fatal log messages which may pass before the program is aborted.
+.RE
+.sp
+\-\-log\-domains <list>
+.RS 4
+Only print messages for the specified log domains, e.g. "GUI,Epan,sshdump".
+List of domains must be comma\-separated. Can be negated with "!" as the first character (inverts the match).
+.RE
+.sp
+\-\-log\-debug <list>
+.RS 4
+Force the specified domains to log at the "debug" level.
+List of domains must be comma\-separated. Can be negated with "!" as the first character (inverts the match).
+.RE
+.sp
+\-\-log\-noisy <list>
+.RS 4
+Force the specified domains to log at the "noisy" level.
+List of domains must be comma\-separated. Can be negated with "!" as the first character (inverts the match).
+.RE
+.sp
+\-\-log\-fatal\-domains <list>
+.RS 4
+Abort the program if any messages are logged for the specified log domains.
+List of domains must be comma\-separated.
+.RE
+.sp
+\-\-log\-file <path>
+.RS 4
+Write log messages and stderr output to the specified file.
+.RE
+.SH "READ FILTER SYNTAX"
+.sp
+For a complete table of protocol and protocol fields that are filterable
+in \fBRawshark\fP see the wireshark\-filter(4) manual page.
+.SH "فایل‌ها (FILES)"
+.sp
+These files contain various \fBWireshark\fP configuration settings.
+.sp
+Preferences
+.RS 4
+.sp
+The \fIpreferences\fP files contain global (system\-wide) and personal
+preference settings.  If the system\-wide preference file exists, it is
+read first, overriding the default settings.  If the personal preferences
+file exists, it is read next, overriding any previous values.  Note: If
+the command line flag \fB\-o\fP is used (possibly more than once), it will
+in turn override values from the preferences files.
+.sp
+The preferences settings are in the form \fIprefname:value\fP,
+one per line,
+where \fIprefname\fP is the name of the preference
+and \fIvalue\fP is the value to
+which it should be set; white space is allowed between \fB:\fP and
+\fIvalue\fP.  A preference setting can be continued on subsequent lines by
+indenting the continuation lines with white space.  A \fB#\fP character
+starts a comment that runs to the end of the line:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# Vertical scrollbars should be on right side?
+# TRUE or FALSE (case\-insensitive).
+gui.scrollbar_on_right: TRUE
+.fam
+.fi
+.if n .RE
+.sp
+The global preferences file is looked for in the \fIwireshark\fP directory
+under the \fIshare\fP subdirectory of the main installation directory.  On
+macOS, this would typically be
+\fI/Application/Wireshark.app/Contents/Resources/share\fP; on other
+UNIX\-compatible systems, such as Linux, \(rs*BSD, Solaris, and AIX, this
+would typically be \fI/usr/share/wireshark/preferences\fP for
+system\-installed packages and \fI/usr/local/share/wireshark/preferences\fP
+for locally\-installed packages; on Windows, this would typically be
+\fIC:\(rsProgram Files\(rsWireshark\(rspreferences\fP.
+.sp
+On UNIX\-compatible systems, the personal preferences file is looked for
+in \fI$XDG_CONFIG_HOME/wireshark/preferences\fP, (or, if
+\fI$XDG_CONFIG_HOME/wireshark\fP does not exist while \fI$HOME/.wireshark\fP
+does exist, \fI$HOME/.wireshark/preferences\fP); this is typically
+\fI$HOME/.config/wireshark/preferences\fP.  On Windows,
+the personal preferences file is looked for in
+\fI%APPDATA%\(rsWireshark\(rspreferences\fP (or, if %APPDATA% isn\(cqt defined,
+\fI%USERPROFILE%\(rsApplication Data\(rsWireshark\(rspreferences\fP).
+.RE
+.sp
+Disabled (Enabled) Protocols
+.RS 4
+.sp
+The \fIdisabled_protos\fP files contain system\-wide and personal lists of
+protocols that have been disabled, so that their dissectors are never
+called.  The files contain protocol names, one per line, where the
+protocol name is the same name that would be used in a display filter
+for the protocol:
+.sp
+.if n .RS 4
+.nf
+.fam C
+http
+tcp\&     # a comment
+.fam
+.fi
+.if n .RE
+.sp
+If a protocol is listed in the global \fIdisabled_protos\fP file it cannot
+be enabled by the user.
+.sp
+The global \fIdisabled_protos\fP file uses the same directory as the global
+preferences file.
+.sp
+The personal \fIdisabled_protos\fP file uses the same directory as the
+personal preferences file.
+.sp
+The \fIdisabled_protos\fP files list only protocols that are enabled by default
+but have been disabled; protocols that are disabled by default (such as some
+postdissectors) are not listed. There are analogous \fIenabled_protos\fP files
+for protocols that are disabled by default but have been enabled.
+.RE
+.sp
+Heuristic Dissectors
+.RS 4
+.sp
+The \fIheuristic_protos\fP files contain system\-wide and personal lists of
+heuristic dissectors and indicate whether they are enabled or disabled.
+The files contain heuristic dissector unique short names, one per line,
+followed by a comma and 0 for disabled and 1 for enabled:
+.sp
+.if n .RS 4
+.nf
+.fam C
+quic,1
+rtcp_stun,1
+rtcp_udp,1
+rtp_stun,0
+rtp_udp,0
+tls_tcp,1
+.fam
+.fi
+.if n .RE
+.sp
+The global \fIheuristic_protos\fP file uses the same directory as the global
+preferences file.
+.sp
+The personal \fIheuristic_protos\fP file uses the same directory as the
+personal preferences file.
+.RE
+.sp
+Name Resolution (hosts)
+.RS 4
+.sp
+Entries in \fIhosts\fP files in the global and personal preferences
+directory are used to resolve IPv4 and IPv6 addresses before any
+other attempts are made to resolve them.
+The file has the standard \fIhosts\fP file syntax; each line contains one
+IP address and name, separated by whitespace. The personal \fIhosts\fP
+file, if present, overrides the one in the global directory.
+.sp
+Capture filter name resolution is handled by libpcap on UNIX\-compatible
+systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX, and Npcap
+on Windows.  As such the Wireshark personal \fIhosts\fP file will
+not be consulted for capture filter name resolution.
+.RE
+.sp
+Name Resolution (subnets)
+.RS 4
+.sp
+If an IPv4 address cannot be translated via name resolution (no exact
+match is found) then a partial match is attempted via the \fIsubnets\fP file.
+Both the global \fIsubnets\fP file and personal \fIsubnets\fP files are used
+if they exist.
+.sp
+Each line of this file consists of an IPv4 address, a subnet mask length
+separated only by a / and a name separated by whitespace. While the address
+must be a full IPv4 address, any values beyond the mask length are subsequently
+ignored.
+.sp
+An example is:
+.sp
+# Comments must be prepended by the # sign!
+192.168.0.0/24 ws_test_network
+.sp
+A partially matched name will be printed as "subnet\-name.remaining\-address".
+For example, "192.168.0.1" under the subnet above would be printed as
+"ws_test_network.1"; if the mask length above had been 16 rather than 24, the
+printed address would be "ws_test_network.0.1".
+.RE
+.sp
+Name Resolution (ethers)
+.RS 4
+.sp
+The \fIethers\fP files are consulted to correlate 6\-byte EUI\-48 and 8\-byte EUI\-64
+hardware addresses to names.  First the personal \fIethers\fP file is tried and
+if an address is not found there the global \fIethers\fP file is tried next.
+.sp
+The file has a similar format to that defined by ethers(5) on some UNIX\-like
+systems.  Each line contains one hardware address and name, separated by
+whitespace (tabs or spaces).  The hexadecimal digits of the hardware address
+are separated by colons (:), dashes (\-) or periods (.).  The same separator
+character must be used consistently in an address.  A \f(CR#\fP indicates a comment
+that extends to the rest of the line. Both 6\-byte MAC and 8\-byte EUI\-64
+addresses are supported.  The following four lines are valid lines of an
+\fIethers\fP file:
+.sp
+.if n .RS 4
+.nf
+.fam C
+ff:ff:ff:ff:ff:ff\&          Broadcast
+c0\-00\-ff\-ff\-ff\-ff\&          TR_broadcast
+00.00.00.00.00.00\&          Zero_broadcast
+00:00:00:00:00:00:00:00\&    EUI64_zero_broadcast
+.fam
+.fi
+.if n .RE
+.sp
+Note that this accepts a greater variety of formats than the file
+defined by ethers(5) on most UN*X systems.
+.sp
+The global \fIethers\fP file is looked for in the \fI/etc\fP directory on
+UNIX\-compatible systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX,
+and in the main installation directory (for example, \fIC:\(rsProgram
+Files\(rsWireshark\fP) on Windows systems.
+.sp
+The personal \fIethers\fP file is looked for in the same directory as the personal
+preferences file.
+.sp
+Capture filter name resolution is handled by libpcap on UNIX\-compatible
+systems and Npcap on Windows.  As such the Wireshark personal
+\fIethers\fP file will not be consulted for capture filter name
+resolution.
+.RE
+.sp
+Name Resolution (manuf)
+.RS 4
+.sp
+The \fImanuf\fP file is used to match the 3\-byte vendor portion of a 6\-byte
+hardware address with the manufacturer\(cqs name; it can also contain well\-known
+MAC addresses and address ranges specified with a netmask.  The format of the
+file is similar the \fIethers\fP files, except that entries such as:
+.sp
+.if n .RS 4
+.nf
+.fam C
+00:00:0C\&      Cisco\&     Cisco Systems, Inc
+.fam
+.fi
+.if n .RE
+.sp
+can be provided, with the 3\-byte OUI and both an abbreviated and long name for
+a vendor, and entries such as:
+.sp
+.if n .RS 4
+.nf
+.fam C
+00\-00\-0C\-07\-AC/40\&     All\-HSRP\-routers
+.fam
+.fi
+.if n .RE
+.sp
+can be specified, with a MAC address and a mask indicating how many bits
+of the address must match.  The above entry, for example, has 40
+significant bits, or 5 bytes, and would match addresses from
+00\-00\-0C\-07\-AC\-00 through 00\-00\-0C\-07\-AC\-FF.  The mask need not be a
+multiple of 8.
+.sp
+A global \fImanuf\fP file is looked for in the same directory as the global
+preferences file, and a personal \fImanuf\fP file is looked for in the same
+directory as the personal preferences file.
+.sp
+In earlier versions of Wireshark, official information from the IEEE
+Registration Authority was distributed in this format as the global
+\fImanuf\fP file. This information is now compiled in to speed program
+startup, but the internal information can be written out in this format
+with \fBtshark \-G manuf\fP.
+.sp
+In addition to the \fImanuf\fP file, another file with the same format,
+\fIwka\fP, is looked for in the global directory. This file is distributed
+with Wireshark, and contains data about well\-known MAC addresses and
+address ranges assembled from various non IEEE but respected sources.
+.RE
+.sp
+Name Resolution (services)
+.RS 4
+.sp
+The \fIservices\fP file is used to translate port numbers into names.
+Both the global \fIservices\fP file and personal \fIservices\fP files are used
+if they exist.
+.sp
+The file has the standard \fIservices\fP file syntax; each line contains one
+(service) name and one transport identifier separated by white space.  The
+transport identifier includes one port number and one transport protocol name
+(typically tcp, udp, or sctp) separated by a /.
+.sp
+An example is:
+.sp
+mydns       5045/udp     # My own Domain Name Server
+mydns       5045/tcp     # My own Domain Name Server
+.sp
+In earlier versions of Wireshark, official information from the IANA
+Registry was distributed in this format as the global \fIservices\fP file.
+This information is now compiled in to speed program startup, but the
+internal information can be written out in this format with \fBtshark \-G services\fP.
+.RE
+.sp
+Name Resolution (ipxnets)
+.RS 4
+.sp
+The \fIipxnets\fP files are used to correlate 4\-byte IPX network numbers to
+names.  First the global \fIipxnets\fP file is tried and if that address is not
+found there the personal one is tried next.
+.sp
+The format is the same as the \fIethers\fP
+file, except that each address is four bytes instead of six.
+Additionally, the address can be represented as a single hexadecimal
+number, as is more common in the IPX world, rather than four hex octets.
+For example, these four lines are valid lines of an \fIipxnets\fP file:
+.sp
+.if n .RS 4
+.nf
+.fam C
+C0.A8.2C.00\&              HR
+c0\-a8\-1c\-00\&              CEO
+00:00:BE:EF\&              IT_Server1
+110f\&                     FileServer3
+.fam
+.fi
+.if n .RE
+.sp
+The global \fIipxnets\fP file is looked for in the \fI/etc\fP directory on
+UNIX\-compatible systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX,
+and in the main installation directory (for example, \fIC:\(rsProgram
+Files\(rsWireshark\fP) on Windows systems.
+.sp
+The personal \fIipxnets\fP file is looked for in the same directory as the
+personal preferences file.
+.RE
+.sp
+Name Resolution (ss7pcs)
+.RS 4
+.sp
+The \fIss7pcs\fP file is used to translate SS7 point codes to names.
+It is read from the personal configuration directory.
+.sp
+Each line in this file consists of one network indicator followed by a dash
+followed by a point code in decimal and a node name separated by whitespace.
+An example is:
+.sp
+.if n .RS 4
+.nf
+.fam C
+2\-1234 MyPointCode1
+.fam
+.fi
+.if n .RE
+.RE
+.sp
+Name Resolution (vlans)
+.RS 4
+.sp
+The \fIvlans\fP file is used to translate VLAN tag IDs into names.
+It is read from the personal configuration directory.
+.sp
+Each line in this file consists of one VLAN tag ID separated by whitespace
+from a name.  An example is:
+.sp
+.if n .RS 4
+.nf
+.fam C
+123\&    Server\-Lan
+2049\&   HR\-Client\-LAN
+.fam
+.fi
+.if n .RE
+.RE
+.sp
+Color Filters (Coloring Rules)
+.RS 4
+.sp
+The \fIcolorfilters\fP files contain system\-wide and personal color filters.
+Each line contains one filter, starting with the string displayed in the
+dialog box, followed by the corresponding display filter.  Then the
+background and foreground colors are appended:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# a comment
+@tcp@tcp@[59345,58980,65534][0,0,0]
+@udp@udp@[28834,57427,65533][0,0,0]
+.fam
+.fi
+.if n .RE
+.sp
+The global \fIcolorfilters\fP file uses the same directory as the
+global preferences file.
+.sp
+The personal \fIcolorfilters\fP file uses the same directory as the
+personal preferences file.  It is written through the View:Coloring Rules
+dialog.
+.sp
+If the global \fIcolorfilters\fP file exists, it is used only if the personal
+\fIcolorfilters\fP file does not exist; global and personal color filters are
+not merged.
+.RE
+.sp
+Plugins
+.RS 4
+.sp
+Wireshark looks for plugins in both a personal plugin folder and a
+global plugin folder.
+.sp
+On UNIX\-compatible systems, such as Linux, macOS, \(rs*BSD, Solaris, and
+AIX, the global plugin directory is \fIlib/wireshark/plugins/\fP (on
+some systems substitute \fIlib64\fP for \fIlib\fP) under the main installation
+directory (for example, \fI/usr/local/lib/wireshark/plugins/\fP). The personal
+plugin directory is \fI$HOME/.local/lib/wireshark/plugins\fP.
+.sp
+On macOS, if Wireshark is installed as an application bundle, the global plugin
+folder is instead \fI%APPDIR%/Contents/PlugIns/wireshark\fP.
+.sp
+On Windows, the global plugin folder is \fIplugins/\fP under the main
+installation directory (for example, \fIC:\(rsProgram Files\(rsWireshark\(rsplugins\(rs\fP).
+The personal plugin folder is \fI%APPDATA%\(rsWireshark\(rsplugins\fP (or, if
+%APPDATA% isn\(cqt defined, \fI%USERPROFILE%\(rsApplication Data\(rsWireshark\(rsplugins\fP).
+.sp
+Lua plugins are stored in the plugin folders;
+compiled plugins are stored in subfolders of the plugin folders, with
+the subfolder name being the Wireshark minor version number (X.Y). There is
+another hierarchical level for each Wireshark plugin type (libwireshark,
+libwiretap and codecs).  For example, the location for a libwireshark plugin
+\fIfoo.so\fP (\fIfoo.dll\fP on Windows) would be \fIPLUGINDIR/X.Y/epan\fP
+(libwireshark used to be called libepan; the other folder names are \fIcodecs\fP
+and \fIwiretap\fP).
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+On UNIX\-compatible systems, Lua plugins (but not binary plugins) may also
+be placed in \fI$XDG_CONFIG_HOME/wireshark/plugins\fP,
+(or, if \fI$XDG_CONFIG_HOME/wireshark\fP does not exist while \fI$HOME/.wireshark\fP
+does exist, \fI$HOME/.wireshark/plugins\fP.)
+.sp .5v
+.RE
+.sp
+Note that a dissector plugin module may support more than one protocol;
+there is not necessarily a one\-to\-one correspondence between dissector plugin
+modules and protocols.  Protocols supported by a dissector plugin module are
+enabled and disabled in the same way as protocols built into Wireshark.
+.RE
+.SH "ENVIRONMENT VARIABLES"
+.sp
+WIRESHARK_CONFIG_DIR
+.RS 4
+.sp
+This environment variable overrides the location of personal
+configuration files.  On UNIX\-compatible systems, such as Linux, macOS,
+\(rs*BSD, Solaris, and AIX, it defaults to \fI$XDG_CONFIG_HOME/wireshark\fP
+(or, if that directory doesn\(cqt exist but \fI$HOME/.wireshark\fP does
+exist, \fI$HOME/.wireshark\fP); this is typically
+\fI$HOME/.config/wireshark\fP.  On Windows, it defaults to
+\fI%APPDATA%\(rsWireshark\fP (or, if %APPDATA% isn\(cqt defined,
+\fI%USERPROFILE%\(rsApplication Data\(rsWireshark\fP).  Available since
+Wireshark 3.0.
+.RE
+.sp
+WIRESHARK_DEBUG_WMEM_OVERRIDE
+.RS 4
+.sp
+Setting this environment variable forces the wmem framework to use the
+specified allocator backend for \fBall\fP allocations, regardless of which
+backend is normally specified by the code. This is mainly useful to developers
+when testing or debugging. See \fIREADME.wmem\fP in the source distribution for
+details.
+.RE
+.sp
+WIRESHARK_RUN_FROM_BUILD_DIRECTORY
+.RS 4
+.sp
+This environment variable causes the plugins and other data files to be
+loaded from the build directory (where the program was compiled) rather
+than from the standard locations.  It has no effect when the program in
+question is running with root (or setuid) permissions on UNIX\-compatible
+systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX.
+.RE
+.sp
+WIRESHARK_DATA_DIR
+.RS 4
+.sp
+This environment variable causes the various data files to be loaded from
+a directory other than the standard locations.  It has no effect when the
+program in question is running with root (or setuid) permissions on
+UNIX\-compatible systems.
+.RE
+.sp
+ERF_RECORDS_TO_CHECK
+.RS 4
+.sp
+This environment variable controls the number of ERF records checked when
+deciding if a file really is in the ERF format.  Setting this environment
+variable a number higher than the default (20) would make false positives
+less likely.
+.RE
+.sp
+IPFIX_RECORDS_TO_CHECK
+.RS 4
+.sp
+This environment variable controls the number of IPFIX records checked when
+deciding if a file really is in the IPFIX format.  Setting this environment
+variable a number higher than the default (20) would make false positives
+less likely.
+.RE
+.sp
+WIRESHARK_ABORT_ON_DISSECTOR_BUG
+.RS 4
+.sp
+If this environment variable is set, \fBRawshark\fP will call abort(3)
+when a dissector bug is encountered.  abort(3) will cause the program to
+exit abnormally; if you are running \fBRawshark\fP in a debugger, it
+should halt in the debugger and allow inspection of the process, and, if
+you are not running it in a debugger, it will, on some OSes, assuming
+your environment is configured correctly, generate a core dump file.
+This can be useful to developers attempting to troubleshoot a problem
+with a protocol dissector.
+.RE
+.sp
+WIRESHARK_ABORT_ON_TOO_MANY_ITEMS
+.RS 4
+.sp
+If this environment variable is set, \fBRawshark\fP will call abort(3)
+if a dissector tries to add too many items to a tree (generally this
+is an indication of the dissector not breaking out of a loop soon enough).
+abort(3) will cause the program to exit abnormally; if you are running
+\fBRawshark\fP in a debugger, it should halt in the debugger and allow
+inspection of the process, and, if you are not running it in a debugger,
+it will, on some OSes, assuming your environment is configured correctly,
+generate a core dump file.  This can be useful to developers attempting to
+troubleshoot a problem with a protocol dissector.
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+wireshark\-filter(4), wireshark(1), tshark(1), editcap(1), pcap(3), dumpcap(1),
+text2pcap(1), pcap\-filter(7) or tcpdump(8)
+.SH "نکات (NOTES)"
+.sp
+This is the manual page for \fBRawshark\fP 4.7.3.
+\fBRawshark\fP is part of the \fBWireshark\fP distribution.
+The latest version of \fBWireshark\fP can be found at \c
+.URL "https://www.wireshark.org" "" "."
+.sp
+HTML versions of the Wireshark project man pages are available at
+.URL "https://www.wireshark.org/docs/man\-pages" "" "."
+.SH "نویسندگان (AUTHORS)"
+.sp
+\fBRawshark\fP uses the same packet dissection code that \fBWireshark\fP does, as
+well as using many other modules from \fBWireshark\fP; see the list of authors
+in the \fBWireshark\fP man page for a list of authors of that code.

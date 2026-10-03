@@ -1,0 +1,1056 @@
+.\" hexer.1	01/12/1996
+.\"
+.\" SPDX-FileCopyrightText: 1995,1996 Sascha Demetrio
+.\" SPDX-FileCopyrightText: 2009 - 2011, 2014 - 2016, 2018, 2020 Peter Pentchev
+.\" SPDX-License-Identifier: BSD-3-Clause
+.\" 
+.TH HEXER 1 "April 24, 2020" "Hexer 1.0.7"
+.\"
+.\" --- Section -- NAME -------------------------------------------------------
+.\"
+.SH "نام (NAME)"
+hexer \- binary file editor
+.\"
+.\" --- Section -- SYNOPSIS ---------------------------------------------------
+.\"
+.SH "خلاصه دستور (SYNOPSIS)"
+.B hexer
+[options] [file [...]]
+.\"
+.\" --- Section -- DESCRIPTION ------------------------------------------------
+.\"
+.SH "توضیحات (DESCRIPTION)"
+.B hexer
+is a multi-buffer editor for viewing and manipulating binary files.  It can't
+(shouldn't) be used for editing block devices, because it tries to load the
+whole file into a buffer (it should work for diskettes).  The most important
+features of
+.B hexer
+are:  multi buffers, multi level undo, command line editing with completion,
+binary regular expressions (see below).
+The user interface is kept similar to
+.BR vi ,
+so if you know how to use
+.BR vi ,
+you'll get started easily.
+.\"
+.\" --- Section -- OPTIONS ----------------------------------------------------
+.\"
+.SH "گزینه‌ها (OPTIONS)"
+.TP 4
+.BI \-R,\ \-\-readonly
+.TP
+.BI \-v,\ \-\-view
+Edit files in read only mode.
+.TP
+.BI \-r,\ \-\-recover " filename"
+Recover the file
+.I filename
+after a crash. (not implemented)
+.TP
+.BI \-c,\ \-\-command " command"
+Start the editing session by executing the editor command
+.IR command .
+If
+.I command
+contains spaces, it must be surrounded by double quotes.  It is possible to
+specify multiple commands on the command line:
+.br
+.BI "hexer \-c " command1 " \-c " command2 " ..."
+.TP
+.B \-t,\ \-\-tite
+Turn off the usage of the termcap/terminfo ti/te sequence.
+.TP
+.B \-h,\ \-\-help
+Display a short help message and exit.
+.TP
+.B \-V,\ \-\-version
+Display program version information and exit.
+.TP
+.B \-F,\ \-\-features
+List the features supported by the program and exit.
+.TP
+.BI + command
+This is equivalent to the
+.B \-c
+option.
+.LP
+.B Note:
+The long options are not available on all systems.
+.\"
+.\" --- Section -- CUSTOMIZING ------------------------------------------------
+.\"
+.SH CUSTOMIZING
+The editor reads its startup commands from the file
+.B ~/.hexerrc
+(another startup file may be specified by setting the environment variable
+.BR HEXERRC ).
+Empty lines and lines starting with a `"'\(hycharacter (double quote) are ignored.
+It is not possible to have a command and a comment in the same line.
+.\"
+.\" --- Section -- EDITOR COMMANDS --------------------------------------------
+.\"
+.SH EDITOR COMMANDS
+As in
+.BR vi ,
+there are several editing modes:
+.\"
+.\" --- Subsection -- Command Mode --------------------------------------------
+.\"
+.TP 4
+.B Command Mode
+Some commands in
+.B Command Mode
+can take a numeric argument.  To enter a numeric argument just type the
+(decimal) number.  The number will be echoed at the bottom line of the screen
+as you type.  To enter an octal number, type a `0' as the first digit.
+To enter a hexadecimal number, type `0x' (this is not a problem, because the
+.BR x -command
+with a zero counter wouldn't make sense anyway).
+Some of the commands can take a visually selected area as an argument
+(see subsection
+.BR "Visual Mode" ).
+.RS
+.TP
+.B b
+Move backwards to the beginning of a word.
+.TP
+.B e
+Move to the end of a word.
+.TP
+.B G
+If a numeric argument
+.B n
+is given, move the cursor to position
+.BR n .
+If no argument is specified, set the position to the end of the buffer.
+The first byte in the buffer is at position `0', so the command to move
+to the beginning of the buffer is `0G'.
+.TP
+.B Control-G
+Display the buffer name, size, status and the current position at the
+bottom line.
+.TP
+.B h j k l
+Move the cursor.  The arrow keys work as well.  The numeric argument (if
+specified) determines the number rows or columns the cursor will move.
+Different from
+.BR vi :
+the cursor can be positioned
+.B behind
+the last byte in the buffer.
+.TP
+.B i
+Enter
+.B Insert Mode
+(see below) at the current position of the point.  If a numeric argument
+.B n
+is given, the typed text will be inserted
+.B n
+times.
+.B Note:
+Moving the cursor (using the arrow keys) will discard the numeric argument.
+.TP
+.B n
+Move to the next match using the current RE.  This is equivalent to typing
+`/', <Return>.
+.TP
+.B N
+Move to the previous match using the current RE.  This is equivalent to
+typing `?', <Return>.
+.TP
+.B Control-O
+Paste over.  Copy the kill buffer to the current position overwriting the
+contents of the current buffer.  If a numeric argument
+.B n
+is given, the kill buffer is pasted
+.B n
+times.
+.TP
+.B p
+Paste.  Insert the kill buffer at the current position.  If a numeric argument
+.B n
+is given, the kill buffer is pasted
+.B n
+times.
+.TP
+.B r
+Replace a single byte using the
+.BR "Replace Mode" .
+If an area is selected, all bytes in the selected area are replaced.
+If a numeric argument is given, the specified number of bytes is replaced.
+.TP
+.B R
+Enter
+.B Replace Mode
+(see below).  If a numeric argument
+.B n
+is given, the replace command is repeated
+.B n
+times.
+.B Note:
+Moving the cursor (using the arrow keys) will discard the numeric argument.
+.TP
+.B Control-R
+Redo the last undo.
+.TP
+.B u
+Undo the last change to the current buffer.
+.LP
+Whenever possible
+.B hexer
+creates a file
+.IB name .hexer
+in the current directory (the
+.BR swapfile )
+for each buffer visited (where
+.I name
+is the name of the buffer).  All changes made to the buffer
+.I name
+are stored in that file, so it is possible to undo (and redo) all
+changes made to the buffer.  If the
+.B swapfile
+can't be created, the undo list is stored in the memory.
+.TP
+.B v
+Enter
+.B Visual Mode
+(see below).  Visual selection of areas.
+.TP
+.B w
+Move forward to the beginning of a word.
+.TP
+.B x
+Delete the byte under the cursor.  If a numeric argument
+.B n
+is given,
+.B n
+bytes are deleted.
+In
+.BR "Visual Mode" ,
+the selected area is deleted.
+.B Note:
+The bytes deleted using the
+.BR x -command
+are not copied to the kill buffer.
+.TP
+.B Control-X
+The same as the
+.BR x -command,
+but the bytes deleted are copied to the kill buffer.
+.TP
+.B y
+Yank.  Yank the byte under the cursor into the kill buffer.  If a numeric
+argument
+.B n
+is given,
+.B n
+bytes are yanked into the kill buffer.
+In
+.BR "Visual Mode" ,
+the selected area is copied to the kill buffer.
+.TP
+.B zb
+Place the cursor in the bottom line of the screen.
+.TP
+.B zt
+Place the cursor in the top line of the screen.
+.TP
+.B zz
+Place the cursor in the middle line of the screen.
+.br
+Note that the commands
+.BR zb , " zt"
+and
+.B zz
+don't change the position in the file - only the screen is scrolled
+(if necessary).
+.TP
+.B :
+Enter
+.B Exh Mode
+(see below).  The
+.B Exh Mode
+is similar to the
+.BR ex -mode
+in
+.BR vi ,
+but not compatible.  If an area is selected, the bounds of the
+selection are copied to the command line.
+.TP
+.B /
+Search forward through the buffer using a
+.BR RE ( "regular expression" ).
+If no
+.B RE
+is specified, the
+.B RE
+given in the previous
+.BR / -
+or
+.BR ? -command
+is reused.
+.br
+.B Note:
+The
+.BR RE s
+in
+.B hexer
+are a little bit different from regular expressions in 
+.B vi
+(see section
+.BR "REGULAR EXPRESSIONS" ).
+.TP
+.B ?
+Search reverse using a regular expression.
+.TP
+.B .
+Repeat the last change to the buffer
+.BR "at the current position" .
+This means that if the previous command deleted
+.B n
+bytes and replaced them by
+.B m
+other bytes
+.RB ( n
+or
+.B m
+may be zero), the
+.BR . -command
+will do
+.B exactly
+the same at the current position in the file.
+.TP
+.B <
+Shift the hex column left
+.B n
+bytes, where
+.B n
+is the (optional) numeric argument.  Note that the
+.BR < -command
+only changes the way the buffer is displayed in the hex column, the buffer
+itself is kept unchanged.
+.TP
+.B >
+Shift the hex column right
+.B n
+bytes.
+.TP
+.B Control-^
+Switch to the alternate buffer (see below).
+.TP
+.B %
+Enter a calculator command (see section
+.BR CALCULATOR ).
+.LP
+.RE
+.\"
+.\" --- Subsection -- Visual Mode ---------------------------------------------
+.\"
+.TP
+.B Visual Mode
+Select an area on the buffer.  You can enter the
+.B Visual Mode
+by using the
+.BR v -command
+or by specifying an area in
+.BR "Exh Mode" .
+The selection starts at the cursor position when entering the
+.B Visual Mode
+and ends at the current cursor position.  You can leave the
+.B Visual Mode
+without performing a command on the selected area by pressing
+.B v
+or
+.BR Escape .
+To perform a command on the selected area simply enter the command as if
+you where in
+.BR "Command Mode" .
+Commands that can't use the selection will ignore it.
+As in
+.BR "Command Mode" ,
+it is possible to specify a numeric argument.  Commands that can take the
+selection as an argument will ignore the numeric argument.
+.\"
+.\" --- Subsection -- Insert Mode ---------------------------------------------
+.\"
+.TP
+.B Insert Mode
+In
+.B Insert Mode
+the bytes you type are inserted at the current position of the cursor.
+At any time, you can toggle the active column (hex column or text column)
+by pressing the
+.BR TAB
+key.
+If the hex column is active the bytes are entered as two digit hex numbers,
+if the text column is active, the bytes are entered as ASCII text.
+The
+.BR Delete
+or
+.BR BackSpace
+key deletes the previously inserted byte.  If the hex column is active, the
+previously inserted nibble (hex digit) is deleted.  It is not possible
+to delete more bytes than have been inserted in the current insert command.
+While in
+.BR "Insert Mode" ,
+you can move the cursor using the arrow keys.  Note that moving the cursor
+discards the numeric argument given to the insert command.
+To leave the
+.BR "Insert Mode" ,
+type
+.BR Escape .
+If a numeric argument
+.B n
+was given to the insert command and is hasn't been discarded by a cursor
+movement, the typed bytes are inserted
+.B n
+times.
+.\"
+.\" --- Subsection -- Replace Mode --------------------------------------------
+.\"
+.TP
+.B Replace Mode
+In
+.B Replace Mode
+you replace the bytes under the cursor as you type.  Hitting
+.B BackSpace
+restores the original contents of the buffer.  The effect of a numeric
+argument is similar to the
+.BR "Insert Mode" :
+the typed bytes are replaced
+.B n
+times.  As in
+.BR "Insert Mode" ,
+moving the cursor using the arrow keys discards the numeric argument.
+.\"
+.\" --- Subsection -- Exh Mode ------------------------------------------------
+.TP
+.B Exh Mode
+The
+.B Exh Mode
+in
+.B hexer
+is kept similar to the
+.BR ex -mode
+in
+.BR vi .
+Typically, an
+.B exh
+command looks like:
+.RS
+.TP
+.BI : "area command arguments"
+Perform the command
+.I command
+on the area
+.IR area .
+.TP
+.TP
+.BI : "command arguments"
+Perform the command
+.B command
+at the current position.
+.TP
+.BI : area
+Select the area
+.IR area .
+.TP
+.BI : position
+Move the cursor to position
+.IR position .
+.LP
+An area may be defined as:
+.TP
+.I position1,position2
+The area starts at
+.I position1
+and ends at
+.I position2
+(inclusive).
+.TP
+.I position
+The area selects one byte at
+.I position
+.TP
+.I %
+The area selects the entire buffer.
+.LP
+A position may be defined as:
+.TP
+.I offset
+A decimal, octal (prefixed with `0') or hex (prefixed with `0x') number.
+.TP
+.I .
+The beginning of the buffer.
+.TP
+.I $
+The end of the buffer.
+.TP
+.RI / regexp /
+A regular expression
+(see section
+.BR "REGULAR EXPRESSIONS" ).
+The buffer is searched forward starting at the current
+position.  If a match was found, the current position is set to the position
+of the match.
+.TP
+.RI ? regexp ?
+The buffer is searched reverse.
+.LP
+Commands may be abbreviated with a unique prefix of the command, some commands
+may be abbreviated with a single character, even if that character isn't a
+unique prefix of the command name.
+Currently the following commands are supported:
+.TP
+.B s, substitute
+.B Synopsis:
+.I area
+.B s
+.RI / regexp / replace / flags
+.br
+Search for the regular expression
+.I regexp
+and replace it with
+.I replace
+(see section
+.BR "REGULAR EXPRESSIONS" ).
+.I replace
+may contain `\\' references to subexpressions of 
+.RI regexp .
+.IR flags :
+.RS
+.TP
+.BR g :
+global, this flag is ignored (it doesn't make sense in a binary editor).
+.TP
+.BR c :
+confirm, ask the user to confirm each substitution.
+.LP
+(Note that the `/' character used as separator could be any character,
+it's just common practice to use `/'.) Trailing separators may be omitted.
+If
+.I area
+is omitted, the whole buffer is searched.
+.RE
+.TP
+.B w, write
+.B Synopsis:
+.I area
+.B w
+.I filename
+.br
+Write
+.I area
+to the file
+.IR filename .
+If
+.I area
+is omitted. the whole buffer is written to the file, if
+.I filename
+is omitted, the filename associated with the buffer is used.
+.TP
+.B r, read
+.B Synopsis:
+.I position
+.B r
+.I filename
+.br
+Insert the contents of the file
+.I filename
+at
+.IR position .
+If
+.I position
+is omitted, the current position is used.
+.TP
+.B e, edit
+.B Synopsis: e
+.I name
+.B or: e #
+.br
+Change to buffer
+.IR name .
+If there is no such buffer,
+.B hexer
+tries to open a file named
+.I name
+and load it into a new buffer.  If
+.I name
+is a hash sign
+.RB ( # ),
+the alternate buffer is selected.  On success the current
+buffer becomes the alternate buffer.
+.TP
+.B b, buffer
+.B Synopsis: b
+.I name
+.br
+.B or: b
+.br
+Change to buffer
+.IR name .
+On success the current buffer becomes the alternate buffer.  If
+.I name
+is omitted, a list of all buffers is displayed.
+.TP
+.B n, next
+Select the next buffer in the buffer list.
+.TP
+.B N, previous
+Select the previous buffer in th buffer list.
+.TP
+.B S, skip
+Select the next unvisited buffer in the buffer list.
+.TP
+.B rewind
+Select the first buffer in the buffer list.
+.TP
+.B wall
+Write all unsaved buffers.
+.TP
+.B c, close
+.B Synopsis: c
+.I name
+.br
+.B or: c!
+.I name
+.br
+.B or: c
+.br
+.B or: c!
+.br
+Close the buffer
+.IR name .
+If
+.I name
+is omitted, the current buffer is closed.  If the buffer has been modified,
+but not saved, it can't be closed using a
+.BR :c -command;
+use
+.B :c!
+to override.
+.TP
+.B h, help
+View an online help text.
+.TP
+.B q, quit
+.B Synopsis: q
+.I name
+.br
+.B or: q!
+.I name
+.br
+.B or: q
+.br
+.B or: q!
+.br
+Close all buffers and exit the editor.  If an opened buffer has bee modified,
+but not saved, the
+.BR :q -command
+can't be performed; use
+.B :q!
+to override.
+.TP
+.B map
+.TP
+.B imap
+.TP
+.B vmap
+.B Synopsis: map
+.I from
+.I to
+.br
+.B or: imap
+.I from
+.I to
+.br
+.B or: vmap
+.I from
+.I to
+.br
+The key sequence
+.I from
+is mapped to
+.IR to .
+To enter special keys (e.g. function keys), mask them using
+.BR "Control-V" .
+.B :map
+affects the
+.B Command Mode
+only,
+.B :imap
+affects the
+.B Insert Mode
+only and
+.B :vmap
+affects the
+.B Visual Mode
+only.  It is not possible to re-map key sequences on the command line editor.
+.TP
+.B unmap
+.TP
+.B iunmap
+.TP
+.B vunmap
+.B Synopsis: unmap
+.I from
+.br
+.B or: iunmap
+.I from
+.br
+.B or: vunmap
+.I from
+.br
+Delete a key mapping created with
+.BR :map , " :imap"
+or
+.BR :vmap .
+.TP
+.B set
+.B Synopsis: set
+.I variable
+[...]
+.br
+.B or: set
+.IR variable = value
+[...]
+.br
+.BI "or: set no" variable
+[...]
+.br
+.B or: set
+.br
+There are not too many variables that could be modified, this might change
+though.  The following variables can be used:
+.B iso
+(bool):  display the whole ISO-8859/1 character set;
+.B ascii
+(bool):  display ASCII characters only;
+.B TERM
+(string):  the name of the terminal;
+.B maxmatch
+(number),
+.B specialnl
+(bool): see section
+.BR "REGULAR EXPRESSIONS" .
+.B :set
+called without an argument lists all variables and values.
+.TP
+.B d, delete
+.B Synopsis:
+.I area
+.B d
+.br
+Delete all bytes in
+.IR area .
+The deleted bytes are copied to the kill buffer.
+.TP
+.B y, yank
+.B Synopsis:
+.I area
+.B y
+.br
+Copy the bytes in
+.I area
+to the kill buffer.
+.TP
+.B version
+Display the version number of
+.BR hexer .
+.TP
+.B zz
+Place the cursor in the middle line of the screen.  Note that the
+screen is scrolled (if necessary); the cursor position is kept unchanged.
+.TP
+.B zt
+Place the cursor in the top line of the screen.
+.TP
+.B zb
+Place the cursor in the bottom line of the screen.
+.TP
+.B wq
+The same as
+.BR :x .
+.TP
+.B x, exit
+Save all buffers and exit the editor.
+.LP
+If a command is called and can't use the given positions, areas or arguments,
+the additional positions, areas, arguments are ignored.
+.br
+.B Conditional commands:
+It is possible to specify a list of terminal names for which the given
+command should be executed. The syntax is:
+.RS
+.BI : terminals : command
+.RE
+where
+.I terminals
+is a colon-separated list of terminal names.  The command is executed if and
+only if the value of
+.B TERM
+is in the list.  I.e. you could have a command like
+.RS
+.B :xterm:set iso
+.RE
+in your
+.BR .hexerrc -file
+(use the ISO character set only if working on an xterm).
+.RE
+.\"
+.\" --- Subsection -- Cursor Motion -------------------------------------------
+.\"
+.TP
+.B Cursor Motion
+In
+.BR "Command Mode" , " Insert Mode" , " Replace Mode"
+.RB and " Visual Mode" ,
+you can use the following cursor motion commands:
+.RS
+.TP
+.B Arrow Keys
+Move the cursor.
+.TP
+.B Control-F
+Move forward one page.
+.TP
+.B Control-B
+Move back one page.
+.TP
+.B Control-D
+Move forward half a page.
+.TP
+.B Control-U
+Move back half a page.
+.LP
+.RE
+.\"
+.\" --- Section -- COMMAND LINE EDITING ---------------------------------------
+.\"
+.SH COMMAND LINE EDITING
+On the command line you can use the following commands:
+.TP
+.B UpArrow DownArrow
+Move up and down through the history of the current context.
+.TP
+.B LeftArrow RightArrow
+Move the cursor.
+.TP
+.B Control-A
+Move the cursor to the beginning of the line.
+.TP
+.B Control-E
+Move the cursor to the end of the line.
+.TP
+.B Control-K
+Delete all characters from the current cursor position up to the end of the
+line.
+.TP
+.B Control-U
+Delete all characters from the beginning of the line up to the current
+cursor position.
+.TP
+.B Delete
+.TP
+.B BackSpace
+Delete the character left of the cursor.
+.TP
+.B Control-D
+Delete the character under the cursor.
+.TP
+.B Enter Return
+Accept the line.
+.TP
+.B Escape
+Discard the line.
+.B Note:
+This is different from
+.BR vi .
+.TP
+.B TAB
+Try to complete currently typed word.  If the completion is not unique,
+the word is completed as far as unique.  If the
+.BR TAB
+key is hit twice on the same position,  a list of all possible completions is
+displayed.
+.\"
+.\" --- Section -- REGULAR EXPRESSIONS ----------------------------------------
+.\"
+.SH REGULAR EXPRESSIONS
+In this section it is assumed that you are familiar with REs (regular
+expressions).
+In most applications
+.RB ( egrep ", " vi ", ...)"
+REs work on lines, that means it is not possible to use a RE containing
+a line break (newline character).
+In
+.BR hexer ,
+the buffer is not split up into distinct lines and a newline character
+is considered to be a `normal' character, now here's the problem:
+imagine searching for "a.*b" in a 5 MB file, this would take very long
+(might be up to several minutes on a slow machine).  That's why there's
+a
+.B maxmatch
+limit (a repeat operator matches at most
+.B maxmatch
+occurrences of its operand).  The default value of
+.B maxmatch
+is 1024, but it may be customized using the
+.BR :set -command.
+For simple expressions (expressions for which the length of the match can
+be determined from the expression) it is possible to override the
+.B maxmatch
+limit by doubling the `*' or `+' operator, e.g. "a.**b" or
+"foo\\(bar\\)\\+\\+".
+.br
+Note that the context specifiers `^'/`$' (beginning/end of a line) and
+`\\<'/`\\>' (beginning/end of a word) are available and actually do
+what you expect.  If you don't want the atoms `.' and `[^...]' to match
+the newline character you can set the
+.B specialnl
+option using the
+.BR :set -command.
+.br
+To enter a special character, you can use the standard C `\\'\(hyescape
+sequences.  To enter a character using its octal code, use a `\\o'\(hyprefix
+followed by up to three octal digits.
+(C-style octal escapes are not supported, because `\\0', ... `\\9' are
+interpreted as back-references to subexpressions of the RE.)
+To enter a character using it's hex code, type a `\\x'-prefix followed
+by up to two hex digits; decimal codes can be entered using a `\\d'\(hyprefix
+followed by up to three decimal digits.  It is possible to enter strings
+of codes by doubling the base specifier, e.g. "\\xxfe ff 5a 7e" or
+"\\oo276 277 132 176".  Note that such a string is treated as an atom, i.e.
+the RE "\\xxff fe*" matches any number (<
+.BR maxmatch )
+of repetitions of
+.BR "ff fe" .
+.br
+It is possible to use all kinds of character `\\'\(hyescapes (escapes
+representing a single character) within `[]'\(hyranges.  Within a range,
+the `o' selecting an octal base for the escape may be omitted, since
+back-references within a range don't make sense.  When specifying a
+minimum and/or maximum number of repetitions using the `\\{,}'\(hyoperator,
+the numbers may be given in decimal (no prefix), octal (`0'-prefix) or
+hex (`0x'-prefix).  If no maximum number is specified and the operand is
+not a simple expression, at most
+.B maxmatch
+matches will be found.
+.\"
+.\" --- Section -- CALCULATOR -------------------------------------------------
+.\"
+.SH CALCULATOR
+.B Hexer
+provides a simple calculator
+.RB ( myc )
+capable of all operations available in C.
+To enter a
+.B myc
+command just enter a
+.B %
+(percent) sign and an expression in infix notation.
+It is possible to use parentheses.
+.B myc
+understands the following binary infix operators (from highest priority to
+lowest):
+.B **
+(power),
+.B *
+(multiply),
+.B /
+(divide),
+.B %
+(modulo),
+.B +
+(add),
+.B -
+(subtract),
+.B <<
+(shift left),
+.B >>
+(shift right),
+.B <
+(less),
+.B <=
+(less or equal),
+.B >
+(greater),
+.B >=
+(greater or equal),
+.B ==
+(equal),
+.B !=
+(not equal),
+.B &
+(arithmetical and),
+.B |
+(arithmetical or),
+.B ^
+(arithmetical exclusive or),
+.B &&
+(logical and),
+.B ||
+(logical or),
+.B =
+(assign);  and the following unary prefix operators:
+.B -
+(negate, unary minus),
+.B !
+(logical not),
+.B ~
+(bitwise complement).
+.B myc
+knows three data types:
+.BR boolean ,
+.B integer
+(32 bit),
+.B float
+(64 bit, equivalent to C double).
+On some esoteric platforms the precision of integer and float may be
+different.
+As in C the result of a division depends on the data types of the operands.
+An integer divided by an integer yields an integer.
+If you want the result to be a float, make sure one of the operands is a
+float, e.g. type
+.I 4/7.
+instead of
+.I 4/7
+or
+.I a/(b+0.)
+instead of
+.IR a/b .
+The power operation returns a float if the result is too large to fit in an
+integer.
+The result of a calculation is stored in the special variables
+.B $$
+and
+.BI $ n
+where
+.I n
+is the number of the command.
+.\"
+.\" --- Section -- BUGS -------------------------------------------------------
+.\"
+.SH "اشکالات (BUGS)"
+Probably.  Please report bugs to
+.IR demetrio@cs.uni-sb.de .
+.\"
+.\" --- Section -- COPYRIGHT --------------------------------------------------
+.\"
+.SH "حق نشر (COPYRIGHT)"
+.B hexer
+is
+.BR "not in the public domain" ,
+but freely distributable.  It may be used for any non-commercial purpose.
+See file
+.B COPYRIGHT
+for details.
+.\"
+.\" --- Section -- AUTHOR -----------------------------------------------------
+.\"
+.SH "نویسنده (AUTHOR)"
+Sascha Demetrio
+.br
+.I demetrio@cs.uni-sb.de
+

@@ -1,0 +1,8913 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH i3status-rs 1  "i3status-rs 0.36.1" 
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.SH "نام (NAME)"
+i3status\-rs \- A feature\-rich and resource\-friendly replacement for i3status, written in Rust.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBi3status\-rs\fR [\fB\-\-never\-pause\fR] [\fB\-j\fR|\fB\-\-threads\fR] [\fB\-h\fR|\fB\-\-help\fR] [\fB\-V\fR|\fB\-\-version\fR] [\fICONFIG\fR] 
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.SH "توضیحات (DESCRIPTION)"
+A feature\-rich and resource\-friendly replacement for i3status(1), written in Rust. The i3status\-rs program writes a stream of configurable "blocks" of system information (time, battery status, volume, etc.) to standard output in the JSON format understood by i3bar(1) and sway\-bar(5).
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB\-\-never\-pause\fR
+Ignore any attempts by i3 to pause the bar when hidden/fullscreen
+.TP
+\fB\-j\fR, \fB\-\-threads\fR=\fIBLOCKING_THREADS\fR [default: 2]
+The maximum number of blocking threads spawned by tokio
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with \*(Aq\-h\*(Aq)
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version
+.TP
+[\fICONFIG\fR] [default: config.toml]
+Sets a TOML config file
+
+1. If full absolute path given, then use it as is: `/home/foo/i3rs\-config.toml`
+
+2. If filename given, e.g. "custom_theme.toml", then first look in `$XDG_CONFIG_HOME/i3status\-rust`
+
+3. Then look for it in `$XDG_DATA_HOME/i3status\-rust`
+
+4. Otherwise look for it in `/usr/share/i3status\-rust`
+.SH BLOCKS
+.SS amd_gpu
+Display the stats of your AMD GPU
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]device\f[R]
+T}@T{
+The device in \f[CR]/sys/class/drm/\f[R] to read from.
+T}@T{
+Any AMD card
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $utilization \[dq]\f[R]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]5\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(18.8n) lw(33.2n) lw(7.2n) lw(10.8n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]utilization\f[R]
+T}@T{
+GPU utilization
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]vram_total\f[R]
+T}@T{
+Total VRAM
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]vram_used\f[R]
+T}@T{
+Used VRAM
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]vram_used_percents\f[R]
+T}@T{
+Used VRAM / Total VRAM
+T}@T{
+Number
+T}@T{
+%
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]amd_gpu\[dq]
+format = \[dq] $icon $utilization \[dq]
+format_alt = \[dq] $icon MEM: $vram_used_percents ($vram_used/$vram_total) \[dq]
+interval = 1
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]gpu\f[R]
+.SS backlight
+The brightness of a backlight device
+.PP
+This block reads brightness information directly from the filesystem, so
+it works under both X11 and Wayland.
+The block uses \f[CR]inotify\f[R] to listen for changes in the
+device\[cq]s brightness directly, so there is no need to set an update
+interval.
+This block uses DBus to set brightness level using the mouse wheel, but
+will fallback to sysfs if \f[CR]systemd\-logind\f[R] is not used.
+.SS Root scaling
+Some devices expose raw values that are best handled with nonlinear
+scaling.
+The human perception of lightness is close to the cube root of relative
+luminance, so settings for \f[CR]root_scaling\f[R] between 2.4 and 3.0
+are worth trying.
+For devices with few discrete steps this should be 1.0 (linear).
+More information: \c
+.UR https://en.wikipedia.org/wiki/Lightness
+.UE \c
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]device\f[R]
+T}@T{
+A regex to match against \f[CR]/sys/class/backlight\f[R] devices to read
+brightness information from (can match 1 or more devices).
+When there is no \f[CR]device\f[R] specified, this block will display
+information for all devices found in the \f[CR]/sys/class/backlight\f[R]
+directory.
+T}@T{
+Default device
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $brightness \[dq]\f[R]
+T}
+T{
+\f[CR]missing_format\f[R]
+T}@T{
+A string to customise the output of this block.
+No placeholders available
+T}@T{
+\f[CR]\[dq] no backlight devices \[dq]\f[R]
+T}
+T{
+\f[CR]step_width\f[R]
+T}@T{
+The brightness increment to use when scrolling, in percent
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]minimum\f[R]
+T}@T{
+The minimum brightness that can be scrolled down to
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]maximum\f[R]
+T}@T{
+The maximum brightness that can be scrolled up to
+T}@T{
+\f[CR]100\f[R]
+T}
+T{
+\f[CR]cycle\f[R]
+T}@T{
+The brightnesses to cycle through on each click
+T}@T{
+\f[CR][minimum, maximum]\f[R]
+T}
+T{
+\f[CR]root_scaling\f[R]
+T}@T{
+Scaling exponent reciprocal (ie.
+root)
+T}@T{
+\f[CR]1.0\f[R]
+T}
+T{
+\f[CR]invert_icons\f[R]
+T}@T{
+Invert icons\[cq] ordering, useful if you have colorful emoji
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]ddcci_sleep_multiplier\f[R]
+T}@T{
+\c
+.UR https://www.ddcutil.com/performance_options/#option-sleep-multiplier
+See ddcutil documentation
+.UE \c
+T}@T{
+\f[CR]1.0\f[R]
+T}
+T{
+\f[CR]ddcci_max_tries_write_read\f[R]
+T}@T{
+The maximum number of times to attempt writing to or reading from a
+ddcci monitor
+T}@T{
+\f[CR]10\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(11.5n) lw(38.1n) lw(7.1n) lw(13.3n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on backlight\[cq]s state
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]brightness\f[R]
+T}@T{
+Current brightness
+T}@T{
+Number
+T}@T{
+%
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]cycle\f[R]
+T}@T{
+Left
+T}
+T{
+\f[CR]brightness_up\f[R]
+T}@T{
+Wheel Up
+T}
+T{
+\f[CR]brightness_down\f[R]
+T}@T{
+Wheel Down
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]backlight\[dq]
+device = \[dq]intel_backlight\[dq]
+.EE
+.PP
+Hide missing backlight:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]backlight\[dq]
+missing_format = \[dq]\[dq]
+.EE
+.SS calibright
+Additional display brightness calibration can be set in
+\f[CR]$XDG_CONFIG_HOME/calibright/config.toml\f[R] See \c
+.UR https://github.com/bim9262/calibright
+.UE \c
+\ for more details.
+This block will override any global config set in
+\f[CR]$XDG_CONFIG_HOME/calibright/config.toml\f[R]
+.SS D\-Bus Fallback
+If you don\[cq]t use \f[CR]systemd\-logind\f[R] i3status\-rust will
+attempt to set the brightness using sysfs.
+In order to do this you\[cq]ll need to have write permission.
+You can do this by writing a \f[CR]udev\f[R] rule for your system.
+.PP
+First, check that your user is a member of the \[lq]video\[rq] group
+using the \f[CR]groups\f[R] command.
+Then add a rule in the \f[CR]/etc/udev/rules.d/\f[R] directory
+containing the following, for example in \f[CR]backlight.rules\f[R]:
+.IP
+.EX
+ACTION==\[dq]add\[dq], SUBSYSTEM==\[dq]backlight\[dq], GROUP=\[dq]video\[dq], MODE=\[dq]0664\[dq]
+.EE
+.PP
+This will allow the video group to modify all backlight devices.
+You will also need to restart for this rule to take effect.
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]backlight\f[R] (as a progression)
+.SS battery
+Information about the internal power supply
+.PP
+This block can display the current battery state (Full, Charging or
+Discharging), percentage charged and estimate time until (dis)charged
+for an internal power supply.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]device\f[R]
+T}@T{
+sysfs/UPower: The device in \f[CR]/sys/class/power_supply/\f[R] to read
+from (can also be \[lq]DisplayDevice\[rq] for UPower, which is a single
+logical power source representing all physical power sources.
+This is for example useful if your system has multiple batteries, in
+which case the DisplayDevice behaves as if you had a single larger
+battery.).
+apc_ups: IPv4Address:port or hostname:port
+T}@T{
+sysfs: the first battery device found in /sys/class/power_supply, with
+\[lq]BATx\[rq] or \[lq]CMBx\[rq] entries taking precedence.
+apc_ups: \[lq]localhost:3551\[rq].
+upower: \f[CR]DisplayDevice\f[R]
+T}
+T{
+\f[CR]driver\f[R]
+T}@T{
+One of \f[CR]\[dq]sysfs\[dq]\f[R], \f[CR]\[dq]apc_ups\[dq]\f[R], or
+\f[CR]\[dq]upower\[dq]\f[R]
+T}@T{
+\f[CR]\[dq]sysfs\[dq]\f[R]
+T}
+T{
+\f[CR]model\f[R]
+T}@T{
+If present, the contents of
+\f[CR]/sys/class/power_supply/.../model_name\f[R] must match this value.
+Typical use is to select by model name on devices that change their
+path.
+T}@T{
+N/A
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval, in seconds.
+Only relevant for driver = \[lq]sysfs\[rq] or \[lq]apc_ups\[rq].
+T}@T{
+\f[CR]10\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $percentage \[dq]\f[R]
+T}
+T{
+\f[CR]full_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when the battery is full
+T}@T{
+\f[CR]\[dq] $icon \[dq]\f[R]
+T}
+T{
+\f[CR]charging_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when the battery is charging
+T}@T{
+Links to \f[CR]format\f[R]
+T}
+T{
+\f[CR]empty_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when the battery is empty
+T}@T{
+\f[CR]\[dq] $icon \[dq]\f[R]
+T}
+T{
+\f[CR]not_charging_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when the battery is not charging.
+Defaults to the full battery icon as many batteries report this status
+when they are full.
+T}@T{
+\f[CR]\[dq] $icon \[dq]\f[R]
+T}
+T{
+\f[CR]missing_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] if the battery cannot be found.
+T}@T{
+\f[CR]\[dq] $icon \[dq]\f[R]
+T}
+T{
+\f[CR]info\f[R]
+T}@T{
+Minimum battery level, where state is set to info
+T}@T{
+\f[CR]60\f[R]
+T}
+T{
+\f[CR]good\f[R]
+T}@T{
+Minimum battery level, where state is set to good
+T}@T{
+\f[CR]60\f[R]
+T}
+T{
+\f[CR]warning\f[R]
+T}@T{
+Minimum battery level, where state is set to warning
+T}@T{
+\f[CR]30\f[R]
+T}
+T{
+\f[CR]critical\f[R]
+T}@T{
+Minimum battery level, where state is set to critical
+T}@T{
+\f[CR]15\f[R]
+T}
+T{
+\f[CR]full_threshold\f[R]
+T}@T{
+Percentage above which the battery is considered full
+(\f[CR]full_format\f[R] shown)
+T}@T{
+\f[CR]95\f[R]
+T}
+T{
+\f[CR]empty_threshold\f[R]
+T}@T{
+Percentage below which the battery is considered empty
+T}@T{
+\f[CR]7.5\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(8.3n) lw(46.5n) lw(12.1n) lw(3.2n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on battery\[cq]s state
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]percentage\f[R]
+T}@T{
+Battery level, in percent
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]time_remaining\f[R]
+T}@T{
+Time remaining until (dis)charge is complete.
+Presented only if battery\[cq]s status is (dis)charging.
+T}@T{
+Duration
+T}@T{
+\-
+T}
+T{
+\f[CR]time\f[R]
+T}@T{
+Time remaining until (dis)charge is complete.
+Presented only if battery\[cq]s status is (dis)charging.
+T}@T{
+String \f[I]DEPRECATED\f[R]
+T}@T{
+\-
+T}
+T{
+\f[CR]power\f[R]
+T}@T{
+Power consumption by the battery or from the power supply when charging
+T}@T{
+String or Float
+T}@T{
+Watts
+T}
+.TE
+.PP
+\f[CR]time\f[R] has been deprecated in favor of
+\f[CR]time_remaining\f[R].
+.SS Examples
+Basic usage:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]battery\[dq]
+format = \[dq] $icon $percentage \[dq]
+.EE
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]battery\[dq]
+format = \[dq] $percentage {$time_remaining.dur(hms:true, min_unit:m) |}\[dq]
+device = \[dq]DisplayDevice\[dq]
+driver = \[dq]upower\[dq]
+.EE
+.PP
+Hide missing battery:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]battery\[dq]
+missing_format = \[dq]\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]bat\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]bat_charging\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]bat_not_available\f[R]
+.SS bluetooth
+Monitor Bluetooth device
+.PP
+This block displays the connectivity of a given Bluetooth device and the
+battery level if this is supported.
+Relies on the Bluez D\-Bus API.
+.PP
+When the device can be identified as an audio headset, a keyboard,
+joystick, or mouse, use the relevant icon.
+Otherwise, fall back on the generic Bluetooth symbol.
+.PP
+Right\-clicking the block will attempt to connect (or disconnect) the
+device.
+.PP
+Note: battery level information is not reported for some devices.
+\c
+.UR https://wiki.archlinux.org/title/bluetooth#Enabling_experimental_features
+Enabling experimental features of \f[CR]bluez\f[R]
+.UE \c
+\ may fix it.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]mac\f[R]
+T}@T{
+MAC address of the Bluetooth device
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]adapter_mac\f[R]
+T}@T{
+MAC Address of the Bluetooth adapter (in case your device was connected
+to multiple currently available adapters)
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq] $icon $name{ $percentage|} \[dq]
+T}
+T{
+\f[CR]disconnected_format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq] $icon{ $name|} \[dq]
+T}
+T{
+\f[CR]battery_state\f[R]
+T}@T{
+A mapping from battery percentage to block\[cq]s state (color).
+See example below.
+T}@T{
+0..15 \-> critical, 16..30 \-> warning, 31..60 \-> info, 61..100 \->
+good
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(10.5n) lw(49.7n) lw(5.6n) lw(4.2n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on what type of device is connected
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]name\f[R]
+T}@T{
+Device\[cq]s name
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]percentage\f[R]
+T}@T{
+Device\[cq]s battery level (may be absent if the device is not
+supported)
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]battery_icon\f[R]
+T}@T{
+Battery icon (may be absent if the device is not supported)
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]available\f[R]
+T}@T{
+Present if the device is available
+T}@T{
+Flag
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle\f[R]
+T}@T{
+Right
+T}
+.TE
+.SS Examples
+This example just shows the icon when device is connected.
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]bluetooth\[dq]
+mac = \[dq]00:18:09:92:1B:BA\[dq]
+disconnected_format = \[dq]\[dq]
+format = \[dq] $icon \[dq]
+\f[B][block.battery_state]\f[R]
+\[dq]0..20\[dq] = \[dq]critical\[dq]
+\[dq]21..70\[dq] = \[dq]warning\[dq]
+\[dq]71..100\[dq] = \[dq]good\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]headphones\f[R] for bluetooth devices identifying as
+\[lq]audio\-card\[rq], \[lq]audio\-headset\[rq] or
+\[lq]audio\-headphones\[rq]
+.IP \[bu] 2
+\f[CR]joystick\f[R] for bluetooth devices identifying as
+\[lq]input\-gaming\[rq]
+.IP \[bu] 2
+\f[CR]keyboard\f[R] for bluetooth devices identifying as
+\[lq]input\-keyboard\[rq]
+.IP \[bu] 2
+\f[CR]mouse\f[R] for bluetooth devices identifying as
+\[lq]input\-mouse\[rq]
+.IP \[bu] 2
+\f[CR]bluetooth\f[R] for all other devices
+.SS calendar
+Calendar
+.PP
+This block displays upcoming calendar events retrieved from a CalDav
+ICalendar server.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]next_event_format\f[R]
+T}@T{
+A string to customize the output of this block when there is a next
+event in the calendar.
+See below for available placeholders.
+T}@T{
+\[dq] $icon $start.datetime(f:`%a %H:%M') $summary \[dq]
+T}
+T{
+\f[CR]ongoing_event_format\f[R]
+T}@T{
+A string to customize the output of this block when an event is ongoing.
+T}@T{
+\[dq] $icon $summary (ends at $end.datetime(f:`%H:%M')) \[dq]
+T}
+T{
+\f[CR]no_events_format\f[R]
+T}@T{
+A string to customize the output of this block when there are no events
+T}@T{
+\[dq] $icon \[dq]
+T}
+T{
+\f[CR]redirect_format\f[R]
+T}@T{
+A string to customize the output of this block when the authorization is
+asked
+T}@T{
+\[dq] $icon Check your web browser \[dq]
+T}
+T{
+\f[CR]fetch_interval\f[R]
+T}@T{
+Fetch events interval in seconds
+T}@T{
+\f[CR]60\f[R]
+T}
+T{
+\f[CR]alternate_events_interval\f[R]
+T}@T{
+Alternate overlapping events interval in seconds
+T}@T{
+\f[CR]10\f[R]
+T}
+T{
+\f[CR]events_within_hours\f[R]
+T}@T{
+Number of hours to look for events in the future
+T}@T{
+\f[CR]48\f[R]
+T}
+T{
+\f[CR]source\f[R]
+T}@T{
+Array of sources to pull calendars from
+T}@T{
+\f[CR][]\f[R]
+T}
+T{
+\f[CR]warning_threshold\f[R]
+T}@T{
+Warning threshold in seconds for the upcoming event
+T}@T{
+\f[CR]300\f[R]
+T}
+T{
+\f[CR]browser_cmd\f[R]
+T}@T{
+Command to open event details in a browser.
+The block passes the HTML link as an argument
+T}@T{
+\f[CR]\[dq]xdg\-open\[dq]\f[R]
+T}
+.TE
+.SS Source Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]url\f[R]
+T}@T{
+CalDav calendar server URL
+T}@T{
+N/A
+T}
+T{
+\f[CR]auth\f[R]
+T}@T{
+Authentication configuration (unauthenticated, basic, or oauth2)
+T}@T{
+\f[CR]unauthenticated\f[R]
+T}
+T{
+\f[CR]calendars\f[R]
+T}@T{
+List of calendar names to monitor.
+If empty, all calendars will be fetched.
+T}@T{
+\f[CR][]\f[R]
+T}
+.TE
+.PP
+Note: Currently only one source is supported
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]open_link\f[R]
+T}@T{
+Opens the HTML link of the event
+T}@T{
+Left
+T}
+.TE
+.SS Examples
+.SS Unauthenticated
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]calendar\[dq]
+next_event_format = \[dq] $icon $start.datetime(f:\[aq]%a %H:%M\[aq]) $summary \[dq]
+ongoing_event_format = \[dq] $icon $summary (ends at $end.datetime(f:\[aq]%H:%M\[aq])) \[dq]
+no_events_format = \[dq] $icon no events \[dq]
+fetch_interval = 30
+alternate_events_interval = 10
+events_within_hours = 48
+warning_threshold = 600
+browser_cmd = \[dq]firefox\[dq]
+\f[B][[block.source]]\f[R]
+url = \[dq]https://caldav.example.com/calendar/\[dq]
+calendars = [\[dq]user/calendar\[dq]]
+\f[B][block.source.auth]\f[R]
+type = \[dq]unauthenticated\[dq]
+.EE
+.SS Basic Authentication
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]calendar\[dq]
+next_event_format = \[dq] $icon $start.datetime(f:\[aq]%a %H:%M\[aq]) $summary \[dq]
+ongoing_event_format = \[dq] $icon $summary (ends at $end.datetime(f:\[aq]%H:%M\[aq])) \[dq]
+no_events_format = \[dq] $icon no events \[dq]
+fetch_interval = 30
+alternate_events_interval = 10
+events_within_hours = 48
+warning_threshold = 600
+browser_cmd = \[dq]firefox\[dq]
+\f[B][[block.source]]\f[R]
+url = \[dq]https://caldav.example.com/calendar/\[dq]
+calendars = [ \[dq]Holidays\[dq] ]
+\f[B][block.source.auth]\f[R]
+type = \[dq]basic\[dq]
+username = \[dq]your_username\[dq]
+password = \[dq]your_password\[dq]
+.EE
+.PP
+Note: You can also configure the \f[CR]username\f[R] and
+\f[CR]password\f[R] in a separate TOML file.
+.PP
+\f[CR]\[ti]/.config/i3status\-rust/example_credentials.toml\f[R]
+.IP
+.EX
+username = \[dq]my\-username\[dq]
+password = \[dq]my\-password\[dq]
+.EE
+.PP
+Source auth configuration with \f[CR]credentials_path\f[R]:
+.IP
+.EX
+\f[B][block.source.auth]\f[R]
+type = \[dq]basic\[dq]
+credentials_path = \[dq]\[ti]/.config/i3status\-rust/example_credentials.toml\[dq]
+.EE
+.SS OAuth2 Authentication (Google Calendar)
+To access the CalDav API of Google, follow these steps to enable the API
+and obtain the \f[CR]client_id\f[R] and \f[CR]client_secret\f[R]: 1.
+\f[B]Go to the Google Cloud Console\f[R]: Navigate to the \c
+.UR https://console.cloud.google.com/
+Google Cloud Console
+.UE \c
+\&.
+2.
+\f[B]Create a New Project\f[R]: If you don\[cq]t already have a project,
+click on the project dropdown and select \[lq]New Project\[rq].
+Give your project a name and click \[lq]Create\[rq].
+3.
+\f[B]Enable the CalDAV API\f[R]: In the project dashboard, go to the
+\[lq]APIs & Services\[rq] > \[lq]Library\[rq].
+Search for \[lq]CalDAV API\[rq] and click on it, then click
+\[lq]Enable\[rq].
+4.
+\f[B]Set Up OAuth Consent Screen\f[R]: Go to \[lq]APIs & Services\[rq] >
+\[lq]OAuth consent screen\[rq].
+Fill out the required information and save.
+5.
+\f[B]Create Credentials\f[R]: \- Navigate to \[lq]APIs & Services\[rq] >
+\[lq]Credentials\[rq].
+\- Click \[lq]Create Credentials\[rq] and select \[lq]OAuth 2.0 Client
+IDs\[rq].
+\- Configure the consent screen if you haven\[cq]t already.
+\- Set the application type to \[lq]Web application\[rq].
+\- Add your authorized redirect URIs.
+For example, \f[CR]http://localhost:8080\f[R].
+\- Click \[lq]Create\[rq] and note down the \f[CR]client_id\f[R] and
+\f[CR]client_secret\f[R].
+6.
+\f[B]Download the Credentials\f[R]: Click on the download icon next to
+your OAuth 2.0 Client ID to download the JSON file containing your
+client ID and client secret.
+Use these values in your configuration.
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]calendar\[dq]
+next_event_format = \[dq] $icon $start.datetime(f:\[aq]%a %H:%M\[aq]) $summary \[dq]
+ongoing_event_format = \[dq] $icon $summary (ends at $end.datetime(f:\[aq]%H:%M\[aq])) \[dq]
+no_events_format = \[dq] $icon no events \[dq]
+fetch_interval = 30
+alternate_events_interval = 10
+events_within_hours = 48
+warning_threshold = 600
+browser_cmd = \[dq]firefox\[dq]
+\f[B][[block.source]]\f[R]
+url = \[dq]https://apidata.googleusercontent.com/caldav/v2/\[dq]
+calendars = [\[dq]primary\[dq]]
+\f[B][block.source.auth]\f[R]
+type = \[dq]oauth2\[dq]
+client_id = \[dq]your_client_id\[dq]
+client_secret = \[dq]your_client_secret\[dq]
+auth_url = \[dq]https://accounts.google.com/o/oauth2/auth\[dq]
+token_url = \[dq]https://oauth2.googleapis.com/token\[dq]
+auth_token = \[dq]\[ti]/.config/i3status\-rust/calendar.auth_token\[dq]
+redirect_port = 8080
+scopes = [\[dq]https://www.googleapis.com/auth/calendar\[dq], \[dq]https://www.googleapis.com/auth/calendar.events\[dq]]
+.EE
+.PP
+Note: You can also configure the \f[CR]client_id\f[R] and
+\f[CR]client_secret\f[R] in a separate TOML file.
+.PP
+\f[CR]\[ti]/.config/i3status\-rust/google_credentials.toml\f[R]
+.IP
+.EX
+client_id = \[dq]my\-client_id\[dq]
+client_secret = \[dq]my\-client_secret\[dq]
+.EE
+.PP
+Source auth configuration with \f[CR]credentials_path\f[R]:
+.IP
+.EX
+\f[B][block.source.auth]\f[R]
+type = \[dq]oauth2\[dq]
+credentials_path = \[dq]\[ti]/.config/i3status\-rust/google_credentials.toml\[dq]
+auth_url = \[dq]https://accounts.google.com/o/oauth2/auth\[dq]
+token_url = \[dq]https://oauth2.googleapis.com/token\[dq]
+auth_token = \[dq]\[ti]/.config/i3status\-rust/calendar.auth_token\[dq]
+redirect_port = 8080
+scopes = [\[dq]https://www.googleapis.com/auth/calendar\[dq], \[dq]https://www.googleapis.com/auth/calendar.events\[dq]]
+.EE
+.SS Format Configuration
+The format configuration is a string that can include placeholders to be
+replaced with dynamic content.
+Placeholders can be: \- \f[CR]$summary\f[R]: Summary of the event \-
+\f[CR]$description\f[R]: Description of the event \- \f[CR]$url\f[R]:
+Url of the event \- \f[CR]$location\f[R]: Location of the event \-
+\f[CR]$start\f[R]: Start time of the event \- \f[CR]$end\f[R]: End time
+of the event
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]calendar\f[R]
+.SS cpu
+CPU statistics
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $utilization \[dq]\f[R]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]info_cpu\f[R]
+T}@T{
+Percentage of CPU usage, where state is set to info
+T}@T{
+\f[CR]30.0\f[R]
+T}
+T{
+\f[CR]warning_cpu\f[R]
+T}@T{
+Percentage of CPU usage, where state is set to warning
+T}@T{
+\f[CR]60.0\f[R]
+T}
+T{
+\f[CR]critical_cpu\f[R]
+T}@T{
+Percentage of CPU usage, where state is set to critical
+T}@T{
+\f[CR]90.0\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(10.8n) lw(44.5n) lw(5.1n) lw(9.5n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+An icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]utilization\f[R]
+T}@T{
+Average CPU utilization
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]utilization<N>\f[R]
+T}@T{
+Utilization of Nth logical CPU
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]barchart\f[R]
+T}@T{
+Utilization of all logical CPUs presented as a barchart
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]frequency\f[R]
+T}@T{
+Average CPU frequency (may be absent if CPU is not supported)
+T}@T{
+Number
+T}@T{
+Hz
+T}
+T{
+\f[CR]frequency<N>\f[R]
+T}@T{
+Frequency of Nth logical CPU (may be absent if CPU is not supported)
+T}@T{
+Number
+T}@T{
+Hz
+T}
+T{
+\f[CR]max_frequency\f[R]
+T}@T{
+Max frequency of all logical CPUs
+T}@T{
+Number
+T}@T{
+Hz
+T}
+T{
+\f[CR]boost\f[R]
+T}@T{
+CPU turbo boost status (may be absent if CPU is not supported)
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]cpu\[dq]
+interval = 1
+format = \[dq] $icon $barchart $utilization \[dq]
+format_alt = \[dq] $icon $frequency{ $boost|} \[dq]
+info_cpu = 20
+warning_cpu = 50
+critical_cpu = 90
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]cpu\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]cpu_boost_on\f[R]
+.IP \[bu] 2
+\f[CR]cpu_boost_off\f[R]
+.SS custom
+The output of a custom shell command
+.PP
+For further customisation, use the \f[CR]json\f[R] option and have the
+shell command output valid JSON in the schema below:
+.IP
+.EX
+{\[dq]icon\[dq]: \[dq]...\[dq], \[dq]state\[dq]: \[dq]...\[dq], \[dq]text\[dq]: \[dq]...\[dq], \[dq]short_text\[dq]: \[dq]...\[dq]}
+.EE
+.PP
+\f[CR]icon\f[R] is optional (default \[lq]\[lq]) \f[CR]state\f[R] is
+optional, it may be Idle, Info, Good, Warning, Critical (default Idle)
+\f[CR]short_text\f[R] is optional.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq]{ $icon|} $text.pango\-str() \[dq]
+T}
+T{
+\f[CR]command\f[R]
+T}@T{
+Shell command to execute & display
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]persistent\f[R]
+T}@T{
+Run command in the background; update display for each output line of
+the command
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]cycle\f[R]
+T}@T{
+Commands to execute and change when the button is clicked
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds (or \[lq]once\[rq] to update only once)
+T}@T{
+\f[CR]10\f[R]
+T}
+T{
+\f[CR]json\f[R]
+T}@T{
+Use JSON from command output to format the block.
+If the JSON is not valid, the block will error out.
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]watch_files\f[R]
+T}@T{
+Watch files to trigger update on file modification.
+Supports path expansions e.g.\ \f[CR]\[ti]\f[R].
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]hide_when_empty\f[R]
+T}@T{
+Hides the block when the command output (or json text field) is empty
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]shell\f[R]
+T}@T{
+Specify the shell to use when running commands
+T}@T{
+\f[CR]$SHELL\f[R] if set, otherwise fallback to \f[CR]sh\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(11.9n) lw(42.0n) lw(5.6n) lw(10.5n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Value of icon field from JSON output when it\[cq]s non\-empty
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]text\f[R]
+T}@T{
+Output of the script or text field from JSON output
+T}@T{
+Text
+T}@T{
+T}
+T{
+\f[CR]short_text\f[R]
+T}@T{
+short_text field from JSON output
+T}@T{
+Text
+T}@T{
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]cycle\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Examples
+Display temperature, update every 10 seconds:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]custom\[dq]
+command = \[aq]\[aq]\[aq] cat /sys/class/thermal/thermal_zone0/temp | awk \[aq]{printf(\[dq]%.1f\[rs]n\[dq],$1/1000)}\[aq] \[aq]\[aq]\[aq]
+.EE
+.PP
+Cycle between \[lq]ON\[rq] and \[lq]OFF\[rq], update every 1 second, run
+next cycle command when block is clicked:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]custom\[dq]
+cycle = [\[dq]echo ON\[dq], \[dq]echo OFF\[dq]]
+interval = 1
+\f[B][[block.click]]\f[R]
+button = \[dq]left\[dq]
+action = \[dq]cycle\[dq]
+.EE
+.PP
+Use JSON output:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]custom\[dq]
+command = \[dq]echo \[aq]{\[rs]\[dq]icon\[rs]\[dq]:\[rs]\[dq]weather_thunder\[rs]\[dq],\[rs]\[dq]state\[rs]\[dq]:\[rs]\[dq]Critical\[rs]\[dq], \[rs]\[dq]text\[rs]\[dq]: \[rs]\[dq]Danger!\[rs]\[dq]}\[aq]\[dq]
+json = true
+.EE
+.PP
+Display kernel, update the block only once:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]custom\[dq]
+command = \[dq]uname \-r\[dq]
+interval = \[dq]once\[dq]
+.EE
+.PP
+Display the screen brightness on an intel machine and update this only
+when \f[CR]pkill \-SIGRTMIN+4 i3status\-rs\f[R] is called:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]custom\[dq]
+command = \[aq]\[aq]\[aq] cat /sys/class/backlight/intel_backlight/brightness | awk \[aq]{print $1}\[aq] \[aq]\[aq]\[aq]
+signal = 4
+interval = \[dq]once\[dq]
+.EE
+.PP
+Update block when one or more specified files are modified:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]custom\[dq]
+command = \[dq]cat custom_status\[dq]
+watch_files = [\[dq]custom_status\[dq]]
+interval = \[dq]once\[dq]
+.EE
+.SS TODO:
+.IP \[bu] 2
+Use \f[CR]shellexpand\f[R]
+.SS custom_dbus
+A block controlled by the DBus
+.PP
+This block creates a new DBus object in \f[CR]rs.i3status\f[R] service.
+This object implements \f[CR]rs.i3status.custom\f[R] interface which
+allows you to set block\[cq]s icon, text and state.
+.PP
+Output of
+\f[CR]busctl \-\-user introspect rs.i3status /<path> rs.i3status.custom\f[R]:
+.IP
+.EX
+NAME                                TYPE      SIGNATURE RESULT/VALUE FLAGS
+rs.i3status.custom                  interface \-         \-            \-
+\&.SetIcon                            method    s         s            \-
+\&.SetState                           method    s         s            \-
+\&.SetText                            method    ss        s            \-
+.EE
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+T}@T{
+\[dq]{ $icon|}{ $text.pango\-str()|} \[dq]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(8.8n) lw(45.5n) lw(5.4n) lw(10.2n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Value of icon set via \f[CR]SetIcon\f[R] if the value is non\-empty
+string.
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]text\f[R]
+T}@T{
+Value of the first string from SetText
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]short_text\f[R]
+T}@T{
+Value of the second string from SetText
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.SS Example
+Config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]custom_dbus\[dq]
+path = \[dq]/my_path\[dq]
+.EE
+.PP
+Usage:
+.IP
+.EX
+\f[I]### set full text to \[aq]hello\[aq] and short text to \[aq]hi\[aq]\f[R]
+busctl \-\-user call rs.i3status /my_path rs.i3status.custom SetText ss hello hi
+\f[I]### set icon to \[aq]music\[aq]\f[R]
+busctl \-\-user call rs.i3status /my_path rs.i3status.custom SetIcon s music
+\f[I]### set state to \[aq]good\[aq]\f[R]
+busctl \-\-user call rs.i3status /my_path rs.i3status.custom SetState s good
+.EE
+.PP
+Because it\[cq]s impossible to publish objects to the same name from
+different processes, having multiple dbus blocks in different bars
+won\[cq]t work.
+As a workaround, you can set the env var \f[CR]I3RS_DBUS_NAME\f[R] to
+set the interface a bar works on to differentiate between different
+processes.
+For example, setting this to `top', will allow you to use
+\f[CR]rs.i3status.top\f[R].
+.SS TODO
+.IP \[bu] 2
+Send a signal on click?
+.SS disk_iostats
+Disk I/O statistics
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]device\f[R]
+T}@T{
+Block device or partition name to monitor (as specified in
+\f[CR]/dev/\f[R])
+T}@T{
+If not set, device will be automatically selected every
+\f[CR]interval\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $speed_read.eng(prefix:K) $speed_write.eng(prefix:K) \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]2\f[R]
+T}
+T{
+\f[CR]missing_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when the device is missing
+T}@T{
+\f[CR]\[dq] × \[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]device\f[R]
+T}@T{
+The name of device
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]speed_read\f[R]
+T}@T{
+Read speed
+T}@T{
+Number
+T}@T{
+Bytes per second
+T}
+T{
+\f[CR]speed_write\f[R]
+T}@T{
+Write speed
+T}@T{
+Number
+T}@T{
+Bytes per second
+T}
+.TE
+.SS Examples
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]disk_iostats\[dq]
+device = \[dq]sda\[dq]
+format = \[dq] $icon $speed_write.eng(prefix:K) \[dq]
+.EE
+.PP
+Use labeled Games partition via persistent device names from
+/dev/disk/by\-*/
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]disk_iostats\[dq]
+device = \[dq]disk/by\-partlabel/Games\[dq]
+format = \[dq] $icon $speed_write.eng(prefix:K) \[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]disk_drive\f[R]
+.SS disk_space
+Disk usage statistics
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]path\f[R]
+T}@T{
+Path to collect information from.
+Supports path expansions e.g.\ \f[CR]\[ti]\f[R].
+T}@T{
+\f[CR]\[dq]/\[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update time in seconds
+T}@T{
+\f[CR]20\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $available \[dq]\f[R]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]warning\f[R]
+T}@T{
+A value which will trigger warning block state
+T}@T{
+\f[CR]20.0\f[R]
+T}
+T{
+\f[CR]alert\f[R]
+T}@T{
+A value which will trigger critical block state
+T}@T{
+\f[CR]10.0\f[R]
+T}
+T{
+\f[CR]info_type\f[R]
+T}@T{
+Determines which information will affect the block state.
+Possible values are \f[CR]\[dq]available\[dq]\f[R],
+\f[CR]\[dq]free\[dq]\f[R] and \f[CR]\[dq]used\[dq]\f[R]
+T}@T{
+\f[CR]\[dq]available\[dq]\f[R]
+T}
+T{
+\f[CR]alert_unit\f[R]
+T}@T{
+The unit of \f[CR]alert\f[R] and \f[CR]warning\f[R] options.
+If not set, percents are used.
+Possible values are \f[CR]\[dq]B\[dq]\f[R], \f[CR]\[dq]KB\[dq]\f[R],
+\f[CR]\[dq]KiB\[dq]\f[R], \f[CR]\[dq]MB\[dq]\f[R],
+\f[CR]\[dq]MiB\[dq]\f[R], \f[CR]\[dq]GB\[dq]\f[R],
+\f[CR]\[dq]Gib\[dq]\f[R], \f[CR]\[dq]TB\[dq]\f[R] and
+\f[CR]\[dq]TiB\[dq]\f[R]
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]backend\f[R]
+T}@T{
+The backend to use when querying disk usage.
+Possible values are \f[CR]\[dq]vfs\[dq]\f[R] (like \f[CR]du(1)\f[R]) and
+\f[CR]\[dq]btrfs\[dq]\f[R]
+T}@T{
+\f[CR]\[dq]vfs\[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(9.5n) lw(49.6n) lw(5.8n) lw(5.1n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]path\f[R]
+T}@T{
+The value of \f[CR]path\f[R] option
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]percentage\f[R]
+T}@T{
+Free or used percentage.
+Depends on \f[CR]info_type\f[R]
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]total\f[R]
+T}@T{
+Total disk space
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]used\f[R]
+T}@T{
+Used disk space
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]free\f[R]
+T}@T{
+Free disk space
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]available\f[R]
+T}@T{
+Available disk space (free disk space minus reserved system space)
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Examples
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]disk_space\[dq]
+info_type = \[dq]available\[dq]
+alert_unit = \[dq]GB\[dq]
+alert = 10.0
+warning = 15.0
+format = \[dq] $icon $available \[dq]
+format_alt = \[dq] $icon $available / $total \[dq]
+.EE
+.PP
+Update block on right click:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]disk_space\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]right\[dq]
+update = true
+.EE
+.PP
+Show the block only if less than 10GB is available:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]disk_space\[dq]
+format = \[dq] $free.eng(range:..10e9) |\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]disk_drive\f[R]
+.SS docker
+Local docker daemon status
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval, in seconds.
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $running.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]socket_path\f[R]
+T}@T{
+The path to the docker socket.
+Supports path expansions e.g.\ \f[CR]\[ti]\f[R].
+T}@T{
+\f[CR]\[dq]/var/run/docker.sock\[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Key
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]total\f[R]
+T}@T{
+Total containers on the host
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]running\f[R]
+T}@T{
+Containers running on the host
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]stopped\f[R]
+T}@T{
+Containers stopped on the host
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]paused\f[R]
+T}@T{
+Containers paused on the host
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]images\f[R]
+T}@T{
+Total images on the host
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]docker\[dq]
+interval = 2
+format = \[dq] $icon $running/$total \[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]docker\f[R]
+.SS external_ip
+External IP address and various information about it
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $ip $country_flag \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Interval in seconds for automatic updates
+T}@T{
+\f[CR]300\f[R]
+T}
+T{
+\f[CR]with_network_manager\f[R]
+T}@T{
+If `true', listen for NetworkManager events and update the IP
+immediately if there was a change
+T}@T{
+\f[CR]true\f[R]
+T}
+T{
+\f[CR]use_ipv4\f[R]
+T}@T{
+If `true', use IPv4 for obtaining all info
+T}@T{
+\f[CR]false\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(14.6n) lw(20.4n) lw(17.5n) lw(17.5n).
+T{
+Key
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]ip\f[R]
+T}@T{
+The external IP address, as seen from a remote server
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]version\f[R]
+T}@T{
+IPv4 or IPv6
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]city\f[R]
+T}@T{
+City name, such as \[lq]San Francisco\[rq]
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]region\f[R]
+T}@T{
+Region name, such as \[lq]California\[rq]
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]region_code\f[R]
+T}@T{
+Region code, such as \[lq]CA\[rq] for California
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country\f[R]
+T}@T{
+Country code (2 letter, ISO 3166\-1 alpha\-2)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_name\f[R]
+T}@T{
+Short country name
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_code\f[R]
+T}@T{
+Country code (2 letter, ISO 3166\-1 alpha\-2)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_code_iso3\f[R]
+T}@T{
+Country code (3 letter, ISO 3166\-1 alpha\-3)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_capital\f[R]
+T}@T{
+Capital of the country
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_tld\f[R]
+T}@T{
+Country specific TLD (top\-level domain)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]continent_code\f[R]
+T}@T{
+Continent code
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]in_eu\f[R]
+T}@T{
+Region code, such as \[lq]CA\[rq]
+T}@T{
+Flag
+T}@T{
+\-
+T}
+T{
+\f[CR]postal\f[R]
+T}@T{
+ZIP / Postal code
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]latitude\f[R]
+T}@T{
+Latitude
+T}@T{
+Number
+T}@T{
+\- (TODO: make degrees?)
+T}
+T{
+\f[CR]longitude\f[R]
+T}@T{
+Longitude
+T}@T{
+Number
+T}@T{
+\- (TODO: make degrees?)
+T}
+T{
+\f[CR]timezone\f[R]
+T}@T{
+City
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]utc_offset\f[R]
+T}@T{
+UTC offset (with daylight saving time) as +HHMM or \-HHMM (HH is hours,
+MM is minutes)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_calling_code\f[R]
+T}@T{
+Country calling code (dial in code, comma separated)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]currency\f[R]
+T}@T{
+Currency code (ISO 4217)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]currency_name\f[R]
+T}@T{
+Currency name
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]languages\f[R]
+T}@T{
+Languages spoken (comma separated 2 or 3 letter ISO 639 code with
+optional hyphen separated country suffix)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_area\f[R]
+T}@T{
+Area of the country (in sq km)
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]country_population\f[R]
+T}@T{
+Population of the country
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]timezone\f[R]
+T}@T{
+Time zone
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]org\f[R]
+T}@T{
+Organization
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]asn\f[R]
+T}@T{
+Autonomous system (AS)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]country_flag\f[R]
+T}@T{
+Flag of the country
+T}@T{
+Text (glyph)
+T}@T{
+\-
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]external_ip\[dq]
+format = \[dq] $ip $country_code \[dq]
+.EE
+.SS Notes
+All the information comes from \c
+.UR https://ipapi.co/json/
+.UE \c
+\ Check their documentation here: \c
+.UR https://ipapi.co/api/#complete-location5
+.UE \c
+.PP
+The IP is queried, 1) When i3status\-rs starts, 2) When a signal is
+received on D\-Bus about a network configuration change, 3) Every 5
+minutes.
+This periodic refresh exists to catch IP updates that don\[cq]t trigger
+a notification, for example due to a IP refresh at the router.
+.PP
+Flags: They are not icons but unicode glyphs.
+You will need a font that includes them.
+Tested with: \c
+.UR https://www.babelstone.co.uk/Fonts/Flags.html
+.UE \c
+.SS focused_window
+Currently focused window
+.PP
+This block displays the title and/or the active marks (when used with
+\f[CR]sway\f[R]/\f[CR]i3\f[R]) of the currently focused window.
+Supported WMs are: \f[CR]sway\f[R], \f[CR]i3\f[R] and most
+wlroots\-based compositors.
+See \f[CR]driver\f[R] option for more info.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq] $title.str(max_w:21) |\[dq]
+T}
+T{
+\f[CR]driver\f[R]
+T}@T{
+Which driver to use.
+Available values: \f[CR]sway_ipc\f[R] \- for \f[CR]i3\f[R] and
+\f[CR]sway\f[R], \f[CR]wlr_toplevel_management\f[R] \- for Wayland
+compositors that implement \c
+.UR https://gitlab.freedesktop.org/wlroots/wlr-protocols/-/blob/master/unstable/wlr-foreign-toplevel-management-unstable-v1.xml
+wlr\-foreign\-toplevel\-management\-unstable\-v1
+.UE \c
+, \f[CR]auto\f[R] \- try to automatically guess which driver to use.
+T}@T{
+\f[CR]\[dq]auto\[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(11.4n) lw(50.7n) lw(4.3n) lw(3.6n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]title\f[R]
+T}@T{
+Window\[cq]s title (may be absent)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]marks\f[R]
+T}@T{
+Window\[cq]s marks (present only with sway/i3)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]visible_marks\f[R]
+T}@T{
+Window\[cq]s marks that do not start with \f[CR]_\f[R] (present only
+with sway/i3)
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]focused_window\[dq]
+\f[B][block.format]\f[R]
+full = \[dq] $title.str(max_w:15) |\[dq]
+short = \[dq] $title.str(max_w:10) |\[dq]
+.EE
+.PP
+This example instead of hiding block when the window\[cq]s title is
+empty displays \[lq]Missing\[rq]
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]focused_window\[dq]
+format = \[dq] $title.str(0,21) | Missing \[dq]
+.EE
+.SS github
+The number of GitHub notifications
+.PP
+This block shows the unread notification count for a GitHub account.
+A GitHub \c
+.UR https://github.com/settings/tokens/new
+personal access token
+.UE \c
+\ with the \[lq]notifications\[rq] scope is required, and must be passed
+using the \f[CR]I3RS_GITHUB_TOKEN\f[R] environment variable or
+\f[CR]token\f[R] configuration option.
+Optionally the colour of the block is determined by the highest
+notification in the following lists from highest to lowest:
+\f[CR]critical\f[R],\f[CR]warning\f[R],\f[CR]info\f[R],\f[CR]good\f[R]
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $total.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]30\f[R]
+T}
+T{
+\f[CR]token\f[R]
+T}@T{
+A GitHub personal access token with the \[lq]notifications\[rq] scope
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]hide_if_total_is_zero\f[R]
+T}@T{
+Hide this block if the total count of notifications is zero
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]critical\f[R]
+T}@T{
+List of notification types that change the block to the critical colour
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]warning\f[R]
+T}@T{
+List of notification types that change the block to the warning colour
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]info\f[R]
+T}@T{
+List of notification types that change the block to the info colour
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]good\f[R]
+T}@T{
+List of notification types that change the block to the good colour
+T}@T{
+\f[CR]None\f[R]
+T}
+.TE
+.PP
+All the placeholders are numbers without a unit.
+.PP
+.TS
+tab(@);
+lw(53.2n) lw(16.8n).
+T{
+Placeholder
+T}@T{
+Value
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}
+T{
+\f[CR]total\f[R]
+T}@T{
+The total number of notifications
+T}
+T{
+\f[CR]assign\f[R]
+T}@T{
+You were assigned to the issue
+T}
+T{
+\f[CR]author\f[R]
+T}@T{
+You created the thread
+T}
+T{
+\f[CR]comment\f[R]
+T}@T{
+You commented on the thread
+T}
+T{
+\f[CR]ci_activity\f[R]
+T}@T{
+A GitHub Actions workflow run that you triggered was completed
+T}
+T{
+\f[CR]invitation\f[R]
+T}@T{
+You accepted an invitation to contribute to the repository
+T}
+T{
+\f[CR]manual\f[R]
+T}@T{
+You subscribed to the thread (via an issue or pull request)
+T}
+T{
+\f[CR]mention\f[R]
+T}@T{
+You were specifically \[at]mentioned in the content
+T}
+T{
+\f[CR]review_requested\f[R]
+T}@T{
+You, or a team you\[cq]re a member of, were requested to review a pull
+request
+T}
+T{
+\f[CR]security_alert\f[R]
+T}@T{
+GitHub discovered a security vulnerability in your repository
+T}
+T{
+\f[CR]state_change\f[R]
+T}@T{
+You changed the thread state (for example, closing an issue or merging a
+pull request)
+T}
+T{
+\f[CR]subscribed\f[R]
+T}@T{
+You\[cq]re watching the repository
+T}
+T{
+\f[CR]team_mention\f[R]
+T}@T{
+You were on a team that was mentioned
+T}
+.TE
+.SS Examples
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]github\[dq]
+format = \[dq] $icon $total.eng(w:1)|$mention.eng(w:1) \[dq]
+interval = 60
+token = \[dq]...\[dq]
+.EE
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]github\[dq]
+token = \[dq]...\[dq]
+format = \[dq] $icon $total.eng(w:1) \[dq]
+info = [\[dq]total\[dq]]
+warning = [\[dq]mention\[dq],\[dq]review_requested\[dq]]
+hide_if_total_is_zero = true
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]github\f[R]
+.SS hueshift
+Manage display temperature
+.PP
+This block displays the current color temperature in Kelvin.
+When scrolling upon the block the color temperature is changed.
+A left click on the block sets the color temperature to
+\f[CR]click_temp\f[R] that is by default to \f[CR]6500K\f[R].
+A right click completely resets the color temperature to its default
+value (\f[CR]6500K\f[R]).
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $temperature \[dq]\f[R]
+T}
+T{
+\f[CR]step\f[R]
+T}@T{
+The step color temperature is in/decreased in Kelvin.
+T}@T{
+\f[CR]100\f[R]
+T}
+T{
+\f[CR]hue_shifter\f[R]
+T}@T{
+Program used to control screen color.
+T}@T{
+Detect automatically
+T}
+T{
+\f[CR]max_temp\f[R]
+T}@T{
+Max color temperature in Kelvin.
+T}@T{
+\f[CR]10000\f[R]
+T}
+T{
+\f[CR]min_temp\f[R]
+T}@T{
+Min color temperature in Kelvin.
+T}@T{
+\f[CR]1000\f[R]
+T}
+T{
+\f[CR]click_temp\f[R]
+T}@T{
+Left click color temperature in Kelvin.
+T}@T{
+\f[CR]6500\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(20.5n) lw(28.0n) lw(7.5n) lw(14.0n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]temperature\f[R]
+T}@T{
+Current temperature
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]set_click_temp\f[R]
+T}@T{
+Left
+T}
+T{
+\f[CR]reset\f[R]
+T}@T{
+Right
+T}
+T{
+\f[CR]temperature_up\f[R]
+T}@T{
+Wheel Up
+T}
+T{
+\f[CR]temperature_down\f[R]
+T}@T{
+Wheel Down
+T}
+.TE
+.SS Available Hue Shifters
+.PP
+.TS
+tab(@);
+l l.
+T{
+Name
+T}@T{
+Supports
+T}
+_
+T{
+\f[CR]\[dq]redshift\[dq]\f[R]
+T}@T{
+X11
+T}
+T{
+\f[CR]\[dq]sct\[dq]\f[R]
+T}@T{
+X11
+T}
+T{
+\f[CR]\[dq]gammastep\[dq]\f[R]
+T}@T{
+X11 and Wayland
+T}
+T{
+\f[CR]\[dq]wl_gammarelay\[dq]\f[R]
+T}@T{
+Wayland
+T}
+T{
+\f[CR]\[dq]wl_gammarelay_rs\[dq]\f[R]
+T}@T{
+Wayland
+T}
+T{
+\f[CR]\[dq]wlsunset\[dq]\f[R]
+T}@T{
+Wayland
+T}
+.TE
+.PP
+Note that at the moment, only \c
+.UR https://github.com/jeremija/wl-gammarelay
+\f[CR]wl_gammarelay\f[R]
+.UE \c
+\ and \c
+.UR https://github.com/MaxVerevkin/wl-gammarelay-rs
+\f[CR]wl_gammarelay_rs\f[R]
+.UE \c
+\ subscribe to the events and update the bar when the temperature is
+modified externally.
+Also, these are the only drivers at the moment that work under Wayland
+without flickering.
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]hueshift\[dq]
+hue_shifter = \[dq]redshift\[dq]
+step = 50
+click_temp = 3500
+.EE
+.PP
+A hard limit is set for the \f[CR]max_temp\f[R] to \f[CR]10000K\f[R] and
+the same for the \f[CR]min_temp\f[R] which is \f[CR]1000K\f[R].
+The \f[CR]step\f[R] has a hard limit as well, defined to \f[CR]500K\f[R]
+to avoid too brutal changes.
+.SS kdeconnect
+\c
+.UR https://community.kde.org/KDEConnect
+KDEConnect
+.UE \c
+\ indicator
+.PP
+Display info from the currently connected device in KDEConnect, updated
+asynchronously.
+.PP
+Block colours are updated based on the battery level, unless all bat_*
+thresholds are set to 0, in which case the block colours will depend on
+the notification count instead.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]device_id\f[R]
+T}@T{
+Device ID as per the output of \f[CR]kdeconnect \-\-list\-devices\f[R].
+T}@T{
+Chooses the first found device, if any.
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq] $icon $name{ $bat_icon $bat_charge|}{ $notif_icon|} \[dq]
+T}
+T{
+\f[CR]format_disconnected\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but when device is disconnected
+T}@T{
+\f[CR]\[dq] $icon \[dq]\f[R]
+T}
+T{
+\f[CR]format_missing\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but when device does not exist
+T}@T{
+\f[CR]\[dq] $icon x \[dq]\f[R]
+T}
+T{
+\f[CR]bat_info\f[R]
+T}@T{
+Min battery level below which state is set to info.
+T}@T{
+\f[CR]60\f[R]
+T}
+T{
+\f[CR]bat_good\f[R]
+T}@T{
+Min battery level below which state is set to good.
+T}@T{
+\f[CR]60\f[R]
+T}
+T{
+\f[CR]bat_warning\f[R]
+T}@T{
+Min battery level below which state is set to warning.
+T}@T{
+\f[CR]30\f[R]
+T}
+T{
+\f[CR]bat_critical\f[R]
+T}@T{
+Min battery level below which state is set to critical.
+T}@T{
+\f[CR]15\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(12.5n) lw(48.9n) lw(5.3n) lw(3.3n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on connection\[cq]s status
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]bat_icon\f[R]
+T}@T{
+Battery level indicator (only when connected and if supported)
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]bat_charge\f[R]
+T}@T{
+Battery charge level (only when connected and if supported)
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]network_icon\f[R]
+T}@T{
+Cell Network indicator (only when connected and if supported)
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]network_type\f[R]
+T}@T{
+Cell Network type (only when connected and if supported)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]network_strength\f[R]
+T}@T{
+Cell Network level (only when connected and if supported)
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]notif_icon\f[R]
+T}@T{
+Only when connected and there are notifications
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]notif_count\f[R]
+T}@T{
+Number of notifications on your phone (only when connected and
+non\-zero)
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]name\f[R]
+T}@T{
+Name of your device as reported by KDEConnect (if available)
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.SS Example
+Do not show the name, do not set the \[lq]good\[rq] state.
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]kdeconnect\[dq]
+format = \[dq] $icon {$bat_icon $bat_charge |}{$notif_icon |}{$network_icon$network_strength $network_type |}\[dq]
+bat_good = 101
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]bat\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]bat_charging\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]net_cellular\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]notification\f[R]
+.IP \[bu] 2
+\f[CR]phone\f[R]
+.IP \[bu] 2
+\f[CR]phone_disconnected\f[R]
+.SS keyboard_layout
+Keyboard layout indicator
+.PP
+Six drivers are available: \- \f[CR]xkbevent\f[R] which can read
+asynchronous updates from the x11 events \- \f[CR]setxkbmap\f[R] (alias
+for \f[CR]xkbevent\f[R]) \f[I]DEPRECATED\f[R] \- \f[CR]xkbswitch\f[R]
+(alias for \f[CR]xkbevent\f[R]) \f[I]DEPRECATED\f[R] \-
+\f[CR]localebus\f[R] which can read asynchronous updates from the
+systemd \f[CR]org.freedesktop.locale1\f[R] D\-Bus path \-
+\f[CR]kbddbus\f[R] which uses \c
+.UR https://github.com/qnikst/kbdd
+kbdd
+.UE \c
+\ to monitor per\-window layout changes via DBus \- \f[CR]sway\f[R]
+which can read asynchronous updates from the sway IPC
+.PP
+\f[CR]setxkbmap\f[R] and \f[CR]xkbswitch\f[R] are deprecated and will be
+removed in v0.35.0.
+.PP
+Which of these methods is appropriate will depend on your system setup.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]driver\f[R]
+T}@T{
+One of \f[CR]\[dq]xkbevent\[dq]\f[R], \f[CR]\[dq]setxkbmap\[dq]\f[R],
+\f[CR]\[dq]xkbswitch\[dq]\f[R], \f[CR]\[dq]localebus\[dq]\f[R],
+\f[CR]\[dq]kbddbus\[dq]\f[R] or \f[CR]\[dq]sway\[dq]\f[R], depending on
+your system.
+T}@T{
+\f[CR]\[dq]xkbevent\[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R] \f[I]DEPRECATED\f[R]
+T}@T{
+Update interval, in seconds.
+Only used by the \f[CR]\[dq]setxkbmap\[dq]\f[R] driver.
+T}@T{
+\f[CR]60\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $layout \[dq]\f[R]
+T}
+T{
+\f[CR]sway_kb_identifier\f[R]
+T}@T{
+Identifier of the device you want to monitor, as found in the output of
+\f[CR]swaymsg \-t get_inputs\f[R].
+T}@T{
+Defaults to first input found
+T}
+T{
+\f[CR]mappings\f[R]
+T}@T{
+Map \f[CR]layout (variant)\f[R] to custom short name.
+T}@T{
+\f[CR]None\f[R]
+T}
+.TE
+.PP
+\f[CR]interval\f[R] is deprecated and will be removed in v0.35.0.
+.PP
+.TS
+tab(@);
+l l l.
+T{
+Key
+T}@T{
+Value
+T}@T{
+Type
+T}
+_
+T{
+\f[CR]layout\f[R]
+T}@T{
+Keyboard layout name
+T}@T{
+String
+T}
+T{
+\f[CR]variant\f[R]
+T}@T{
+Keyboard variant name or \f[CR]N/A\f[R] if not applicable
+T}@T{
+String
+T}
+.TE
+.SS Examples
+Listen to D\-Bus for changes:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]keyboard_layout\[dq]
+driver = \[dq]localebus\[dq]
+.EE
+.PP
+Listen to kbdd for changes, the text is in the following format:
+\[lq]English (US)\[rq] \- {$layout ($variant)} use block.mappings to
+override with shorter names as shown below.
+Also use format = \[rq] $layout ($variant) \[rq] to see the full text to
+map, or you can use: dbus\-monitor interface=ru.gentoo.kbdd to see the
+exact variant spelling
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]keyboard_layout\[dq]
+driver = \[dq]kbddbus\[dq]
+\f[B][block.mappings]\f[R]
+\[dq]English (US)\[dq] = \[dq]us\[dq]
+\[dq]Bulgarian (new phonetic)\[dq] = \[dq]bg\[dq]
+.EE
+.PP
+Listen to sway for changes:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]keyboard_layout\[dq]
+driver = \[dq]sway\[dq]
+sway_kb_identifier = \[dq]1133:49706:Gaming_Keyboard_G110\[dq]
+.EE
+.PP
+Listen to sway for changes and override mappings:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]keyboard_layout\[dq]
+driver = \[dq]sway\[dq]
+format = \[dq] $layout \[dq]
+\f[B][block.mappings]\f[R]
+\[dq]English (Workman)\[dq] = \[dq]EN\[dq]
+\[dq]Russian (N/A)\[dq] = \[dq]RU\[dq]
+.EE
+.PP
+Listen to xkb events for changes:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]keyboard_layout\[dq]
+driver = \[dq]xkbevent\[dq]
+.EE
+.SS load
+System load average
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(7.3n) lw(57.5n) lw(5.3n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $1m.eng(w:4) \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]3\f[R]
+T}
+T{
+\f[CR]info\f[R]
+T}@T{
+Minimum load, where state is set to info
+T}@T{
+\f[CR]0.3\f[R]
+T}
+T{
+\f[CR]warning\f[R]
+T}@T{
+Minimum load, where state is set to warning
+T}@T{
+\f[CR]0.6\f[R]
+T}
+T{
+\f[CR]critical\f[R]
+T}@T{
+Minimum load, where state is set to critical
+T}@T{
+\f[CR]0.9\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]1m\f[R]
+T}@T{
+1 minute load average
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]5m\f[R]
+T}@T{
+5 minute load average
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]15m\f[R]
+T}@T{
+15 minute load average
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]load\[dq]
+format = \[dq] $icon 1min avg: $1m.eng(w:4) \[dq]
+interval = 1
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]cogs\f[R]
+.SS maildir
+Unread mail.
+Only supports maildir format.
+.PP
+Note that you need to enable \f[CR]maildir\f[R] feature to use this
+block:
+.IP
+.EX
+cargo build \-\-release \-\-features maildir
+.EE
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $status \[dq]\f[R]
+T}
+T{
+\f[CR]inboxes\f[R]
+T}@T{
+List of maildir inboxes to look for mails in.
+Supports path/glob expansions (e.g.\ \f[CR]\[ti]\f[R] and \f[CR]*\f[R]).
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]threshold_warning\f[R]
+T}@T{
+Number of unread mails where state is set to warning.
+T}@T{
+\f[CR]1\f[R]
+T}
+T{
+\f[CR]threshold_critical\f[R]
+T}@T{
+Number of unread mails where state is set to critical.
+T}@T{
+\f[CR]10\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval, in seconds.
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]display_type\f[R]
+T}@T{
+Which part of the maildir to count: \f[CR]\[dq]new\[dq]\f[R],
+\f[CR]\[dq]cur\[dq]\f[R], or \f[CR]\[dq]all\[dq]\f[R].
+T}@T{
+\f[CR]\[dq]new\[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]status\f[R]
+T}@T{
+Number of emails
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.SS Examples
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]maildir\[dq]
+interval = 60
+inboxes = [\[dq]\[ti]/mail/local\[dq], \[dq]\[ti]/maildir/account1/*\[dq]]
+threshold_warning = 1
+threshold_critical = 10
+display_type = \[dq]new\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]mail\f[R]
+.SS memory
+Memory and swap usage
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block when in \[lq]Memory\[rq]
+view.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $mem_used.eng(prefix:Mi)/$mem_total.eng(prefix:Mi)($mem_used_percents.eng(w:2)) \[dq]\f[R]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]warning_mem\f[R]
+T}@T{
+Percentage of memory usage, where state is set to warning
+T}@T{
+\f[CR]80.0\f[R]
+T}
+T{
+\f[CR]warning_swap\f[R]
+T}@T{
+Percentage of swap usage, where state is set to warning
+T}@T{
+\f[CR]80.0\f[R]
+T}
+T{
+\f[CR]critical_mem\f[R]
+T}@T{
+Percentage of memory usage, where state is set to critical
+T}@T{
+\f[CR]95.0\f[R]
+T}
+T{
+\f[CR]critical_swap\f[R]
+T}@T{
+Percentage of swap usage, where state is set to critical
+T}@T{
+\f[CR]95.0\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(14.9n) lw(46.5n) lw(4.6n) lw(4.0n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Memory icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]icon_swap\f[R]
+T}@T{
+Swap icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]mem_total\f[R]
+T}@T{
+Total physical ram available
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]mem_free\f[R]
+T}@T{
+Free memory not yet used by the kernel or userspace (in general you
+should use mem_avail)
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]mem_free_percents\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]mem_avail\f[R]
+T}@T{
+Kernel estimate of usable free memory which includes cached memory and
+buffers
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]mem_avail_percents\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]mem_total_used\f[R]
+T}@T{
+mem_total \- mem_free
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]mem_total_used_percents\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]mem_used\f[R]
+T}@T{
+Memory used, excluding cached memory and buffers; same as htop\[cq]s
+green bar
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]mem_used_percents\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]buffers\f[R]
+T}@T{
+Buffers, similar to htop\[cq]s blue bar
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]buffers_percent\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]cached\f[R]
+T}@T{
+Cached memory (taking into account ZFS ARC cache), similar to htop\[cq]s
+yellow bar
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]cached_percent\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]swap_total\f[R]
+T}@T{
+Swap total
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]swap_free\f[R]
+T}@T{
+Swap free
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]swap_free_percents\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]swap_used\f[R]
+T}@T{
+Swap used
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]swap_used_percents\f[R]
+T}@T{
+as above but as a percentage of total memory
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]zram_compressed\f[R]
+T}@T{
+Compressed zram memory usage
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]zram_decompressed\f[R]
+T}@T{
+Decompressed zram memory usage
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+`zram_comp_ratio'
+T}@T{
+Ratio of the decompressed/compressed zram memory
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]zswap_compressed\f[R]
+T}@T{
+Compressed zswap memory usage (>=Linux 5.19)
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]zswap_decompressed\f[R]
+T}@T{
+Decompressed zswap memory usage (>=Linux 5.19)
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]zswap_decompressed_percents\f[R]
+T}@T{
+as above but as a percentage of total zswap memory (>=Linux 5.19)
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+`zswap_comp_ratio'
+T}@T{
+Ratio of the decompressed/compressed zswap memory (>=Linux 5.19)
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Examples
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]memory\[dq]
+format = \[dq] $icon $mem_used_percents.eng(w:1) \[dq]
+format_alt = \[dq] $icon_swap $swap_free.eng(w:3,u:B,p:Mi)/$swap_total.eng(w:3,u:B,p:Mi)($swap_used_percents.eng(w:2)) \[dq]
+interval = 30
+warning_mem = 70
+critical_mem = 90
+.EE
+.PP
+Show swap and hide if it is zero:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]memory\[dq]
+format = \[dq] $icon $swap_used.eng(range:1..) |\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]memory_mem\f[R]
+.IP \[bu] 2
+\f[CR]memory_swap\f[R]
+.SS menu
+A custom menu
+.PP
+This block allows you to quickly run a custom shell command.
+Left\-click on this block to activate it, then scroll through configured
+items.
+Left\-click on the item to run it and optionally confirm your action by
+left\-clicking again.
+Right\-click any time to deactivate this block.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]text\f[R]
+T}@T{
+Text that will be displayed when the block is inactive.
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]items\f[R]
+T}@T{
+A list of \[lq]items\[rq].
+See examples below.
+T}@T{
+\f[B]Required\f[R]
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]menu\[dq]
+text = \[dq]\[rs]uf011\[dq]
+\f[B][[block.items]]\f[R]
+display = \[dq] \-&gt;   Sleep   &lt;\-\[dq]
+cmd = \[dq]systemctl suspend\[dq]
+\f[B][[block.items]]\f[R]
+display = \[dq] \-&gt; Power Off &lt;\-\[dq]
+cmd = \[dq]poweroff\[dq]
+confirm_msg = \[dq]Are you sure you want to power off?\[dq]
+\f[B][[block.items]]\f[R]
+display = \[dq] \-&gt;  Reboot   &lt;\-\[dq]
+cmd = \[dq]reboot\[dq]
+confirm_msg = \[dq]Are you sure you want to reboot?\[dq]
+.EE
+.SS music
+The current song title and artist
+.PP
+Also provides buttons for play/pause, previous and next.
+.PP
+Supports all music players that implement the \c
+.UR https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
+MediaPlayer2 Interface
+.UE \c
+\&.
+This includes:
+.IP \[bu] 2
+Spotify
+.IP \[bu] 2
+VLC
+.IP \[bu] 2
+mpd (via \c
+.UR https://github.com/eonpatapon/mpDris2
+mpDris2
+.UE \c
+)
+.PP
+and many others.
+.PP
+By default the block tracks all players available on the MPRIS bus.
+Right clicking on the block will cycle it to the next player.
+You can pin the widget to a given player via the \[lq]player\[rq]
+setting.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq] $icon {$combo.str(max_w:25,rot_interval:0.5) $play |}\[dq]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]player\f[R]
+T}@T{
+Name(s) of the music player(s) MPRIS interface.
+This can be either a music player name or an array of music player
+names.
+Run busctl \-\-user list | grep \[dq]org.mpris.MediaPlayer2.\[dq] | cut
+\-d\[aq] \[aq] \-f1 and the name is the part after
+\[lq]org.mpris.MediaPlayer2.\[rq].
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]interface_name_exclude\f[R]
+T}@T{
+A list of regex patterns for player MPRIS interface names to ignore.
+T}@T{
+\f[CR][\[dq]playerctld\[dq]]\f[R]
+T}
+T{
+\f[CR]separator\f[R]
+T}@T{
+String to insert between artist and title.
+T}@T{
+\f[CR]\[dq] \- \[dq]\f[R]
+T}
+T{
+\f[CR]seek_step_secs\f[R]
+T}@T{
+Positive number of seconds to seek forward/backward when scrolling on
+the bar.
+Does not need to be an integer.
+T}@T{
+\f[CR]1\f[R]
+T}
+T{
+\f[CR]seek_forward_step_secs\f[R]
+T}@T{
+Positive number of seconds to seek forward when scrolling on the bar.
+Does not need to be an integer.
+T}@T{
+\f[CR]seek_step_secs\f[R]
+T}
+T{
+\f[CR]seek_backward_step_secs\f[R]
+T}@T{
+Positive number of seconds to seek backward when scrolling on the bar.
+Does not need to be an integer.
+T}@T{
+\f[CR]seek_step_secs\f[R]
+T}
+T{
+\f[CR]volume_step\f[R]
+T}@T{
+The percent volume level is increased/decreased for the selected audio
+device when scrolling.
+Capped automatically at 50.
+T}@T{
+\f[CR]5\f[R]
+T}
+.TE
+.PP
+Note: All placeholders except \f[CR]icon\f[R] can be absent.
+See the examples below to learn how to handle this.
+.PP
+.TS
+tab(@);
+lw(27.2n) lw(31.1n) lw(11.7n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}
+T{
+\f[CR]artist\f[R]
+T}@T{
+Current artist
+T}@T{
+Text
+T}
+T{
+\f[CR]title\f[R]
+T}@T{
+Current title
+T}@T{
+Text
+T}
+T{
+\f[CR]url\f[R]
+T}@T{
+Current song url
+T}@T{
+Text
+T}
+T{
+\f[CR]combo\f[R]
+T}@T{
+Resolves to \[lq]\f[CR]$artist[sep]$title\[dq]\f[R],
+\f[CR]\[dq]$artist\[dq]\f[R], \f[CR]\[dq]$title\[dq]\f[R], or
+\f[CR]\[dq]$url\[dq]\f[R] depending on what information is available.
+\f[CR][sep]\f[R] is set by \f[CR]separator\f[R] option.
+T}@T{
+Text
+T}
+T{
+\f[CR]player\f[R]
+T}@T{
+Name of the current player (taken from the last part of its MPRIS bus
+name)
+T}@T{
+Text
+T}
+T{
+\f[CR]avail\f[R]
+T}@T{
+Total number of players available to switch between
+T}@T{
+Number
+T}
+T{
+\f[CR]cur\f[R]
+T}@T{
+The current player index of the available players
+T}@T{
+Number
+T}
+T{
+\f[CR]play\f[R]
+T}@T{
+Play/Pause button
+T}@T{
+Clickable icon
+T}
+T{
+\f[CR]next\f[R]
+T}@T{
+Next button
+T}@T{
+Clickable icon
+T}
+T{
+\f[CR]prev\f[R]
+T}@T{
+Previous button
+T}@T{
+Clickable icon
+T}
+T{
+\f[CR]volume_icon\f[R]
+T}@T{
+Icon based on volume.
+Missing if unsupported.
+T}@T{
+Icon
+T}
+T{
+\f[CR]volume\f[R]
+T}@T{
+Current volume.
+Missing if muted or unsupported.
+T}@T{
+Number
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Widget
+T}@T{
+Placeholder
+T}
+_
+T{
+\f[CR]play_pause_btn\f[R]
+T}@T{
+\f[CR]$play\f[R]
+T}
+T{
+\f[CR]next_btn\f[R]
+T}@T{
+\f[CR]$next\f[R]
+T}
+T{
+\f[CR]prev_btn\f[R]
+T}@T{
+\f[CR]$prev\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]play_pause\f[R]
+T}@T{
+Left on \f[CR]play_pause_btn\f[R]
+T}
+T{
+\f[CR]next\f[R]
+T}@T{
+Left on \f[CR]next_btn\f[R]
+T}
+T{
+\f[CR]prev\f[R]
+T}@T{
+Left on \f[CR]prev_btn\f[R]
+T}
+T{
+\f[CR]next_player\f[R]
+T}@T{
+Right
+T}
+T{
+\f[CR]seek_forward\f[R]
+T}@T{
+Wheel Up
+T}
+T{
+\f[CR]seek_backward\f[R]
+T}@T{
+Wheel Down
+T}
+T{
+\f[CR]volume_up\f[R]
+T}@T{
+\-
+T}
+T{
+\f[CR]volume_down\f[R]
+T}@T{
+\-
+T}
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Examples
+Show the currently playing song on Spotify only, with play & next
+buttons and limit the width to 20 characters:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]music\[dq]
+format = \[dq] $icon {$combo.str(max_w:20) $play $next |}\[dq]
+player = \[dq]spotify\[dq]
+.EE
+.PP
+Same thing for any compatible player, takes the first active on the bus,
+but ignores \[lq]mpd\[rq] or anything with \[lq]kdeconnect\[rq] in the
+name:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]music\[dq]
+format = \[dq] $icon {$combo.str(max_w:20) $play $next |}\[dq]
+interface_name_exclude = [\[dq].*kdeconnect.*\[dq], \[dq]mpd\[dq]]
+.EE
+.PP
+Same as above, but displays with rotating text
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]music\[dq]
+format = \[dq] $icon {$combo.str(max_w:20,rot_interval:0.5) $play $next |}\[dq]
+interface_name_exclude = [\[dq].*kdeconnect.*\[dq], \[dq]mpd\[dq]]
+.EE
+.PP
+Click anywhere to play/pause, middle click to toggle format:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]music\[dq]
+format = \[dq] format 1 \[dq]
+format_alt = \[dq] format 2 \[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]left\[dq]
+action = \[dq]play_pause\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]middle\[dq]
+widget = \[dq].\[dq]
+action = \[dq]toggle_format\[dq]
+.EE
+.PP
+Scroll to change the player volume, use the forward and back buttons to
+seek:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]music\[dq]
+format = \[dq] $icon $volume_icon $combo $play $next| \[dq]
+seek_step_secs = 10
+\f[B][[block.click]]\f[R]
+button = \[dq]up\[dq]
+action = \[dq]volume_up\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]down\[dq]
+action = \[dq]volume_down\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]forward\[dq]
+action = \[dq]seek_forward\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]back\[dq]
+action = \[dq]seek_backward\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]music\f[R]
+.IP \[bu] 2
+\f[CR]music_next\f[R]
+.IP \[bu] 2
+\f[CR]music_play\f[R]
+.IP \[bu] 2
+\f[CR]music_prev\f[R]
+.IP \[bu] 2
+\f[CR]volume_muted\f[R]
+.IP \[bu] 2
+\f[CR]volume\f[R] (as a progression)
+.SS net
+Network information
+.PP
+This block uses \f[CR]sysfs\f[R] and \f[CR]netlink\f[R] and thus does
+not require any external dependencies.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]device\f[R]
+T}@T{
+Network interface to monitor (as specified in
+\f[CR]/sys/class/net/\f[R]).
+Supports regex.
+T}@T{
+If not set, device will be automatically selected every
+\f[CR]interval\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]2\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon \[ha]icon_net_down $speed_down.eng(prefix:K) \[ha]icon_net_up $speed_up.eng(prefix:K) \[dq]\f[R]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]inactive_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when the interface is inactive
+T}@T{
+\f[CR]\[dq] $icon Down \[dq]\f[R]
+T}
+T{
+\f[CR]missing_format\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when the device is missing
+T}@T{
+\f[CR]\[dq] × \[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(18.0n) lw(29.0n) lw(8.0n) lw(15.0n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on device\[cq]s type
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]speed_down\f[R]
+T}@T{
+Download speed
+T}@T{
+Number
+T}@T{
+Bytes per second
+T}
+T{
+\f[CR]speed_up\f[R]
+T}@T{
+Upload speed
+T}@T{
+Number
+T}@T{
+Bytes per second
+T}
+T{
+\f[CR]graph_down\f[R]
+T}@T{
+Download speed graph
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]graph_up\f[R]
+T}@T{
+Upload speed graph
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]device\f[R]
+T}@T{
+The name of device
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]ssid\f[R]
+T}@T{
+Netfork SSID (WiFi only)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]frequency\f[R]
+T}@T{
+WiFi frequency
+T}@T{
+Number
+T}@T{
+Hz
+T}
+T{
+\f[CR]signal_strength\f[R]
+T}@T{
+WiFi signal
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]bitrate\f[R]
+T}@T{
+WiFi connection bitrate
+T}@T{
+Number
+T}@T{
+Bits per second
+T}
+T{
+\f[CR]ip\f[R]
+T}@T{
+IPv4 address of the iface
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]ipv6\f[R]
+T}@T{
+IPv6 address of the iface
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]nameserver\f[R]
+T}@T{
+Nameserver
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.SS Example
+Display WiFi info if available
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]net\[dq]
+format = \[dq] $icon {$signal_strength $ssid $frequency|Wired connection} via $device \[dq]
+.EE
+.PP
+Display exact device
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]net\[dq]
+device = \[dq]\[ha]wlo0$\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]net_loopback\f[R]
+.IP \[bu] 2
+\f[CR]net_vpn\f[R]
+.IP \[bu] 2
+\f[CR]net_wired\f[R]
+.IP \[bu] 2
+\f[CR]net_wireless\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]net_up\f[R]
+.IP \[bu] 2
+\f[CR]net_down\f[R]
+.SS notify
+Display and toggle the state of notifications daemon
+.PP
+Left\-clicking on this block will enable/disable notifications.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]driver\f[R]
+T}@T{
+Which notifications daemon is running.
+Available drivers are: \f[CR]\[dq]dunst\[dq]\f[R] and
+\f[CR]\[dq]swaync\[dq]\f[R]
+T}@T{
+\f[CR]\[dq]dunst\[dq]\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon \[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(26.7n) lw(35.0n) lw(5.1n) lw(3.2n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on notification\[cq]s state
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]notification_count\f[R][1]
+T}@T{
+The number of notification (omitted if 0)
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]history_count\f[R][2]
+T}@T{
+The number of notification in history (omitted if 0)
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]paused\f[R]
+T}@T{
+Present only if notifications are disabled
+T}@T{
+Flag
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_paused\f[R]
+T}@T{
+Left
+T}
+T{
+\f[CR]show\f[R]
+T}@T{
+\-
+T}
+T{
+\f[CR]show_all\f[R]
+T}@T{
+\-
+T}
+.TE
+.PP
+The \f[CR]show\f[R] and \f[CR]show_all\f[R] actions are the same for
+SwayNC.
+.SS Examples
+How to use \f[CR]paused\f[R] flag
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]notify\[dq]
+format = \[dq] $icon {$paused{Off}|On} \[dq]
+.EE
+.PP
+How to use \f[CR]notification_count\f[R]
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]notify\[dq]
+format = \[dq] $icon {($notification_count.eng(w:1)) |}\[dq]
+.EE
+.PP
+How to remap actions
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]notify\[dq]
+driver = \[dq]swaync\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]left\[dq]
+action = \[dq]show\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]right\[dq]
+action = \[dq]toggle_paused\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]bell\f[R]
+.IP \[bu] 2
+\f[CR]bell\-slash\f[R]
+.SS notmuch
+Count of notmuch messages
+.PP
+This block queries a notmuch database and displays the count of
+messages.
+.PP
+The simplest configuration will return the total count of messages in
+the notmuch database stored at $HOME/.mail
+.PP
+Note that you need to enable \f[CR]notmuch\f[R] feature to use this
+block:
+.IP
+.EX
+cargo build \-\-release \-\-features notmuch
+.EE
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $count \[dq]\f[R]
+T}
+T{
+\f[CR]maildir\f[R]
+T}@T{
+Path to the directory containing the notmuch database.
+Supports path expansions e.g.\ \f[CR]\[ti]\f[R].
+T}@T{
+\f[CR]\[ti]/.mail\f[R]
+T}
+T{
+\f[CR]query\f[R]
+T}@T{
+Query to run on the database.
+T}@T{
+\f[CR]\[dq]\[dq]\f[R]
+T}
+T{
+\f[CR]threshold_critical\f[R]
+T}@T{
+Mail count that triggers \f[CR]critical\f[R] state.
+T}@T{
+\f[CR]99999\f[R]
+T}
+T{
+\f[CR]threshold_warning\f[R]
+T}@T{
+Mail count that triggers \f[CR]warning\f[R] state.
+T}@T{
+\f[CR]99999\f[R]
+T}
+T{
+\f[CR]threshold_good\f[R]
+T}@T{
+Mail count that triggers \f[CR]good\f[R] state.
+T}@T{
+\f[CR]99999\f[R]
+T}
+T{
+\f[CR]threshold_info\f[R]
+T}@T{
+Mail count that triggers \f[CR]info\f[R] state.
+T}@T{
+\f[CR]99999\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds.
+T}@T{
+\f[CR]10\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(12.2n) lw(44.6n) lw(8.1n) lw(5.1n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]count\f[R]
+T}@T{
+Number of messages for the query
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]notmuch\[dq]
+query = \[dq]tag:alert and not tag:trash\[dq]
+threshold_warning = 1
+threshold_critical = 10
+\f[B][[block.click]]\f[R]
+button = \[dq]left\[dq]
+update = true
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]mail\f[R]
+.SS nvidia_gpu
+Display the stats of your NVidia GPU
+.PP
+By default \f[CR]show_temperature\f[R] shows the used memory.
+Clicking the left mouse on the \[lq]temperature\[rq] part of the block
+will alternate it between showing used or total available memory.
+.PP
+Clicking the left mouse button on the \[lq]fan speed\[rq] part of the
+block will cause it to enter into a fan speed setting mode.
+In this mode you can scroll the mouse wheel over the block to change the
+fan speeds, and left click to exit the mode.
+.PP
+Requires \f[CR]nvidia\-smi\f[R] for displaying info and
+\f[CR]nvidia_settings\f[R] for setting fan speed.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]gpu_id\f[R]
+T}@T{
+GPU id in system.
+T}@T{
+\f[CR]0\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $utilization $memory $temperature \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds.
+T}@T{
+\f[CR]1\f[R]
+T}
+T{
+\f[CR]idle\f[R]
+T}@T{
+Maximum temperature, below which state is set to idle
+T}@T{
+\f[CR]50\f[R]
+T}
+T{
+\f[CR]good\f[R]
+T}@T{
+Maximum temperature, below which state is set to good
+T}@T{
+\f[CR]70\f[R]
+T}
+T{
+\f[CR]info\f[R]
+T}@T{
+Maximum temperature, below which state is set to info
+T}@T{
+\f[CR]75\f[R]
+T}
+T{
+\f[CR]warning\f[R]
+T}@T{
+Maximum temperature, below which state is set to warning
+T}@T{
+\f[CR]80\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l.
+T{
+Placeholder
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]name\f[R]
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]utilization\f[R]
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]memory\f[R]
+T}@T{
+Number
+T}@T{
+Bytes
+T}
+T{
+\f[CR]temperature\f[R]
+T}@T{
+Number
+T}@T{
+Degrees
+T}
+T{
+\f[CR]fan_speed\f[R]
+T}@T{
+Number
+T}@T{
+Percents
+T}
+T{
+\f[CR]clocks\f[R]
+T}@T{
+Number
+T}@T{
+Hertz
+T}
+T{
+\f[CR]power\f[R]
+T}@T{
+Number
+T}@T{
+Watts
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Widget
+T}@T{
+Placeholder
+T}
+_
+T{
+\f[CR]mem_btn\f[R]
+T}@T{
+\f[CR]$memory\f[R]
+T}
+T{
+\f[CR]fan_btn\f[R]
+T}@T{
+\f[CR]$fan_speed\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_mem_total\f[R]
+T}@T{
+Left on \f[CR]mem_btn\f[R]
+T}
+T{
+\f[CR]toggle_fan_controlled\f[R]
+T}@T{
+Left on \f[CR]fan_btn\f[R]
+T}
+T{
+\f[CR]fan_speed_up\f[R]
+T}@T{
+Wheel Up on \f[CR]fan_btn\f[R]
+T}
+T{
+\f[CR]fan_speed_down\f[R]
+T}@T{
+Wheel Down on \f[CR]fan_btn\f[R]
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]nvidia_gpu\[dq]
+interval = 1
+format = \[dq] $icon GT 1030 $utilization $temperature $clocks \[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]gpu\f[R]
+.SS TODO
+.IP \[bu] 2
+Provide a \f[CR]mappings\f[R] option similar to
+\f[CR]keyboard_layout\f[R]\[cq]s to map GPU names to labels?
+.SS packages
+Pending updates for different package manager like apt, pacman, etc.
+.PP
+Currently, these package managers are supported: \- \f[CR]apk\f[R] for
+Alpine Linux \- \f[CR]apt\f[R] for Debian/Ubuntu\-based systems \-
+\f[CR]aur\f[R] for Arch\-based systems \- \f[CR]brew\f[R] for the
+Homebrew Package Manager \- \f[CR]dnf\f[R] for Fedora\-based systems \-
+\f[CR]flatpak\f[R] for Flatpak packages \- \f[CR]pacman\f[R] for
+Arch\-based systems \- \f[CR]snap\f[R] for Snap packages \-
+\f[CR]xbps\f[R] for Void Linux \- \f[CR]zypper\f[R] for openSUSE
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds.
+T}@T{
+\f[CR]600\f[R]
+T}
+T{
+\f[CR]package_manager\f[R]
+T}@T{
+Package manager to check for updates
+T}@T{
+Automatically derived from format templates, but can be used to
+influence the \f[CR]$total\f[R] value
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $total.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]format_singular\f[R]
+T}@T{
+Same as \f[CR]format\f[R], but for when exactly one update is available.
+T}@T{
+\f[CR]\[dq] $icon $total.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]format_up_to_date\f[R]
+T}@T{
+Same as \f[CR]format\f[R], but for when no updates are available.
+T}@T{
+\f[CR]\[dq] $icon $total.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]warning_updates_regex\f[R]
+T}@T{
+Display block as warning if updates matching regex are available.
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]critical_updates_regex\f[R]
+T}@T{
+Display block as critical if updates matching regex are available.
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]ignore_updates_regex\f[R]
+T}@T{
+Doesn\[cq]t include updates matching regex in the count.
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]ignore_phased_updates\f[R]
+T}@T{
+Doesn\[cq]t include potentially held back phased updates in the count.
+(For Debian/Ubuntu\-based systems)
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]aur_command\f[R]
+T}@T{
+AUR command to check available updates, which outputs in the same format
+as pacman.
+E.g.
+\f[CR]yay \-Qua\f[R] (For Arch\-based systems)
+T}@T{
+Required if \f[CR]$aur\f[R] is used
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(8.4n) lw(53.1n) lw(5.2n) lw(3.2n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]apk\f[R]
+T}@T{
+Number of updates available in Alpine Linux
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]apt\f[R]
+T}@T{
+Number of updates available in Debian/Ubuntu\-based systems
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]aur\f[R]
+T}@T{
+Number of updates available in Arch\-based systems
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]brew\f[R]
+T}@T{
+Number of updates available in the Homebrew Package Manager
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]dnf\f[R]
+T}@T{
+Number of updates available in Fedora\-based systems
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]flatpak\f[R]
+T}@T{
+Number of updates available in Flatpak packages
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]pacman\f[R]
+T}@T{
+Number of updates available in Arch\-based systems
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]snap\f[R]
+T}@T{
+Number of updates available in Snap packages
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]xbps\f[R]
+T}@T{
+Number of updates available in Void Linux
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]zypper\f[R]
+T}@T{
+Number of updates available in openSUSE
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]total\f[R]
+T}@T{
+Number of updates available in all package manager listed
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.SS Apt
+Behind the scenes this uses \f[CR]apt\f[R], and in order to run it
+without root privileges i3status\-rust will create its own package
+database in \f[CR]/tmp/i3rs\-apt/\f[R] which may take up several MB or
+more.
+If you have a custom apt config then this block may not work as expected
+\- in that case please open an issue.
+.PP
+Tip: You can grab the list of available updates using
+\f[CR]APT_CONFIG=/tmp/i3rs\-apt/apt.conf apt list \-\-upgradable\f[R]
+.SS Pacman
+Requires fakeroot to be installed (only required for pacman).
+.PP
+Tip: You can grab the list of available updates using
+\f[CR]fakeroot pacman \-Qu \-\-dbpath /tmp/checkup\-db\-i3statusrs\-$USER/\f[R].
+If you have the \f[CR]CHECKUPDATES_DB\f[R] env var set on your system
+then substitute that dir instead.
+.PP
+Note: \f[CR]pikaur\f[R] may hang the whole block if there is no internet
+connectivity \c
+.UR https://github.com/actionless/pikaur/issues/595
+reference
+.UE \c
+\&.
+In that case, try a different AUR helper.
+.SS Pacman hook
+Tip: On Arch Linux you can setup a \f[CR]pacman\f[R] hook to signal
+i3status\-rs to update after packages have been upgraded, so you
+won\[cq]t have stale info in your pacman block.
+.PP
+In the block configuration, set \f[CR]signal = 1\f[R] (or another number
+if \f[CR]1\f[R] is being used by some other block):
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+signal = 1
+.EE
+.PP
+Create \f[CR]/etc/pacman.d/hooks/i3status\-rust.hook\f[R] with the below
+contents:
+.IP
+.EX
+\f[B][Trigger]\f[R]
+Operation = Upgrade
+Type = Package
+Target = *
+
+\f[B][Action]\f[R]
+When = PostTransaction
+Exec = /usr/bin/pkill \-SIGRTMIN+1 i3status\-rs
+.EE
+.SS Example
+Apk\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]apk\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $apk.eng(w:1) updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]apk \-\-no\-cache \-\-upgradable list | dmenu \-l 10\[dq]
+.EE
+.PP
+Apt\-only config
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+interval = 1800
+error_interval = 300
+max_retries = 5
+package_manager = [\[dq]apt\[dq]]
+format = \[dq] $icon $apt updates available\[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with cached available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]APT_CONFIG=/tmp/i3rs\-apt/apt.conf apt list \-\-upgradable | tail \-n +2 | rofi \-dmenu\[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### Updates the block on right click\f[R]
+button = \[dq]right\[dq]
+update = true
+.EE
+.PP
+Brew\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]brew\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $brew.eng(w:1) updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]brew outdated | dmenu \-l 10\[dq]
+.EE
+.PP
+Dnf\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]dnf\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $dnf.eng(w:1) updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with cached available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]dnf list \-q \-\-upgrades | tail \-n +2 | rofi \-dmenu\[dq]
+.EE
+.PP
+Flatpak\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]flatpak\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $flatpak.eng(w:1) updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with cached available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]flatpak remote\-ls \-\-updates \-\-columns=ref | rofi \-dmenu\[dq]
+.EE
+.PP
+Pacman\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]pacman\[dq]]
+interval = 600
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $pacman updates available \[dq]
+format_singular = \[dq] $icon $pacman update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### pop\-up a menu showing the available updates. Replace wofi with your favourite menu command.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]fakeroot pacman \-Qu \-\-dbpath /tmp/checkup\-db\-i3statusrs\-$USER/ | wofi \-\-show dmenu\[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### Updates the block on right click\f[R]
+button = \[dq]right\[dq]
+update = true
+.EE
+.PP
+Pacman and AUR helper config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]pacman\[dq], \[dq]aur\[dq]]
+interval = 600
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $pacman + $aur = $total updates available \[dq]
+format_singular = \[dq] $icon $total update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[I]### aur_command should output available updates to stdout (ie behave as echo \-ne \[dq]update\[rs]n\[dq])\f[R]
+aur_command = \[dq]yay \-Qua\[dq]
+.EE
+.PP
+Snap\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]snap\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $snap.eng(w:1) updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]snap refresh \-\-list | dmenu \-l 10\[dq]
+.EE
+.PP
+Xbps\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]xbps\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $xbps.eng(w:1) updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]xbps\-install \-Mun | dmenu \-l 10\[dq]
+.EE
+.PP
+Zypper\-only config:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]zypper\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $zypper.eng(w:1) updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[B][[block.click]]\f[R]
+\f[I]### shows dmenu with available updates. Any dmenu alternative should also work.\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]zypper \-q list\-updates | tail \-n +3 | rofi \-dmenu \-window\-title \[aq]Upgradable packages:\[aq]\[dq]
+.EE
+.PP
+Multiple package managers config:
+.PP
+Update the list of pending updates every thirty minutes (1800 seconds):
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]packages\[dq]
+package_manager = [\[dq]apk\[dq], \[dq]apt\[dq], \[dq]aur\[dq], \[dq]brew\[dq], \[dq]dnf\[dq], \[dq]flatpak\[dq], \[dq]pacman\[dq], \[dq]snap\[dq], \[dq]xbps\[dq], \[dq]zypper\[dq]]
+interval = 1800
+error_interval = 300
+max_retries = 5
+format = \[dq] $icon $apk + $apt + $aur + $brew + $dnf + $flatpak + $pacman + $snap + $xbps + $zypper = $total updates available \[dq]
+format_singular = \[dq] $icon One update available \[dq]
+format_up_to_date = \[dq] $icon system up to date \[dq]
+\f[I]### If a linux update is available, but no ZFS package, it won\[aq]t be possible to\f[R]
+\f[I]### actually perform a system upgrade, so we show a warning.\f[R]
+warning_updates_regex = \[dq](linux|linux\-lts|linux\-zen)\[dq]
+\f[I]### If ZFS is available, we know that we can and should do an upgrade, so we show\f[R]
+\f[I]### the status as critical.\f[R]
+critical_updates_regex = \[dq](zfs|zfs\-lts)\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]update\f[R]
+.SS pomodoro
+A \c
+.UR https://en.wikipedia.org/wiki/Pomodoro_Technique
+pomodoro timer
+.UE \c
+.SS Technique
+There are six steps in the original technique: 1) Decide on the task to
+be done.
+2) Set the pomodoro timer (traditionally to 25 minutes).
+3) Work on the task.
+4) End work when the timer rings and put a checkmark on a piece of
+paper.
+5) If you have fewer than four checkmarks, take a short break (3\[en]5
+minutes) and then return to step 2.
+6) After four pomodoros, take a longer break (15\[en]30 minutes), reset
+your checkmark count to zero, then go to step 1.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+The format used when in idle, prompt, or notify states
+T}@T{
+\[dq] $icon{ $message|} \[dq]
+T}
+T{
+\f[CR]pomodoro_format\f[R]
+T}@T{
+The format used when the pomodoro is running or paused
+T}@T{
+\[dq] $icon $status_icon{ $completed_pomodoros.tally()|}
+$time_remaining.duration(hms:true) \[dq]
+T}
+T{
+\f[CR]break_format\f[R]
+T}@T{
+The format used when the pomodoro is during the break
+T}@T{
+\[dq] $icon $status_icon Break: $time_remaining.duration(hms:true) \[dq]
+T}
+T{
+\f[CR]message\f[R]
+T}@T{
+Message when timer expires
+T}@T{
+\f[CR]\[dq]Pomodoro over! Take a break!\[dq]\f[R]
+T}
+T{
+\f[CR]break_message\f[R]
+T}@T{
+Message when break is over
+T}@T{
+\f[CR]\[dq]Break over! Time to work!\[dq]\f[R]
+T}
+T{
+\f[CR]notify_cmd\f[R]
+T}@T{
+A shell command to run as a notifier.
+\f[CR]{msg}\f[R] will be substituted with either \f[CR]message\f[R] or
+\f[CR]break_message\f[R].
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]blocking_cmd\f[R]
+T}@T{
+Is \f[CR]notify_cmd\f[R] blocking?
+If it is, then pomodoro block will wait until the command finishes
+before proceeding.
+Otherwise, you will have to click on the block in order to proceed.
+T}@T{
+\f[CR]false\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(16.6n) lw(35.4n) lw(7.5n) lw(10.5n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Supported by
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+All formats
+T}
+T{
+\f[CR]status_icon\f[R]
+T}@T{
+An icon that reflects the pomodoro state
+T}@T{
+Icon
+T}@T{
+\f[CR]pomodoro_format\f[R], \f[CR]break_format\f[R]
+T}
+T{
+\f[CR]message\f[R]
+T}@T{
+Current message
+T}@T{
+Text
+T}@T{
+\f[CR]format\f[R]
+T}
+T{
+\f[CR]time_remaining\f[R]
+T}@T{
+How much time is left (minutes)
+T}@T{
+Duration
+T}@T{
+\f[CR]pomodoro_format\f[R], \f[CR]break_format\f[R]
+T}
+T{
+\f[CR]completed_pomodoros\f[R]
+T}@T{
+The number of completed pomodoros
+T}@T{
+Number
+T}@T{
+\f[CR]pomodoro_format\f[R]
+T}
+.TE
+.SS Example
+Use \f[CR]swaynag\f[R] as a notifier:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]pomodoro\[dq]
+notify_cmd = \[dq]swaynag \-m \[aq]{msg}\[aq]\[dq]
+blocking_cmd = true
+.EE
+.PP
+Use \f[CR]notify\-send\f[R] as a notifier:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]pomodoro\[dq]
+notify_cmd = \[dq]notify\-send \[aq]{msg}\[aq]\[dq]
+blocking_cmd = false
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]pomodoro\f[R]
+.IP \[bu] 2
+\f[CR]pomodoro_started\f[R]
+.IP \[bu] 2
+\f[CR]pomodoro_stopped\f[R]
+.IP \[bu] 2
+\f[CR]pomodoro_paused\f[R]
+.IP \[bu] 2
+\f[CR]pomodoro_break\f[R]
+.SS privacy
+Privacy Monitor
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(28.5n) lw(20.7n) lw(20.7n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]driver\f[R]
+T}@T{
+The configuration of a driver (see below).
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+Format string.
+T}@T{
+\[dq]{ $icon_audio |}{ $icon_audio_sink |}{ $icon_video |}{ $icon_webcam
+|}{ $icon_unknown |}\[dq]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+Format string.
+T}@T{
+\[dq]{ $icon_audio $info_audio |}{ $icon_audio_sink $info_audio_sink |}{
+$icon_video $info_video |}{ $icon_webcam $info_webcam |}{ $icon_unknown
+$info_unknown |}\[dq]
+T}
+.TE
+.SS pipewire Options (requires the pipewire feature to be enabled)
+.PP
+.TS
+tab(@);
+lw(9.3n) lw(18.7n) lw(23.3n) lw(18.7n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Required
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]name\f[R]
+T}@T{
+\f[CR]pipewire\f[R]
+T}@T{
+Yes
+T}@T{
+None
+T}
+T{
+\f[CR]exclude_output\f[R]
+T}@T{
+An output node to ignore, example:
+\f[CR][\[dq]HD Pro Webcam C920\[dq]]\f[R]
+T}@T{
+No
+T}@T{
+\f[CR][]\f[R]
+T}
+T{
+\f[CR]exclude_input\f[R]
+T}@T{
+An input node to ignore, example: \f[CR][\[dq]openrgb\[dq]]\f[R]
+T}@T{
+No
+T}@T{
+\f[CR][]\f[R]
+T}
+T{
+\f[CR]display\f[R]
+T}@T{
+Which node field should be used as a display name, options:
+\f[CR]name\f[R], \f[CR]description\f[R], \f[CR]nickname\f[R]
+T}@T{
+No
+T}@T{
+\f[CR]name\f[R]
+T}
+.TE
+.SS vl4 Options
+.PP
+.TS
+tab(@);
+lw(9.3n) lw(18.7n) lw(23.3n) lw(18.7n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Required
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]name\f[R]
+T}@T{
+\f[CR]vl4\f[R]
+T}@T{
+Yes
+T}@T{
+None
+T}
+T{
+\f[CR]exclude_device\f[R]
+T}@T{
+A device to ignore, example: \f[CR][\[dq]/dev/video5\[dq]]\f[R]
+T}@T{
+No
+T}@T{
+\f[CR][]\f[R]
+T}
+T{
+\f[CR]exclude_consumer\f[R]
+T}@T{
+Processes to ignore
+T}@T{
+No
+T}@T{
+\f[CR][\[dq]pipewire\[dq], \[dq]wireplumber\[dq]]\f[R]
+T}
+.TE
+.SS Available Format Keys
+.PP
+.TS
+tab(@);
+lw(30.6n) lw(30.0n) lw(6.2n) lw(3.1n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon_{audio,audio_sink,video,webcam,unknown}\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]info_{audio,audio_sink,video,webcam,unknown}\f[R]
+T}@T{
+The mapping of which source are being consumed
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.PP
+You can use the suffixes noted above to get the following:
+.PP
+.TS
+tab(@);
+l l.
+T{
+Suffix
+T}@T{
+Description
+T}
+_
+T{
+\f[CR]audio\f[R]
+T}@T{
+Captured audio (ex.
+Mic)
+T}
+T{
+\f[CR]audio_sink\f[R]
+T}@T{
+Audio captured from a sink (ex.
+openrgb)
+T}
+T{
+\f[CR]video\f[R]
+T}@T{
+Video capture (ex.
+screen capture)
+T}
+T{
+\f[CR]webcam\f[R]
+T}@T{
+Webcam capture
+T}
+T{
+\f[CR]unknown\f[R]
+T}@T{
+Anything else
+T}
+.TE
+.SS Available Actions
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]privacy\[dq]
+\f[B][[block.driver]]\f[R]
+name = \[dq]v4l\[dq]
+\f[B][[block.driver]]\f[R]
+name = \[dq]pipewire\[dq]
+exclude_input = [\[dq]openrgb\[dq]]
+display = \[dq]nickname\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]microphone\f[R]
+.IP \[bu] 2
+\f[CR]volume\f[R]
+.IP \[bu] 2
+\f[CR]xrandr\f[R]
+.IP \[bu] 2
+\f[CR]webcam\f[R]
+.IP \[bu] 2
+\f[CR]unknown\f[R]
+.SS rofication
+The number of pending notifications in rofication\-daemon
+.PP
+A different color is used if there are critical notifications.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]interval\f[R]
+T}@T{
+Refresh rate in seconds.
+T}@T{
+\f[CR]1\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for placeholders.
+T}@T{
+\f[CR]\[dq] $icon $num.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]socket_path\f[R]
+T}@T{
+Socket path for the rofication daemon.
+Supports path expansions e.g.\ \f[CR]\[ti]\f[R].
+T}@T{
+\f[CR]\[dq]/tmp/rofi_notification_daemon\[dq]\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]num\f[R]
+T}@T{
+Number of pending notifications
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]rofication\[dq]
+interval = 1
+socket_path = \[dq]/tmp/rofi_notification_daemon\[dq]
+\f[B][[block.click]]\f[R]
+button = \[dq]left\[dq]
+cmd = \[dq]rofication\-gui\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]bell\f[R]
+.SS scratchpad
+Scratchpad indicator
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block
+T}@T{
+\f[CR]$icon $count.eng(range:1..) |\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(12.2n) lw(44.6n) lw(8.1n) lw(5.1n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]count\f[R]
+T}@T{
+Number of windows in scratchpad
+T}@T{
+Number
+T}@T{
+\-
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]scratchpad\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]scratchpad\f[R]
+.SS service_status
+Display the status of a service
+.PP
+Right now only \f[CR]systemd\f[R] is supported.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]driver\f[R]
+T}@T{
+Which init system is running the service.
+Available drivers are: \f[CR]\[dq]systemd\[dq]\f[R]
+T}@T{
+\f[CR]\[dq]systemd\[dq]\f[R]
+T}
+T{
+\f[CR]service\f[R]
+T}@T{
+The name of the service
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]user\f[R]
+T}@T{
+If true, monitor the status of a user service instead of a system
+service.
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]active_format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $service active \[dq]\f[R]
+T}
+T{
+\f[CR]inactive_format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $service inactive \[dq]\f[R]
+T}
+T{
+\f[CR]active_state\f[R]
+T}@T{
+A valid [\f[CR]State\f[R]]
+T}@T{
+[\f[CR]State::Idle\f[R]]
+T}
+T{
+\f[CR]inactive_state\f[R]
+T}@T{
+A valid [\f[CR]State\f[R]]
+T}@T{
+[\f[CR]State::Critical\f[R]]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]service\f[R]
+T}@T{
+The name of the service
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.SS Example
+Example using an icon:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]service_status\[dq]
+service = \[dq]cups\[dq]
+active_format = \[dq] \[ha]icon_tea \[dq]
+inactive_format = \[dq] no \[ha]icon_tea \[dq]
+.EE
+.PP
+Example overriding the default \f[CR]inactive_state\f[R]:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]service_status\[dq]
+service = \[dq]shadow\[dq]
+active_format = \[dq]\[dq]
+inactive_format = \[dq] Integrity of password and group files failed \[dq]
+inactive_state = \[dq]Warning\[dq]
+.EE
+.SS sound
+Volume level
+.PP
+This block displays the volume level (according to PulseAudio or ALSA).
+Right click to toggle mute, scroll to adjust volume.
+.PP
+Requires a PulseAudio installation or \f[CR]alsa\-utils\f[R] for ALSA.
+.PP
+Note that if you are using PulseAudio commands (such as
+\f[CR]pactl\f[R]) to control your volume, you should select the
+\f[CR]\[dq]pulseaudio\[dq]\f[R] (or \f[CR]\[dq]auto\[dq]\f[R]) driver to
+see volume changes that exceed 100%.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]driver\f[R]
+T}@T{
+\f[CR]\[dq]auto\[dq]\f[R], \f[CR]pipewire\f[R],
+\f[CR]\[dq]pulseaudio\[dq]\f[R], \f[CR]\[dq]alsa\[dq]\f[R].
+T}@T{
+\f[CR]\[dq]auto\[dq]\f[R] (Pipewire with Pulseaudio fallback with ALSA
+fallback)
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq] $icon {$volume.eng(w:2) |}\[dq]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click.
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]name\f[R]
+T}@T{
+PulseAudio device name, or the ALSA control name as found in the output
+of \f[CR]amixer \-D yourdevice scontrols\f[R].
+T}@T{
+PulseAudio: \f[CR]\[at]DEFAULT_SINK\[at]\f[R] / ALSA: \f[CR]Master\f[R]
+T}
+T{
+\f[CR]device\f[R]
+T}@T{
+ALSA device name, usually in the form \[lq]hw:X\[rq] or \[lq]hw:X,Y\[rq]
+where \f[CR]X\f[R] is the card number and \f[CR]Y\f[R] is the device
+number as found in the output of \f[CR]aplay \-l\f[R].
+T}@T{
+\f[CR]default\f[R]
+T}
+T{
+\f[CR]device_kind\f[R]
+T}@T{
+PulseAudio device kind: \f[CR]source\f[R] or \f[CR]sink\f[R].
+T}@T{
+\f[CR]\[dq]sink\[dq]\f[R]
+T}
+T{
+\f[CR]natural_mapping\f[R]
+T}@T{
+When using the ALSA driver, display the \[lq]mapped volume\[rq] as given
+by \f[CR]alsamixer\f[R]/\f[CR]amixer \-M\f[R], which represents the
+volume level more naturally with respect for the human ear.
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]step_width\f[R]
+T}@T{
+The percent volume level is increased/decreased for the selected audio
+device when scrolling.
+Capped automatically at 50.
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]max_vol\f[R]
+T}@T{
+Max volume in percent that can be set via scrolling.
+Note it can still be set above this value if changed by another
+application.
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]show_volume_when_muted\f[R]
+T}@T{
+Show the volume even if it is currently muted.
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]headphones_indicator\f[R]
+T}@T{
+Change icon when headphones are plugged in (pulseaudio only)
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]mappings\f[R]
+T}@T{
+Map \f[CR]output_name\f[R] to a custom name.
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]mappings_use_regex\f[R]
+T}@T{
+Let \f[CR]mappings\f[R] match using regex instead of string equality.
+The replacement will be regex aware and can contain capture groups.
+T}@T{
+\f[CR]true\f[R]
+T}
+T{
+\f[CR]active_port_mappings\f[R]
+T}@T{
+Map \f[CR]active_port\f[R] to a custom name.
+The replacement will be regex aware and can contain capture groups.
+T}@T{
+\f[CR]None\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(18.6n) lw(31.0n) lw(7.1n) lw(13.3n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on volume
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]volume\f[R]
+T}@T{
+Current volume.
+Missing if muted.
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]output_name\f[R]
+T}@T{
+PulseAudio or ALSA device name
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]output_description\f[R]
+T}@T{
+PulseAudio device description, will fallback to \f[CR]output_name\f[R]
+if no description is available and will be overwritten by mappings
+(mappings will still use \f[CR]output_name\f[R])
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]active_port\f[R]
+T}@T{
+Active port (same as information in Ports section of
+\f[CR]pactl list cards\f[R]).
+Will be absent if not supported by \f[CR]driver\f[R] or if mapped to
+\f[CR]\[dq]\[dq]\f[R] in \f[CR]active_port_mappings\f[R].
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Left
+T}
+T{
+\f[CR]toggle_mute\f[R]
+T}@T{
+Right
+T}
+T{
+\f[CR]volume_down\f[R]
+T}@T{
+Wheel Down
+T}
+T{
+\f[CR]volume_up\f[R]
+T}@T{
+Wheel Up
+T}
+.TE
+.SS Examples
+Change the default scrolling step width to 3 percent:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]sound\[dq]
+step_width = 3
+.EE
+.PP
+Change the output name shown:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]sound\[dq]
+format = \[dq] $icon $output_name{ $volume|} \[dq]
+\f[B][block.mappings]\f[R]
+\[dq]alsa_output.usb\-Harman_Multimedia_JBL_Pebbles_1.0.0\-00.analog\-stereo\[dq] = \[dq]Speakers\[dq]
+\[dq]alsa_output.pci\-0000_00_1b.0.analog\-stereo\[dq] = \[dq]Headset\[dq]
+.EE
+.PP
+Since the default value for the \f[CR]device_kind\f[R] key is
+\f[CR]sink\f[R], to display \f[B]\f[BI]microphone\f[B]\f[R] block you
+have to use the \f[CR]source\f[R] value:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]sound\[dq]
+driver = \[dq]pulseaudio\[dq]
+device_kind = \[dq]source\[dq]
+.EE
+.PP
+Display warning in block if microphone if using the wrong port:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]sound\[dq]
+driver = \[dq]pulseaudio\[dq]
+device_kind = \[dq]source\[dq]
+format = \[dq] $icon { $volume|} {$active_port |}\[dq]
+\f[B][block.active_port_mappings]\f[R]
+\[dq]analog\-input\-rear\-mic\[dq] = \[dq]\[dq] \f[I]# Mapping to an empty string makes \[ga]$active_port\[ga] absent\f[R]
+\[dq]analog\-input\-front\-mic\[dq] = \[dq]ERR!\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]microphone_muted\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]microphone\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]volume_muted\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]volume\f[R] (as a progression)
+.IP \[bu] 2
+\f[CR]headphones\f[R]
+.SS speedtest
+Ping, download, and upload speeds
+.PP
+This block which requires \c
+.UR https://github.com/sivel/speedtest-cli
+\f[CR]speedtest\-cli\f[R]
+.UE \c
+\&.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] \[ha]icon_ping $ping \[ha]icon_net_down $speed_down \[ha]icon_net_up $speed_up \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]1800\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]ping\f[R]
+T}@T{
+Ping delay
+T}@T{
+Number
+T}@T{
+Seconds
+T}
+T{
+\f[CR]speed_down\f[R]
+T}@T{
+Download speed
+T}@T{
+Number
+T}@T{
+Bits per second
+T}
+T{
+\f[CR]speed_up\f[R]
+T}@T{
+Upload speed
+T}@T{
+Number
+T}@T{
+Bits per second
+T}
+.TE
+.SS Example
+Show only ping (with an icon)
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]speedtest\[dq]
+interval = 1800
+format = \[dq] \[ha]icon_ping $ping \[dq]
+.EE
+.PP
+Hide ping and display speed in bytes per second each using 4 characters
+(without icons)
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]speedtest\[dq]
+interval = 1800
+format = \[dq] $speed_down.eng(w:4,u:B) $speed_up(w:4,u:B) \[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]ping\f[R]
+.IP \[bu] 2
+\f[CR]net_down\f[R]
+.IP \[bu] 2
+\f[CR]net_up\f[R]
+.SS taskwarrior
+The number of tasks from the taskwarrior list
+.PP
+Clicking the right mouse button on the icon cycles the view of the block
+through the user\[cq]s filters.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]600\f[R] (10min)
+T}
+T{
+\f[CR]warning_threshold\f[R]
+T}@T{
+The threshold of pending (or started) tasks when the block turns into a
+warning state
+T}@T{
+\f[CR]10\f[R]
+T}
+T{
+\f[CR]critical_threshold\f[R]
+T}@T{
+The threshold of pending (or started) tasks when the block turns into a
+critical state
+T}@T{
+\f[CR]20\f[R]
+T}
+T{
+\f[CR]filters\f[R]
+T}@T{
+A list of tables describing filters (see bellow)
+T}@T{
+\f[CR][{name = \[dq]pending\[dq], filter = \[dq]\-COMPLETED \-DELETED\[dq]}]\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $count.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]format_singular\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when exactly one task is pending.
+T}@T{
+\f[CR]\[dq] $icon $count.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]format_everything_done\f[R]
+T}@T{
+Same as \f[CR]format\f[R] but for when all tasks are completed.
+T}@T{
+\f[CR]\[dq] $icon $count.eng(w:1) \[dq]\f[R]
+T}
+T{
+\f[CR]data_location\f[R]
+T}@T{
+Directory in which taskwarrior stores its data files.
+Supports path expansions e.g.\ \f[CR]\[ti]\f[R].
+T}@T{
+\f[CR]\[dq]\[ti]/.task\[dq]\f[R]
+T}
+.TE
+.SS Filter configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]name\f[R]
+T}@T{
+The name of the filter
+T}@T{
+T}
+T{
+\f[CR]filter\f[R]
+T}@T{
+Specifies the criteria that must be met for a task to be counted towards
+this filter
+T}@T{
+T}
+T{
+\f[CR]config_override\f[R]
+T}@T{
+An array containing configuration overrides, useful for explicitly
+setting context or other configuration variables
+T}@T{
+\f[CR][]\f[R]
+T}
+.TE
+.SS Placeholders
+.PP
+.TS
+tab(@);
+lw(13.6n) lw(43.8n) lw(7.8n) lw(4.9n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]count\f[R]
+T}@T{
+The number of tasks matching current filter
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]filter_name\f[R]
+T}@T{
+The name of current filter
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.SS Actions
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]next_filter\f[R]
+T}@T{
+Right
+T}
+.TE
+.SS Example
+In this example, block will be hidden if \f[CR]count\f[R] is zero.
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]taskwarrior\[dq]
+interval = 60
+format = \[dq] $icon count.eng(w:1) tasks \[dq]
+format_singular = \[dq] $icon 1 task \[dq]
+format_everything_done = \[dq]\[dq]
+warning_threshold = 10
+critical_threshold = 20
+\f[B][[block.filters]]\f[R]
+name = \[dq]today\[dq]
+filter = \[dq]+PENDING +OVERDUE or +DUETODAY\[dq]
+\f[B][[block.filters]]\f[R]
+name = \[dq]some\-project\[dq]
+filter = \[dq]project:some\-project +PENDING\[dq]
+config_override = [\[dq]rc.context:none\[dq]]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]tasks\f[R]
+.SS tea_timer
+Timer
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\[dq] $icon {$time.duration(hms:true) |}\[dq]
+T}
+T{
+\f[CR]increment\f[R]
+T}@T{
+The numbers of seconds to add each time the block is clicked.
+T}@T{
+30
+T}
+T{
+\f[CR]done_cmd\f[R]
+T}@T{
+A command to run in \f[CR]sh\f[R] when timer finishes.
+T}@T{
+None
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(14.4n) lw(40.0n) lw(6.2n) lw(9.4n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]time\f[R]
+T}@T{
+The time remaining on the timer
+T}@T{
+Duration
+T}@T{
+\-
+T}
+T{
+\f[CR]hours\f[R] \f[I]DEPRECATED\f[R]
+T}@T{
+The hours remaining on the timer
+T}@T{
+Text
+T}@T{
+h
+T}
+T{
+\f[CR]minutes\f[R] \f[I]DEPRECATED\f[R]
+T}@T{
+The minutes remaining on the timer
+T}@T{
+Text
+T}@T{
+mn
+T}
+T{
+\f[CR]seconds\f[R] \f[I]DEPRECATED\f[R]
+T}@T{
+The seconds remaining on the timer
+T}@T{
+Text
+T}@T{
+s
+T}
+.TE
+.PP
+\f[CR]time\f[R], \f[CR]hours\f[R], \f[CR]minutes\f[R], and
+\f[CR]seconds\f[R] are unset when the timer is inactive.
+.PP
+\f[CR]hours\f[R], \f[CR]minutes\f[R], and \f[CR]seconds\f[R] have been
+deprecated in favor of \f[CR]time\f[R].
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]increment\f[R]
+T}@T{
+Left / Wheel Up
+T}
+T{
+\f[CR]decrement\f[R]
+T}@T{
+Wheel Down
+T}
+T{
+\f[CR]reset\f[R]
+T}@T{
+Right
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]tea_timer\[dq]
+format = \[dq] $icon {$minutes:$seconds |}\[dq]
+done_cmd = \[dq]notify\-send \[aq]Timer Finished\[aq]\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]tea\f[R]
+.SS temperature
+The system temperature
+.PP
+This block displays the system temperature, based on
+\f[CR]libsensors\f[R] library.
+.PP
+This block has two modes: \[lq]collapsed\[rq], which uses only color as
+an indicator, and \[lq]expanded\[rq], which shows the content of a
+\f[CR]format\f[R] string.
+The average, minimum, and maximum temperatures are computed using all
+sensors displayed by \f[CR]sensors\f[R], or optionally filtered by
+\f[CR]chip\f[R] and \f[CR]inputs\f[R].
+.PP
+Requires \f[CR]libsensors\f[R] and appropriate kernel modules for your
+hardware.
+.PP
+Run \f[CR]sensors\f[R] command to list available chips and inputs.
+.PP
+Note that the colour of the block is always determined by the maximum
+temperature across all sensors, not the average.
+You may need to keep this in mind if you have a misbehaving sensor.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders
+T}@T{
+\f[CR]\[dq] $icon $average avg, $max max \[dq]\f[R]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]scale\f[R]
+T}@T{
+Either \f[CR]\[dq]celsius\[dq]\f[R] or \f[CR]\[dq]fahrenheit\[dq]\f[R]
+T}@T{
+\f[CR]\[dq]celsius\[dq]\f[R]
+T}
+T{
+\f[CR]good\f[R]
+T}@T{
+Maximum temperature to set state to good
+T}@T{
+\f[CR]20\f[R] °C (\f[CR]68\f[R] °F)
+T}
+T{
+\f[CR]idle\f[R]
+T}@T{
+Maximum temperature to set state to idle
+T}@T{
+\f[CR]45\f[R] °C (\f[CR]113\f[R] °F)
+T}
+T{
+\f[CR]info\f[R]
+T}@T{
+Maximum temperature to set state to info
+T}@T{
+\f[CR]60\f[R] °C (\f[CR]140\f[R] °F)
+T}
+T{
+\f[CR]warning\f[R]
+T}@T{
+Maximum temperature to set state to warning.
+Beyond this temperature, state is set to critical
+T}@T{
+\f[CR]80\f[R] °C (\f[CR]176\f[R] °F)
+T}
+T{
+\f[CR]chip\f[R]
+T}@T{
+Narrows the results to a given chip name.
+\f[CR]*\f[R] may be used as a wildcard.
+T}@T{
+None
+T}
+T{
+\f[CR]inputs\f[R]
+T}@T{
+Narrows the results to individual inputs reported by each chip.
+T}@T{
+None
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]min\f[R]
+T}@T{
+Minimum temperature among all inputs
+T}@T{
+Number
+T}@T{
+Degrees
+T}
+T{
+\f[CR]average\f[R]
+T}@T{
+Average temperature among all inputs
+T}@T{
+Number
+T}@T{
+Degrees
+T}
+T{
+\f[CR]max\f[R]
+T}@T{
+Maximum temperature among all inputs
+T}@T{
+Number
+T}@T{
+Degrees
+T}
+.TE
+.PP
+Note that when block is collapsed, no placeholders are provided.
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]temperature\[dq]
+format = \[dq] $icon $max max \[dq]
+format_alt = \[dq] $icon $min min, $max max, $average avg \[dq]
+interval = 10
+chip = \[dq]*\-isa\-*\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]thermometer\f[R]
+.SS time
+The current time.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(28.5n) lw(20.7n) lw(20.7n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+Format string.
+See \c
+.UR https://docs.rs/chrono/0.3.0/chrono/format/strftime/index.html#specifiers
+chrono docs
+.UE \c
+\ for all options.
+T}@T{
+\f[CR]\[dq] $icon $timestamp.datetime() \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]10\f[R]
+T}
+T{
+\f[CR]timezone\f[R]
+T}@T{
+A timezone specifier (e.g.\ \[lq]Europe/Lisbon\[rq])
+T}@T{
+Local timezone
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(13.2n) lw(42.6n) lw(9.5n) lw(4.7n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]timestamp\f[R]
+T}@T{
+The current time
+T}@T{
+Datetime
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]next_timezone\f[R]
+T}@T{
+Left
+T}
+T{
+\f[CR]prev_timezone\f[R]
+T}@T{
+Right
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]time\[dq]
+interval = 60
+\f[B][block.format]\f[R]
+full = \[dq] $icon $timestamp.datetime(f:\[aq]%a %Y\-%m\-%d %R %Z\[aq], l:fr_BE) \[dq]
+short = \[dq] $icon $timestamp.datetime(f:%R) \[dq]
+.EE
+.SS Non Gregorian calendars
+You can use calendars other than the Gregorian calendar by adding the
+calendar specifier in the locale string.
+When using this feature you can\[cq]t use chrono style format string,
+and you should use one of the options provided by the \f[CR]icu4x\f[R]
+crate: \f[CR]short\f[R], \f[CR]medium\f[R], \f[CR]long\f[R],
+\f[CR]full\f[R].
+.PP
+** Only available using feature \f[CR]icu_calendar\f[R].
+**
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]time\[dq]
+interval = 60
+format = \[dq]$timestamp.datetime(locale:\[aq]fa_IR\-u\-ca\-persian\[aq], f:\[aq]full\[aq])\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]time\f[R]
+.SS toggle
+A Toggle block
+.PP
+You can add commands to be executed to disable the toggle
+(\f[CR]command_off\f[R]), and to enable it (\f[CR]command_on\f[R]).
+If these command exit with a non\-zero status, the block will not be
+toggled and the block state will be changed to \f[CR]critical\f[R] to
+give a visual warning of the failure.
+You also need to specify a command to determine the state of the toggle
+(\f[CR]command_state\f[R]).
+When the command outputs nothing, the toggle is disabled, otherwise
+enabled.
+By specifying the interval property you can let the command_state be
+executed continuously.
+.PP
+To run those commands, the shell form \f[CR]$SHELL\f[R] environment
+variable is used.
+If such variable is not presented, \f[CR]sh\f[R] is used.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders
+T}@T{
+\f[CR]\[dq] $icon \[dq]\f[R]
+T}
+T{
+\f[CR]command_on\f[R]
+T}@T{
+Shell command to enable the toggle
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]command_off\f[R]
+T}@T{
+Shell command to disable the toggle
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]command_state\f[R]
+T}@T{
+Shell command to determine the state.
+Empty output => No, otherwise => Yes.
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]icon_on\f[R]
+T}@T{
+Icon override for the toggle button while on
+T}@T{
+\f[CR]\[dq]toggle_on\[dq]\f[R]
+T}
+T{
+\f[CR]icon_off\f[R]
+T}@T{
+Icon override for the toggle button while off
+T}@T{
+\f[CR]\[dq]toggle_off\[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds.
+If not set, \f[CR]command_state\f[R] will run only on click.
+T}@T{
+None
+T}
+T{
+\f[CR]state_on\f[R]
+T}@T{
+[\f[CR]State\f[R]] (color) of this block while on
+T}@T{
+[idle][State::Idle]
+T}
+T{
+\f[CR]state_off\f[R]
+T}@T{
+[\f[CR]State\f[R]] (color) of this block while off
+T}@T{
+[idle][State::Idle]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(13.6n) lw(43.8n) lw(7.8n) lw(4.9n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+Icon based on toggle\[cq]s state
+T}@T{
+Icon
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Examples
+This is what can be used to toggle an external monitor configuration:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]toggle\[dq]
+format = \[dq] $icon 4k \[dq]
+command_state = \[dq]xrandr | grep \[aq]DP1 connected 38\[aq] | grep \-v eDP1\[dq]
+command_on = \[dq]\[ti]/.screenlayout/4kmon_default.sh\[dq]
+command_off = \[dq]\[ti]/.screenlayout/builtin.sh\[dq]
+interval = 5
+state_on = \[dq]good\[dq]
+state_off = \[dq]warning\[dq]
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]toggle_off\f[R]
+.IP \[bu] 2
+\f[CR]toggle_on\f[R]
+.SS uptime
+System\[cq]s uptime
+.PP
+This block displays system uptime in terms of two biggest units, so
+minutes and seconds, or hours and minutes or days and hours or weeks and
+days.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(16.4n) lw(41.7n) lw(11.9n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders
+T}@T{
+\f[CR]\[dq] $icon $uptime \[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds
+T}@T{
+\f[CR]60\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]text\f[R] \f[I]DEPRECATED\f[R]
+T}@T{
+Current uptime
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]uptime\f[R]
+T}@T{
+Current uptime
+T}@T{
+Duration
+T}@T{
+\-
+T}
+.TE
+.PP
+\f[CR]text\f[R] has been deprecated in favor of \f[CR]uptime\f[R].
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]uptime\[dq]
+interval = 3600 \f[I]# update every hour\f[R]
+.EE
+.SS Used Icons
+.IP \[bu] 2
+\f[CR]uptime\f[R]
+.SS vpn
+Shows the current connection status for VPN networks
+.PP
+This widget toggles the connection on left click.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]driver\f[R]
+T}@T{
+Which vpn should be used .
+Available drivers are: \f[CR]\[dq]nordvpn\[dq]\f[R],
+\f[CR]\[dq]mullvad\[dq]\f[R], \f[CR]\[dq]tailscale\[dq]\f[R]
+T}@T{
+\f[CR]\[dq]nordvpn\[dq]\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds.
+T}@T{
+\f[CR]10\f[R]
+T}
+T{
+\f[CR]format_connected\f[R]
+T}@T{
+A string to customise the output in case the network is connected.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] VPN: $icon \[dq]\f[R]
+T}
+T{
+\f[CR]format_disconnected\f[R]
+T}@T{
+A string to customise the output in case the network is disconnected.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] VPN: $icon \[dq]\f[R]
+T}
+T{
+\f[CR]state_connected\f[R]
+T}@T{
+The widgets state if the vpn network is connected.
+T}@T{
+\f[CR]info\f[R]
+T}
+T{
+\f[CR]state_disconnected\f[R]
+T}@T{
+The widgets state if the vpn network is disconnected
+T}@T{
+\f[CR]idle\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(9.9n) lw(48.6n) lw(6.6n) lw(4.9n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]country\f[R]
+T}@T{
+Country currently connected to
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]flag\f[R]
+T}@T{
+Country specific flag (depends on a font supporting them)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]profile\f[R]
+T}@T{
+Currently selected profile configuration (tailnet)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]error\f[R]
+T}@T{
+Error message if any
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l.
+T{
+Action
+T}@T{
+Default button
+T}@T{
+Description
+T}
+_
+T{
+\f[CR]toggle\f[R]
+T}@T{
+Left
+T}@T{
+toggles the vpn network connection
+T}
+.TE
+.SS Drivers
+.SS Mullvad
+Behind the scenes the mullvad driver uses the \f[CR]mullvad\f[R] command
+line binary.
+In order for this to work properly the binary should be executable and
+mullvad daemon should be running.
+.SS nordvpn
+Behind the scenes the nordvpn driver uses the \f[CR]nordvpn\f[R] command
+line binary.
+In order for this to work properly the binary should be executable
+without root privileges.
+.SS Tailscale
+Behind the scenes the tailscale driver uses the \f[CR]tailscale\f[R]
+command line binary.
+In order for this to work properly the tailscale daemon should be
+running and the user must be configured as operator:
+.IP
+.EX
+sudo tailscale set \-\-operator=$USER
+.EE
+.SS Cloudflare WARP
+Behind the scenes the WARP driver uses the \f[CR]warp\-cli\f[R] command
+line binary.
+Just ensure the binary is executable without root privileges.
+.SS Example
+Shows the current vpn network state:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]vpn\[dq]
+driver = \[dq]nordvpn\[dq]
+interval = 10
+format_connected = \[dq]VPN: $icon \[dq]
+format_disconnected = \[dq]VPN: $icon \[dq]
+state_connected = \[dq]good\[dq]
+state_disconnected = \[dq]warning\[dq]
+.EE
+.PP
+Possible values for \f[CR]state_connected\f[R] and
+\f[CR]state_disconnected\f[R]:
+.IP
+.EX
+warning
+critical
+good
+info
+idle
+.EE
+.SS Icons Used
+.IP \[bu] 2
+\f[CR]net_vpn\f[R]
+.IP \[bu] 2
+\f[CR]net_wired\f[R]
+.IP \[bu] 2
+\f[CR]net_down\f[R]
+.IP \[bu] 2
+country code flags (if supported by font)
+.PP
+Flags: They are not icons but unicode glyphs.
+You will need a font that includes them.
+Tested with: \c
+.UR https://www.babelstone.co.uk/Fonts/Flags.html
+.UE \c
+.SS watson
+Watson statistics
+.PP
+\c
+.UR http://tailordev.github.io/Watson/
+Watson
+.UE \c
+\ is a simple CLI time tracking application.
+This block will show the name of your current active project, tags and
+optionally recorded time.
+Clicking the widget will toggle the \f[CR]show_time\f[R] variable
+dynamically.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders
+T}@T{
+\f[CR]\[dq] $text |\[dq]\f[R]
+T}
+T{
+\f[CR]show_time\f[R]
+T}@T{
+Whether to show recorded time.
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]state_path\f[R]
+T}@T{
+Path to the Watson state file.
+Supports path expansions e.g.\ \f[CR]\[ti]\f[R].
+T}@T{
+\f[CR]$XDG_CONFIG_HOME/watson/state\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval, in seconds.
+T}@T{
+\f[CR]60\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l l.
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]text\f[R]
+T}@T{
+Current activity
+T}@T{
+Text
+T}@T{
+\-
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l l.
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_show_time\f[R]
+T}@T{
+Toggle the value of \f[CR]show_time\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]watson\[dq]
+show_time = true
+state_path = \[dq]\[ti]/.config/watson/state\[dq]
+.EE
+.SS TODO
+.IP \[bu] 2
+Extend functionality: start / stop watson using this block
+.SS weather
+Current weather
+.PP
+This block displays local weather and temperature information.
+In order to use this block, you will need access to a supported weather
+API service.
+At the time of writing, OpenWeatherMap, met.no, and the US National
+Weather Service are supported.
+.PP
+Configuring this block requires configuring a weather service, which may
+require API keys and other parameters.
+.PP
+If using the \f[CR]autolocate\f[R] feature, set the autolocate update
+interval such that you do not exceed ipapi.co\[cq]s free daily limit of
+1000 hits.
+Or use \f[CR]autolocate_interval = \[dq]once\[dq]\f[R] to only run on
+initialization.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]service\f[R]
+T}@T{
+The configuration of a weather service (see below).
+T}@T{
+\f[B]Required\f[R]
+T}
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+Text may need to be escaped, refer to Escaping Text.
+T}@T{
+\f[CR]\[dq] $icon $weather $temp \[dq]\f[R]
+T}
+T{
+\f[CR]format_alt\f[R]
+T}@T{
+If set, block will switch between \f[CR]format\f[R] and
+\f[CR]format_alt\f[R] on every click
+T}@T{
+\f[CR]None\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval, in seconds.
+T}@T{
+\f[CR]600\f[R]
+T}
+T{
+\f[CR]autolocate\f[R]
+T}@T{
+Gets your location using the ipapi.co IP location service (no API key
+required).
+If the API call fails then the block will fallback to service specific
+location config.
+T}@T{
+\f[CR]false\f[R]
+T}
+T{
+\f[CR]autolocate_interval\f[R]
+T}@T{
+Update interval for \f[CR]autolocate\f[R] in seconds or \[lq]once\[rq]
+T}@T{
+\f[CR]interval\f[R]
+T}
+.TE
+.SS OpenWeatherMap Options
+To use the service you will need a (free) API key.
+.PP
+.TS
+tab(@);
+lw(9.3n) lw(18.7n) lw(23.3n) lw(18.7n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Required
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]name\f[R]
+T}@T{
+\f[CR]openweathermap\f[R].
+T}@T{
+Yes
+T}@T{
+None
+T}
+T{
+\f[CR]api_key\f[R]
+T}@T{
+Your OpenWeatherMap API key.
+T}@T{
+Yes
+T}@T{
+None
+T}
+T{
+\f[CR]coordinates\f[R]
+T}@T{
+GPS latitude longitude coordinates as a tuple, example:
+\f[CR][\[dq]39.2362\[dq],\[dq]9.3317\[dq]]\f[R]
+T}@T{
+Yes*
+T}@T{
+None
+T}
+T{
+\f[CR]city_id\f[R]
+T}@T{
+OpenWeatherMap\[cq]s ID for the city.
+(Deprecated)
+T}@T{
+Yes*
+T}@T{
+None
+T}
+T{
+\f[CR]place\f[R]
+T}@T{
+OpenWeatherMap `By {city name},{state code},{country code}' search
+query.
+See \c
+.UR https://openweathermap.org/api/geocoding-api#direct_name
+here
+.UE \c
+\&.
+Consumes an additional API call
+T}@T{
+Yes*
+T}@T{
+None
+T}
+T{
+\f[CR]zip\f[R]
+T}@T{
+OpenWeatherMap `By {zip code},{country code}' search query.
+See \c
+.UR https://openweathermap.org/api/geocoding-api#direct_zip
+here
+.UE \c
+\&.
+Consumes an additional API call
+T}@T{
+Yes*
+T}@T{
+None
+T}
+T{
+\f[CR]units\f[R]
+T}@T{
+Either \f[CR]\[dq]metric\[dq]\f[R] or \f[CR]\[dq]imperial\[dq]\f[R].
+T}@T{
+No
+T}@T{
+\f[CR]\[dq]metric\[dq]\f[R]
+T}
+T{
+\f[CR]lang\f[R]
+T}@T{
+Language code.
+See \c
+.UR https://openweathermap.org/current#multi
+here
+.UE \c
+\&.
+Currently only affects \f[CR]weather_verbose\f[R] key.
+T}@T{
+No
+T}@T{
+\f[CR]\[dq]en\[dq]\f[R]
+T}
+T{
+\f[CR]forecast_hours\f[R]
+T}@T{
+How many hours should be forecast (must be increments of 3 hours, max
+120 hours)
+T}@T{
+No
+T}@T{
+12
+T}
+.TE
+.PP
+One of \f[CR]coordinates\f[R], \f[CR]city_id\f[R], \f[CR]place\f[R], or
+\f[CR]zip\f[R] is required.
+If more than one are supplied, \f[CR]coordinates\f[R] takes precedence
+over \f[CR]city_id\f[R] which takes precedence over \f[CR]place\f[R]
+which takes precedence over \f[CR]zip\f[R].
+.PP
+The options \f[CR]api_key\f[R], \f[CR]city_id\f[R], \f[CR]place\f[R],
+\f[CR]zip\f[R], can be omitted from configuration, in which case they
+must be provided in the environment variables
+\f[CR]OPENWEATHERMAP_API_KEY\f[R], \f[CR]OPENWEATHERMAP_CITY_ID\f[R],
+\f[CR]OPENWEATHERMAP_PLACE\f[R], \f[CR]OPENWEATHERMAP_ZIP\f[R].
+.PP
+Forecasts are only fetched if forecast_hours > 0 and the format has keys
+related to forecast.
+.SS met.no Options
+.PP
+.TS
+tab(@);
+lw(9.3n) lw(18.7n) lw(23.3n) lw(18.7n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Required
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]name\f[R]
+T}@T{
+\f[CR]metno\f[R].
+T}@T{
+Yes
+T}@T{
+None
+T}
+T{
+\f[CR]coordinates\f[R]
+T}@T{
+GPS latitude longitude coordinates as a tuple, example:
+\f[CR][\[dq]39.2362\[dq],\[dq]9.3317\[dq]]\f[R]
+T}@T{
+Required if \f[CR]autolocate = false\f[R]
+T}@T{
+None
+T}
+T{
+\f[CR]lang\f[R]
+T}@T{
+Language code: \f[CR]en\f[R], \f[CR]nn\f[R] or \f[CR]nb\f[R]
+T}@T{
+No
+T}@T{
+\f[CR]en\f[R]
+T}
+T{
+\f[CR]altitude\f[R]
+T}@T{
+Meters above sea level of the ground
+T}@T{
+No
+T}@T{
+Approximated by server
+T}
+T{
+\f[CR]forecast_hours\f[R]
+T}@T{
+How many hours should be forecast
+T}@T{
+No
+T}@T{
+12
+T}
+.TE
+.PP
+Met.no does not support location name, but if autolocate is enabled then
+autolocate\[cq]s city value is used.
+.SS US National Weather Service Options
+.PP
+.TS
+tab(@);
+lw(9.3n) lw(18.7n) lw(23.3n) lw(18.7n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Required
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]name\f[R]
+T}@T{
+\f[CR]nws\f[R].
+T}@T{
+Yes
+T}@T{
+None
+T}
+T{
+\f[CR]coordinates\f[R]
+T}@T{
+GPS latitude longitude coordinates as a tuple, example:
+\f[CR][\[dq]39.2362\[dq],\[dq]9.3317\[dq]]\f[R]
+T}@T{
+Required if \f[CR]autolocate = false\f[R]
+T}@T{
+None
+T}
+T{
+\f[CR]forecast_hours\f[R]
+T}@T{
+How many hours should be forecast
+T}@T{
+No
+T}@T{
+12
+T}
+T{
+\f[CR]units\f[R]
+T}@T{
+Either \f[CR]\[dq]metric\[dq]\f[R] or \f[CR]\[dq]imperial\[dq]\f[R].
+T}@T{
+No
+T}@T{
+\f[CR]\[dq]metric\[dq]\f[R]
+T}
+.TE
+.PP
+Forecasts gather statistics from each hour between now and the
+\f[CR]forecast_hours\f[R] value, and provide predicted weather at the
+set number of hours into the future.
+.SS Available Format Keys
+.PP
+.TS
+tab(@);
+lw(22.7n) lw(39.8n) lw(5.0n) lw(2.5n).
+T{
+Key
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]location\f[R]
+T}@T{
+Location name (exact format depends on the service)
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]icon{,_ffin}\f[R]
+T}@T{
+Icon representing the weather
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]weather{,_ffin}\f[R]
+T}@T{
+Textual brief description of the weather, e.g.\ \[lq]Raining\[rq]
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]weather_verbose{,_ffin}\f[R]
+T}@T{
+Textual verbose description of the weather, e.g.\ \[lq]overcast
+clouds\[rq]
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]temp{,_{favg,fmin,fmax,ffin}}\f[R]
+T}@T{
+Temperature
+T}@T{
+Number
+T}@T{
+degrees
+T}
+T{
+\f[CR]apparent{,_{favg,fmin,fmax,ffin}}\f[R]
+T}@T{
+Australian Apparent Temperature
+T}@T{
+Number
+T}@T{
+degrees
+T}
+T{
+\f[CR]humidity{,_{favg,fmin,fmax,ffin}}\f[R]
+T}@T{
+Humidity
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]wind{,_{favg,fmin,fmax,ffin}}\f[R]
+T}@T{
+Wind speed
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]wind_kmh{,_{favg,fmin,fmax,ffin}}\f[R]
+T}@T{
+Wind speed.
+The wind speed in km/h
+T}@T{
+Number
+T}@T{
+\-
+T}
+T{
+\f[CR]direction{,_{favg,fmin,fmax,ffin}}\f[R]
+T}@T{
+Wind direction, e.g.\ \[lq]NE\[rq]
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]sunrise\f[R]
+T}@T{
+Time of sunrise (may be absent if it\[cq]s a polar day or polar
+night)[3]
+T}@T{
+DateTime
+T}@T{
+\-
+T}
+T{
+\f[CR]sunset\f[R]
+T}@T{
+Time of sunset (may be absent if it\[cq]s a polar day or polar night)[4]
+T}@T{
+DateTime
+T}@T{
+\-
+T}
+.TE
+.PP
+You can use the suffixes noted above to get the following:
+.PP
+.TS
+tab(@);
+l l.
+T{
+Suffix
+T}@T{
+Description
+T}
+_
+T{
+None
+T}@T{
+Current weather
+T}
+T{
+\f[CR]_favg\f[R]
+T}@T{
+Average forecast value
+T}
+T{
+\f[CR]_fmin\f[R]
+T}@T{
+Minimum forecast value
+T}
+T{
+\f[CR]_fmax\f[R]
+T}@T{
+Maximum forecast value
+T}
+T{
+\f[CR]_ffin\f[R]
+T}@T{
+Final forecast value
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(15.1n) lw(40.7n) lw(14.2n).
+T{
+Action
+T}@T{
+Description
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]toggle_format\f[R]
+T}@T{
+Toggles between \f[CR]format\f[R] and \f[CR]format_alt\f[R]
+T}@T{
+Left
+T}
+.TE
+.SS Examples
+Show detailed weather in San Francisco through the OpenWeatherMap
+service:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]weather\[dq]
+format = \[dq] $icon $weather ($location) $temp, $wind m/s $direction \[dq]
+format_alt = \[dq] $icon_ffin Forecast (9 hour avg) {$temp_favg ({$temp_fmin}\-{$temp_fmax})|Unavailable} \[dq]
+\f[B][block.service]\f[R]
+name = \[dq]openweathermap\[dq]
+api_key = \[dq]XXX\[dq]
+city_id = \[dq]5398563\[dq]
+units = \[dq]metric\[dq]
+forecast_hours = 9
+.EE
+.PP
+Show sunrise and sunset times in null island
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]weather\[dq]
+format = \[dq]up $sunrise.datetime(f:\[aq]%R\[aq]) down $sunset.datetime(f:\[aq]%R\[aq])\[dq]
+\f[B][block.service]\f[R]
+name = \[dq]metno\[dq]
+coordinates = [\[dq]0\[dq], \[dq]0\[dq]]
+.EE
+.SS Used Icons
+.IP \[bu] 2
+\f[CR]weather_sun\f[R] (when weather is reported as \[lq]Clear\[rq]
+during the day)
+.IP \[bu] 2
+\f[CR]weather_moon\f[R] (when weather is reported as \[lq]Clear\[rq] at
+night)
+.IP \[bu] 2
+\f[CR]weather_clouds\f[R] (when weather is reported as \[lq]Clouds\[rq]
+during the day)
+.IP \[bu] 2
+\f[CR]weather_clouds_night\f[R] (when weather is reported as
+\[lq]Clouds\[rq] at night)
+.IP \[bu] 2
+\f[CR]weather_fog\f[R] (when weather is reported as \[lq]Fog\[rq] or
+\[lq]Mist\[rq] during the day)
+.IP \[bu] 2
+\f[CR]weather_fog_night\f[R] (when weather is reported as \[lq]Fog\[rq]
+or \[lq]Mist\[rq] at night)
+.IP \[bu] 2
+\f[CR]weather_rain\f[R] (when weather is reported as \[lq]Rain\[rq] or
+\[lq]Drizzle\[rq] during the day)
+.IP \[bu] 2
+\f[CR]weather_rain_night\f[R] (when weather is reported as
+\[lq]Rain\[rq] or \[lq]Drizzle\[rq] at night)
+.IP \[bu] 2
+\f[CR]weather_snow\f[R] (when weather is reported as \[lq]Snow\[rq])
+.IP \[bu] 2
+\f[CR]weather_thunder\f[R] (when weather is reported as
+\[lq]Thunderstorm\[rq] during the day)
+.IP \[bu] 2
+\f[CR]weather_thunder_night\f[R] (when weather is reported as
+\[lq]Thunderstorm\[rq] at night)
+.SS xrandr
+X11 screen information
+.PP
+X11 screen information (name, brightness, resolution, refresh rate).
+With a click you can toggle through your active screens, and scrolling
+the wheel up/down, you can adjust the selected screens\[cq] brightness.
+Regarding brightness control, xrandr changes the brightness of the
+display using gamma rather than changing the brightness in hardware, so
+if that is not desirable, then consider using the \f[CR]backlight\f[R]
+block instead.
+.PP
+NOTE: Some users report issues (e.g.\ \c
+.UR https://github.com/greshake/i3status-rust/issues/274
+here
+.UE \c
+\ and \c
+.UR https://github.com/greshake/i3status-rust/issues/668
+here
+.UE \c
+\ when using this block.
+The cause is currently unknown, however, setting a higher update
+interval may help.
+.SS Configuration
+.PP
+.TS
+tab(@);
+lw(14.0n) lw(28.0n) lw(28.0n).
+T{
+Key
+T}@T{
+Values
+T}@T{
+Default
+T}
+_
+T{
+\f[CR]format\f[R]
+T}@T{
+A string to customise the output of this block.
+See below for available placeholders.
+T}@T{
+\f[CR]\[dq] $icon $display $brightness_icon $brightness \[dq]\f[R]
+T}
+T{
+\f[CR]step_width\f[R]
+T}@T{
+The steps brightness is in/decreased for the selected screen (When
+greater than 50 it gets limited to 50).
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]interval\f[R]
+T}@T{
+Update interval in seconds.
+T}@T{
+\f[CR]5\f[R]
+T}
+T{
+\f[CR]invert_icons\f[R]
+T}@T{
+Invert icons\[cq] ordering, useful if you have colourful emoji
+T}@T{
+\f[CR]false\f[R]
+T}
+.TE
+.PP
+.TS
+tab(@);
+lw(17.7n) lw(29.6n) lw(7.9n) lw(14.8n).
+T{
+Placeholder
+T}@T{
+Value
+T}@T{
+Type
+T}@T{
+Unit
+T}
+_
+T{
+\f[CR]icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]display\f[R]
+T}@T{
+The monitor name
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]brightness\f[R]
+T}@T{
+The monitor brightness
+T}@T{
+Number
+T}@T{
+%
+T}
+T{
+\f[CR]brightness_icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]resolution\f[R]
+T}@T{
+The monitor resolution
+T}@T{
+Text
+T}@T{
+\-
+T}
+T{
+\f[CR]res_icon\f[R]
+T}@T{
+A static icon
+T}@T{
+Icon
+T}@T{
+\-
+T}
+T{
+\f[CR]refresh_rate\f[R]
+T}@T{
+The monitor refresh rate
+T}@T{
+Number
+T}@T{
+Hertz
+T}
+.TE
+.PP
+.TS
+tab(@);
+l l.
+T{
+Action
+T}@T{
+Default button
+T}
+_
+T{
+\f[CR]cycle_outputs\f[R]
+T}@T{
+Left
+T}
+T{
+\f[CR]brightness_up\f[R]
+T}@T{
+Wheel Up
+T}
+T{
+\f[CR]brightness_down\f[R]
+T}@T{
+Wheel Down
+T}
+.TE
+.SS Example
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]xrandr\[dq]
+format = \[dq] $icon $brightness $resolution $refresh_rate \[dq]
+.EE
+.SS Used Icons
+.IP \[bu] 2
+\f[CR]xrandr\f[R]
+.IP \[bu] 2
+\f[CR]backlight\f[R]
+.IP \[bu] 2
+\f[CR]resolution\f[R]
+.SH "نکات (NOTES)"
+.SS [1]
+.PP
+when using \f[CR]notification_count\f[R] with the \f[CR]dunst\f[R]
+driver use dunst > 1.9.0
+.SS [2]
+.PP
+\f[CR]history_count\f[R] is the same as \f[CR]notification_count\f[R] in
+SwayNC
+.SS [3]
+.PP
+On polar days and polar nights, sunrise or sunset may not occur on a
+given day, and thus the corresponding value may be absent.
+This behaviour depends on the weather service used.
+For met.no and nws, both sunrise and sunset will be absent on polar days
+and polar nights, but OpenWeatherMap will show the same time for both
+sunrise and sunset.
+.SS [4]
+.PP
+On polar days and polar nights, sunrise or sunset may not occur on a
+given day, and thus the corresponding value may be absent.
+This behaviour depends on the weather service used.
+For met.no and nws, both sunrise and sunset will be absent on polar days
+and polar nights, but OpenWeatherMap will show the same time for both
+sunrise and sunset.
+.SH THEMES
+.SS Choosing your theme and icon set
+To use a theme or icon set other than the default, add them to your
+configuration file like so:
+.IP
+.EX
+\f[B][theme]\f[R]
+theme = \[dq]solarized\-dark\[dq]
+\f[B][icons]\f[R]
+icons = \[dq]awesome6\[dq]
+.EE
+.PP
+Both the theme and icon set can be loaded from a separate file.
+.IP
+.EX
+\f[B][theme]\f[R]
+theme = \[dq]<file>\[dq]
+\f[B][icons]\f[R]
+icons = \[dq]<file>\[dq]
+.EE
+.PP
+where \f[CR]<file>\f[R] can be either a filename or a full path and will
+be checked in this order:
+.IP "1." 3
+If full absolute path given, then use it as is:
+\f[CR]/home/foo/custom_theme.toml\f[R]
+.IP "2." 3
+If filename given, e.g.\ \[lq]custom_theme.toml\[rq], then first check
+\f[CR]$XDG_CONFIG_HOME/i3status\-rust/themes\f[R]
+.IP "3." 3
+Then look for it in \f[CR]$XDG_DATA_HOME/i3status\-rust/themes\f[R]
+.IP "4." 3
+Otherwise look for it in \f[CR]/usr/share/i3status\-rust/themes\f[R]
+.PP
+Notes: \- In case with icon sets, the file should be in the
+\f[CR]icons\f[R] subdirectory instead of \f[CR]themes\f[R].
+\- You can omit the \f[CR].toml\f[R] extension while specifying
+\f[CR]file\f[R] parameters.
+\- All the predefined themes are provided as files, so you use them as
+examples of how to write your own themes/icon sets.
+.SS Available themes
+Note: screenshots were generated using this config with this swaybar
+config.
+.IP \[bu] 2
+\f[CR]plain\f[R] (default) [IMAGE: plain]
+.IP \[bu] 2
+\f[CR]solarized\-dark\f[R] [IMAGE: solarized\-dark]
+.IP \[bu] 2
+\f[CR]solarized\-light\f[R] [IMAGE: solarized\-light]
+.IP \[bu] 2
+\f[CR]slick\f[R] [IMAGE: slick]
+.IP \[bu] 2
+\f[CR]modern\f[R] [IMAGE: modern]
+.IP \[bu] 2
+\f[CR]bad\-wolf\f[R] [IMAGE: bad\-wolf]
+.IP \[bu] 2
+\f[CR]gruvbox\-light\f[R] [IMAGE: gruvbox\-light]
+.IP \[bu] 2
+\f[CR]gruvbox\-dark\f[R] [IMAGE: gruvbox\-dark]
+.IP \[bu] 2
+\f[CR]space\-villain\f[R] [IMAGE: space\-villain]
+.IP \[bu] 2
+\f[CR]native\f[R] (like plain with no background and native separators)
+[IMAGE: native]
+.IP \[bu] 2
+\f[CR]semi\-native\f[R] (like native but with background)
+[IMAGE: semi\-native]
+.IP \[bu] 2
+\f[CR]nord\-dark\f[R] (polar night) [IMAGE: nord\-dark]
+.IP \[bu] 2
+\f[CR]dracula\f[R] [IMAGE: dracula]
+.IP \[bu] 2
+\f[CR]srcery\f[R] [IMAGE: srcery]
+.IP \[bu] 2
+\f[CR]ctp\-frappe\f[R] [IMAGE: ctp\-frappe]
+.IP \[bu] 2
+\f[CR]ctp\-latte\f[R] [IMAGE: ctp\-latte]
+.IP \[bu] 2
+\f[CR]ctp\-macchiato\f[R] [IMAGE: ctp\-macchiato]
+.IP \[bu] 2
+\f[CR]ctp\-mocha\f[R] [IMAGE: ctp\-mocha]
+.IP \[bu] 2
+\f[CR]tomorrow\-night\f[R] [IMAGE: tomorrow\-night]
+.SS Available icon sets
+.IP \[bu] 2
+\f[CR]none\f[R] (default.
+Uses text labels instead of icons)
+.IP \[bu] 2
+\f[CR]awesome4\f[R] (Font Awesome 4.x)
+.IP \[bu] 2
+\f[CR]awesome5\f[R] (Font Awesome 5.x)
+.IP \[bu] 2
+\f[CR]awesome6\f[R] (Font Awesome 6.x)
+.IP \[bu] 2
+\f[CR]emoji\f[R]
+.IP \[bu] 2
+\f[CR]material\f[R]
+.IP \[bu] 2
+\f[CR]material\-nf\f[R] (Any font from Nerd Fonts collection)
+.PP
+\f[B]Note\f[R]: In order to use the material icon set, you need a
+patched material icons font which can be found \c
+.UR https://gist.github.com/draoncc/3c20d8d4262892ccd2e227eefeafa8ef/raw/3e6e12c213fba1ec28aaa26430c3606874754c30/MaterialIcons-Regular-for-inline.ttf
+here
+.UE \c
+\&.
+Make sure to pass it in your i3 configuration bar block.
+.SS Overriding themes and icon sets
+Create a block in the configuration called \f[CR]theme\f[R] or
+\f[CR]icons\f[R] like so:
+.IP
+.EX
+\f[B][theme]\f[R]
+theme = \[dq]solarized\-dark\[dq]
+\f[B][theme.overrides]\f[R]
+\f[I]# Example: redefine \[ga]idle\[ga] colors\f[R]
+idle_bg = \[dq]#123456\[dq]
+idle_fg = \[dq]#abcdef\[dq]
+\f[I]# Example: swap \[ga]good\[ga] and \[ga]warning\[ga] colors\f[R]
+good_fg = { link = \[dq]warning_fg\[dq] }
+good_bg = { link = \[dq]warning_bg\[dq] }
+warning_fg = { link = \[dq]good_fg\[dq] }
+warning_bg = { link = \[dq]good_bg\[dq] }
+
+\f[B][icons]\f[R]
+icons = \[dq]awesome6\[dq]
+\f[B][icons.overrides]\f[R]
+bat = [
+    \[dq]| |\[dq],
+    \[dq]|¼|\[dq],
+    \[dq]|½|\[dq],
+    \[dq]|¾|\[dq],
+    \[dq]|X|\[dq],
+]
+bat_charging = \[dq]|\[ha]|\[dq]
+.EE
+.PP
+Besides global overrides you may also use per\-block overrides using the
+\f[CR]theme_overrides\f[R], \f[CR]icons_overrides\f[R] and
+\f[CR]icons_format\f[R] options available for all blocks.
+For example:
+.IP
+.EX
+\f[B][[block]]\f[R]
+block = \[dq]cpu\[dq]
+icons_format = \[dq]{icon}\[dq]
+\f[B][block.theme_overrides]\f[R]
+idle_bg = \[dq]#123456\[dq]
+idle_fg = \[dq]#abcdef\[dq]
+\f[B][block.icons_overrides]\f[R]
+cpu_boost_on = \[dq]ON\[dq]
+cpu_boost_off = \[dq]OFF\[dq]
+.EE
+.SS Available theme overrides
+All \f[CR]bg\f[R] and \f[CR]fg\f[R] overrides are either
+.IP \[bu] 2
+html hex color codes like \f[CR]#000000\f[R] or \f[CR]#789ABC\f[R]; a
+fourth byte for alpha (like \f[CR]#acbdef42\f[R]) works on some systems.
+\f[CR]00\f[R] is transparent, \f[CR]FF\f[R] is opaque, or
+.IP \[bu] 2
+a reference to another override, e.g.,
+\f[CR]{ link = \[dq]idle\-bg\[dq] }\f[R], or
+.IP \[bu] 2
+a reference to a color name defined in \f[CR]\[ti]/.Xresources\f[R],
+e.g., \f[CR]x:background\f[R] looks for a line like
+\f[CR]*background: #aabbcc\f[R] in \f[CR]\[ti]/.Xresources\f[R] (see
+also \c
+.UR https://wiki.debian.org/Xresources
+\&.Xresources
+.UE \c
+).
+.PP
+The tints are added to every second block counting from the right.
+They will therefore always brighten the block and never darken it.
+The alpha channel, if it works, can also be alternated in the same way.
+.PP
+Feel free to take a look at the provided color schemes for reference.
+.IP \[bu] 2
+\f[CR]idle_bg\f[R]
+.IP \[bu] 2
+\f[CR]idle_fg\f[R]
+.IP \[bu] 2
+\f[CR]good_bg\f[R]
+.IP \[bu] 2
+\f[CR]good_fg\f[R]
+.IP \[bu] 2
+\f[CR]warning_bg\f[R]
+.IP \[bu] 2
+\f[CR]warning_fg\f[R]
+.IP \[bu] 2
+\f[CR]critical_bg\f[R]
+.IP \[bu] 2
+\f[CR]critical_fg\f[R]
+.IP \[bu] 2
+\f[CR]info_bg\f[R]
+.IP \[bu] 2
+\f[CR]info_fg\f[R]
+.IP \[bu] 2
+\f[CR]alternating_tint_bg\f[R]
+.IP \[bu] 2
+\f[CR]alternating_tint_fg\f[R]
+.IP \[bu] 2
+\f[CR]separator_bg\f[R]
+.IP \[bu] 2
+\f[CR]separator_fg\f[R]
+.IP \[bu] 2
+\f[CR]separator\f[R]
+.IP \[bu] 2
+\f[CR]end_separator\f[R]
+.IP \[bu] 2
+\f[CR]start_separator\f[R]
+.SS Available icon overrides
+These can be directly set to a string containing the desired unicode
+codepoint(s) or use a TOML escape sequence like
+\f[CR]\[dq]\[rs]uf0f3\[dq]\f[R] for up to 4\-nibble codepoints and
+\f[CR]\[dq]\[rs]U0001f312\[dq]\f[R] for up to 8\-nibble codepoints.
+.PP
+You can find the codepoints in the documentation of the icon font
+you\[cq]re using.
+.PP
+Refer to individual block\[cq]s documentation for a list of used icons
+or provided icon sets for a complete list of icons.
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.SH "نسخه (VERSION)"
+v0.36.1
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.SH "نویسندگان (AUTHORS)"
+Kai Greshake <development@kai\-greshake.de>, Contributors on GitHub (https, //github.com/greshake/i3status\-rust/graphs/contributors)

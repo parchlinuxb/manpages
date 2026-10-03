@@ -1,0 +1,397 @@
+.TH SQ 1 1.4.0 "Sequoia PGP" "User Commands"
+.SH "نام (NAME)"
+sq\-key \- Manage keys
+.SH "خلاصه دستور (SYNOPSIS)"
+.br
+\fBsq key list\fR [\fIOPTIONS\fR] \fIFINGERPRINT|KEYID|PATTERN\fR
+.br
+\fBsq key generate\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key rotate\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key import\fR [\fIOPTIONS\fR] \fIKEY_FILE\fR
+.br
+\fBsq key export\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key delete\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key password\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key expire\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key revoke\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key userid\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq key subkey\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq key approvals\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.SH "توضیحات (DESCRIPTION)"
+Manage keys.
+.PP
+We use the term "key" to refer to OpenPGP keys that do contain secrets.  This subcommand provides primitives to generate and otherwise manipulate keys.
+.PP
+Conversely, we use the term "certificate", or "cert" for short, to refer to OpenPGP keys that do not contain secrets.  See `sq cert` for operations on certificates.
+.PP
+
+.SH SUBCOMMANDS
+.SS "sq key list"
+List keys managed by the key store.
+.PP
+
+.SS "sq key generate"
+Generate a new key.
+.PP
+Generating a key is the prerequisite to receiving encrypted messages and creating signatures.  There are a few parameters to this process, but we provide reasonable defaults for most users.
+.PP
+When generating a key, we also generate an emergency revocation certificate. This can be used in case the key is lost or compromised.  It is saved alongside the key.  This can be changed using the `\-\-rev\-cert` argument.
+.PP
+By default a key expires after 3 years.  This can be changed using the `\-\-expiration` argument.
+.PP
+`sq key generate` respects the reference time set by the top\-level `\-\-time` argument.  It sets the creation time of the primary key, any subkeys, and the binding signatures to the reference time.
+.PP
+
+
+.SS "sq key rotate"
+Rotate a certificate.
+.PP
+Generates a new certificate to replace an existing one.
+.PP
+The new certificate will have the same capabilities as the old certificate.  This can be overridden using the `\-\-can\-sign`, `\-\-cannot\-sign`, etc., arguments.  Note: the new certificate may have a different shape from the old certificate.  For instance, if the old certificate's primary key is marked as both certification and signing capable, the new certificate's primary key will be certification capable, and it will have a signing subkey.
+.PP
+By default the certificate expires after 3 years.  This can be changed using the `\-\-expiration` argument.
+.PP
+The new certificate will have the same self\-signed user IDs as the old certificate.  Revoked user IDs are ignored.
+.PP
+The new certificate and the old certificate will cross certify each other as unconstrained trusted introducers.
+.PP
+The new certificate will be linked in the same way as the old certificate.  This can be overridden using the `\-\-own\-key`, or the `\-\-shared\-key` argument.
+.PP
+The new certificate will certify the same certificates as the old certificate.  That is, the old certificate's certifications will be replayed.  See `sq pki vouch replay` for more information.
+.PP
+A revocation certificate indicating that the old certificate is retired, and that the new certificate should be instead used will be issued.  By default, it will go into effect in 182 days.  This can be changed or suppressed using the `\-\-retire\-in` argument.
+.PP
+When using `\-\-output`, the new certificate as well as all of the other updated certificates are written to the specified file.
+.PP
+Stable since 1.2.0.
+.PP
+
+
+.SS "sq key import"
+Import keys into the key store.
+.PP
+
+.SS "sq key export"
+Export keys from the key store.
+.PP
+Exports the secret key material associated with a certificate.  Note that even if secret key material is available, it may not be exportable.  For instance, secret key material stored on a hardware security module usually cannot be exported from the device.
+.PP
+Iterate over all of the specified certificates and export any keys (primary key and subkeys) with secret key material.  An error is returned if any specified certificate does not contain any secret key material.
+.PP
+If you only want to export a particular key and not all keys associate with a certificate, use `sq key subkey export`.
+.PP
+
+
+.SS "sq key delete"
+Delete a certificate's secret key material.
+.PP
+
+.SS "sq key password"
+Change the password protecting secret key material.
+.PP
+Secret key material can be protected by a password.  This subcommand changes or clears the password.
+.PP
+To strip the password either use `\-\-clear` or supply a zero\-length password when prompted for the new password.
+.PP
+If a key is password protected, and the correct password was not supplied using the `\-\-password\-file` argument, the user is prompted for the password.  Likewise, if the new password isn't provided, the user is prompted.
+.PP
+
+
+.SS "sq key expire"
+Change a certificate's expiration time.
+.PP
+This subcommand changes a certificate's expiration time.  To change the expiration time of an individual subkey, use the `sq key subkey expire` subcommand.
+.PP
+
+
+.SS "sq key revoke"
+Revoke a certificate.
+.PP
+Creates a revocation certificate for a certificate.
+.PP
+If `\-\-revoker` or `\-\-revoker\-file` is provided, then that key is used to create the revocation certificate.  If that key is different from the certificate that is being revoked, this results in a third\-party revocation.  This is normally only useful if the owner of the certificate designated the key to be a designated revoker.
+.PP
+`sq key revoke` respects the reference time set by the top\-level `\-\-time` argument.  When set, it uses the specified time instead of the current time when determining what keys are valid, and it sets the revocation certificate's creation time to the reference time instead of the current time.
+.PP
+
+
+.SS "sq key userid"
+Manage User IDs.
+.PP
+Add User IDs to a key, or revoke them.
+.PP
+
+.SS "sq key subkey"
+Manage subkeys.
+.PP
+Add new subkeys to an existing certificate, change their expiration, and revoke them.
+
+.SS "sq key approvals"
+Manages certification approvals.
+.PP
+Key holders may approve of third\-party certifications associated with their certificate.  This subcommand manages the approvals.
+.PP
+To prevent certificate flooding attacks, modern key servers prevent uncontrolled distribution of third\-party certifications on certificates.  To allow the key holder to control what information is distributed with their certificate, these key servers only distribute third\-party certifications that the key holder has explicitly approved.
+.PP
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS "sq key list"
+.PP
+
+.PP
+List the keys managed by the keystore server.
+.PP
+.nf
+.RS
+sq key list
+.RE
+.PP
+.fi
+
+.PP
+List the keys managed by the keystore server with a user ID in
+example.org.
+.PP
+.nf
+.RS
+sq key list \-\-cert\-domain=example.org
+.RE
+.fi
+.PP
+.SS "sq key generate"
+.PP
+
+.PP
+Generate a key, and save it on the key store.
+.PP
+.nf
+.RS
+sq key generate \-\-own\-key \-\-name Alice \-\-email \\
+.RE
+.RS
+.RS
+alice@example.org
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Generate a key, and save it in a file instead of in the key store.
+.PP
+.nf
+.RS
+sq key generate \-\-own\-key \-\-name Alice \-\-email \\
+.RE
+.RS
+.RS
+alice@example.org \-\-output alice\-priv.pgp \-\-rev\-cert \\
+.RE
+.RE
+.RS
+.RS
+alice\-priv.rev
+.RE
+.RE
+.fi
+.PP
+.SS "sq key rotate"
+.PP
+
+.PP
+Rotates Alice's certificate.
+.PP
+.nf
+.RS
+sq key rotate \-\-cert EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.fi
+.PP
+.SS "sq key import"
+.PP
+
+.PP
+Import the keys into the key store.
+.PP
+.nf
+.RS
+sq key import alice\-secret.pgp
+.RE
+.fi
+.PP
+.SS "sq key export"
+.PP
+
+.PP
+Export Alice's certificate with all available secret key material.
+.PP
+.nf
+.RS
+sq key export \-\-cert EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.PP
+.fi
+
+.PP
+Export Alice's certificate with all available secret key material
+identified by email address.
+.PP
+.nf
+.RS
+sq key export \-\-cert\-email alice@example.org
+.RE
+.fi
+.PP
+.SS "sq key delete"
+.PP
+
+.PP
+Delete any secret key associated with Alice's certificate.
+.PP
+.nf
+.RS
+sq key delete \-\-cert EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.PP
+.fi
+
+.PP
+Delete any secret key associated with Alice's certificate selected by
+user ID.
+.PP
+.nf
+.RS
+sq key delete \-\-cert\-email=alice@example.org
+.RE
+.fi
+.PP
+.SS "sq key password"
+.PP
+
+.PP
+Change the password for all of Alice's keys to the password in the
+specified file.
+.PP
+.nf
+.RS
+sq key password \-\-new\-password\-file password\-file.txt \-\-cert \\
+.RE
+.RS
+.RS
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Clear the password protection for all of Alice's keys.
+.PP
+.nf
+.RS
+sq key password \-\-password\-file password\-file.txt \\
+.RE
+.RS
+.RS
+\-\-clear\-password \-\-cert \\
+.RE
+.RE
+.RS
+.RS
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.RE
+.fi
+.PP
+.SS "sq key expire"
+.PP
+
+.PP
+Change Alice's certificate to expire in a year.
+.PP
+.nf
+.RS
+sq key expire \-\-expiration 1y \-\-cert \\
+.RE
+.RS
+.RS
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Change Alice's certificate to never expire.
+.PP
+.nf
+.RS
+sq key expire \-\-expiration never \-\-cert \\
+.RE
+.RS
+.RS
+EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.RE
+.fi
+.PP
+.SS "sq key revoke"
+.PP
+
+.PP
+Revoke Alice's key, indicating that there is a new certificate.
+.PP
+.nf
+.RS
+sq key revoke \-\-cert EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RS
+.RS
+\-\-reason superseded \-\-message \\
+.RE
+.RE
+.RS
+.RS
+"My new cert is C5999E8191BF7B503653BE958B1F7910D01F86E5"
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Revoke the key, indicating that the secret key material was compromised.
+.PP
+.nf
+.RS
+sq key revoke \-\-cert EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RS
+.RS
+\-\-reason compromised \-\-message \\
+.RE
+.RE
+.RS
+.RS
+"Computer attacked, secret key material compromised"
+.RE
+.RE
+.fi
+.PP
+.SH "همچنین ببینید (SEE ALSO)"
+.nh
+\fBsq\fR(1), \fBsq\-key\-list\fR(1), \fBsq\-key\-generate\fR(1), \fBsq\-key\-rotate\fR(1), \fBsq\-key\-import\fR(1), \fBsq\-key\-export\fR(1), \fBsq\-key\-delete\fR(1), \fBsq\-key\-password\fR(1), \fBsq\-key\-expire\fR(1), \fBsq\-key\-revoke\fR(1), \fBsq\-key\-userid\fR(1), \fBsq\-key\-subkey\fR(1), \fBsq\-key\-approvals\fR(1).
+.hy
+.PP
+For the full documentation see <https://book.sequoia\-pgp.org>.
+.SH "نسخه (VERSION)"
+1.4.0

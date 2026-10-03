@@ -1,0 +1,7240 @@
+.TH "JAQ" "1" "" ""
+
+
+.SH "نام (NAME)"
+
+.PP
+\f[CB]jaq\f[R] — Command\-line JSON processor
+
+
+.SH "خلاصه دستور (SYNOPSIS)"
+
+.PP
+\f[CB]jaq\f[R] [\f[I]OPTION\f[R]]…\ [\f[I]FILTER\f[R]]\ [\f[I]FILE\f[R]]…
+
+
+.SH "توضیحات (DESCRIPTION)"
+
+
+
+.PP
+jaq is an interpreter for the jq programming language\&.
+It is designed to be usable as a drop\-in replacement for the \f[CB]jq\f[R] program,
+which is the reference interpreter for the jq language written in C\&.
+.PP
+Written in Rust, jaq focuses on correctness, high performance, and simplicity\&.
+In addition, jaq adds some functionality not present in \f[CB]jq\f[R]:
+.RS 2
+
+.IP \[bu] 2
+Support for multiple file formats, including JSON, YAML, CBOR, TOML, XML
+
+.IP \[bu] 2
+Support for invalid UTF\-8 code units in text strings
+
+.IP \[bu] 2
+Byte strings
+
+.IP \[bu] 2
+Objects with non\-string keys, such as \f[CB]{0: 1, [2]: 3}\f[R]
+
+.IP \[bu] 2
+In\-place replacement of input files
+
+.RE
+
+.PP
+This manual aspires to:
+.RS 2
+
+.IP \[bu] 2
+Be comprehensible, concise, and complete\&.
+
+.IP \[bu] 2
+Document all functionality in jaq, in particular
+jaq’s command\-line interface,
+jq’s core language, and
+jq’s standard library\&.
+That covers the same concepts as the \c
+.UR https://jqlang.org/manual/
+jq manual
+.UE \c
+\&.
+
+.IP \[bu] 2
+Document all divergences between \f[CB]jq\f[R] and jaq\&.
+
+.RE
+
+.PP
+In case that this manual falls short of these goals,
+please \c
+.UR https://github.com/01mf02/jaq/issues
+open an issue
+.UE \c
+ or
+create a pull request\&.
+The same holds if you wish to propose new functionality for jaq\&.
+This project lives from your contributions!
+.PP
+The creation of this manual was funded through the
+\c
+.UR https://nlnet.nl/commonsfund
+NGI0 Commons Fund
+.UE \c
+, a fund established by
+\c
+.UR https://nlnet.nl
+NLnet
+.UE \c
+ with financial support from the
+European Commission’s \c
+.UR https://ngi.eu
+Next Generation Internet
+.UE \c
+
+programme, under the aegis of \c
+.UR https://commission.europa.eu/about-european-commission/departments-and-executive-agencies/communications-networks-content-and-technology_en
+DG Communications Networks, Content and Technology
+.UE \c
+ under
+grant agreement № \c
+.UR https://cordis.europa.eu/project/id/101135429
+101135429
+.UE \c
+\&.
+Additional funding is made available by the
+\c
+.UR https://www.sbfi.admin.ch/sbfi/en/home.html
+Swiss State Secretariat for Education, Research and Innovation
+.UE \c
+ (SERI)\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+This manual uses “compatibility” blocks to
+point out occasions where jaq diverges from \f[CB]jq\f[R]\&.
+In this manual,
+“\f[CB]jq\f[R]” refers to the C implementation, whereas
+“jq” refers to the jq language\&.
+.RE
+
+
+
+.SH COMMAND\-LINE INTERFACE
+
+.PP
+Running
+\f[CB]jaq\f[R] [\f[I]OPTION\f[R]]… [\f[I]FILTER\f[R]] [\f[I]FILE\f[R]]…
+performs the following steps:
+.RS 2
+
+.IP \[bu] 2
+Parse \f[I]FILTER\f[R] as jq program; see jq language
+
+.IP \[bu] 2
+For each \f[I]FILE\f[R]:
+.RS 2
+
+.IP \[bu] 2
+Parse \f[I]FILE\f[R] to a stream of values
+
+.IP \[bu] 2
+For each input value in the file:
+.RS 2
+
+.IP \[bu] 2
+Run \f[I]FILTER\f[R] on the input value and print its output values
+
+.RE
+
+
+.RE
+
+
+.IP \[bu] 2
+If an uncaught error is encountered at any point, jaq stops\&.
+
+.RE
+
+.PP
+For example, \f[CB]jaq \[aq]\&.name?\[aq] persons\&.json\f[R]
+parses the filter \f[CB]\&.name?\f[R], then
+reads all values in \f[CB]persons\&.json\f[R] one\-by\-one\&.
+It then executes the filter \f[CB]\&.name?\f[R] on each of the values and
+prints the outputs of the filter as JSON\&.
+
+.SS INPUT
+
+.PP
+If no \f[I]FILE\f[R] is given, jaq reads from standard input\&.
+jaq determines the format to parse a \f[I]FILE\f[R] as follows:
+.RS 2
+
+.IP \[bu] 2
+If \f[CB]\-\-from\f[R] \f[I]FORMAT\f[R] is used, jaq uses that format\&.
+
+.IP \[bu] 2
+Otherwise, if \f[I]FILE\f[R] has a file extension known by jaq, such as
+\f[CB]\&.json\f[R], \f[CB]\&.yaml\f[R], \f[CB]\&.cbor\f[R], \f[CB]\&.toml\f[R], \f[CB]\&.xml\f[R], \f[CB]\&.csv\f[R], \f[CB]\&.tsv\f[R],
+jaq uses the corresponding format\&.
+
+.IP \[bu] 2
+Otherwise, jaq assumes JSON\&.
+
+.RE
+
+
+.SS \f[CB]\-\-from\f[R] \f[I]FORMAT\f[R]
+
+.PP
+Interpret all input files as \f[I]FORMAT\f[R]\&.
+For example,
+\f[CB]jaq \-\-from yaml \&. myfile\&.yml\f[R]
+parses \f[CB]myfile\&.yml\f[R] as YAML\&.
+Possible values of \f[I]FORMAT\f[R] include:
+\f[CB]raw\f[R], \f[CB]raw0\f[R], \f[CB]json\f[R], \f[CB]yaml\f[R], \f[CB]cbor\f[R], \f[CB]toml\f[R], \f[CB]xml\f[R], \f[CB]csv\f[R], \f[CB]tsv\f[R]\&.
+.PP
+jaq automatically chooses the corresponding input format for
+files with the extensions
+\f[CB]\&.json\f[R], \f[CB]\&.yaml\f[R], \f[CB]\&.yml\f[R], \f[CB]\&.cbor\f[R], \f[CB]\&.toml\f[R], \f[CB]\&.xml\f[R], \f[CB]\&.xhtml\f[R], \f[CB]\&.csv\f[R], \f[CB]\&.tsv\f[R]\&.
+That means that
+\f[CB]jaq \-\-from cbor \&. myfile\&.cbor\f[R] is equivalent to
+\f[CB]jaq \&. myfile\&.cbor\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not have this option\&.
+.RE
+
+
+
+.SS \f[CB]\-n\f[R], \f[CB]\-\-null\-input\f[R]
+
+.PP
+Feed \f[CB]null\f[R] as input to the main program, ignoring any input files\&.
+For example:
+.IP
+.EX
+$ yes | jaq \-n
+null
+.EE
+
+.PP
+This shows that this does indeed not read any input\&.
+.PP
+The inputs can still be obtained via the \f[CB]inputs\f[R] filter\&. For example:
+.IP
+.EX
+$ yes true | jaq \-n \[aq]first(inputs)\[aq]
+true
+.EE
+
+.PP
+This can be useful to fold over all inputs with \f[CB]reduce\f[R] / \f[CB]foreach\f[R]\&.
+
+
+.SS \f[CB]\-R\f[R], \f[CB]\-\-raw\-input\f[R]
+
+.PP
+Read lines of the input as sequence of strings\&.
+For example:
+.IP
+.EX
+$ printf \[dq]Hello\[rs]nWorld\[dq] | jaq \-R
+\[dq]Hello\[dq]
+\[dq]World\[dq]
+.EE
+
+.PP
+When combined with \f[CB]\-\-slurp\f[R],
+this yields the whole input as a single string\&.
+For example:
+.IP
+.EX
+$ printf \[dq]Hello\[rs]nWorld\[dq] | jaq \-Rs
+\[dq]Hello\[rs]nWorld\[dq]
+.EE
+
+.PP
+See \f[CB]\-\-rawfile\f[R]\&.
+.PP
+This is equivalent to \f[CB]\-\-from raw\f[R]\&.
+
+
+.SS \f[CB]\-\-raw\-input0\f[R]
+
+.PP
+Read values like \f[CB]\-\-raw\-input\f[R], splitting by NUL (\f[CB]\[rs]0\f[R]) instead of newlines\&.
+For example:
+.IP
+.EX
+$ printf \[dq]Hello\[rs]nWorld\[rs]0foo\[dq] | jaq \-\-raw\-input0
+\[dq]Hello\[rs]nWorld\[dq]
+\[dq]foo\[dq]
+.EE
+
+.PP
+When combined with \f[CB]\-\-slurp\f[R],
+this collects all inputs into an array\&.
+For example:
+.IP
+.EX
+$ printf \[dq]Hello\[rs]nWorld\[rs]0foo\[dq] | jaq \-sc \-\-raw\-input0
+[\[dq]Hello\[rs]nWorld\[dq],\[dq]foo\[dq]]
+.EE
+
+.PP
+This option can be used to round\-trip output from \f[CB]\-\-raw\-output0\f[R]:
+.IP
+.EX
+$ printf \[aq]\[dq]some string\[rs]\[rs]nwith a newline\[dq] \[dq]another string\[dq]\[aq] | jaq \-\-raw\-output0 | jaq \-\-raw\-input0
+\[dq]some string\[rs]nwith a newline\[dq]
+\[dq]another string\[dq]
+.EE
+
+.PP
+This is equivalent to \f[CB]\-\-from raw0\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not have this option\&.
+.RE
+
+
+
+.SS \f[CB]\-s\f[R], \f[CB]\-\-slurp\f[R]
+
+.PP
+Read all input values into one array (per file)\&.
+For example:
+.IP
+.EX
+$ echo 1 2 3 | jaq
+1
+2
+3
+$ echo 1 2 3 | jaq \-cs
+[1,2,3]
+.EE
+
+.PP
+When combined with \f[CB]\-\-raw\-input\f[R],
+jaq reads the full input as a single string\&.
+For example:
+.IP
+.EX
+$ echo 1 2 3 | jaq \-Rs
+\[dq]1 2 3\[rs]n\[dq]
+.EE
+
+.PP
+See \f[CB]\-\-rawfile\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+When multiple files are slurped in,
+\f[CB]jq\f[R] combines the inputs of all files into one single array, whereas
+jaq yields an array for every file\&.
+This is motivated by jaq’s \f[CB]\-\-in\-place\f[R] option,
+which could not work with the behaviour implemented by \f[CB]jq\f[R]\&.
+The behaviour of \f[CB]jq\f[R] can be approximated in jaq;
+for example, to achieve the output of
+\f[CB]jq \-s \&. a b\f[R], you may use
+\f[CB]jaq \-s \&. <(cat a b)\f[R]\&.
+.RE
+
+
+
+
+.SS OUTPUT
+
+
+.SS \f[CB]\-\-to\f[R] \f[I]FORMAT\f[R]
+
+.PP
+Print all output values in the given \f[I]FORMAT\f[R]\&.
+Any \f[I]FORMAT\f[R] accepted by \f[CB]\-\-from\f[R] can be used here\&.
+.PP
+Note that not every value can be printed in every format\&.
+For example, TOML requires that the root value is an object, so
+trying to print a non\-object root value as TOML yields an error:
+.IP
+.EX
+$ echo [] | jaq \-\-to toml 2>/dev/null; echo $?
+2
+.EE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not have this option\&.
+.RE
+
+
+
+.SS \f[CB]\-c\f[R], \f[CB]\-\-compact\-output\f[R]
+
+.PP
+Print JSON compactly, omitting whitespace\&. For example:
+.IP
+.EX
+$ echo [1, 2, 3] | jaq \-c
+[1,2,3]
+.EE
+
+
+
+.SS \f[CB]\-r\f[R], \f[CB]\-\-raw\-output\f[R]
+
+.PP
+Write (text and byte) strings without escaping them and without surrounding them with quotes\&.
+For example:
+.IP
+.EX
+$ printf \[aq]\[dq]Hello\[rs]\[rs]nWorld\[dq]\[aq] | jaq \-r
+Hello
+World
+$ printf \[aq]\[dq]Hello\[rs]\[rs]nWorld\[dq]\[aq] | jaq
+\[dq]Hello\[rs]nWorld\[dq]
+.EE
+
+.PP
+This does not impact strings contained inside other values, i\&.e\&. arrays and objects\&.
+For example:
+.IP
+.EX
+$ printf \[aq][\[dq]Hello\[rs]\[rs]nWorld\[dq]]\[aq] | jaq \-rc
+[\[dq]Hello\[rs]nWorld\[dq]]
+.EE
+
+.PP
+This is equivalent to \f[CB]\-\-to raw\f[R]\&.
+
+
+.SS \f[CB]\-\-raw\-output0\f[R]
+
+.PP
+Output values like \f[CB]\-\-raw\-output\f[R], terminating them with NUL (\f[CB]\[rs]0\f[R]) instead of LF (\f[CB]\[rs]n\f[R])\&.
+.IP
+.EX
+$ printf \[aq]\[dq]some string\[rs]\[rs]nwith a newline\[dq] true\[aq] | jaq \-\-raw\-output0 | jaq \-s \-\-raw\-input tobytes
+b\[dq]some string\[rs]nwith a newline\[rs]x00true\[rs]x00\[dq]
+.EE
+
+.PP
+Any output value that is a string containing NUL produces an error\&.
+Note that this does not apply to strings contained in an array or an object\&.
+.IP
+.EX
+$ printf \[aq]\[dq]string with NUL \[rs]\[rs]u0000\[dq]\[aq] | jaq \-\-raw\-output0 2>/dev/null; echo $?
+2
+.EE
+
+.PP
+This is equivalent to \f[CB]\-\-to raw0\f[R]\&.
+
+
+.SS \f[CB]\-j\f[R], \f[CB]\-\-join\-output\f[R]
+
+.PP
+Do not print a newline after each value\&.
+For example:
+.IP
+.EX
+$ echo true false | jaq \-j && echo \[dq] (no new line at end)\[dq]
+truefalse (no new line at end)
+.EE
+
+.PP
+This is particularly useful in combination with \f[CB]\-\-raw\-output\f[R] (\f[CB]\-r\f[R]); for example:
+.IP
+.EX
+$ printf \[aq]\[dq]Hello\[dq] \[dq] \[dq] \[dq]World\[dq] \[dq]\[rs]\[rs]n\[dq]\[aq] | jaq \-jr
+Hello World
+.EE
+
+
+
+.SS \f[CB]\-i\f[R], \f[CB]\-\-in\-place\f[R]
+
+.PP
+Overwrite input file with its output\&.
+For example:
+.IP
+.EX
+$ echo 1 > tmp\&.json && jaq \-i \[aq]\&.+1\[aq] tmp\&.json && cat tmp\&.json && rm tmp\&.json
+2
+.EE
+
+.PP
+This reads the file \f[CB]tmp\&.json\f[R] and
+overwrites it with the output of the filter \f[CB]\&.+1\f[R]\&.
+Note that the input file is overwritten only
+once there is no more output and
+if there has not been any error\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not have this option\&.
+.RE
+
+
+
+
+.SS \f[CB]\-S\f[R], \f[CB]\-\-sort\-keys\f[R]
+
+.PP
+Print objects sorted by their keys\&.
+For example:
+.IP
+.EX
+$ echo \[aq]{\[dq]b\[dq]: {\[dq]d\[dq]: 3, \[dq]c\[dq]: 2}, \[dq]a\[dq]: 1}\[aq] | jaq \-cS
+{\[dq]a\[dq]:1,\[dq]b\[dq]:{\[dq]c\[dq]:2,\[dq]d\[dq]:3}}
+$ echo \[aq]{\[dq]b\[dq]: {\[dq]d\[dq]: 3, \[dq]c\[dq]: 2}, \[dq]a\[dq]: 1}\[aq] | jaq \-c
+{\[dq]b\[dq]:{\[dq]d\[dq]:3,\[dq]c\[dq]:2},\[dq]a\[dq]:1}
+.EE
+
+
+
+.SS \f[CB]\-C\f[R], \f[CB]\-\-color\-output\f[R]
+
+.PP
+Always color output, even if jaq does not print to a terminal\&.
+For example:
+.IP
+.EX
+$ echo {} | jaq \-C | jaq \-\-from raw tobytes
+b\[dq]\[rs]x1b[1;39m{\[rs]x1b[0m\[rs]x1b[1;39m}\[rs]x1b[0m\[dq]
+$ echo {} | jaq    | jaq \-\-from raw tobytes
+b\[dq]{}\[dq]
+.EE
+
+.PP
+(Here, \f[CB]jaq \-\-from raw tobytes\f[R] prints a byte representation of its input,
+which contains ANSI color sequences in case of \f[CB]\-C\f[R]\&.)
+
+
+.SS \f[CB]\-M\f[R], \f[CB]\-\-monochrome\-output\f[R]
+
+.PP
+Do not color output\&.
+
+
+.SS \f[CB]\-\-tab\f[R]
+
+.PP
+Use tabs for indentation rather than spaces\&.
+.PP
+For example:
+.IP
+.EX
+$ echo [1, [2]] | jaq \-\-tab | jaq \-Rs
+\[dq][\[rs]n\[rs]t1,\[rs]n\[rs]t[\[rs]n\[rs]t\[rs]t2\[rs]n\[rs]t]\[rs]n]\[rs]n\[dq]
+$ echo [1, [2]] | jaq       | jaq \-Rs
+\[dq][\[rs]n  1,\[rs]n  [\[rs]n    2\[rs]n  ]\[rs]n]\[rs]n\[dq]
+.EE
+
+
+
+.SS \f[CB]\-\-indent\f[R] \f[I]N\f[R]
+
+.PP
+Use \f[I]N\f[R] spaces for indentation (default: 2)\&.
+
+
+.SS \f[CB]NO_COLOR\f[R]
+
+.PP
+If the environment variable \f[CB]NO_COLOR\f[R] is set to a non\-empty value, then
+jaq prints no colors, unless the \f[CB]\-C\f[R] flag is used\&.
+
+
+.SS \f[CB]JQ_COLORS\f[R]
+
+.PP
+The environment variable \f[CB]JQ_COLORS\f[R] is a colon\-separated list, where
+each entry gives a style to be used for printing some type of values\&.
+The entries of \f[CB]JQ_COLORS\f[R] are mapped in the following order to types of values:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null\f[R]
+
+.IP \[bu] 2
+\f[CB]false\f[R]
+
+.IP \[bu] 2
+\f[CB]true\f[R]
+
+.IP \[bu] 2
+numbers
+
+.IP \[bu] 2
+strings
+
+.IP \[bu] 2
+arrays
+
+.IP \[bu] 2
+objects
+
+.IP \[bu] 2
+object keys
+
+.RE
+
+.PP
+If \f[CB]JQ_COLORS\f[R] is not set, then it is assumed to be \f[CB]90:39:39:39:32:1;39:1;39:1;34\f[R]\&.
+That means that by default:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null\f[R] has the style \f[CB]90\f[R] (gray foreground color)\&.
+
+.IP \[bu] 2
+\f[CB]false\f[R]/\f[CB]true\f[R]/numbers have the style \f[CB]39\f[R] (default foreground color)\&.
+
+.IP \[bu] 2
+Strings have the style \f[CB]32\f[R] (green foreground color)\&.
+
+.IP \[bu] 2
+Arrays/objects have the style \f[CB]1;39\f[R] (bold and default foreground color)\&.
+
+.IP \[bu] 2
+Object keys have the style \f[CB]1;34\f[R] (bold and blue foreground color)\&.
+
+.RE
+
+.PP
+Each non\-empty entry of \f[CB]JQ_COLORS\f[R], such as \f[CB]90\f[R] or \f[CB]1;39\f[R], is turned into a
+\c
+.UR https://en.wikipedia.org/wiki/ANSI_escape_code#Select_Graphic_Rendition_parameters
+“Select Graphic Rendition”
+.UE \c
+
+(SGR) control sequence\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]32\f[R]   is turned into \f[CB]\[rs]x1b[32m\f[R]\&.
+
+.IP \[bu] 2
+\f[CB]1;39\f[R] is turned into \f[CB]\[rs]x1b[1;39m\f[R]\&.
+
+.RE
+
+.PP
+jaq does not allow changing the color of byte strings,
+because jq does not provide any facilities to do that\&.
+
+
+
+.SS COMPILATION
+
+.PP
+If no \f[I]FILTER\f[R] is given, jaq uses \f[CB]\&.\f[R] (the identity filter) as filter\&.
+.PP
+When passing filters directly as \f[I]FILTER\f[R] argument on the command\-line,
+care has to be taken to properly escape the filter\&.
+How to do this depends from platform to platform, but on Unixoid systems,
+surrounding the filter with single quotes (\f[CB]\[aq]\f[R]) and
+replacing occurrences of \f[CB]\[aq]\f[R] in filters by \f[CB]\[aq]\[rs]\[aq]\[aq]\f[R] suffices\&.
+For example, to run the filter \f[CB]\[dq]\[aq]\[dq]\f[R] that
+produces a string containing a single quote, you can use:
+.IP
+.EX
+$ jaq \-n \[aq]\[dq]\[aq]\[rs]\[aq]\[aq]\[dq]\[aq]
+\[dq]\[aq]\[dq]
+.EE
+
+.PP
+Running filters that start with the negation operator,
+such as \f[CB]jaq \[aq]\-1\[aq]\f[R], fails because \f[CB]\-\f[R] is interpreted as
+start of a command\-line switch rather than negation\&.
+You can remedy this by using \f[CB]\-\-\f[R] or by surrounding the filter in parentheses:
+.IP
+.EX
+$ jaq \-n \-\- \[aq]\-1\[aq]
+\-1
+$ jaq \-n \[aq](\-1)\[aq]
+\-1
+.EE
+
+
+.SS \f[CB]\-f\f[R], \f[CB]\-\-from\-file\f[R]
+
+.PP
+Read filter from a file given by filter argument\&.
+.PP
+With this option, jaq interprets the \f[I]FILTER\f[R] argument as
+name of a file containing the filter\&.
+Note that the file name may not directly succeed this option\&.
+For example:
+.IP
+.EX
+$ echo \[aq]2 * 21\[aq] > tmp\&.jq && jaq \-\-from\-file \-n tmp\&.jq && rm tmp\&.jq
+42
+.EE
+
+
+
+.SS \f[CB]\-L\f[R], \f[CB]\-\-library\-path\f[R] \f[I]DIR\f[R]
+
+.PP
+Search for modules and data in given directory\&.
+.PP
+jaq searches for modules and data in a set of directories called “search paths”\&.
+Using \f[CB]\-\-library\-path\f[R] adds a new directory to the global search paths\&.
+.PP
+For example,
+\f[CB]jaq \-L \&. \-L \&.\&. \[aq]include \[dq]script\[dq]; foo\[aq]\f[R]
+looks for \f[CB]script\&.jq\f[R] first in the current directory, then in the parent directory\&.
+.PP
+If \f[CB]\-\-library\-path\f[R] is not given, the following global search paths are used:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]~/\&.jq\f[R]
+
+.IP \[bu] 2
+\f[CB]$ORIGIN/\&.\&./lib/jq\f[R]
+
+.IP \[bu] 2
+\f[CB]$ORIGIN/\&.\&./lib\f[R]
+
+.RE
+
+.PP
+See the modules section for more details\&.
+
+
+
+.SS VARIABLES
+
+
+.SS \f[CB]\-\-arg\f[R] \f[I]A\f[R] \f[I]V\f[R]
+
+.PP
+Set variable \f[CB]$A\f[R] to string \f[I]V\f[R]\&.
+.PP
+For example:
+.IP
+.EX
+$ jaq \-\-arg name \[dq]John Doe\[dq] \-n \[aq]\[dq]Welcome, \[dq] + $name\[aq]
+\[dq]Welcome, John Doe\[dq]
+.EE
+
+
+
+.SS \f[CB]\-\-argjson\f[R] \f[I]A\f[R] \f[I]V\f[R]
+
+.PP
+Set variable \f[CB]$A\f[R] to JSON value \f[I]V\f[R]\&.
+.PP
+For example:
+.IP
+.EX
+$ jaq \-\-argjson song \[aq]{\[dq]name\[dq]: \[dq]One of Us\[dq], \[dq]artist\[dq]: \[dq]ABBA\[dq], \[dq]year\[dq]: 1981}\[aq] \-n \[rs]
+  \[aq]\[dq]Currently playing: \[rs]($song\&.name) (\[rs]($song\&.year))\[dq]\[aq]
+\[dq]Currently playing: One of Us (1981)\[dq]
+.EE
+
+.PP
+If \f[I]V\f[R] contains more than a single value, e\&.g\&. \f[CB]1 2\f[R], then jaq yields an error\&.
+
+
+.SS \f[CB]\-\-slurpfile\f[R] \f[I]A\f[R] \f[I]F\f[R]
+
+.PP
+Set variable \f[CB]$A\f[R] to array containing the JSON values in file \f[I]F\f[R]\&.
+.PP
+For example:
+.IP
+.EX
+$ echo 1 2 3 > tmp\&.json && jaq \-\-slurpfile xs tmp\&.json \-cn \[aq]$xs\[aq] && rm tmp\&.json
+[1,2,3]
+.EE
+
+
+
+.SS \f[CB]\-\-rawfile\f[R] \f[I]A\f[R] \f[I]F\f[R]
+
+.PP
+Set variable \f[CB]$A\f[R] to string containing the contents of file \f[I]F\f[R]\&.
+.PP
+jaq tries to load the file via memory mapping,
+taking constant time and allowing to load files that do not fit into memory\&.
+If this fails, jaq loads the file regularly, taking linear time\&.
+This is also what happens when using
+\f[CB]\-Rs\f[R] (\f[CB]\-\-raw\-input\f[R] and \f[CB]\-\-slurp\f[R])
+to load a file (as opposed to standard input)\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+Unlike \f[CB]jq\f[R], jaq does not verify that the file is valid UTF\-8\&.
+That permits loading arbitrary binary files;
+these can be processed as byte strings via \f[CB]tobytes\f[R]\&.
+.RE
+
+
+
+.SS \f[CB]\-\-args\f[R]
+
+.PP
+Collect remaining positional arguments into \f[CB]$ARGS\&.positional\f[R]\&.
+.PP
+If this option is given, then all further arguments that
+would have been interpreted as input files are
+instead collected into an array at \f[CB]$ARGS\&.positional\f[R]\&.
+.PP
+For example:
+.IP
+.EX
+$ touch tmp\&.json && jaq \[aq]$ARGS\&.positional\[aq] tmp\&.json \-\-args foo \-nc bar \-\- baz \-j qux && rm tmp\&.json
+[\[dq]foo\[dq],\[dq]bar\[dq],\[dq]baz\[dq],\[dq]\-j\[dq],\[dq]qux\[dq]]
+.EE
+
+.PP
+Note that here, \f[CB]tmp\&.json\f[R] and \f[CB]\-nc\f[R] are \f[B]not\f[R] collected into the array —
+the former because it comes \f[B]before\f[R] \f[CB]\-\-args\f[R], and
+the latter because it would not have been interpreted as input file\&.
+However, \f[CB]\-j\f[R] is collected into the array because it comes after \f[CB]\-\-\f[R],
+which leads every argument after it to be interpreted as input file\&.
+
+
+
+.SS MISCELLANEA
+
+
+.SS \f[CB]\-e\f[R], \f[CB]\-\-exit\-status\f[R]
+
+.PP
+Use the last output value as exit status code\&.
+.PP
+This enables the use of the exit codes 1 and 4, which are not used otherwise\&.
+.PP
+jaq uses the following exit codes:
+.RS 2
+
+.IP \[bu] 2
+0: No errors\&.
+
+.IP \[bu] 2
+1: The last output value is \f[CB]false\f[R] or \f[CB]null\f[R]\&.
+
+.IP \[bu] 2
+2: I/O or CLI error, e\&.g\&. file not found or unknown CLI option\&.
+
+.IP \[bu] 2
+3: Filter parse/compilation error\&.
+
+.IP \[bu] 2
+4: The filter did not yield any output\&.
+
+.IP \[bu] 2
+5: Any other error, e\&.g\&. call to the filter \f[CB]error\f[R]\&.
+
+.RE
+
+.PP
+The filters \f[CB]halt\f[R] and \f[CB]halt_error\f[R]
+can be used to exit jaq with arbitrary exit codes\&.
+.PP
+For example:
+.IP
+.EX
+$ jaq \-n empty; echo $?
+0
+$ jaq \-n false >/dev/null; echo $?
+0
+$ jaq \-en false >/dev/null; echo $?
+1
+$ jaq \&. does_not_exist\&.json 2>/dev/null; echo $?
+2
+$ jaq \-\-foo 2>/dev/null; echo $?
+2
+$ jaq \[aq]+\[aq] 2>/dev/null; echo $?
+3
+$ jaq \-en empty; echo $?
+4
+$ jaq \-n error 2>/dev/null; echo $?
+5
+$ jaq \-n \[aq]halt(9)\[aq]; echo $?
+9
+.EE
+
+
+
+.SS \f[CB]\-h\f[R], \f[CB]\-\-help\f[R]
+
+.PP
+Print summary of CLI options\&.
+
+
+.SS \f[CB]\-V\f[R], \f[CB]\-\-version\f[R]
+
+.PP
+Print jaq version\&.
+
+
+
+.SS UNSUPPORTED
+
+.PP
+The following command\-line options are supported by \f[CB]jq\f[R], but not by jaq:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\-\-ascii\-output\f[R], \f[CB]\-a\f[R]
+
+.IP \[bu] 2
+\f[CB]\-\-unbuffered\f[R]
+
+.IP \[bu] 2
+\f[CB]\-\-stream\f[R]
+
+.IP \[bu] 2
+\f[CB]\-\-stream\-errors\f[R]
+
+.IP \[bu] 2
+\f[CB]\-\-seq\f[R]
+
+.IP \[bu] 2
+\f[CB]\-\-jsonargs\f[R]
+
+.RE
+
+
+
+
+.SH CORE LANGUAGE
+
+.PP
+The jq language is a lazy, functional streaming programming language
+originally designed by Stephen Dolan\&.
+The jq language is Turing\-complete and can therefore be used to write
+any program that can be written in any other programming language\&.
+jq programs can be executed with several interpreters, including
+\f[CB]jq\f[R], \f[CB]gojq\f[R], \f[CB]fq\f[R], and \f[CB]jaq\f[R]\&.
+.PP
+A program written in the jq language is called a jq program or \f[I]filter\f[R]\&.
+A filter is a function that
+takes an input value and
+yields a stream of output values\&.
+By convention, we write \f[CB]f\f[R] and \f[CB]g\f[R] to denote arbitrary filters\&.
+.PP
+The stream of output values can be infinite; for example, the jq filter
+\f[CB]repeat(\[dq]Hi\[dq])\f[R] yields an infinite sequence of strings \f[CB]\[dq]Hi\[dq]\f[R]\&.
+.PP
+The following sections document all filters with built\-in syntax in jq\&.
+Examples are written like \f[CB]1 + 2, true or false \-\-> 3 true\f[R], which is equivalent to:
+.IP
+.EX
+$ jaq \-n \[aq]1 + 2, true or false\[aq]
+3
+true
+.EE
+
+.PP
+An \f[B]atomic\f[R] filter is a filter that is \f[I]not\f[R] a binary operator\&.
+For example, the filters
+\f[CB]\-1\f[R], \f[CB]map(\&.+1)\f[R], and \f[CB]\&.[0]\f[R] are all atomic, whereas the filters
+\f[CB]1 + 2\f[R], \f[CB]explode | \&.[]\f[R], and \f[CB]\&.[0] += 1\f[R] are all non\-atomic\&.
+To turn a non\-atomic filter \f[CB]f\f[R] into an equivalent atomic filter,
+surround it with parentheses, i\&.e\&. \f[CB](f)\f[R]\&.
+
+.SS VALUES
+
+.PP
+This section lists all potential values that jq filters can process,
+and how to produce them\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+jaq extends the set of values that jq can process by
+byte strings and
+objects with non\-string values\&.
+Where
+jq reads and writes values by default as JSON,
+jaq reads and writes values by default as XJON,
+which is an extension of JSON\&.
+See those sections for how jaq serialises values\&.
+.RE
+
+
+.SS \f[CB]null\f[R]
+
+.PP
+The filter \f[CB]null\f[R] returns the \f[CB]null\f[R] value\&.
+.PP
+The \f[CB]null\f[R] value can be also obtained in various other ways,
+such as indexing a non\-existing key in an array or object, e\&.g\&.
+\f[CB][] | \&.[0] \-\-> null\f[R] or
+\f[CB]{} | \&.a   \-\-> null\f[R]\&.
+
+
+.SS Booleans
+
+.PP
+The filters \f[CB]true\f[R] and \f[CB]false\f[R]
+return the boolean values \f[CB]true\f[R] and \f[CB]false\f[R]\&.
+Booleans can also be produced by comparison operations, e\&.g\&.
+\f[CB]0  ==  0 \-\-> true\f[R] or
+\f[CB][] == {} \-\-> false\f[R]\&.
+.PP
+Every jq value can be mapped to a \f[B]boolean value\f[R], namely
+\f[CB]null\f[R] and \f[CB]false\f[R] have the boolean value \f[CB]false\f[R],
+all other values have the boolean value \f[CB]true\f[R]\&.
+This is important for filters such as
+\f[CB]if\-then\-else\f[R] and
+\f[CB]//\f[R]\&.
+
+
+
+.SS Numbers
+
+.PP
+Numbers are filters that return their corresponding value, e\&.g\&.
+\f[CB]0 \-\-> 0\f[R],
+\f[CB]3\&.14 \-\-> 3\&.14\f[R], and
+\f[CB]2\&.99e6 \-\-> 2\&.99e6\f[R]\&.
+Negative numbers can be constructed by
+applying the negation operator to a number, e\&.g\&. \f[CB]\-1 \-\-> \-1\f[R]\&.
+.PP
+Internally, jaq distinguishes
+integers, floating\-point numbers (floats), and decimal numbers:
+.RS 2
+
+.IP \[bu] 2
+A number without a dot (\f[CB]\&.\f[R]) and without an exponent (\f[CB]e\f[R]/\f[CB]E\f[R])
+is losslessly stored as integer\&.
+jaq can store and calculate with integers of arbitrary size, e\&.g\&.
+\f[CB]340282366920938463463374607431768211456\f[R] (\f[CB]2^128\f[R])\&.
+
+.IP \[bu] 2
+Any non\-integer number is stored initially as decimal number,
+which is a string representation of the number\&.
+That means that jaq losslessly preserves
+any number corresponding to the regular expression above,
+such as \f[CB]1\&.0e500\f[R], if it occurs in a JSON file or jq filter\&.
+
+.IP \[bu] 2
+When calculating with a decimal number,
+jaq converts it transparently to a 64\-bit
+\c
+.UR https://en.wikipedia.org/wiki/IEEE_754
+IEEE\-754
+.UE \c
+ floating\-point number\&.
+For example, \f[CB]1\&.0e500 + 1 \-\-> Infinity\f[R], because jaq converts
+\f[CB]1\&.0e500\f[R] to the closest floating\-point number, which is \f[CB]Infinity\f[R]\&.
+
+.RE
+
+.PP
+The rules of jaq are:
+.RS 2
+
+.IP \[bu] 2
+The sum, difference, product, and remainder of two integers is integer, e\&.g\&.
+\f[CB]1 + 2 \-\-> 3\f[R]\&.
+
+.IP \[bu] 2
+Any other operation between two numbers yields a float, e\&.g\&.
+\f[CB]10 / 2 \-\-> 5\&.0\f[R] and
+\f[CB]1\&.0 + 2 \-\-> 3\&.0\f[R]\&.
+
+.RE
+
+.PP
+You can convert an integer to a floating\-point number e\&.g\&.
+by adding 0\&.0, by multiplying with 1\&.0, or by dividing with 1\&.
+You can convert a floating\-point number to an integer by
+\f[CB]round\f[R], \f[CB]floor\f[R], or \f[CB]ceil\f[R], e\&.g\&.
+\f[CB]1\&.2 | floor, round, ceil \-\-> 1 1 2\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] uses floats for any number,
+meaning that it does not distinguish integers from floats\&.
+Many operations in jaq, such as array indexing,
+check whether the passed numbers are indeed integer\&.
+The motivation behind this is to avoid
+rounding errors that may silently lead to wrong results\&.
+For example,
+\f[CB][0, 1, 2] | \&.[1] \-\-> 1\f[R], whereas
+\f[CB][0, 1, 2] | \&.[1\&.0000000000000001]\f[R] yields
+an error in jaq as opposed to \f[CB]1\f[R] in \f[CB]jq\f[R]\&.
+.PP
+Furthermore, \f[CB]jq\f[R] prints NaN as \f[CB]null\f[R]; e\&.g\&. \f[CB]nan | tojson\f[R] yields \f[CB]null\f[R]\&.
+In contrast, jaq prints NaN as \f[CB]NaN\f[R]; e\&.g\&. \f[CB]nan | tojson \-\-> \[dq]NaN\[dq]\f[R]\&.
+See the XJON section for details\&.
+.RE
+
+
+
+
+.SS Text strings
+
+.PP
+A text string is an array of bytes that can be constructed using the syntax \f[CB]\[dq]\&.\&.\&.\[dq]\f[R]\&.
+Here, \f[CB]\&.\&.\&.\f[R] may contain any UTF\-8 characters
+in the range from \f[CB]U+0020\f[R] to \f[CB]U+10FFFF\f[R], excluding \f[CB]\[aq]\[dq]\[aq]\f[R] and \f[CB]\[aq]\[rs]\[aq]\f[R]\&.
+For example,
+\f[CB]\[dq]Hello 東京!\[dq] \-\-> \[dq]Hello 東京!\[dq]\f[R]\&.
+.PP
+Furthermore, \f[CB]\&.\&.\&.\f[R] may contain the following escape sequences:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[rs]b\f[R], \f[CB]\[rs]f\f[R], \f[CB]\[rs]n\f[R], \f[CB]\[rs]r\f[R], or \f[CB]\[rs]t\f[R]
+
+.IP \[bu] 2
+\f[CB]\[rs]\[dq]\f[R] or \f[CB]\[rs]\[rs]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[rs]uHHHH\f[R], where \f[CB]HHHH\f[R] is a hexadecimal number
+
+.IP \[bu] 2
+\f[CB]\[rs](f)\f[R], where \f[CB]f\f[R] is a jq filter (\f[B]string interpolation\f[R])
+
+.RE
+
+.PP
+Most characters below \f[CB]U+0020\f[R] can only be produced via a Unicode escape sequence, i\&.e\&.
+\f[CB]\[dq]NUL = \[rs]u0000\[dq] \-\-> \[dq]NUL = \[rs]u0000\[dq]\f[R]\&.
+.PP
+A string containing an interpolated filter, such as
+\f[CB]\[dq]\&.\&.\&.\[rs](f)\&.\&.\&.\[dq]\f[R], is equivalent to
+\f[CB]\[dq]\&.\&.\&.\[dq] + (f | tostring) + \[dq]\&.\&.\&.\[dq]\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello \[rs](\[dq]Alice\[dq], \[dq]Bob\[dq]) 😀!\[rs]n\[dq] \-\->
+\[dq]Hello Alice 😀!\[rs]n\[dq] \[dq]Hello Bob 😀!\[rs]n\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]41 | \[dq]The successor of \[rs](\&.) is \[rs](\&.+1)\&.\[dq] \-\-> \[dq]The successor of 41 is 42\&.\[dq]\f[R]\&.
+
+.RE
+
+.PP
+A string is \f[B]identifier\-like\f[R] if it matches the regular expression
+\f[CB][a\-zA\-Z_][a\-zA\-Z_0\-9]*\f[R]\&.
+.PP
+Strings may be prefixed with \f[CB]@x\f[R], where \f[CB]x\f[R] is an identifier; e\&.g\&. \f[CB]@uri\f[R]\&.
+In such a case, the filters of interpolated strings are
+piped through \f[CB]@x\f[R] instead of \f[CB]tostring\f[R], i\&.e\&.
+\f[CB]@x \[dq]\&.\&.\&.\[rs](f)\&.\&.\&.\[dq]\f[R] is equivalent to
+\f[CB]@x \[dq]\&.\&.\&.\[dq] + (f | @x) + @x \[dq]\&.\&.\&.\[dq]\f[R]\&.
+When \f[CB]\[dq]\&.\&.\&.\[dq]\f[R] does not contain any interpolated filter, then
+\f[CB]@x \[dq]\&.\&.\&.\[dq]\f[R] is equivalent to \f[CB]\[dq]\&.\&.\&.\[dq]\f[R]\&.
+For example,
+\f[CB]\[dq]\-[]?\[dq] | @uri \[dq]https://gedenkt\&.at/jaq/?q=\[rs](\&.)\[dq] \-\->
+\[dq]https://gedenkt\&.at/jaq/?q=\-%5B%5D%3F\[dq]\f[R]\&.
+
+
+.SS Byte strings
+
+.PP
+A byte string is an array of bytes that is \f[B]not\f[R] interpreted as (UTF\-8) text\&.
+It can be produced from a text string via the filter \f[CB]tobytes\f[R], e\&.g\&.
+\f[CB]\[dq]Hello, world! 🙂\[dq] | tobytes \-\-> b\[dq]Hello, world! \[rs]xf0\[rs]x9f\[rs]x99\[rs]x82\[dq]\f[R]\&.
+Currently, there is no native syntax in jaq to produce a byte string directly\&.
+.PP
+Byte strings differ from text strings in a few regards; in particular,
+they can be indexed and sliced in constant time\&.
+That makes byte strings interesting e\&.g\&. for parsing binary formats\&.
+.PP
+For compatibility reasons, jaq considers
+both text strings and byte strings as strings\&.
+That means that \f[CB]\[dq]Hello\[dq] | isstring and (tobytes | isstring) \-\-> true\f[R]\&.
+Furthermore, a text string and a byte string that
+contain equivalent bytes are considered equal, e\&.g\&.
+\f[CB]\[dq]Hello\[dq] | \&. == tobytes \-\-> true\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+Byte strings do not exist in \f[CB]jq\f[R]; however, they exist in \f[CB]fq\f[R]\&.
+.RE
+
+
+
+
+.SS Arrays
+
+.PP
+An array is a finite sequence of values\&.
+.PP
+An empty array can be constructed with the filter
+\f[CB][]\f[R], which is a short form for
+\f[CB][empty] \-\-> []\f[R]\&.
+An array of values can be constructed using the syntax
+\f[CB][f]\f[R], where \f[CB]f\f[R] is a filter\&.
+The filter \f[CB][f]\f[R] passes its input to \f[CB]f\f[R] and runs it,
+returning an array containing all outputs of \f[CB]f\f[R]\&.
+If \f[CB]f\f[R] throws an error, then \f[CB][f]\f[R] returns that error instead of an array\&.
+.PP
+This syntax allows constructing arrays such as \f[CB][1, 2, 3] \-\-> [1, 2, 3]\f[R]\&.
+Here, \f[CB]1, 2, 3\f[R] is just a filter that yields three numbers,
+see concatenation\&.
+There is no dedicated array syntax \f[CB][x1, \&.\&.\&., xn]\f[R]\&.
+That means that you can use arbitrary filters in \f[CB][f]\f[R]; for example,
+\f[CB][limit(3; repeat(0))] \-\-> [0, 0, 0]\f[R]\&.
+You can use the input passed to \f[CB][f]\f[R] inside \f[CB]f\f[R];
+for example, we can write the previous filter equivalently as
+\f[CB]{count: 3, elem: 0} | [limit(\&.count; repeat(\&.elem))] \-\-> [0, 0, 0]\f[R]\&.
+
+
+.SS Objects
+
+.PP
+An object is a mapping from keys to values\&.
+.PP
+An empty object can be constructed with the filter \f[CB]{}\f[R]\&.
+An object with a single key and value can be constructed by \f[CB]{(k): v}\f[R],
+where \f[CB]k\f[R] and \f[CB]v\f[R] are both filters\&.
+For example, \f[CB]{(\[dq]a\[dq]): 1} \-\-> {\[dq]a\[dq]: 1}\f[R]\&.
+.PP
+If \f[CB]k\f[R] is a string such as \f[CB]\[dq]a\[dq]\f[R] or a variable such as \f[CB]$k\f[R],
+then you can omit the parentheses, e\&.g\&. \f[CB]{\[dq]a\[dq]: 1}\f[R] or \f[CB]{$k: 1}\f[R]\&.
+If the string is identifier\-like,
+then you can also omit the quotes, e\&.g\&. \f[CB]{a: 1}\f[R]\&.
+.PP
+To construct an object with multiple key\-value pairs,
+you can add multiple objects; e\&.g\&.
+\f[CB]{(k1): v1} + \&.\&.\&. + {(kn): vn}\f[R]\&.
+You can write this more compactly as
+\f[CB]{(k1): v1, \&.\&.\&., (kn): vn}\f[R]\&.
+For example,
+\f[CB]{a: 1, b: 2} \-\-> {\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}\f[R]\&.
+.PP
+Instead of \f[CB]{k: \&.k}\f[R] (see indexing),
+you can also write \f[CB]{k}\f[R]; e\&.g\&.,
+\f[CB]{a: 1, b: 2} | {a} \-\-> {\[dq]a\[dq]: 1}\f[R]\&.
+Instead of \f[CB]{k: $k}\f[R],
+you can also write \f[CB]{$k}\f[R]; e\&.g\&.,
+\f[CB]1 as $k | {$k} \-\-> {\[dq]k\[dq]: 1}\f[R]\&.
+.PP
+The filter \f[CB]{(k): v}\f[R] is equivalent to \f[CB]k as $k | v as $v | {$k: $v}\f[R]\&.
+That means that when either \f[CB]k\f[R] or \f[CB]v\f[R] yield multiple output values,
+an object is produced for every output combination; for example,
+\f[CB]{(\[dq]a\[dq], \[dq]b\[dq]): (1, 2)} \-\-> {\[dq]a\[dq]: 1} {\[dq]a\[dq]: 2} {\[dq]b\[dq]: 1} {\[dq]b\[dq]: 2}\f[R]\&.
+Note that here, it is necessary to surround \f[CB]1, 2\f[R] with parentheses,
+in order to clarify that \f[CB],\f[R] does not start a new key\-value pair\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In jq, keys must be strings, whereas
+in jaq, keys can be arbitrary values\&.
+Because object keys can be arbitrary values in jaq, you can write e\&.g\&.:
+.IP
+.EX
+{(0): 1, \[dq]2\[dq]: 3, ([4]): 5, ({}): 6} \-\->
+{ 0 : 1, \[dq]2\[dq]: 3,  [4] : 5,  {} : 6}
+.EE
+
+.PP
+Note that in a jq filter, non\-string keys must be surrounded with parentheses,
+whereas in XJON, parentheses must not be used\&.
+.PP
+This yields an error in \f[CB]jq\f[R]\&.
+.RE
+
+
+
+
+.SS PATH OPERATORS
+
+.PP
+jq’s path operators retrieve parts of their input\&.
+
+.SS Indexing (\f[CB]\&.[x]\f[R])
+
+.PP
+The indexing operator \f[CB]\&.[x]\f[R] yields the \f[CB]x\f[R]\-th element of the input\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[1] \-\-> 2\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | \&.[\[dq]a\[dq]] \-\-> 1\f[R]
+
+.RE
+
+.PP
+If there is no element at the index \f[CB]x\f[R] in the input, then this operator returns \f[CB]null\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[3] \-\-> null\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | \&.[\[dq]c\[dq]] \-\-> null\f[R]
+
+.IP \[bu] 2
+\f[CB]null | \&.[0] \-\-> null\f[R]
+
+.RE
+
+.PP
+This operator treats byte string input like an array of numbers in the range 0\&.\&.256\&.
+For example,
+\f[CB]\[dq]@ABC\[dq] | tobytes | \&.[0] \-\-> 64\f[R],
+because the character \f[CB]\[aq]@\[aq]\f[R] is encoded in UTF\-8 as single byte \f[CB]64\f[R] (\f[CB]0x40\f[R])\&.
+.PP
+For identifier\-like strings like \f[CB]name\f[R],
+you can write \f[CB]\&.name\f[R] as short form for \f[CB]\&.[\[dq]name\[dq]]\f[R]\&.
+For example,
+\f[CB]{a: 1} | \&.a \-\-> 1\f[R]\&.
+This works also for strings that are the same as reserved keywords; e\&.g\&.
+\f[CB]{if: 1} | \&.if \-\-> 1\f[R]\&.
+.PP
+For array input, you can also use negative numbers as index,
+which will be interpreted as index counting from the end of the array\&.
+For example,
+\f[CB][1, 2, 3] | \&.[\-1] \-\-> 3\f[R]\&.
+.PP
+If the input and the index \f[CB]x\f[R] are both arrays,
+then this returns the same as \f[CB]indices(x)\f[R]\&.
+For example,
+\f[CB][1, 2, 0, 1, 2] | \&.[[1, 2]] \-\-> [0, 3]\f[R]\&.
+.PP
+If the input of this operator is an array or a string and the index is an object,
+then this operator is equivalent to the slicing operator
+\f[CB]\&.[x\&.start : x\&.end]\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[{start: 1         }] \-\-> [2, 3]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[{          end: \-1}] \-\-> [1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[{start: 1, end: \-1}] \-\-> [2]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[{                 }] \-\-> [1, 2, 3]\f[R]
+
+.RE
+
+.PP
+This operator yields a value if either:
+.RS 2
+
+.IP \[bu] 2
+the input is a      string or an array and the index is an object (slicing),
+
+.IP \[bu] 2
+the input is a byte string or an array and the index is an integer,
+
+.IP \[bu] 2
+the input and the index are both arrays, or
+
+.IP \[bu] 2
+the input is \f[CB]null\f[R] or an object\&.
+
+.RE
+
+.PP
+Otherwise, it yields an error\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] accepts floating\-point numbers as array indices; e\&.g\&.
+\f[CB][1, 2] | \&.[1\&.5]\f[R] yields \f[CB]2\f[R]\&.
+In jaq, indexing an array with a floating\-point number yields an error\&.
+The same applies to the slicing operator below\&.
+.PP
+\f[CB]jq\f[R] fails when the input is a string or an array and the index is
+an object that has neither \f[CB]start\f[R] nor \f[CB]end\f[R] keys, whereas jaq treats such
+an object like \f[CB]{start: null, end: null}\f[R]; that is,
+it creates a slice from the beginning to the end\&.
+.RE
+
+
+
+.SS Slicing (\f[CB]\&.[x:y]\f[R])
+
+.PP
+The slicing operator \f[CB]\&.[x:y]\f[R] yields a slice of a string or an array,
+from the \f[CB]x\f[R]\-th element to (excluding) the \f[CB]y\f[R]\-th element\&.
+For example,
+\f[CB][1, 2, 3] | \&.[1:3] \-\-> [2, 3]\f[R], and
+\f[CB]\[dq]Hello World!\[dq] | \&.[6:11] \-\-> \[dq]World\[dq]\f[R]\&.
+.PP
+When slicing a text string, the \f[CB]x\f[R]\-th element refers to the \f[CB]x\f[R]\-th \f[B]UTF\-8 character\f[R]\&.
+For example,
+\f[CB]\[dq]老虎\[dq] | \&.[1:2] \-\-> \[dq]虎\[dq]\f[R]\&.
+On the other hand, when slicing a byte string, the \f[CB]x\f[R]\-th element refers to the \f[CB]x\f[R]\-th \f[B]byte\f[R]\&.
+For example,
+\f[CB]\[dq]Färber\[dq] | tobytes, \&. | \&.[2:] | [\&., length] \-\-> [b\[dq]\[rs]xa4rber\[dq], 5] [\[dq]rber\[dq], 4]\f[R],
+because the letter ‘ä’ takes two bytes, but only one character\&.
+.PP
+Like the indexing operator, the slicing operator
+treats byte string input like an array of numbers and
+interprets negative indices as indices counting from the end\&.
+.PP
+The short form \f[CB]\&.[x:]\f[R] creates a slice from the index \f[CB]x\f[R] to the end, and
+the short form \f[CB]\&.[:y]\f[R] creates a slice from the beginning to (excluding) the index \f[CB]x\f[R]\&.
+When \f[CB]x\f[R] is \f[CB]null\f[R], it is interpreted as \f[CB]0\f[R], and
+when \f[CB]y\f[R] is \f[CB]null\f[R], it is interpreted as \f[CB]length\f[R]\&.
+That means that
+\f[CB]\&.[x:]\f[R] is equivalent to \f[CB]\&.[x:null]\f[R] and
+\f[CB]\&.[:y]\f[R] is equivalent to \f[CB]\&.[null:y]\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello World!\[dq] | \&.[    :5], \&.[6:    ] \-\-> \[dq]Hello\[dq] \[dq]World!\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello World!\[dq] | \&.[null:5], \&.[6:null] \-\-> \[dq]Hello\[dq] \[dq]World!\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello World!\[dq] | \&.[null    :    null] \-\-> \[dq]Hello World!\[dq]\f[R]
+
+.RE
+
+.PP
+This operator yields a value if
+its input is a string or an array, and
+its indices \f[CB]x\f[R] and \f[CB]y\f[R] are either \f[CB]null\f[R] or integer\&.
+Otherwise, it yields an error\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][] | try \&.[\[dq]a\[dq]:] catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]{} | try \&.[1:\-1] catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+jaq fails when trying to slice \f[CB]null\f[R], i\&.e\&.
+\f[CB]null | try \&.[1:] catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R], whereas
+this yields \f[CB]null\f[R] in \f[CB]jq\f[R]\&.
+.RE
+
+
+
+.SS Iterating (\f[CB]\&.[]\f[R])
+
+.PP
+The iteration operator \f[CB]\&.[]\f[R] yields all values \f[CB]v1 \&.\&.\&. vn\f[R] when given
+an array \f[CB][v1, \&.\&.\&., vn]\f[R] or
+an object \f[CB]{k1: v1, \&.\&.\&., kn: vn}\f[R]\&.
+For example,
+\f[CB][1, 2, 3] | \&.[] \-\-> 1 2 3\f[R] and
+\f[CB]{a: 1, b: 2} | \&.[] \-\-> 1 2\f[R]\&.
+
+
+
+.SS Compound paths
+
+.PP
+You can concatenate arbitrarily many path operators to an atomic filter\&.
+Such a sequence of path operators is called a \f[I]compound path\f[R]\&.
+For example, you can write
+\f[CB]explode\&.[]\f[R] as short form for \f[CB]explode | \&.[]\f[R]\&.
+.PP
+If the leading atomic filter is \f[CB]\&.\f[R] (identity), you can omit it\&.
+For example, the following filters are all equivalent:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]{a: [{b: 1}]} | \&. | \&.a | \&.[] | \&.b \-\-> 1\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: [{b: 1}]} | \&.   \&.a   \&.[]   \&.b \-\-> 1\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: [{b: 1}]} |     \&.a   \&.[]   \&.b \-\-> 1\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: [{b: 1}]}       \&.a   \&.[]   \&.b \-\-> 1\f[R]
+
+.RE
+
+.PP
+You can omit the leading \f[CB]\&.\f[R] of path operators that have the shape \f[CB]\&.[\&.\&.\&.]\f[R],
+unless the path operator is the head of the compound path and
+the leading atomic filter \f[CB]\&.\f[R] has been omitted\&.
+For example, the following filters are all equivalent:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][[[1, 2, 3]]] | \&.[0] | \&.[] | \&.[:\-1] \-\-> [1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][[[1, 2, 3]]] | \&.[0]   \&.[]   \&.[:\-1] \-\-> [1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][[[1, 2, 3]]] | \&.[0]    []    [:\-1] \-\-> [1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][[[1, 2, 3]]]    [0]    []    [:\-1] \-\-> [1, 2]\f[R]
+
+.RE
+
+.PP
+You can also terminate any path operator in this section with a \f[CB]?\f[R],
+which silences errors from that operator\&.
+For example, \f[CB]\&.[]\f[R] yields an error if the input is neither an array nor an object,
+but \f[CB]\&.[]?\f[R] silences such errors, yielding no output instead\&.
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, {a:  2 }, {a:  3 }] | \&.[]\&.a? \-\-> 2 3\f[R]
+
+.IP \[bu] 2
+\f[CB][1, [2,  3 ], [4,  5 ]] | \&.[][]? \-\-> 2 3 4 5\f[R]
+
+.IP \[bu] 2
+\f[CB]\ 1, {a: [2]}, {a: [3]}  | \&.a?[]  \-\-> 2 3\f[R]
+
+.RE
+
+
+
+
+
+.SS NULLARY
+
+.PP
+A nullary filter does not take any arguments\&.
+
+.SS Identity (\f[CB]\&.\f[R])
+
+.PP
+The filter \f[CB]\&.\f[R] yields its input as single output\&.
+For example,
+\f[CB]1 | \&. \-\-> 1\f[R]\&.
+
+
+.SS Recursion (\f[CB]\&.\&.\f[R])
+
+.PP
+The filter \f[CB]\&.\&.\f[R] yields its input and all recursively contained values\&.
+For example:
+.IP
+.EX
+{\[dq]a\[dq]: 1, \[dq]b\[dq]: [2, [\[dq]3\[dq]]]} | \&.\&. \-\->
+{\[dq]a\[dq]: 1, \[dq]b\[dq]: [2, [\[dq]3\[dq]]]}
+1
+[2, [\[dq]3\[dq]]]
+2
+[\[dq]3\[dq]]
+\[dq]3\[dq]
+.EE
+
+.PP
+It yields the same outputs as \f[CB]recurse\f[R]\&.
+
+
+
+.SS UNARY
+
+.PP
+A unary filter takes a single argument\&.
+
+.SS Negation (\f[CB]\-\f[R])
+
+.PP
+The prefix operator \f[CB]\-f\f[R] runs the atomic filter \f[CB]f\f[R] and negates its outputs\&.
+For example,
+\f[CB]\-1 \-\-> \-1\f[R] and
+\f[CB]\-(1, 2) \-\-> \-1 \-2\f[R]\&.
+
+
+.SS Error suppression (\f[CB]?\f[R])
+
+.PP
+The postfix operator \f[CB]f?\f[R] runs the atomic filter \f[CB]f\f[R] and
+returns all its outputs until (excluding) the first error\&.
+For example,
+\f[CB](1, error, 2)? \-\-> 1\f[R]\&.
+.PP
+This operator is equivalent to \f[CB]try f\f[R] (see \f[CB]try\-catch\f[R])\&.
+For example,
+\f[CB]try (1, error, 2) \-\-> 1\f[R]\&.
+
+
+
+
+.SS BINARY (COMPLEX)
+
+.PP
+A binary filter takes two arguments\&.
+.PP
+All binary operators that contain the characters \f[CB]|\f[R] or \f[CB]=\f[R] are right\-associative\&.
+All other binary operators are left\-associative\&.
+That means that for example,
+\f[CB]f | g | h\f[R] is equivalent to \f[CB]f | (g | h)\f[R], whereas
+\f[CB]f \- g \- h\f[R] is equivalent to \f[CB](f \- g) \- h\f[R]\&.
+.PP
+This section lists all binary infix filters sorted by increasing precedence\&.
+
+.SS Composition (\f[CB]|\f[R])
+
+.PP
+The filter \f[CB]f | g\f[R] runs \f[CB]f\f[R], and
+for every output \f[CB]y\f[R] of \f[CB]f\f[R], it runs \f[CB]g\f[R] with \f[CB]y\f[R] as input and yields its outputs\&.
+For example, \f[CB](1, 2) | (\&., 3) \-\-> 1 3 2 3\f[R]\&.
+.PP
+If either \f[CB]f\f[R] or \f[CB]g\f[R] yields an error, then
+\f[CB]f | g\f[R] yields that error, followed by nothing\&.
+For example, \f[CB](1, 2) | (\&., error)\f[R] yields the same as \f[CB]1, error\f[R]\&.
+
+
+.SS Concatenation (\f[CB],\f[R])
+
+.PP
+The filter \f[CB]f, g\f[R] yields the concatenation of the outputs of \f[CB]f\f[R] and \f[CB]g\f[R]\&.
+For example, \f[CB]1, 2 \-\-> 1 2\f[R]\&.
+
+
+.SS Variable binding (\f[CB]as $x |\f[R])
+
+.PP
+The filter \f[CB]f as $x | g\f[R] runs \f[CB]f\f[R], and
+for every output \f[CB]x\f[R] of \f[CB]f\f[R], it binds the value of \f[CB]x\f[R] to the \f[B]variable\f[R] \f[CB]$x\f[R]\&.
+Here, \f[CB]x\f[R] is an identifier\&.
+It then runs \f[CB]g\f[R] \f[B]on the original input\f[R],
+replacing any reference to \f[CB]$x\f[R] in \f[CB]g\f[R] by the value \f[CB]x\f[R]\&.
+For example,
+\f[CB]\[dq]Hello\[dq] | length as $x | \&. + \[dq] has length \[rs]($x)\[dq] \-\-> \[dq]Hello has length 5\[dq]\f[R]\&.
+.PP
+Variables can be shadowed, such as
+\f[CB]0 as $x | (1 as $x | $x), $x \-\-> 1 0\f[R]\&.
+
+
+
+.SS Plain assignment (\f[CB]=\f[R])
+
+.PP
+The filter \f[CB]f = g\f[R] runs \f[CB]g\f[R] with its input, and
+for every output \f[CB]y\f[R] of \f[CB]g\f[R], it
+returns a copy of the input whose
+values at the positions given by \f[CB]f\f[R] are replaced by \f[CB]y\f[R]\&.
+For example:
+.IP
+.EX
+[1, 2, 3] | \&.[0] = (length, 4) \-\->
+[3, 2, 3]
+[4, 2, 3]
+.EE
+
+
+
+.SS Update assignment (\f[CB]|=\f[R])
+
+.PP
+The filter \f[CB]f |= g\f[R] returns a copy of its input where
+each value \f[CB]v\f[R] at a position given by \f[CB]f\f[R] is replaced by
+the output of \f[CB]g\f[R] run with input \f[CB]v\f[R]\&.
+For example,
+\f[CB][1, 2, 3] | \&.[] |= \&.*2 \-\-> [2, 4, 6]\f[R]\&.
+.PP
+When \f[CB]g\f[R] yields \f[B]no\f[R] outputs, then the value at the position is deleted;
+for example,
+\f[CB][1, 2, 3] | \&.[0] |= empty \-\-> [2, 3]\f[R] and
+\f[CB]{a: 1, b: 2} | \&.a |= empty \-\-> {\[dq]b\[dq]: 2}\f[R]\&.
+
+
+
+.SS Arithmetic update assignment (\f[CB]+=\f[R], \f[CB]\-=\f[R], …)
+
+.PP
+The filters
+\f[CB]f += g\f[R],
+\f[CB]f \-= g\f[R],
+\f[CB]f *= g\f[R],
+\f[CB]f /= g\f[R],
+\f[CB]f %= g\f[R], and
+\f[CB]f //= g\f[R]
+are short\-hand forms for
+\f[CB]f = \&. + g\f[R], …
+For example:
+.IP
+.EX
+[1, 2, 3] | \&.[0] += (length, 4) \-\->
+[4, 2, 3]
+[5, 2, 3]
+.EE
+
+
+
+.SS Alternation (\f[CB]//\f[R])
+
+.PP
+The filter \f[CB]f // g\f[R] runs \f[CB]f\f[R] and yields
+all its outputs whose boolean value is \f[CB]true\f[R]; that is,
+all outputs that are neither \f[CB]null\f[R] nor \f[CB]false\f[R]\&.
+If \f[CB]f\f[R] yields no such outputs, then this filter yields the outputs of \f[CB]g\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB](null, 1, false, 2) // (3, 4) \-\-> 1 2\f[R]
+
+.IP \[bu] 2
+\f[CB](null, false) // (3, 4) \-\-> 3 4\f[R]
+
+.IP \[bu] 2
+\f[CB]empty // 3 \-\-> 3\f[R]
+
+.RE
+
+
+
+.SS Logic (\f[CB]or\f[R], \f[CB]and\f[R])
+
+.PP
+The filter \f[CB]f or g\f[R] (disjunction) evaluates \f[CB]f\f[R] and
+returns \f[CB]true\f[R] if its boolean value is \f[CB]true\f[R], else it
+returns the boolean values of \f[CB]g\f[R]\&.
+The filter \f[CB]f and g\f[R] (conjunction) evaluates \f[CB]f\f[R] and
+returns \f[CB]false\f[R] if its boolean value is \f[CB]false\f[R], else it
+returns the boolean values of \f[CB]g\f[R]\&.
+.PP
+For example:
+.IP
+.EX
+(true, false) or (true, false) \-\->
+true
+true
+false
+.EE
+
+.IP
+.EX
+(true, false) and (true, false) \-\->
+true
+false
+false
+.EE
+
+.PP
+The filter \f[CB]f and g\f[R] has higher precedence than \f[CB]f or g\f[R]\&.
+
+.PP
+It holds that \f[CB]f or g\f[R] is equivalent to \f[CB]f as $x | $x or g\f[R];
+similar for \f[CB]and\f[R]\&.
+
+
+
+.SS BINARY (SIMPLE)
+
+.PP
+Every simple binary operator such as \f[CB]+\f[R] in this section fulfills the property that
+\f[CB]f + g\f[R] is equivalent to
+\f[CB]f as $x | g as $y | $x + $y\f[R]\&.
+For example,
+\f[CB](1, 2) + (1, 3) \-\-> 2 4 3 5\f[R] and
+\f[CB](1, 2) * (1, 3) \-\-> 1 3 2 6\f[R]\&.
+This property does not hold for the complex binary filters above\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In \f[CB]jq\f[R], a slightly different property holds, namely that
+\f[CB]f + g\f[R] is equivalent to
+\f[CB]g as $y | f as $x | $x + $y\f[R]\&.
+That means that in \f[CB]jq\f[R],
+\f[CB](1, 2) + (1, 3)\f[R] yields \f[CB]2 3 4 5\f[R]\&.
+.PP
+As a result, in jaq,
+\f[CB](1,2) * (3,4) \-\-> 3 4 6 8\f[R] and
+\f[CB]{a: (1,2), b: (3,4)} | \&.a * \&.b \-\-> 3 4 6 8\f[R]
+yield the same outputs, whereas \f[CB]jq\f[R] yields \f[CB]3 6 4 8\f[R] for the former example\&.
+.RE
+
+
+.SS Equality (\f[CB]==\f[R], \f[CB]!=\f[R])
+
+.PP
+The operator \f[CB]$x == $y\f[R] returns \f[CB]true\f[R] if the two values \f[CB]$x\f[R] and \f[CB]$y\f[R] are equal, else \f[CB]false\f[R]\&.
+Similarly, \f[CB]$x != $y\f[R] returns the negation of \f[CB]$x == $y\f[R], i\&.e\&. \f[CB]$x == $y | not\f[R]\&.
+.PP
+Interesting cases include:
+.RS 2
+
+.IP \[bu] 2
+NaN does not equal any value, including itself; i\&.e\&.
+\f[CB]nan == nan \-\-> false\f[R]
+
+.IP \[bu] 2
+An integer \f[CB]i\f[R] equals a float \f[CB]f\f[R] if
+\f[CB]f\f[R] is finite and \f[CB]i\f[R] converted to a float is equal to \f[CB]f\f[R]; i\&.e\&.
+\f[CB]1 == 1\&.0 \-\-> true\f[R]\&.
+
+.IP \[bu] 2
+Arrays are equal if they have the same values; i\&.e\&.
+\f[CB][1, 2, 3] == [1, 2, 3]\f[R], but
+\f[CB][3, 2, 1] != [1, 2, 3]\f[R]\&.
+
+.IP \[bu] 2
+Objects are equal if they have the same keys and for every key,
+the associated value is equal; i\&.e\&.
+\f[CB]{a: 1, b: 2} == {b: 2, a: 1} \-\-> true\f[R]
+
+.RE
+
+
+
+
+.SS Ordering (\f[CB]<\f[R], \f[CB]>\f[R], \f[CB]<=\f[R], \f[CB]>=\f[R])
+
+.PP
+The operator \f[CB]$x < $y\f[R] returns \f[CB]true\f[R] if \f[CB]$x\f[R] is smaller than \f[CB]$y\f[R]\&.
+Similarly:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]$x >  $y\f[R] is equivalent to \f[CB]$y < $x\f[R],
+
+.IP \[bu] 2
+\f[CB]$x <= $y\f[R] is equivalent to \f[CB]$x < $y or $x == $y\f[R], and
+
+.IP \[bu] 2
+\f[CB]$x >= $y\f[R] is equivalent to \f[CB]$x > $y or $x == $y\f[R]\&.
+
+.RE
+
+.PP
+Values are ordered as follows:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null\f[R]
+
+.IP \[bu] 2
+Booleans: \f[CB]false < true \-\-> true\f[R]
+
+.IP \[bu] 2
+Numbers:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]NaN\f[R] is smaller than any other number, including itself; i\&.e\&.
+\f[CB]nan < nan \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]\-Infinity\f[R], e\&.g\&. \f[CB]\-infinite < \-99999999999999999999999999 \-\-> true\f[R]
+
+.IP \[bu] 2
+Finite numbers, e\&.g\&. \f[CB]0 < 1 \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]Infinity\f[R], e\&.g\&. \f[CB]infinite > 99999999999999999999999999 \-\-> true\f[R]
+
+.RE
+
+
+.IP \[bu] 2
+Strings: lexicographic ordering by underlying bytes, e\&.g\&.
+\f[CB]\[dq]Hello\[dq] < \[dq]Hello World\[dq] \-\-> true\f[R] and
+\f[CB]\[dq]@B\[dq] < \[dq]A\[dq] \-\-> true\f[R]\&.
+
+.IP \[bu] 2
+Arrays: lexicographic ordering, e\&.g\&.
+\f[CB][1, 2] < [1, 2, 3] \-\-> true\f[R] and
+\f[CB][0, 2] < [1] \-\-> true\f[R]\&.
+
+.IP \[bu] 2
+Objects: An object \f[CB]$x\f[R] is smaller than an object \f[CB]$y\f[R] either if:
+.RS 2
+
+.IP \[bu] 2
+the keys of \f[CB]$x\f[R] are smaller than the keys of \f[CB]$y\f[R] or
+
+.IP \[bu] 2
+the keys of \f[CB]$x\f[R] are equal to the keys of \f[CB]$y\f[R] and
+the values of \f[CB]$x\f[R] are smaller than the values of \f[CB]$y\f[R]\&.
+
+.RE
+
+
+.RE
+
+
+
+
+.SS Addition / subtraction (\f[CB]+\f[R], \f[CB]\-\f[R])
+
+.PP
+The filter \f[CB]$x + $y\f[R] adds two values as follows:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null + $x\f[R] and \f[CB]$x + null\f[R] yields \f[CB]$x\f[R]\&.
+
+.IP \[bu] 2
+Adding numbers yields their sum, which is
+integer if both numbers are integer, else a floating\-point number\&.
+For example,
+\f[CB]1 + 2 \-\-> 3\f[R] and
+\f[CB]1 + 2\&.0 \-\-> 3\&.0\f[R]\&.
+
+.IP \[bu] 2
+Adding strings or arrays concatenates them, i\&.e\&.
+\f[CB]\[dq]Hello, \[dq] + \[dq]World!\[dq] \-\-> \[dq]Hello, World!\[dq]\f[R] and
+\f[CB][1, 2] + [3, 4] \-\-> [1, 2, 3, 4]\f[R]\&.
+
+.IP \[bu] 2
+Adding objects yields their \f[B]union\f[R]\&.
+If a key is present in both objects, then the resulting object
+will contain the key with the value of the object on the \f[B]right\f[R]; i\&.e\&.
+\f[CB]{a: 1, b: 2} + {b: 3, c: 4} \-\-> {\[dq]a\[dq]: 1, \[dq]b\[dq]: 3, \[dq]c\[dq]: 4}\f[R]\&.
+
+.IP \[bu] 2
+Adding anything else yields an error\&.
+
+.RE
+
+.PP
+The filter \f[CB]$x \- $y\f[R] subtracts \f[CB]$y\f[R] from \f[CB]$x\f[R] as follows:
+.RS 2
+
+.IP \[bu] 2
+Subtracting numbers yields their difference, similar to addition\&.
+
+.IP \[bu] 2
+Subtracting arrays yields the
+left array with all elements contained in the right array removed; i\&.e\&.
+\f[CB][1, 2, 3, 4] \- [2, 4] \-\-> [1, 3]\f[R]\&.
+
+.IP \[bu] 2
+Subtracting anything else yields an error\&.
+
+.RE
+
+
+
+.SS Multiplication / division (\f[CB]*\f[R], \f[CB]/\f[R])
+
+.PP
+The filter \f[CB]$x * $y\f[R] multiplies two values as follows:
+.RS 2
+
+.IP \[bu] 2
+Multiplying numbers yields their product, similar to addition\&.
+
+.IP \[bu] 2
+Multiplying a string with an integer \f[CB]$n\f[R] yields
+the \f[CB]$n\f[R]\-fold concatenation of the string, i\&.e\&.
+\f[CB]\[dq]abc\[dq] * 3 \-\-> \[dq]abcabcabc\[dq]\f[R]\&.
+If \f[CB]$n <= 0\f[R], then this yields \f[CB]null\f[R], i\&.e\&.
+\f[CB]0 * \[dq]abc\[dq] \-\-> null\f[R]\&.
+
+.IP \[bu] 2
+Multiplying two objects merges them recursively\&.
+In particular,
+\f[CB]$x * {k: v, \&.\&.\&.}\f[R] yields
+\f[CB]($x + {k: $x[k] * v}) * {\&.\&.\&.}\f[R] if both \f[CB]v\f[R] and \f[CB]$x[k]\f[R] are objects, else
+\f[CB]($x + {k: v}) * {\&.\&.\&.}\f[R]\&.
+For example,
+\f[CB]{a: {b: 0, c: 2}, e: 4} * {a: {b: 1, d: 3}, f: 5} \-\->
+{\[dq]a\[dq]: {\[dq]b\[dq]: 1, \[dq]c\[dq]: 2, \[dq]d\[dq]: 3}, \[dq]e\[dq]: 4, \[dq]f\[dq]: 5}\f[R]\&.
+
+.IP \[bu] 2
+Multiplying anything else yields an error\&.
+
+.RE
+
+.PP
+The filter \f[CB]$x / $y\f[R] divides two values as follows:
+.RS 2
+
+.IP \[bu] 2
+Dividing a number by a number yields their quotient as floating\-point number\&.
+To perform this operation, both arguments are first converted to floating\-point numbers\&.
+For example, \f[CB]1 / 2 \-\-> 0\&.5\f[R]\&.
+
+.IP \[bu] 2
+Dividing a string by a string \f[B]splits\f[R] \f[CB]$x\f[R] by \f[CB]$y\f[R], yielding an array of strings\&.
+For example,
+\f[CB]\[dq]foobarfoobazfoo\[dq] / \[dq]foo\[dq] \-\-> [\[dq]\[dq], \[dq]bar\[dq], \[dq]baz\[dq], \[dq]\[dq]]\f[R]\&.
+If \f[CB]$y\f[R] is empty, then \f[CB]$x / $y\f[R] yields an array with each character of the input as separate string\&.
+For example,
+\f[CB]\[dq]🧑‍🔬 is 🤔\[dq] / \[dq]\[dq] \-\-> [\[dq]🧑\[dq],\[dq]‍\[dq],\[dq]🔬\[dq],\[dq] \[dq],\[dq]i\[dq],\[dq]s\[dq],\[dq] \[dq],\[dq]🤔\[dq]]\f[R]\&.
+
+.RE
+
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In jq, division by 0 yields an error, whereas
+in jaq, \f[CB]n / 0\f[R] yields
+\f[CB]nan\f[R] if \f[CB]n == 0\f[R],
+\f[CB]\ infinite\f[R] if \f[CB]n > 0\f[R], and
+\f[CB]\-infinite\f[R] if \f[CB]n < 0\f[R]\&.
+jaq’s behaviour is closer to the IEEE standard for floating\-point arithmetic (IEEE 754)\&.
+.RE
+
+
+
+.SS Modulus (\f[CB]%\f[R])
+
+.PP
+The filter \f[CB]$x % $y\f[R] calculates the modulus of two numbers,
+and fails for anything else\&.
+For example,
+\f[CB]5 % 2 \-\-> 1\f[R]\&.
+Any of the two numbers can also be a floating\-point number;
+however, the result of this may be unexpected\&.
+For example,
+\f[CB]5\&.1 % 2 \-\-> 1\&.0999999999999996\f[R] and
+\f[CB]5\&.5 % 2 \-\-> 1\&.5\f[R]\&.
+
+
+
+.SS KEYWORDS
+
+.PP
+This section lists all filters that start with a reserved keyword\&.
+
+.SS if\-then\-else
+
+.PP
+The filter \f[CB]if p then f else g end\f[R] runs the filter \f[CB]p\f[R] with its input\&.
+For every output of \f[CB]p\f[R], if its boolean value is \f[CB]true\f[R],
+the outputs of \f[CB]f\f[R] run with the original input are returned, else
+the outputs of \f[CB]g\f[R] run with the original input are returned\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]if true     then 0 else 1 end \-\-> 0\f[R]
+
+.IP \[bu] 2
+\f[CB]if [], null then 0 else 1 end \-\-> 0 1\f[R]
+
+.RE
+
+.PP
+There exists a longer form of this filter, namely
+\f[CB]if p1 then f1 elif p2 then f2 \&.\&.\&. else g end\f[R]\&.
+This is equivalent to
+\f[CB]if p1 then f1 else (if p2 then f2 else (\&.\&.\&. else g end) end) end\f[R]\&.
+.PP
+When the \f[CB]else g\f[R] part is omitted, it is equivalent to \f[CB]else \&.\f[R]; for example,
+\f[CB]0 | if false then \&.+1 end \-\-> 0\f[R]\&.
+
+
+.SS try\-catch
+
+.PP
+The filter \f[CB]try f catch g\f[R] runs the atomic filter \f[CB]f\f[R] with its input,
+and returns its outputs until (excluding) the first error\&.
+If \f[CB]f\f[R] yields an error, then
+the atomic filter \f[CB]g\f[R] is run with the error value as input,
+and its outputs are returned\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]try (1, error(42), 2) catch (\&. + 1) \-\-> 1 43\f[R]
+
+.IP \[bu] 2
+\f[CB]try (1,            2) catch (\&. + 1) \-\-> 1 2\f[R]
+
+.RE
+
+.PP
+A short form of this filter is
+\f[CB]try f\f[R], which is equivalent to
+\f[CB]try f catch empty\f[R] as well as to
+\f[CB]f?\f[R] (error suppression)\&.
+
+
+.SS label\-break
+
+.PP
+The filter \f[CB]label $x | f\f[R] binds the label \f[CB]$x\f[R] in \f[CB]f\f[R],
+runs \f[CB]f\f[R] and yields its outputs\&.
+If the evaluation of \f[CB]f\f[R] calls \f[CB]break $x\f[R],
+then the evaluation of \f[CB]label $x | f\f[R] is stopped and returns no more outputs\&.
+For example,
+\f[CB]label $x | 1, break $x, 2 \-\-> 1\f[R]\&.
+.PP
+Labels are distinct from variables, which means that
+\f[CB]0 as $x | label $x | $x, break $x \-\-> 0\f[R]\&.
+.PP
+Like variables, labels can be shadowed; e\&.g\&.
+\f[CB]label $x | 1, (label $x | 2, break $x, 3), 4, break $x, 5 \-\-> 1 2 4\f[R]\&.
+.PP
+It is possible to \f[CB]break\f[R] from a filter argument; e\&.g\&.
+\f[CB]def f(g): 1, g, 2; label $x | f(break $x) \-\-> 1\f[R]\&.
+
+
+.SS reduce / foreach
+
+.PP
+The filters
+\f[CB]reduce xs as $x (init; update)\f[R] and
+\f[CB]foreach xs as $x (init; update; project)\f[R]
+both run the atomic filter \f[CB]xs\f[R] on its input\&.
+Suppose that the outputs of \f[CB]xs\f[R] are \f[CB]x1\f[R], …, \f[CB]xn\f[R]\&.
+Then the filters are equivalent to:
+.IP
+.EX
+reduce x1, \&.\&.\&., xn as $x (init; update) :=
+init
+| x1 as $x | update
+| \&.\&.\&.
+| xn as $x | update
+.EE
+
+.IP
+.EX
+foreach x1, \&.\&.\&., xn as $x (init; update; project) :=
+init |
+( x1 as $x | update | project,
+( \&.\&.\&.
+( xn as $x | update | project,
+( empty ))\&.\&.\&.))
+.EE
+
+.PP
+Here, both \f[CB]update\f[R] and \f[CB]project\f[R] have access to the current \f[CB]$x\f[R]\&.
+.PP
+The filter
+\f[CB]foreach xs as $x (init; update)\f[R] is equivalent to
+\f[CB]foreach xs as $x (init; update; \&.)\f[R]\&.
+.PP
+As example, we can calculate the sum and the cumulative sum using
+\f[CB]reduce\f[R] and \f[CB]foreach\f[R], respectively:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]reduce  (1, 2, 3) as $x (0; \&. + $x) \-\-> 6\f[R]
+
+.IP \[bu] 2
+\f[CB]foreach (1, 2, 3) as $x (0; \&. + $x) \-\-> 1 3 6\f[R]
+
+.IP \[bu] 2
+\f[CB]foreach (1, 2, 3) as $x (0; \&. + $x; [$x, \&.]) \-\-> [1, 1] [2, 3] [3, 6]\f[R]
+
+.RE
+
+.PP
+Let us expand the first and the last example using the equivalences above
+to see what is calculated:
+.IP
+.EX
+# reduce  (1, 2, 3) as $x (0; \&. + $x)
+0
+| 1 as $x | \&. + $x  # 1
+| 2 as $x | \&. + $x  # 3
+| 3 as $x | \&. + $x  # 6
+\-\-> 6
+.EE
+
+.IP
+.EX
+# foreach (1, 2, 3) as $x (0; \&. + $x; [$x, \&.])
+0 |
+( 1 as $x | \&. + $x | [$x, \&.],  # [1, 1]
+( 2 as $x | \&. + $x | [$x, \&.],  # [2, 3]
+( 3 as $x | \&. + $x | [$x, \&.],  # [3, 6]
+( empty ))))
+\-\-> [1, 1] [2, 3] [3, 6]
+.EE
+
+.PP
+We can also reverse a list via
+\f[CB][1, 2, 3] | reduce \&.[] as $x ([]; [$x] + \&.) \-\-> [3, 2, 1]\f[R]\&.
+(However, note that this has quadratic runtime and is thus quite inefficient\&.)
+.PP
+Note that when \f[CB]xs\f[R] yields no outputs, then
+\f[CB]reduce\f[R]  yields \f[CB]init\f[R], whereas
+\f[CB]foreach\f[R] yields no output\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]reduce  empty as $x (0; \&. + $x) \-\-> 0\f[R] and
+
+.IP \[bu] 2
+\f[CB]foreach empty as $x (0; \&. + $x) \-\->\f[R] (no output)\&.
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+The execution of \f[CB]reduce\f[R] and \f[CB]foreach\f[R] differs between \f[CB]jq\f[R] and jaq
+when \f[CB]update\f[R] yields multiple outputs\&.
+However, the precise behaviour of \f[CB]jq\f[R] in that case
+is quite difficult to describe\&.
+.PP
+The interpretation of \f[CB]reduce\f[R]/\f[CB]foreach\f[R] in jaq has the following advantages over jq:
+.RS 2
+
+.IP \[bu] 2
+It deals very naturally with filters that yield multiple outputs\&.
+In contrast, jq discriminates outputs of \f[CB]f\f[R],
+because it recurses only on the last of them,
+although it outputs all of them\&.
+
+.IP \[bu] 2
+It makes the implementation of \f[CB]reduce\f[R] and \f[CB]foreach\f[R]
+special cases of the same code, reducing the potential for bugs\&.
+
+.RE
+
+.RE
+
+
+
+
+.SS def
+
+.PP
+The filter \f[CB]def x: f; g\f[R] binds the filter \f[CB]f\f[R] to a filter with the name \f[CB]x\f[R]\&.
+Here, \f[CB]x\f[R] is an identifier\&.
+The filter \f[CB]g\f[R] can contain calls to the filter \f[CB]x\f[R], and
+any such calls will be replaced by the filter \f[CB]f\f[R]\&.
+.PP
+For example, we can define a filter \f[CB]iter\f[R] by
+\f[CB]def iter: \&.[];\f[R] and use it subsequently by
+\f[CB]def iter: \&.[]; [1, 2, 3] | iter \-\-> 1 2 3\f[R]\&.
+This is equivalent to writing
+\f[CB][1, 2, 3] | \&.[] \-\-> 1 2 3\f[R]\&.
+.PP
+Definitions can be chained and nested\&. For example:
+.IP
+.EX
+def foo:
+  def bar: 1;
+  def baz: 2;
+  bar + baz;
+foo \-\-> 3
+.EE
+
+.PP
+Here, we chained the definitions of \f[CB]bar\f[R] and \f[CB]baz\f[R]\&.
+These definitions are only visible inside the definition of \f[CB]foo\f[R];
+that means that at the place where we call \f[CB]foo\f[R],
+we can use neither \f[CB]bar\f[R] nor \f[CB]baz\f[R]\&.
+.PP
+Definitions can be recursive, meaning that they call themselves\&.
+For example,
+\f[CB]def f: 0, f; f\f[R] yields an infinite sequence of \f[CB]0\f[R] values\&.
+An example of a non\-terminating filter is
+\f[CB]def r: r; r\f[R]\&.
+Finally, the following filter yields an infinite
+stream of integers starting from its input:
+.IP
+.EX
+def ints_from: \&., (\&. + 1 | ints_from);
+1 | limit(3; ints_from) \-\-> 1 2 3
+.EE
+
+.PP
+Definitions can also take \f[B]arguments\f[R]:
+The filter \f[CB]def x(x1; \&.\&.\&.; xn): f; g\f[R] binds the filter \f[CB]f\f[R] to
+a filter with the name \f[CB]x\f[R] and the arity \f[CB]n\f[R]\&.
+Here, \f[CB]x1\f[R] to \f[CB]xn\f[R] are identifiers that are the arguments of \f[CB]x\f[R], and
+\f[CB]f\f[R] can contain references to these arguments\&.
+The filter \f[CB]g\f[R] can contain calls of the shape \f[CB]x(g1; \&.\&.\&.; gn)\f[R],
+where \f[CB]g1\f[R] to \f[CB]gn\f[R] are filters\&.
+Any such calls will be replaced by the filter \f[CB]f\f[R], where
+every argument \f[CB]xi\f[R] is replaced by its corresponding filter \f[CB]gi\f[R]\&.
+.PP
+For example, the filter \f[CB]map(f)\f[R] in the standard library is defined by
+\f[CB]def map(f): [\&.[] | f]\f[R]\&.
+We can use it via
+\f[CB][1, 2, 3] | map(   \&.+1) \-\-> [2, 3, 4]\f[R], which is equivalent to
+\f[CB][1, 2, 3] | [\&.[] | \&.+1] \-\-> [2, 3, 4]\f[R]\&.
+.PP
+We can use variables as arguments of definitions\&.
+For example, we can write
+\f[CB]def singleton($x): [$x]\f[R] as short form of
+\f[CB]def singleton(x): x as $x | [$x]\f[R]\&.
+Note that this is not the same as
+\f[CB]def singleton(x): [x]\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]def singleton($x): [$x]; singleton(1, 2, 3) \-\-> [1] [2] [3]\f[R]
+
+.IP \[bu] 2
+\f[CB]def singleton( x): [ x]; singleton(1, 2, 3) \-\-> [1,  2,  3]\f[R]
+
+.RE
+
+.PP
+Arguments of definitions may capture variables, labels, and other definitions\&.
+For example:
+.IP
+.EX
+def iter_map(f): \&.[] | f;
+def double: \&.+\&.;
+3 as $threshold  |
+label $lbl |
+[1, 2, 3] | iter_map(if \&. < $threshold then double else break $lbl end) \-\->
+ 2  4
+.EE
+
+.PP
+Here, the argument to \f[CB]iter_map\f[R] captures
+the definition \f[CB]double\f[R],
+the variable \f[CB]$threshold\f[R], and
+the label \f[CB]$lbl\f[R]\&.
+
+
+
+
+
+.SH STANDARD LIBRARY
+
+.PP
+This section lists all named filters that are available by default in any jq module\&.
+These filters are also known as “builtins”\&.
+
+.SS BASIC
+
+
+.SS \f[CB]error\f[R], \f[CB]error(f)\f[R]
+
+.PP
+The filter \f[CB]error(f)\f[R] throws an error for every output of \f[CB]f\f[R],
+with the output as payload\&.
+The filter \f[CB]error\f[R] is equivalent to \f[CB]error(\&.)\f[R]\&.
+It is possible to use \f[CB]error(f)\f[R] also on the left\-hand side of assignments\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]error(empty) \-\->\f[R] (no output)
+
+.IP \[bu] 2
+\f[CB]try error(41)       catch (\&. + 1) \-\-> 42\f[R]
+
+.IP \[bu] 2
+\f[CB]try (41 | error   ) catch (\&. + 1) \-\-> 42\f[R]
+
+.IP \[bu] 2
+\f[CB]try (error(41) = 1) catch (\&. + 1) \-\-> 42\f[R]
+
+.RE
+
+
+
+.SS \f[CB]length\f[R]
+
+.PP
+The output of the filter \f[CB]length\f[R] depends on its input type:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null\f[R]: \f[CB]0\f[R], i\&.e\&. \f[CB]null | length \-\-> 0\f[R]
+
+.IP \[bu] 2
+boolean: error, i\&.e\&. \f[CB]true | try length catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.IP \[bu] 2
+number: the absolute value of the number, i\&.e\&. \f[CB]\-1, 1 | length \-\-> 1 1\f[R]
+
+.IP \[bu] 2
+text string: the number of characters, i\&.e\&. \f[CB]\[dq]ゼノギアス\[dq] | length \-\-> 5\f[R]
+
+.IP \[bu] 2
+byte string: the number of bytes, i\&.e\&. \f[CB]\[dq]ゼノギアス\[dq] | tobytes | length \-\-> 15\f[R]
+
+.IP \[bu] 2
+array: the number of values, i\&.e\&. \f[CB][1, [2, 3], 4] | length \-\-> 3\f[R]
+
+.IP \[bu] 2
+object: the number of key\-value pairs, i\&.e\&. \f[CB]{a: 0, b: 1} | length \-\-> 2\f[R]
+
+.RE
+
+
+
+.SS \f[CB]keys\f[R], \f[CB]keys_unsorted\f[R]
+
+.PP
+The filter \f[CB]keys_unsorted\f[R] yields an array that contains
+all keys if the input is an object or
+all indices if the input is an array\&.
+The filter \f[CB]keys\f[R] is equivalent to \f[CB]keys_unsorted | sort\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]{c: 1, b: 2, a: 1} | keys_unsorted \-\-> [\[dq]c\[dq], \[dq]b\[dq], \[dq]a\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]{c: 1, b: 2, a: 1} | keys          \-\-> [\[dq]a\[dq], \[dq]b\[dq], \[dq]c\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | keys_unsorted \-\-> [0, 1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | keys          \-\-> [0, 1, 2]\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]to_entries\f[R], \f[CB]from_entries\f[R], \f[CB]with_entries(f)\f[R]
+
+.PP
+The filter \f[CB]to_entries\f[R] takes as input an array or an object\&.
+It converts them to an array of objects of the shape
+\f[CB]{key: k, value: v}\f[R], such that \f[CB]\&.[k]\f[R] on the original input yields \f[CB]v\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][   1,    2] | to_entries \-\-> [{\[dq]key\[dq]:  0 , \[dq]value\[dq]: 1}, {\[dq]key\[dq]:  1 , \[dq]value\[dq]: 2}]\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | to_entries \-\-> [{\[dq]key\[dq]: \[dq]a\[dq], \[dq]value\[dq]: 1}, {\[dq]key\[dq]: \[dq]b\[dq], \[dq]value\[dq]: 2}]\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]from_entries\f[R] constructs an object from
+an array of entries as given by \f[CB]to_entries\f[R]\&.
+For example, \f[CB]{a: 1, b: 2} | to_entries | from_entries \-\-> {\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}\f[R]\&.
+.PP
+The filter \f[CB]with_entries(f)\f[R] is equivalent to \f[CB]to_entries | map(f) | from_entries\f[R]\&.
+For example, \f[CB]{\[dq]a\[dq]: 1, \[dq]b\[dq]: 2} | with_entries(\&.key |= ascii_upcase) \-\-> {\[dq]A\[dq]: 1, \[dq]B\[dq]: 2}\f[R]
+
+
+
+.SS STREAM CONSUMERS
+
+
+.SS \f[CB]first\f[R], \f[CB]first(f)\f[R], \f[CB]last\f[R], \f[CB]last(f)\f[R]
+
+.PP
+The filter \f[CB]first(f)\f[R] yields the first output of \f[CB]f\f[R] if there is one, else nothing\&.
+For example,
+\f[CB]first(1, 2, 3) \-\-> 1\f[R] and
+\f[CB]first(empty) \-\->\f[R] (no output)\&.
+.PP
+This filter stops evaluating \f[CB]f\f[R] after the first output, meaning that
+it yields an output even if \f[CB]f\f[R] yields infinitely many outputs\&.
+For example,
+\f[CB]first(repeat(0)) \-\-> 0\f[R] and
+\f[CB]first(1, def f: f; f) \-\-> 1\f[R]\&.
+.PP
+Similarly, \f[CB]last(f)\f[R] yields the last output of \f[CB]f\f[R] if there is one, else nothing\&.
+If \f[CB]f\f[R] yields an error, then the first error of \f[CB]f\f[R] is yielded\&.
+For example,
+\f[CB]last(1, 2, 3) \-\-> 3\f[R],
+\f[CB]last(empty) \-\->\f[R] (no output), and
+\f[CB]try last(1, error(\[dq]fail\[dq]), 3) catch \&. \-\-> \[dq]fail\[dq]\f[R]\&.
+.PP
+The filters \f[CB]first\f[R] and \f[CB]last\f[R] are short forms for
+\f[CB]first(\&.[])\f[R] and \f[CB]last(\&.[])\f[R], respectively\&.
+You can use them to retrieve the first/last element of an array, such as
+\f[CB][1, 2, 3] | first, last \-\-> 1 3\f[R]\&.
+
+
+.SS \f[CB]limit($n; f)\f[R]
+
+.PP
+The filter \f[CB]limit($n; f)\f[R] yields the first \f[CB]$n\f[R] outputs of \f[CB]f\f[R]\&.
+If \f[CB]$n <= 0\f[R], it yields no outputs\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]limit( 3; 1, 2      ) \-\-> 1 2\f[R]
+
+.IP \[bu] 2
+\f[CB]limit( 3; 1, 2, 3, 4) \-\-> 1 2 3\f[R]
+
+.IP \[bu] 2
+\f[CB]limit(\-1; 1, 2      ) \-\->\f[R] (no output)
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+When \f[CB]$n < 0\f[R], \f[CB]jq\f[R] yields an error instead\&.
+.RE
+
+
+
+.SS \f[CB]skip($n; f)\f[R]
+
+.PP
+The filter \f[CB]skip($n; f)\f[R] yields all outputs after the first \f[CB]$n\f[R] outputs of \f[CB]f\f[R]\&.
+If \f[CB]$n <= 0\f[R], it yields all outputs of \f[CB]f\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]skip( 3; 1, 2      ) \-\->\f[R] (no output)
+
+.IP \[bu] 2
+\f[CB]skip( 1; 1, 2, 3, 4) \-\-> 2 3 4\f[R]
+
+.IP \[bu] 2
+\f[CB]skip(\-1; 1, 2      ) \-\-> 1 2\f[R]
+
+.RE
+
+
+
+.SS \f[CB]nth($i)\f[R], \f[CB]nth($i; f)\f[R]
+
+.PP
+The filter \f[CB]nth($i; f)\f[R] yields the \f[CB]$i\f[R]\-th output of \f[CB]f\f[R]\&.
+If \f[CB]f\f[R] yields less than \f[CB]$i\f[R] outputs, then this filter yields no output\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]nth(0; 1, 2, 3) \-\-> 1\f[R]
+
+.IP \[bu] 2
+\f[CB]nth(2; 1, 2, 3) \-\-> 3\f[R]
+
+.IP \[bu] 2
+\f[CB]nth(3; 1, 2, 3) \-\->\f[R] (no output)
+
+.RE
+
+.PP
+The filter \f[CB]nth($i)\f[R] is a short form for \f[CB]\&.[$i]\f[R]; e\&.g\&.
+\f[CB][1, 2, 3] | nth(0) \-\-> 1\f[R]\&.
+
+
+.SS \f[CB]isempty(f)\f[R]
+
+.PP
+The filter \f[CB]isempty(f)\f[R] yields \f[CB]true\f[R] if \f[CB]f\f[R] yields no outputs, else \f[CB]false\f[R]\&.
+If the first output of \f[CB]f\f[R] is an error, \f[CB]isempty(f)\f[R] yields that error instead\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]isempty(   empty) \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]isempty(1,     2) \-\-> false\f[R]
+
+.IP \[bu] 2
+\f[CB]isempty(1, error) \-\-> false\f[R]
+
+.IP \[bu] 2
+\f[CB]try isempty(error, 1) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]any\f[R], \f[CB]any(p)\f[R], \f[CB]any(f; p)\f[R]
+
+.PP
+The filter \f[CB]any(f; p)\f[R] yields \f[CB]true\f[R] if
+any output of \f[CB]f | p\f[R] has the boolean value \f[CB]true\f[R], else \f[CB]false\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]any(0, 1, 2; \&. == 42) \-\-> false\f[R]
+
+.IP \[bu] 2
+\f[CB]any(0, 1, 2; \&. == 42, \&. == 2) \-\-> true\f[R]
+
+.RE
+
+.PP
+The filters \f[CB]any(p)\f[R] and \f[CB]any\f[R] are short forms of
+\f[CB]any(\&.[]; p)\f[R] and \f[CB]any(\&.)\f[R], respectively\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | any(\&. % 2 == 0) \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB][false, true] | any \-\-> true\f[R]
+
+.RE
+
+
+
+.SS \f[CB]all\f[R], \f[CB]all(p)\f[R], \f[CB]all(f; p)\f[R]
+
+.PP
+The filter \f[CB]all(f; p)\f[R] yields \f[CB]true\f[R] if
+all outputs of \f[CB]f | p\f[R] have the boolean value \f[CB]true\f[R], else \f[CB]false\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]all(0, 1, 2; \&. >  0) \-\-> false\f[R]
+
+.IP \[bu] 2
+\f[CB]all(0, 1, 2; \&. >= 0) \-\-> true\f[R]
+
+.RE
+
+.PP
+The filters \f[CB]all(p)\f[R] and \f[CB]all\f[R] are defined analogously to \f[CB]any(p)\f[R] and \f[CB]any\f[R]\&.
+
+
+.SS \f[CB]add\f[R], \f[CB]add(f)\f[R]
+
+.PP
+The filter \f[CB]add(f)\f[R] yields the sum of all elements yielded by \f[CB]f\f[R], or
+\f[CB]null\f[R] if \f[CB]f\f[R] yields no outputs\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]add(1, 2, 3) \-\-> 6\f[R]
+
+.IP \[bu] 2
+\f[CB]add(empty) \-\-> null\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]add\f[R] is a short form of \f[CB]add(\&.[])\f[R]\&.
+You can use it to add all values of an array or object:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3]    | add \-\-> 6\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | add \-\-> 3\f[R]
+
+.RE
+
+
+
+
+
+.SS STREAM GENERATORS
+
+
+.SS \f[CB]empty\f[R]
+
+.PP
+The filter \f[CB]empty\f[R] yields no output\&.
+
+
+
+.SS \f[CB]range($upto)\f[R], \f[CB]range($from; $upto)\f[R], \f[CB]range($from; $upto; $step)\f[R]
+
+.PP
+The filter \f[CB]range($from; $upto; $step)\f[R]
+adds \f[CB]$step\f[R] to \f[CB]$from\f[R] until it exceeds \f[CB]$upto\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]range(1;  9;  2) \-\-> 1 3 5 7\f[R]
+
+.IP \[bu] 2
+\f[CB]range(1; 10;  2) \-\-> 1 3 5 7 9\f[R]
+
+.IP \[bu] 2
+\f[CB]range(9;  1; \-2) \-\-> 9 7 5 3\f[R]
+
+.IP \[bu] 2
+\f[CB]range(9;  0; \-2) \-\-> 9 7 5 3 1\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]range($from; $upto)\f[R] is a short form of \f[CB]range($from; $upto; 1)\f[R] and
+the filter \f[CB]range($upto)\f[R] is a short form of \f[CB]range(0; $upto)\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]range(5) \-\-> 0 1 2 3 4\f[R]
+
+.IP \[bu] 2
+\f[CB]range(2; 5) \-\-> 2 3 4\f[R]
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In \f[CB]jq\f[R], \f[CB]range/1\f[R] and \f[CB]range/2\f[R] are more restrictive versions of \f[CB]range/3\f[R]
+that prohibit non\-numeric arguments\&.
+.RE
+
+
+
+
+.SS \f[CB]recurse\f[R], \f[CB]recurse(f)\f[R]
+
+.PP
+The filter \f[CB]recurse(f)\f[R] is equivalent to \f[CB]\&., (f | recurse(f))\f[R]\&.
+It first outputs its input, then runs \f[CB]f\f[R] and \f[CB]recurse(f)\f[R] on its outputs\&.
+This is useful to create infinite sequences\&.
+You can create a finite sequence by having \f[CB]f\f[R] return \f[CB]empty\f[R], e\&.g\&. via \f[CB]select\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]0 | limit(5; recurse(\&.+1))       \-\-> 0 1 2 3 4\f[R]
+
+.IP \[bu] 2
+\f[CB]0 | recurse(\&.+1 | select(\&. < 5)) \-\-> 0 1 2 3 4\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]recurse(f; p)\f[R] is equivalent to \f[CB]recurse(f | select(p))\f[R]\&.
+That means that it recurses only on
+outputs of \f[CB]f\f[R] for which \f[CB]p\f[R] yields a \f[CB]true\f[R] output\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]0 | recurse(\&.+1; \&. < 5) \-\-> 0 1 2 3 4\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]recurse\f[R] is a short form for \f[CB]recurse(\&.[]?)\f[R]\&.
+It returns all values recursively contained in the input, e\&.g\&.
+\f[CB][1, [2], {a: 3}] | recurse \-\-> [1, [2], {\[dq]a\[dq]: 3}] 1 [2] 2 {\[dq]a\[dq]:3} 3\f[R]\&.
+It yields the same outputs as \f[CB]\&.\&.\f[R] (recursion)\&.
+
+
+
+.SS \f[CB]repeat(f)\f[R]
+
+.PP
+The filter \f[CB]repeat(f)\f[R] runs \f[CB]f\f[R] and yields its outputs over and over again\&.
+For example,
+\f[CB]2 | limit(7; repeat(1, \&., 3)) \-\-> 1 2 3 1 2 3 1\f[R]\&.
+
+
+
+.SS \f[CB]while(p; f)\f[R], \f[CB]until(p; f)\f[R]
+
+.PP
+The filter \f[CB]while(p; f)\f[R] yields its input and applies \f[CB]f\f[R] to it,
+while \f[CB]p\f[R] returns true\&.
+.PP
+The filter \f[CB]until(p; f)\f[R] applies \f[CB]f\f[R] to its input until \f[CB]p\f[R] returns true,
+at which point the filter returns its input\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]0 | while(\&. <= 3; \&. + 1) \-\-> 0 1 2 3\f[R]
+
+.IP \[bu] 2
+\f[CB]0 | until(\&. >= 3; \&. + 1) \-\-> 3\f[R]
+
+.RE
+
+
+
+
+.SS SELECTION
+
+.PP
+The filters in this section classify their inputs or output them selectively\&.
+
+.SS \f[CB]select(p)\f[R]
+
+.PP
+The filter \f[CB]select(p)\f[R] yields its input for each true output of \f[CB]p\f[R]\&.
+For example,
+\f[CB](0, 1, \-1, 2, \-2) | select(\&. >= 0) \-\-> 0 1 2\f[R]\&.
+
+
+.SS \f[CB]nulls\f[R], \f[CB]booleans\f[R], \f[CB]numbers\f[R], \f[CB]strings\f[R], \f[CB]arrays\f[R], \f[CB]objects\f[R]
+
+.PP
+Any of these filters yields its input if it is of the given type, else nothing\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | nulls    \-\-> null\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | booleans \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | numbers  \-\-> 0\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | strings  \-\-> \[dq]Hi!\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | arrays   \-\-> [1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | objects  \-\-> {\[dq]a\[dq]: 1}\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]isboolean\f[R], \f[CB]isnumber\f[R], \f[CB]isstring\f[R], \f[CB]isarray\f[R], \f[CB]isobject\f[R]
+
+.PP
+For every filter in this section, like \f[CB]isboolean\f[R], …, \f[CB]isobject\f[R], there is
+a corresponding filter in the previous section like, \f[CB]booleans\f[R], …, \f[CB]objects\f[R]\&.
+Any of these filters yields \f[CB]true\f[R] if
+its corresponding filter in the previous section yields some output, else \f[CB]false\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null | isboolean \-\-> false\f[R], because \f[CB]null | booleans \-\->\f[R] (no output)\&.
+
+.IP \[bu] 2
+\f[CB]true | isboolean \-\-> true \f[R], because \f[CB]true | booleans \-\-> true\f[R]\&.
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not implement these filters\&.
+.RE
+
+
+
+.SS \f[CB]normals\f[R], \f[CB]finites\f[R]
+
+.PP
+These filters return its input if
+\f[CB]isnormal\f[R] or \f[CB]isfinite\f[R] is \f[CB]true\f[R], respectively, else \f[CB]false\f[R]\&.
+
+
+.SS \f[CB]values\f[R], \f[CB]iterables\f[R], \f[CB]scalars\f[R]
+
+.PP
+The filter \f[CB]values\f[R] yields its input if it is \f[B]not\f[R] \f[CB]null\f[R], else nothing\&.
+.PP
+If a value is either an array or an object,
+it is said to be \f[B]iterable\f[R]; otherwise,
+it is said to be \f[B]scalar\f[R]\&.
+(The iteration filter \f[CB]\&.[]\f[R] succeeds on any iterable value,
+whereas it fails on any scalar\&.)
+.PP
+The filters \f[CB]iterables\f[R] and \f[CB]scalars\f[R] yield their input if
+it is iterable or scalar, respectively, else nothing\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | values    \-\-> true 0 \[dq]Hi!\[dq] [1, 2] {\[dq]a\[dq]: 1}\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | scalars   \-\-> null true 0 \[dq]Hi!\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi!\[dq], [1, 2], {a: 1} | iterables \-\-> [1, 2] {\[dq]a\[dq]: 1}\f[R]
+
+.RE
+
+
+
+.SS \f[CB]isnan\f[R], \f[CB]isinfinite\f[R], \f[CB]isfinite\f[R], \f[CB]isnormal\f[R]
+
+.PP
+The filter \f[CB]isnan\f[R] yields \f[CB]true\f[R] if
+its input is \f[CB]NaN\f[R], else \f[CB]false\f[R]\&.
+Note that it is \f[B]not\f[R] equivalent to \f[CB]\&. == nan\f[R], because
+\f[CB]nan\f[R] is not equal to itself; see equality\&.
+.PP
+The filter \f[CB]isinfinite\f[R] yields \f[CB]true\f[R] if
+its input is either \f[CB]Infinity\f[R] or \f[CB]\-Infinity\f[R], else \f[CB]false\f[R]\&.
+.PP
+The filter \f[CB]isfinite\f[R] yields \f[CB]true\f[R] if
+its input is a number that is not infinite, else \f[CB]false\f[R]\&.
+.PP
+The filter \f[CB]isnormal\f[R] yields \f[CB]true\f[R] if
+its input is a number that is neither \f[CB]0\f[R], \f[CB]NaN\f[R], nor infinite\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]nan      | isnan, isinfinite, isfinite, isnormal \-\-> true  false true  false\f[R]
+
+.IP \[bu] 2
+\f[CB]infinite | isnan, isinfinite, isfinite, isnormal \-\-> false true  false false\f[R]
+
+.IP \[bu] 2
+\f[CB]0        | isnan, isinfinite, isfinite, isnormal \-\-> false false true  false\f[R]
+
+.IP \[bu] 2
+\f[CB]1        | isnan, isinfinite, isfinite, isnormal \-\-> false false true  true\f[R]
+
+.RE
+
+
+
+.SS \f[CB]type\f[R]
+
+.PP
+The filter \f[CB]type\f[R] returns the type of its input value as string\&. For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null  | type \-\-> \[dq]null\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]false | type \-\-> \[dq]boolean\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]0     | type \-\-> \[dq]number\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]foo\[dq] | type \-\-> \[dq]string\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB][1]   | type \-\-> \[dq]array\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]{}    | type \-\-> \[dq]object\[dq]\f[R]
+
+.RE
+
+.PP
+Note that both text strings and byte strings both have the same type \f[CB]\[dq]string\[dq]\f[R]\&.
+
+
+
+
+.SS MEMBERSHIP
+
+
+.SS \f[CB]contains($x)\f[R], \f[CB]inside($x)\f[R]
+
+.PP
+The filter \f[CB]contains($x)\f[R] yields \f[CB]true\f[R]
+if any of the following conditions holds, else \f[CB]false\f[R]\&.
+.RS 2
+
+.IP \[bu] 2
+The input is a string and \f[CB]$x\f[R] is a substring of it\&.
+
+.IP \[bu] 2
+The input is an array, \f[CB]$x\f[R] is an array, and
+for every value \f[CB]v\f[R] in \f[CB]$x\f[R],
+there is some value in the input that \f[CB]contains(v)\f[R]\&.
+
+.IP \[bu] 2
+The input is an object, \f[CB]$x\f[R] is an object, and
+for every key\-value pair \f[CB]{k: v}\f[R] in \f[CB]$x\f[R],
+there is a value for the key \f[CB]k\f[R] in the input that \f[CB]contains(v)\f[R]\&.
+
+.IP \[bu] 2
+The input is \f[CB]null\f[R], boolean, or a number, and \f[CB]$x\f[R] is equal to the input\&.
+
+.RE
+
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello, world!\[dq] | contains(\[dq]world\[dq])  \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3]       | contains([1, 3])   \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB][[1, 2], 3]     | contains([3, [1]]) \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2}    | contains({a: 1})   \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: [1, 2]}     | contains({a: [1]}) \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]0               | contains(0)        \-\-> true\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]inside($x)\f[R] is a flipped version of \f[CB]contains\f[R]\&.
+For example,
+\f[CB]\[dq]world\[dq] | inside(\[dq]Hello, world\[dq]) \-\-> true\f[R]\&.
+
+
+
+.SS \f[CB]indices($x)\f[R]
+
+.PP
+The filter \f[CB]indices($x)\f[R] yields the following:
+.RS 2
+
+.IP \[bu] 2
+If the input and \f[CB]$x\f[R] are either both strings or both arrays, then it yields
+the indices \f[CB]i\f[R] for which \f[CB]\&.[i:][:$x | length] == $x\f[R]; e\&.g\&.
+\f[CB]\[dq]Alice, Bob, and Carol\[dq] | indices(\[dq], \[dq]) \-\-> [5, 10]\f[R] and
+\f[CB][0, 1, 2, 3, 1, 2, 3] | indices([1, 2]) \-\-> [1, 4]\f[R]\&.
+
+.IP \[bu] 2
+If the input is an array and \f[CB]$x\f[R] is not an array, then it yields
+the indices \f[CB]i\f[R] for which \f[CB]\&.[i] == $x\f[R]; e\&.g\&.
+\f[CB][0, 1, 2, 3, 1, 2, 3] | indices(1) \-\-> [1, 4]\f[R]\&.
+
+.IP \[bu] 2
+Otherwise, it yields an error\&.
+
+.RE
+
+.PP
+This means that \f[CB][[1, 2], 3] | indices([1, 2]) \-\-> []\f[R], because
+the input array has neither \f[CB]1\f[R] nor \f[CB]2\f[R], just \f[CB][1, 2]\f[R] and \f[CB]3\f[R]\&.
+
+
+
+.SS \f[CB]index($x)\f[R], \f[CB]rindex($x)\f[R]
+
+.PP
+The filters \f[CB]index($x)\f[R] and \f[CB]rindex($x)\f[R] are shorthand for
+\f[CB]indices($x) | first\f[R] and
+\f[CB]indices($x) | last\f[R], respectively\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]Alice, Bob, and Carol\[dq] | index(\[dq], \[dq]) \-\-> 5\f[R]
+
+.IP \[bu] 2
+\f[CB][0, 1, 2, 3, 1, 2, 3] | rindex([1, 2]) \-\-> 4\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello world!\[dq] | index(\[dq], \[dq]) \-\-> null\f[R]
+
+.IP \[bu] 2
+\f[CB][0, 1, 2] | rindex(3) \-\-> null\f[R]
+
+.RE
+
+
+
+.SS \f[CB]has($k)\f[R], \f[CB]in($x)\f[R]
+
+.PP
+The filter \f[CB]has($k)\f[R] yields \f[CB]true\f[R] if
+\f[CB]\&.[$k]\f[R] points to data in the input, else \f[CB]false\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3]    | has( 0 ,  3 ) \-\-> true false\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | has(\[dq]a\[dq], \[dq]c\[dq]) \-\-> true false\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]in($x)\f[R] is a flipped version of \f[CB]has\f[R], just like
+\f[CB]inside\f[R] is a flipped version of \f[CB]contains\f[R]\&.
+For example,
+\f[CB]\[dq]a\[dq] | in({a: 1, b: 2}) \-\-> true\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+Whenever \f[CB]has($k)\f[R] in \f[CB]jq\f[R] returns \f[CB]true\f[R], jaq also returns \f[CB]true\f[R]\&.
+However, when \f[CB]has($k)\f[R] yields \f[CB]true\f[R] in jaq,
+it may also yield \f[CB]false\f[R] or an error in \f[CB]jq\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | has(\-1, \-2, \-3) \-\-> true true true\f[R] (\f[CB]false false false\f[R] in \f[CB]jq\f[R])
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | has({start: 1}) \-\-> true\f[R] (error in \f[CB]jq\f[R])
+
+.RE
+
+.PP
+This difference arises because in \f[CB]jq\f[R],
+\f[CB]has($k)\f[R] has a much weaker relationship with \f[CB]\&.[$k]\f[R] than in jaq\&.
+The following properties hold in both \f[CB]jq\f[R] and jaq:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[\-1, \-2, \-3] \-\-> 3 2 1\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | \&.[{start: 1}] \-\-> [2, 3]\f[R]
+
+.RE
+
+.RE
+
+
+
+
+
+.SS UPDATES
+
+
+.SS \f[CB]map(f)\f[R], \f[CB]map_values(f)\f[R]
+
+.PP
+The filter \f[CB]map(f)\f[R] obtains all values of the input (via \f[CB]\&.[]\f[R]),
+applies \f[CB]f\f[R] to the values, and collects all results into an array\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3]    | map(\&., \&.*2) \-\-> [1, 2, 2, 4, 3, 6]\f[R]\&.
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | map(\&., \&.*2) \-\-> [1, 2, 2, 4]\f[R]\&.
+
+.IP \[bu] 2
+\f[CB][1, 2, 3, 4] | map(select(\&. % 2 == 0)) \-\-> [2, 4]\f[R]\&.
+
+.RE
+
+.PP
+The filter \f[CB]map_values(f)\f[R] has the same effect as \f[CB]map(f)\f[R]
+when the input is an array, but when the input is an object,
+\f[CB]map_values(f)\f[R] also outputs an object\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3, 4] | map_values(\&.*2) \-\-> [2, 4, 6, 8]\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | map_values(\&.*2) \-\-> {\[dq]a\[dq]: 2, \[dq]b\[dq]: 4}\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]walk(f)\f[R]
+
+.PP
+The filter \f[CB]walk(f)\f[R] recursively updates its input with \f[CB]f\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][[1, 2], [3]] | walk(numbers += 1) \-\-> [[2, 3], [4]]\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]del(f)\f[R]
+
+.PP
+The filter \f[CB]del(f)\f[R] deletes values at the locations given by \f[CB]f\f[R]\&.
+It is equivalent to \f[CB]f |= empty\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3, 4] | del(\&.[] | select(\&. % 2 == 0)) \-\-> [1, 3]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3]    | del(\&.[1]) \-\-> [1, 3]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3]    | del(\&.[1:]) \-\-> [1]\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} | del(\&.a) \-\-> {\[dq]b\[dq]: 2}\f[R]
+
+.RE
+
+
+
+
+.SS PATHS
+
+
+.SS \f[CB]path(f)\f[R]
+
+.PP
+The filter \f[CB]path(f)\f[R] records for each output of \f[CB]f\f[R] its position in the input,
+and yields that position as a \f[B]path\f[R]\&.
+A path is an array that may contain indices or “slice objects”\&.
+The latter must contain a \f[CB]\[dq]start\[dq]\f[R] and/or an \f[CB]\[dq]end\[dq]\f[R] key with an integer value\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][{a: 1}, {a: 2}] | path(\&.[]\&.a) \-\-> [0, \[dq]a\[dq]] [1, \[dq]a\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | path(\&.[1:][:\-1]) \-\-> [{\[dq]start\[dq]: 1}, {\[dq]end\[dq]: \-1}]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | path(\&.[1:   \-1]) \-\-> [{\[dq]start\[dq]: 1,   \[dq]end\[dq]: \-1}]\f[R]
+
+.RE
+
+.PP
+If \f[CB]f\f[R] returns values that do not point to the input, then \f[CB]path(f)\f[R] yields an error\&.
+.RS 2
+
+.IP \[bu] 2
+\f[CB]try path(0           ) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]try path(\&. as $x | $x) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]paths\f[R], \f[CB]paths(p)\f[R]
+
+.PP
+The filter \f[CB]paths\f[R] yields the paths to all ancestor values of the input\&.
+It is equivalent to \f[CB]skip(1; path(\&.\&.))\f[R]\&.
+.PP
+The filter \f[CB]paths(p)\f[R] yields the paths to all ancestor values of the input
+for which \f[CB]p\f[R] yields true\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, {a: 2}] | paths           \-\-> [0] [1] [1, \[dq]a\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, {a: 2}] | paths(isnumber) \-\-> [0]     [1, \[dq]a\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, {a: 2}] | paths(isobject) \-\->     [1]         \f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]getpath($path)\f[R]
+
+.PP
+The filter \f[CB]getpath($path)\f[R] is the inverse filter for \f[CB]path(f)\f[R]\&.
+If \f[CB]path(f)\f[R] yields no error, then
+\f[CB]getpath(path(f))\f[R] yields the same outputs as \f[CB]f\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][{a: 1}, {a: 2}] | getpath([0, \[dq]a\[dq]], [1, \[dq]a\[dq]]) \-\-> 1 2\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | getpath([{\[dq]start\[dq]: 1}, {\[dq]end\[dq]: \-1}]) \-\-> [2]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | getpath([{\[dq]start\[dq]: 1,   \[dq]end\[dq]: \-1}]) \-\-> [2]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]setpath($path; $v)\f[R]
+
+.PP
+The filter \f[CB]setpath($path; $v)\f[R] sets the value at \f[CB]$path\f[R] to \f[CB]$v\f[R]\&.
+It is equivalent to \f[CB]getpath($path) = $v\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][[1, 2], [3, 4]] | setpath([1, 0]; 5) \-\-> [[1, 2], [5, 4]]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]delpaths($paths)\f[R]
+
+.PP
+The filter \f[CB]delpaths($paths)\f[R] takes an array of paths and
+deletes all corresponding values in the order given by the array\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | delpaths([[0]])      \-\-> [2, 3]\f[R]
+
+.IP \[bu] 2
+\f[CB][{a: 1, b: 2}, 3] | delpaths([[0, \[dq]b\[dq]], [1]]) \-\-> [{\[dq]a\[dq]: 1}]\f[R]
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In \f[CB]jq\f[R],
+the \f[CB]$paths\f[R] are interpreted relative to the \f[I]original\f[R] input value, whereas
+in jaq, they are interpreted relative to the \f[I]current\f[R] value\&. 
+For example,
+\f[CB][1, 2, 3] | delpaths([[0], [0]]) \-\-> [3]\f[R] in jaq, because
+it first deletes the \f[CB]0\f[R]\-th element \f[CB]1\f[R] (yielding \f[CB][2, 3]\f[R]),
+then it  deletes the \f[CB]0\f[R]\-th element \f[CB]2\f[R] (yielding \f[CB][3]\f[R])\&.
+Here, \f[CB]jq\f[R] yields \f[CB][2, 3]\f[R], because the \f[CB]0\f[R]\-th element always
+refers to the \f[CB]0\f[R]\-th element of the original input, which is \f[CB]1\f[R]\&.
+.PP
+To use \f[CB]delpaths\f[R] in an interoperable fashion, use \f[CB]$paths\f[R] such that:
+.RS 2
+
+.IP \[bu] 2
+Paths to descendants come before paths to their ancestors\&.
+
+.IP \[bu] 2
+Paths to array elements to the right come before paths to elements to the left\&.
+
+.RE
+
+.PP
+For example, \f[CB]\&.\&.\f[R] returns
+\f[I]ancestors\f[R] before descendants and
+array elements to the \f[I]left\f[R] before elements to the right\&.
+To use the output of \f[CB]\&.\&.\f[R] in \f[CB]delpaths\f[R], it suffices to
+reverse the order of its outputs:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][\[dq]a\[dq], 0, \[dq]b\[dq], 1] | delpaths([path(\&.\&. | strings)] | reverse) \-\-> [0,  1 ]\f[R] (right)
+
+.IP \[bu] 2
+\f[CB][\[dq]a\[dq], 0, \[dq]b\[dq], 1] | delpaths([path(\&.\&. | strings)]          ) \-\-> [0, \[dq]b\[dq]]\f[R] (wrong)
+
+.RE
+
+.RE
+
+
+
+.SS \f[CB]pick(f)\f[R]
+
+.PP
+The filter \f[CB]pick(f)\f[R] constructs an object that
+contains only those parts of the input that \f[CB]f\f[R] returns\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]{a: {b: 1, c: 2}, d: 3} | pick(\&.       ) \-\-> {\[dq]a\[dq]: {\[dq]b\[dq]: 1, \[dq]c\[dq]: 2}, \[dq]d\[dq]: 3}\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: {b: 1, c: 2}, d: 3} | pick(\&.a\&.c    ) \-\-> {\[dq]a\[dq]: {        \[dq]c\[dq]: 2}        }\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: {b: 1, c: 2}, d: 3} | pick(\&.a\&.c, \&.d) \-\-> {\[dq]a\[dq]: {        \[dq]c\[dq]: 2}, \[dq]d\[dq]: 3}\f[R]
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In \f[CB]jq\f[R], \f[CB]pick(f)\f[R] also supports paths to arrays; for example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | pick(\&.[0 ])\f[R] yields \f[CB][1]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | pick(\&.[1 ])\f[R] yields \f[CB][null, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | pick(\&.[1:])\f[R] yields \f[CB][2, 3]\f[R]
+
+.RE
+
+.PP
+While implementing this functionality in jaq, I found many corner cases
+that would have made the proper documentation of this filter very complex\&.
+I also found a few surprising behaviours in \f[CB]jq\f[R], e\&.g\&. that
+\f[CB][1, 2, 3] | pick(\&.[\-1])\f[R] yields an error\&.
+In the end, I decided to support only the simpler and well\-understandable
+subset of paths to objects\&.
+.RE
+
+
+
+
+
+.SS BOOLEANS
+
+
+.SS \f[CB]true\f[R], \f[CB]false\f[R]
+
+.PP
+The filters \f[CB]true\f[R] and \f[CB]false\f[R] yield the values \f[CB]true\f[R] and \f[CB]false\f[R], respectively:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]true  \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]false \-\-> false\f[R]
+
+.RE
+
+
+
+.SS \f[CB]not\f[R]
+
+.PP
+The filter \f[CB]not\f[R] converts its input to its boolean value and returns its negation\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]true  | not \-\-> false\f[R]
+
+.IP \[bu] 2
+\f[CB]false | not \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]foo\[dq] | not \-\-> false\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]toboolean\f[R]
+
+.PP
+The filter \f[CB]toboolean\f[R] is for booleans what \f[CB]tonumber\f[R] is for numbers\&. 
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\  true   | toboolean \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]\ \[dq]true\[dq]  | toboolean \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq][true]\[dq] | try toboolean catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+
+
+
+.SS NUMBERS
+
+
+.SS \f[CB]tonumber\f[R]
+
+.PP
+The filter \f[CB]tonumber\f[R] takes as input either a number or a string\&.
+If the input is a number, it is returned unchanged;
+if the input is a string, it is parsed to a number, failing if this does not succeed\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\  42   | tonumber \-\-> 42\f[R]
+
+.IP \[bu] 2
+\f[CB]\ \[dq]42\[dq]  | tonumber \-\-> 42\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq][42]\[dq] | try tonumber catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]infinite\f[R], \f[CB]nan\f[R]
+
+.PP
+The filters \f[CB]infinite\f[R] and \f[CB]nan\f[R] yield the floating\-point numbers
+\f[CB]Infinity\f[R] and \f[CB]NaN\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]infinite \-\-> Infinity\f[R]
+
+.IP \[bu] 2
+\f[CB]nan | isnan \-\-> true\f[R]
+(we cannot test for equality with \f[CB]NaN\f[R] here, because \f[CB]nan == nan \-\-> false\f[R])
+
+.RE
+
+
+
+
+.SS \f[CB]abs\f[R]
+
+.PP
+The filter \f[CB]abs\f[R]
+yields the negation of the input if the input is smaller than \f[CB]0\f[R], else it
+yields the input\&.
+Note that due to this definition, strings, arrays, and objects
+are also returned unchanged, because they are larger than \f[CB]0\f[R];
+see ordering\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\-2\&.0, \-1, 0, 1, 2\&.0 | abs \-\-> 2\&.0 1 0 1 2\&.0\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]foo\[dq], [], {}       | abs \-\-> \[dq]foo\[dq] [] {}\f[R]
+
+.RE
+
+
+
+.SS \f[CB]floor\f[R], \f[CB]round\f[R], \f[CB]ceil\f[R]
+
+.PP
+The filters \f[CB]floor\f[R], \f[CB]round\f[R] and \f[CB]ceil\f[R] round a number
+to its closest smaller integer,
+to its closest integer, and
+to its closest larger integer, respectively\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\ 0\&.5 | floor, round, ceil \-\->  0  1 1\f[R]
+
+.IP \[bu] 2
+\f[CB]\ 0\&.4 | floor, round, ceil \-\->  0  0 1\f[R]
+
+.IP \[bu] 2
+\f[CB]\ 0\&.0 | floor, round, ceil \-\->  0  0 0\f[R]
+
+.IP \[bu] 2
+\f[CB]\-0\&.4 | floor, round, ceil \-\-> \-1  0 0\f[R]
+
+.IP \[bu] 2
+\f[CB]\-0\&.5 | floor, round, ceil \-\-> \-1 \-1 0\f[R]
+
+.IP \[bu] 2
+\f[CB]0, 1 | round \-\-> 0 1\f[R]
+
+.IP \[bu] 2
+\f[CB]nan | round | isnan \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]infinite | round \-\-> Infinity\f[R]
+
+.RE
+
+
+
+.SS Math
+
+.PP
+jaq implements many mathematical functions via \c
+.UR https://docs.rs/libm
+\f[CB]libm\f[R]
+.UE \c
+\&.
+If not specified otherwise, these filters take and return floating\-point numbers\&.
+.PP
+Zero\-argument filters:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]acos\f[R]
+
+.IP \[bu] 2
+\f[CB]acosh\f[R]
+
+.IP \[bu] 2
+\f[CB]asin\f[R]
+
+.IP \[bu] 2
+\f[CB]asinh\f[R]
+
+.IP \[bu] 2
+\f[CB]atan\f[R]
+
+.IP \[bu] 2
+\f[CB]atanh\f[R]
+
+.IP \[bu] 2
+\f[CB]cbrt\f[R]
+
+.IP \[bu] 2
+\f[CB]cos\f[R]
+
+.IP \[bu] 2
+\f[CB]cosh\f[R]
+
+.IP \[bu] 2
+\f[CB]erf\f[R]
+
+.IP \[bu] 2
+\f[CB]erfc\f[R]
+
+.IP \[bu] 2
+\f[CB]exp\f[R]
+
+.IP \[bu] 2
+\f[CB]exp10\f[R]
+
+.IP \[bu] 2
+\f[CB]exp2\f[R]
+
+.IP \[bu] 2
+\f[CB]expm1\f[R]
+
+.IP \[bu] 2
+\f[CB]fabs\f[R]
+
+.IP \[bu] 2
+\f[CB]frexp\f[R], which returns pairs of (float, integer)\&.
+
+.IP \[bu] 2
+\f[CB]gamma\f[R]
+
+.IP \[bu] 2
+\f[CB]ilogb\f[R], which returns integers\&.
+
+.IP \[bu] 2
+\f[CB]j0\f[R]
+
+.IP \[bu] 2
+\f[CB]j1\f[R]
+
+.IP \[bu] 2
+\f[CB]lgamma\f[R]
+
+.IP \[bu] 2
+\f[CB]log\f[R]
+
+.IP \[bu] 2
+\f[CB]log10\f[R]
+
+.IP \[bu] 2
+\f[CB]log1p\f[R]
+
+.IP \[bu] 2
+\f[CB]log2\f[R]
+
+.IP \[bu] 2
+\f[CB]logb\f[R]
+
+.IP \[bu] 2
+\f[CB]modf\f[R], which returns pairs of (float, float)\&.
+
+.IP \[bu] 2
+\f[CB]nearbyint\f[R]
+
+.IP \[bu] 2
+\f[CB]pow10\f[R]
+
+.IP \[bu] 2
+\f[CB]rint\f[R]
+
+.IP \[bu] 2
+\f[CB]significand\f[R]
+
+.IP \[bu] 2
+\f[CB]sin\f[R]
+
+.IP \[bu] 2
+\f[CB]sinh\f[R]
+
+.IP \[bu] 2
+\f[CB]sqrt\f[R]
+
+.IP \[bu] 2
+\f[CB]tan\f[R]
+
+.IP \[bu] 2
+\f[CB]tanh\f[R]
+
+.IP \[bu] 2
+\f[CB]tgamma\f[R]
+
+.IP \[bu] 2
+\f[CB]trunc\f[R]
+
+.IP \[bu] 2
+\f[CB]y0\f[R]
+
+.IP \[bu] 2
+\f[CB]y1\f[R]
+
+.RE
+
+.PP
+Two\-argument filters that ignore \f[CB]\&.\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]atan2\f[R]
+
+.IP \[bu] 2
+\f[CB]copysign\f[R]
+
+.IP \[bu] 2
+\f[CB]drem\f[R]
+
+.IP \[bu] 2
+\f[CB]fdim\f[R]
+
+.IP \[bu] 2
+\f[CB]fmax\f[R]
+
+.IP \[bu] 2
+\f[CB]fmin\f[R]
+
+.IP \[bu] 2
+\f[CB]fmod\f[R]
+
+.IP \[bu] 2
+\f[CB]hypot\f[R]
+
+.IP \[bu] 2
+\f[CB]jn\f[R], which takes an integer as first argument\&.
+
+.IP \[bu] 2
+\f[CB]ldexp\f[R], which takes an integer as second argument\&.
+
+.IP \[bu] 2
+\f[CB]nextafter\f[R]
+
+.IP \[bu] 2
+\f[CB]nexttoward\f[R]
+
+.IP \[bu] 2
+\f[CB]pow\f[R]
+
+.IP \[bu] 2
+\f[CB]remainder\f[R]
+
+.IP \[bu] 2
+\f[CB]scalb\f[R]
+
+.IP \[bu] 2
+\f[CB]scalbln\f[R], which takes as integer as second argument\&.
+
+.IP \[bu] 2
+\f[CB]yn\f[R], which takes an integer as first argument\&.
+
+.RE
+
+.PP
+Three\-argument filters that ignore \f[CB]\&.\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]fma\f[R]
+
+.RE
+
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB](3\&.141592 | sin) < (\-5 | pow10) \-\-> true\f[R] establishes that
+\f[CB]sin(pi)\f[R] is smaller than \f[CB]10^\-5\f[R]\&.
+
+.IP \[bu] 2
+\f[CB]fmax(2; 3) \-\-> 3\&.0\f[R]
+
+.IP \[bu] 2
+\f[CB]fma(2; 3; 4) \-\-> 10\&.0\f[R]
+
+.RE
+
+
+
+
+.SS ARRAYS
+
+
+.SS \f[CB]sort\f[R], \f[CB]sort_by(f)\f[R]
+
+.PP
+The filter \f[CB]sort\f[R] takes an array and sorts it\&.
+For example:
+.IP
+.EX
+[true, 1, \[dq]abc\[dq], [1], {\[dq]a\[dq]: 1}, null, false, 0, \[dq]ABC\[dq], [], {}] | sort \-\->
+[null, false, true, 0, 1, \[dq]ABC\[dq], \[dq]abc\[dq], [], [1], {}, {\[dq]a\[dq]: 1}]
+.EE
+
+.PP
+The filter \f[CB]sort_by(f)\f[R] evaluates
+the filter \f[CB]f\f[R] for each value in the input array, and
+sorts the values by the output of \f[CB]f\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][0, 1, 2, 3] | sort_by(\&. % 2) \-\-> [0, 2, 1, 3]\f[R]
+
+.IP \[bu] 2
+\f[CB][{a: 1, b: 2}, {a: 0, b: 3}] | sort_by(\&. ) \-\-> [{\[dq]a\[dq]: 0, \[dq]b\[dq]: 3}, {\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}]\f[R]
+
+.IP \[bu] 2
+\f[CB][{a: 1, b: 2}, {a: 0, b: 3}] | sort_by(\&.a) \-\-> [{\[dq]a\[dq]: 0, \[dq]b\[dq]: 3}, {\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}]\f[R]
+
+.IP \[bu] 2
+\f[CB][{a: 1, b: 2}, {a: 0, b: 3}] | sort_by(\&.b) \-\-> [{\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}, {\[dq]a\[dq]: 0, \[dq]b\[dq]: 3}]\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]group_by(f)\f[R]
+
+.PP
+The filter \f[CB]group_by(f)\f[R] sorts its input array by \f[CB]f\f[R], then
+groups all values for which \f[CB]f\f[R] produced identical outputs into the same array\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][\[dq]foo\[dq], \[dq]\[dq], \[dq]bar\[dq], \[dq]quux\[dq], \[dq]baz\[dq]] | group_by(length) \-\->
+[[\[dq]\[dq]], [\[dq]foo\[dq], \[dq]bar\[dq], \[dq]baz\[dq]], [\[dq]quux\[dq]]]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3, 4] | group_by(\&. % 2) \-\-> [[2, 4], [1, 3]]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]unique\f[R], \f[CB]unique_by(f)\f[R]
+
+.PP
+The filter \f[CB]unique_by(f)\f[R] sorts its input array by \f[CB]f\f[R]\&.
+If \f[CB]f\f[R] produces the same outputs for multiple values in the array,
+only the first is kept\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][\[dq]foo\[dq], \[dq]\[dq], \[dq]bar\[dq], \[dq]quux\[dq], \[dq]baz\[dq]] | unique_by(length) \-\-> [\[dq]\[dq], \[dq]foo\[dq], \[dq]quux\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3, 4] | unique_by(\&. % 2) \-\-> [2, 1]\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]unique\f[R] is equivalent to \f[CB]unique_by(\&.)\f[R]\&.
+It sorts the input array and removes any duplicates; e\&.g\&.
+\f[CB][3, 2, 1, 3, 4] | unique \-\-> [1, 2, 3, 4]\f[R]\&.
+
+
+.SS \f[CB]min\f[R], \f[CB]max\f[R], \f[CB]min_by(f)\f[R], \f[CB]max_by(f)\f[R]
+
+.PP
+The filters \f[CB]min\f[R] and \f[CB]max\f[R] yield the smallest and largest element of an array, respectively\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | min \-\-> 1\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | max \-\-> 3\f[R]
+
+.RE
+
+.PP
+The filters \f[CB]min_by(f)\f[R] and \f[CB]max_by(f)\f[R] evaluate
+the filter \f[CB]f\f[R] for each value in the input array, and
+yield the value for which \f[CB]f\f[R] produces the smallest or largest output,
+respectively\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][\[dq]abc\[dq], [1, 2], {\[dq]a\[dq]: 1}] | min_by(length) \-\-> {\[dq]a\[dq]: 1}\f[R]
+
+.IP \[bu] 2
+\f[CB][\[dq]abc\[dq], [1, 2], {\[dq]a\[dq]: 1}] | max_by(length) \-\-> \[dq]abc\[dq]\f[R]
+
+.RE
+
+.PP
+You can yield multiple values in \f[CB]f\f[R] to break ties such as:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][\[dq]abc\[dq], [1, 2], {\[dq]a\[dq]: 1, \[dq]b\[dq]: 3}] | min_by(length, add?) \-\-> [1, 2]\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]reverse\f[R]
+
+.PP
+The filter \f[CB]reverse\f[R] takes an array and reverses it\&.
+For example, \f[CB][1, 2, 3] | reverse \-\-> [3, 2, 1]\f[R]\&.
+
+
+.SS \f[CB]transpose\f[R]
+
+.PP
+The filter \f[CB]transpose\f[R] takes an array of arrays and yields its transposition\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][[1 ,  2, 3], [4, 5, 6]] | transpose \-\-> [[1, 4], [2, 5], [3, 6]]\f[R]
+
+.IP \[bu] 2
+\f[CB][[1], [2, 3], [4, 5, 6]] | transpose \-\-> [[1, 2, 4], [null, 3, 5], [null, null, 6]]\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]flatten\f[R], \f[CB]flatten($depth)\f[R]
+
+.PP
+The filter \f[CB]flatten\f[R] flattens input arrays, and
+the filter \f[CB]flatten($depth)\f[R] flattens input arrays up to a certain depth\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, [2, [3]], {a: [1, [2]]}] | flatten    \-\-> [1,  2,  3  , {\[dq]a\[dq]: [1, [2]]}]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, [2, [3]], {a: [1, [2]]}] | flatten(0) \-\-> [1, [2, [3]], {\[dq]a\[dq]: [1, [2]]}]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, [2, [3]], {a: [1, [2]]}] | flatten(1) \-\-> [1,  2, [3] , {\[dq]a\[dq]: [1, [2]]}]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, [2, [3]], {a: [1, [2]]}] | flatten(2) \-\-> [1,  2,  3  , {\[dq]a\[dq]: [1, [2]]}]\f[R]
+
+.IP \[bu] 2
+\f[CB]null, true, 0, \[dq]Hi\[dq] | flatten \-\-> [null] [true] [0] [\[dq]Hi\[dq]]\f[R]
+
+.RE
+
+.PP
+Note that \f[CB]flatten\f[R] does not impact arrays that are descendants of an object\&.
+
+
+
+.SS \f[CB]bsearch($x)\f[R]
+
+.PP
+The filter \f[CB]bsearch($x)\f[R] takes a sorted array and
+performs a binary search for \f[CB]$x\f[R] in the array\&.
+If the array contains \f[CB]$x\f[R], then
+the filter yields a positive \f[CB]$i\f[R] such that \f[CB]\&.[$i] == $x\f[R]; otherwise,
+the filter yields a negative \f[CB]$i\f[R] such that inserting \f[CB]$x\f[R] at the index \f[CB]\-$i\-1\f[R]
+in the array would preserve its the ordering\&.
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][0, 4, 8] | bsearch(8, 4, 0) \-\-> 2 1 0\f[R]
+
+.IP \[bu] 2
+\f[CB][0, 4, 8] | bsearch(\-2, 2, 6, 10) \-\-> \-1 \-2 \-3 \-4\f[R]
+
+.RE
+
+.PP
+If the input array is not sorted, then the output of this filter is meaningless\&.
+
+
+
+.SS \f[CB]combinations\f[R], \f[CB]combinations($n)\f[R]
+
+.PP
+The filter \f[CB]combinations\f[R] takes as input an array of arrays, such as
+\f[CB][a1, \&.\&.\&., an]\f[R]\&.
+It yields all combinations of the elements of the arrays \f[CB]a1\f[R] to \f[CB]an\f[R]:
+.IP
+.EX
+[[1, 2], [3, 4]] | combinations \-\->
+[1, 3]
+[1, 4]
+[2, 3]
+[2, 4]
+.EE
+
+.PP
+When the input array is empty, \f[CB]combinations\f[R] yields an empty array;
+\f[CB][] | combinations \-\-> []\f[R]\&.
+.PP
+The filter \f[CB]combinations($n)\f[R] takes a single array \f[CB]a1\f[R] as input\&.
+Its output is equivalent to \f[CB][a1, \&.\&.\&., a1] | combinations\f[R],
+where \f[CB]a1\f[R] is repeated \f[CB]$n\f[R] times\&.
+.IP
+.EX
+[1, 2] | combinations(2) \-\->
+[1, 1]
+[1, 2]
+[2, 1]
+[2, 2]
+.EE
+
+
+
+
+
+.SS TEXT STRINGS
+
+.PP
+Unless stated otherwise, all filters in this section
+take a text string as input, and fail if the input is of any other type\&.
+
+.SS \f[CB]tostring\f[R]
+
+.PP
+The filter \f[CB]tostring\f[R] converts its input to a string\&.
+Its output depends on the type of its input:
+.RS 2
+
+.IP \[bu] 2
+Text strings are returned unchanged, i\&.e\&. \f[CB]\[dq]Hi\[dq] | tostring \-\-> \[dq]Hi\[dq]\f[R]\&.
+
+.IP \[bu] 2
+Byte strings are interpreted as text string, i\&.e\&. \f[CB]\[dq]Hi\[dq] | tobytes | tostring \-\-> \[dq]Hi\[dq]\f[R]\&.
+This takes constant time\&.
+
+.IP \[bu] 2
+Any other value is formatted compactly as if output by \f[CB]jaq \-c\f[R]\&. For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null | tostring \-\-> \[dq]null\[dq]\f[R],
+
+.IP \[bu] 2
+\f[CB][0, 1] | tostring \-\-> \[dq][0,1]\[dq]\f[R],
+
+.IP \[bu] 2
+\f[CB]{a: 1} | tostring \-\-> \[dq]{\[rs]\[dq]a\[rs]\[dq]:1}\[dq]\f[R]\&.
+
+.RE
+
+
+.RE
+
+
+
+
+.SS \f[CB]utf8bytelength\f[R]
+
+.PP
+The filter \f[CB]utf8bytelength\f[R] yields the number of bytes of the input string\&.
+It is equivalent to \f[CB]tobytes | length\f[R], but different from \f[CB]length\f[R],
+which counts the number of \f[B]characters\f[R]\&.
+.PP
+For example,
+\f[CB]\[dq]ゼノギアス\[dq] | length, utf8bytelength, (tobytes | length) \-\-> 5 15 15\f[R]\&.
+
+
+.SS \f[CB]startswith($s)\f[R], \f[CB]endswith($s)\f[R]
+
+.PP
+The filter \f[CB]startswith($s)\f[R] yields
+\f[CB]true\f[R] if the input string starts with the string \f[CB]$s\f[R], else \f[CB]false\f[R]\&.
+Similar for \f[CB]endswith($s)\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]ゼノギアス\[dq] | startswith(\[dq]ゼノ\[dq]) \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]ゼノギアス\[dq] | endswith(\[dq]ギアス\[dq]) \-\-> true\f[R]
+
+.RE
+
+
+
+.SS \f[CB]trim\f[R], \f[CB]ltrim\f[R], \f[CB]rtrim\f[R]
+
+.PP
+The filters \f[CB]ltrim\f[R] and \f[CB]rtrim\f[R] remove from the input string all
+leading and trailing whitespace, respectively\&.
+Here, whitespace corresponds to the \f[CB]White_Space\f[R] Unicode property\&.
+The filter \f[CB]trim\f[R] is equivalent to \f[CB]ltrim | rtrim\f[R]\&.
+.PP
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq] \[rs]t\[rs]n　Bonjour !   \[rs]r  \[dq] | ltrim \-\-> \[dq]Bonjour !   \[rs]r  \[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq] \[rs]t\[rs]n　Bonjour !   \[rs]r  \[dq] | rtrim \-\-> \[dq] \[rs]t\[rs]n　Bonjour !\[dq]\f[R]
+
+.RE
+
+.PP
+Note that there are a few quite unusual whitespace characters in this string\&.
+
+
+.SS \f[CB]ltrimstr($s)\f[R], \f[CB]rtrimstr($s)\f[R]
+
+.PP
+The filters \f[CB]ltrimstr($s)\f[R] and \f[CB]rtrimstr($s)\f[R] remove a single occurrence of
+\f[CB]$s\f[R] from the start or the end of the string, respectively\&.
+If there is no such occurrence, the original string is returned\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]foofoobar\[dq] | ltrimstr(\[dq]foo\[dq]) \-\-> \[dq]foobar\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]foobarbar\[dq] | rtrimstr(\[dq]bar\[dq]) \-\-> \[dq]foobar\[dq]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]explode\f[R], \f[CB]implode\f[R]
+
+.PP
+The filter \f[CB]explode\f[R] yields an array containing
+a positive number for each valid Unicode code point of the input string and
+a negative number for each byte of each invalid Unicode code unit\&.
+For example:
+.IP
+.EX
+\[dq]Dear ☀️\[dq] + (255 | tobytes | tostring) | explode \-\->
+[68,101,97,114,32,9728,65039,\-255]
+.EE
+
+.PP
+Here, we can see that \f[CB]\[dq]☀️\[dq]\f[R] has turned into two code points, namely
+\f[CB]9728\f[R] and \f[CB]65039\f[R], whereas the invalid \f[CB]FF\f[R] byte (= 255) has become \f[CB]\-255\f[R]\&.
+.PP
+The inverse filter of \f[CB]explode\f[R] is \f[CB]implode\f[R]:
+.IP
+.EX
+[68,101,97,114,32,9728,65039, \-255] | implode[:\-1] \-\->
+\[dq]Dear ☀️\[dq]
+.EE
+
+.PP
+(I omitted the \f[CB]FF\f[R] byte at the end, because it is hard to save in a text editor\&.)
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not permit invalid code units in text strings, so it
+returns and accepts only natural numbers in \f[CB]explode\f[R] and \f[CB]implode\f[R]\&.
+.RE
+
+
+
+.SS \f[CB]split($s)\f[R]
+
+.PP
+This filter yields \f[CB]\&. / $s\f[R] if its input \f[CB]\&.\f[R] and \f[CB]$s\f[R] are both strings, else it fails\&.
+See the section on division for details\&.
+.PP
+Note that there is also \f[CB]split($re; $flags)\f[R] that splits by a regex\&.
+
+
+.SS \f[CB]join($s)\f[R]
+
+.PP
+The filter \f[CB]join($s)\f[R] takes as input an array \f[CB][x1, \&.\&.\&., xn]\f[R] and yields
+\f[CB]\[dq]\[dq]\f[R] if the array is empty, otherwise
+\f[CB]\[dq]\[rs](x1)\[dq] + $s + \&.\&.\&. + $s + \[dq]\[rs](xn)\[dq]\f[R]\&.
+That is, it concatenates the string representations of the array values interspersed with \f[CB]$s\f[R]\&.
+.PP
+For example, to memorise the hierarchy of values in jq:
+\f[CB][\[dq]null\[dq], \[dq]boolean\[dq], \[dq]number\[dq], \[dq]string\[dq], \[dq]array\[dq], \[dq]object\[dq]] | join(\[dq] < \[dq]) \-\->
+\[dq]null < boolean < number < string < array < object\[dq]\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+Unlike jq, jaq does not map \f[CB]null\f[R] values in the array to \f[CB]\[dq]\[dq]\f[R],
+nor does it reject array or object values in the array\&.
+.RE
+
+
+
+.SS \f[CB]ascii_downcase\f[R], \f[CB]ascii_upcase\f[R]
+
+.PP
+The filters \f[CB]ascii_downcase\f[R] and \f[CB]ascii_upcase\f[R] convert all
+ASCII letters in the input string to their lower/upper case variants, respectively\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]Der λΠ\-Kalkül\[dq] | ascii_downcase \-\-> \[dq]der λΠ\-kalkül\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]Der λΠ\-Kalkül\[dq] | ascii_upcase   \-\-> \[dq]DER λΠ\-KALKüL\[dq]\f[R]
+
+.RE
+
+
+
+
+.SS TEXT STRING FORMATTING
+
+.PP
+The filters in this section can be prefixed to strings to influence
+string interpolation\&.
+However, these filters can also be used outside of string interpolation\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]1 + 2 * 3\[dq] | @uri \[dq]https://duckduckgo\&.com/?q=\[rs](\&.)\[dq] \-\-> \[dq]https://duckduckgo\&.com/?q=1%20%2B%202%20%2A%203\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]1 + 2 * 3\[dq] | @uri \-\-> \[dq]1%20%2B%202%20%2A%203\[dq]\f[R]
+
+.RE
+
+.PP
+If not indicated otherwise, all filters in this section
+convert their input to a string with \f[CB]tostring\f[R] and
+yield a single string output\&.
+As result, byte strings are treated like equivalent text strings; e\&.g\&.
+\f[CB]\[dq]Hello world!\[dq] | (tobytes | @base64) == @base64 \-\-> true\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+Unlike in \f[CB]jq\f[R], you can define you own filters that start with \f[CB]@\f[R]; for example,
+\f[CB]def @xml: @html;\f[R]
+.RE
+
+
+.SS \f[CB]@text\f[R]
+
+.PP
+The filter \f[CB]@text\f[R] is equivalent to \f[CB]tostring\f[R]\&.
+
+
+.SS \f[CB]@json\f[R]
+
+.PP
+The filter \f[CB]@json\f[R] is equivalent to \f[CB]tojson\f[R]\&.
+
+
+.SS \f[CB]@csv\f[R], \f[CB]@tsv\f[R]
+
+.PP
+The filters \f[CB]@csv\f[R] and \f[CB]@tsv\f[R] are equivalent to
+\f[CB]tocsv\f[R] and
+\f[CB]totsv\f[R], respectively\&.
+
+
+.SS \f[CB]@html\f[R], \f[CB]@htmld\f[R]
+
+.PP
+The filter \f[CB]@html\f[R] escapes a string so that it can be embedded in an HTML document\&.
+It replaces the following characters by HTML equivalents:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]<\[dq]  | @html \-\-> \[dq]&lt;\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]>\[dq]  | @html \-\-> \[dq]&gt;\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]&\[dq]  | @html \-\-> \[dq]&amp;\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[aq]\[dq]  | @html \-\-> \[dq]&apos;\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[rs]\[dq]\[dq] | @html \-\-> \[dq]&quot;\[dq]\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]@htmld\f[R] reverses the effect of \f[CB]@html\f[R]\&.
+For example:
+.IP
+.EX
+\[dq]\[rs]\[dq]1 < 2 & 2 > 1\[rs]\[dq], that\[aq]s what he said\&.\[dq] | @html | \&., @htmld \-\->
+\[dq]&quot;1 &lt; 2 &amp; 2 &gt; 1&quot;, that&apos;s what he said\&.\[dq]
+\[dq]\[rs]\[dq]1 < 2 & 2 > 1\[rs]\[dq], that\[aq]s what he said\&.\[dq]
+.EE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not support \f[CB]@htmld\f[R]\&.
+.RE
+
+
+
+.SS \f[CB]@base64\f[R], \f[CB]@base64d\f[R]
+
+.PP
+The filter \f[CB]@base64\f[R] \c
+.UR https://en.wikipedia.org/wiki/Base64
+Base64
+.UE \c
+\-encodes its input\&.
+The filter \f[CB]@base64d\f[R] reverses this operation\&.
+For example:
+.IP
+.EX
+\[dq]Hello world!\[dq] | @base64 | \&., @base64d \-\->
+\[dq]SGVsbG8gd29ybGQh\[dq]
+\[dq]Hello world!\[dq]
+.EE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In jaq, \f[CB]@base64d\f[R] only succeeds if its whole input is a valid Base64 string\&.
+In contrast, \f[CB]jq\f[R] accepts also strings where only a part is valid Base64,
+thus potentially leading to hidden data corruption\&.
+See \c
+.UR https://github.com/01mf02/jaq/issues/282
+#282
+.UE \c
+ for a detailed discussion\&.
+.RE
+
+
+
+.SS \f[CB]@uri\f[R], \f[CB]@urid\f[R]
+
+.PP
+The filter \f[CB]@uri\f[R] applies
+\c
+.UR https://en.wikipedia.org/wiki/Percent-encoding
+percent\-encoding
+.UE \c
+
+to encode arbitrary data in a uniform resource identifier (URI)\&.
+The filter \f[CB]@urid\f[R] reverses this encoding\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello, World!\[dq] | @uri \-\-> \[dq]Hello%2C%20World%21\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]Hello, World!\[dq] | @uri | @urid \-\-> \[dq]Hello, World!\[dq]\f[R]
+
+.RE
+
+
+
+
+.SS \f[CB]@sh\f[R]
+
+.PP
+The filter \f[CB]@sh\f[R] escapes data for constructing Unix command\-line prompts\&.
+It performs different things depending on its input type:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null\f[R], boolean, number: Convert to string via \f[CB]tostring\f[R]\&.
+
+.IP \[bu] 2
+String: Replace occurrences of \f[CB]\[aq]\f[R] by \f[CB]\[aq]\[rs]\[aq]\[aq]\f[R] and surround by \f[CB]\[aq]\f[R]\&.
+
+.IP \[bu] 2
+Array of scalars: Apply \f[CB]@sh\f[R] to elements and join the results with \f[CB]\[dq] \[dq]\f[R] as separator\&.
+
+.IP \[bu] 2
+Fail for any other type of value\&.
+
+.RE
+
+.PP
+Examples:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null, true, 1 | @sh \-\-> \[dq]null\[dq] \[dq]true\[dq] \[dq]1\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]It\[aq]s green!\[dq] | @sh \-\-> \[dq]\[aq]It\[aq]\[rs]\[rs]\[aq]\[aq]s green!\[aq]\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB][\[dq]jaq\[dq], \[dq]\-n\[dq], \[dq]\-\-arg\[dq], \[dq]slogan\[dq], \[dq]It\[aq]s green!\[dq], \[dq]$slogan\[dq]] | @sh \-\->
+\[dq]\[aq]jaq\[aq] \[aq]\-n\[aq] \[aq]\-\-arg\[aq] \[aq]slogan\[aq] \[aq]It\[aq]\[rs]\[rs]\[aq]\[aq]s green!\[aq] \[aq]$slogan\[aq]\[dq]\f[R]
+
+.RE
+
+
+
+
+
+.SS BYTE STRINGS
+
+
+.SS \f[CB]tobytes\f[R]
+
+.PP
+The filter \f[CB]tobytes\f[R] converts its input to a byte string\&.
+Its output depends on the type of input:
+.RS 2
+
+.IP \[bu] 2
+Natural number in the range \f[CB]0\f[R] to \f[CB]255\f[R] (\f[CB]0xFF\f[R]):
+Yields a byte string with a single byte, e\&.g\&.
+\f[CB]0 | tobytes \-\-> b\[dq]\[rs]x00\[dq]\f[R]\&.
+
+.IP \[bu] 2
+Text string:
+Yields a byte string containing the underlying bytes of the text string, e\&.g\&.
+\f[CB]\[dq]Hi\[dq] | tobytes \-\-> b\[dq]Hi\[dq]\f[R]\&.
+This takes constant time\&.
+
+.IP \[bu] 2
+Byte string: Yields the byte string unchanged\&.
+
+.IP \[bu] 2
+Array: Converts each element to a byte string and yields their concatenation, e\&.g\&.
+\f[CB][0, \[dq]Hi\[dq], [1, 255]] | tobytes \-\-> b\[dq]\[rs]x00Hi\[rs]x01\[rs]xFF\[dq]\f[R]\&.
+This is equivalent to \f[CB]map(tobytes) | add\f[R]\&.
+
+.IP \[bu] 2
+Anything else: Yields an error\&.
+
+.RE
+
+.PP
+This is inspired by Erlang’s \f[CB]iolist_to_binary\f[R] function\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not have byte strings and thus does not have \f[CB]tobytes\f[R]\&.
+\f[CB]fq\f[R], which has pioneered the \f[CB]tobytes\f[R] filter, has both\&.
+.RE
+
+
+
+
+.SS SERIALISATION & DESERIALISATION
+
+.PP
+The filters in this section read and write data in all formats supported by jaq\&.
+See the formats section for general information about
+how jaq interprets these formats\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] supports only JSON, so it only implements the
+\f[CB]fromjson\f[R]/\f[CB]tojson\f[R] filters in this section\&.
+.RE
+
+
+.SS \f[CB]fromjson\f[R], \f[CB]tojson\f[R]
+
+.PP
+The filter \f[CB]fromjson\f[R] takes a string as input,
+parses it to JSON values and yields them\&.
+For example:
+.IP
+.EX
+\[dq]null true 0 \[rs]\[dq]foo\[rs]\[dq] [1] {\[rs]\[dq]foo\[rs]\[dq]: 1}\[dq] | fromjson \-\->
+ null true 0  \[dq]foo\[dq]  [1] { \[dq]foo\[dq] : 1}
+.EE
+
+.PP
+The filter \f[CB]tojson\f[R] takes an arbitrary value and
+outputs a string containing its JSON representation\&.
+For example:
+.IP
+.EX
+\ [null,true,0, \[dq]foo\[dq] ,[1],{ \[dq]foo\[dq] :1}] | tojson \-\->
+\[dq][null,true,0,\[rs]\[dq]foo\[rs]\[dq],[1],{\[rs]\[dq]foo\[rs]\[dq]:1}]\[dq]
+.EE
+
+.PP
+Note that \f[CB]tojson\f[R] behaves similarly to \f[CB]tostring\f[R], but
+when its input is a string, it will also encode it to JSON,
+instead of returning it unchanged; i\&.e\&.
+\f[CB]\[dq]Hi\[dq] | tojson \-\-> \[dq]\[rs]\[dq]Hi\[rs]\[dq]\[dq]\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In \f[CB]jq\f[R], \f[CB]fromjson\f[R] yields an error when its input string contains multiple JSON values\&.
+Furthermore, in \f[CB]jaq\f[R],
+\f[CB]tojson | fromjson\f[R] is equivalent to identity (\f[CB]\&.\f[R]), whereas in \f[CB]jq\f[R],
+this is not the case, because
+\f[CB]nan | tojson | fromjson\f[R] yields \f[CB]null\f[R], not \f[CB]nan\f[R]\&.
+.RE
+
+
+
+.SS \f[CB]fromyaml\f[R], \f[CB]toyaml\f[R]
+
+.PP
+The filter \f[CB]fromyaml\f[R] takes a text string and parses it as sequence of
+YAML documents\&.
+It can yield an arbitrary number of outputs\&. For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]\-\-\-\[rs]n 1 \[rs]n\&.\&.\&.\[rs]n\-\-\-\[rs]n 2 \[rs]n\&.\&.\&.\[dq] | fromyaml \-\-> 1 2\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[dq] | fromyaml \-\->\f[R] (no output)
+
+.RE
+
+.PP
+The filter \f[CB]toyaml\f[R] always yields exactly one output, namely
+a text string containing the current value encoded as YAML\&.
+
+
+.SS \f[CB]fromcbor\f[R], \f[CB]tocbor\f[R]
+
+.PP
+The filter \f[CB]fromcbor\f[R] takes a byte string and parses it as sequence of
+CBOR values\&.
+For example:
+.IP
+.EX
+[0, 1, 32, 64, 96, 128, 160,  244, 245, 246] | tobytes | fromcbor \-\->
+ 0  1  \-1 b\[dq]\[dq]  \[dq]\[dq]   []   {} false true null
+.EE
+
+.PP
+The filter \f[CB]tocbor\f[R] always yields exactly one output, namely
+a byte string containing the current value encoded as CBOR\&.
+
+
+.SS \f[CB]fromtoml\f[R], \f[CB]totoml\f[R]
+
+.PP
+The filter \f[CB]fromtoml\f[R] takes a text string and parses it as a single
+TOML document\&.
+It yields always one output, because every TOML document encodes exactly one value\&.
+For example:
+.IP
+.EX
+\[dq]
+[database]\[rs]n
+enabled = true\[rs]n
+ports = [ 8000, 8001, 8002 ]\[rs]n
+data = [ [\[rs]\[dq]delta\[rs]\[dq], \[rs]\[dq]phi\[rs]\[dq]], [3\&.14] ]\[rs]n
+temp_targets = { cpu = 79\&.5, case = 72\&.0 }\[rs]n
+\[dq] | fromtoml \-\->
+{\[dq]database\[dq]: {
+  \[dq]enabled\[dq]: true,
+  \[dq]ports\[dq]: [8000,8001,8002],
+  \[dq]data\[dq]: [[\[dq]delta\[dq], \[dq]phi\[dq]], [3\&.14]],
+  \[dq]temp_targets\[dq]: {\[dq]cpu\[dq]: 79\&.5, \[dq]case\[dq]: 72\&.0}
+}}
+.EE
+
+.PP
+The filter \f[CB]totoml\f[R] fails if
+the input is not an object or
+the input contains any jaq value not supported by TOML\&.
+It converts invalid UTF\-8 sequences like CBOR\&.
+
+
+.SS \f[CB]fromxml\f[R], \f[CB]toxml\f[R]
+
+.PP
+The filter \f[CB]fromxml\f[R] takes a text string and parses it as sequence of
+XML tags\&.
+For example:
+.IP
+.EX
+\[dq]<?xml version=\[aq]1\&.0\[aq]?>
+<html>
+<body xmlns=\[aq]http://www\&.w3\&.org/1999/xhtml\[aq]>
+Hello HTML!
+</body>
+</html>\[dq] | fromxml \-\->
+{\[dq]xmldecl\[dq]: {\[dq]version\[dq]: \[dq]1\&.0\[dq]}}
+{\[dq]t\[dq]: \[dq]html\[dq],\[dq]c\[dq]: [{
+  \[dq]t\[dq]: \[dq]body\[dq],
+  \[dq]a\[dq]: {\[dq]xmlns\[dq]: \[dq]http://www\&.w3\&.org/1999/xhtml\[dq]},
+  \[dq]c\[dq]: [\[dq]Hello HTML!\[dq]]
+}]}
+.EE
+
+.PP
+The filter \f[CB]toxml\f[R] takes data produced in the format by \f[CB]fromxml\f[R] and
+yields a corresponding text string\&.
+.IP
+.EX
+[
+{\[dq]xmldecl\[dq]: {\[dq]version\[dq]: \[dq]1\&.0\[dq]}},
+{\[dq]t\[dq]: \[dq]html\[dq],\[dq]c\[dq]: [{
+  \[dq]t\[dq]: \[dq]body\[dq],
+  \[dq]a\[dq]: {\[dq]xmlns\[dq]: \[dq]http://www\&.w3\&.org/1999/xhtml\[dq]},
+  \[dq]c\[dq]: [\[dq]Hello HTML!\[dq]]
+}]}
+] | toxml \-\->
+\[dq]<?xml version=\[rs]\[dq]1\&.0\[rs]\[dq]?>
+<html>
+<body xmlns=\[rs]\[dq]http://www\&.w3\&.org/1999/xhtml\[rs]\[dq]>
+Hello HTML!
+</body>
+</html>\[dq]
+.EE
+
+
+
+.SS \f[CB]fromcsv\f[R], \f[CB]tocsv\f[R]
+
+.PP
+The filter \f[CB]fromcsv\f[R] takes a string and yields each CSV row as an array of values\&.
+For example, \f[CB]\[dq]1,2\[rs]n3,4\[rs]n\[dq] | fromcsv \-\-> [1,2] [3,4]\f[R]\&.
+.PP
+Strings can be written quoted or unquoted\&.
+Inside quoted strings, \f[CB]\[dq]\[dq]\f[R] denotes a single quote (\f[CB]\[dq]\f[R])\&.
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]plain,with space\[dq]  | fromcsv \-\-> [\[dq]plain\[dq],\[dq]with space\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[rs]\[dq]with,comma\[rs]\[dq]\[dq]    | fromcsv \-\-> [\[dq]with,comma\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[rs]\[dq]with\[rs]nnewline\[rs]\[dq]\[dq] | fromcsv \-\-> [\[dq]with\[rs]nnewline\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[rs]\[dq]with\[rs]\[dq]\[rs]\[dq]quote\[rs]\[dq]\[dq] | fromcsv \-\-> [\[dq]with\[rs]\[dq]quote\[dq]]\f[R]
+
+.RE
+
+.PP
+The booleans \f[CB]true\f[R] and \f[CB]false\f[R] are returned as such\&.
+An empty field is returned as \f[CB]null\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]true,,false\[dq] | fromcsv \-\-> [true, null, false]\f[R]
+
+.RE
+
+.PP
+Any field that is a valid XJON number is returned as such:
+.IP
+.EX
+\[dq]0,1,3\&.14,Infinity,+Infinity,\-Infinity\[dq] | fromcsv \-\->
+[0,1,3\&.14,Infinity, Infinity,\-Infinity]
+.EE
+
+.PP
+Quoted booleans, numbers, or empty strings are always returned as strings:
+.PP
+\f[CB]\[dq]\[rs]\[dq]true\[rs]\[dq],\[rs]\[dq]\[rs]\[dq],\[rs]\[dq]false\[rs]\[dq],\[rs]\[dq]3\&.14\[rs]\[dq]\[dq] | fromcsv \-\-> [\[dq]true\[dq], \[dq]\[dq], \[dq]false\[dq], \[dq]3\&.14\[dq]]\f[R]
+.PP
+Rows can be terminated with LF (\f[CB]\[dq]\[rs]n\[dq]\f[R]) or CRLF (\f[CB]\[dq]\[rs]r\[rs]n\[dq]\f[R])\&.
+The last row may or may not be terminated with LF/CRLF\&.
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]1,2\[rs]r\[rs]n3,4\[rs]n\[dq] | fromcsv \-\-> [1,2] [3,4]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]1,2\[rs]n3,4\[rs]r\[rs]n\[dq] | fromcsv \-\-> [1,2] [3,4]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]1,2\[rs]n3,4\[dq]     | fromcsv \-\-> [1,2] [3,4]\f[R]
+
+.RE
+
+.PP
+A few extreme cases:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]\[dq]   | fromcsv \-\-> \f[R] (no output)
+
+.IP \[bu] 2
+\f[CB]\[dq]\[rs]n\[dq] | fromcsv \-\-> [null]\f[R] (empty lines are interpreted as \f[CB]null\f[R])
+
+.IP \[bu] 2
+\f[CB]\[dq],\[dq]  | fromcsv \-\-> [null, null]\f[R]
+
+.RE
+
+.PP
+The filter \f[CB]tocsv\f[R] takes an array of scalars\&.
+It transforms each array element depending on its type:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]null\f[R]: Yield \f[CB]\[dq]\[dq]\f[R]\&.
+
+.IP \[bu] 2
+Boolean, number: Transform it via \f[CB]tostring\f[R]\&.
+
+.IP \[bu] 2
+String: Replace occurrences of \f[CB]\[dq]\f[R] by \f[CB]\[dq]\[dq]\f[R] and surround by \f[CB]\[dq]\f[R]\&.
+
+.IP \[bu] 2
+Fail for any other type of value\&.
+
+.RE
+
+.PP
+Finally, the filter joins the transformed elements with \f[CB]\[dq],\[dq]\f[R] as separator\&.
+For example:
+.IP
+.EX
+[true, null, false, 1, \[dq]Give me \[rs]\[dq]quotes\[rs]\[dq], or die\[dq]] | tocsv \-\->
+\[dq]true,,false,1,\[rs]\[dq]Give me \[rs]\[dq]\[rs]\[dq]quotes\[rs]\[dq]\[rs]\[dq], or die\[rs]\[dq]\[dq]
+.EE
+
+
+
+.SS \f[CB]fromtsv\f[R], \f[CB]totsv\f[R]
+
+.PP
+The filter \f[CB]fromtsv\f[R] takes a string and yields each TSV row as an array of values\&.
+For example, \f[CB]\[dq]1\[rs]t2\[rs]n3\[rs]t4\[rs]n\[dq] | fromtsv \-\-> [1,2] [3,4]\f[R]\&.
+.PP
+The filter \f[CB]totsv\f[R] is similar to \f[CB]tocsv\f[R], with the following differences:
+.RS 2
+
+.IP \[bu] 2
+In strings, the characters \f[CB]\[aq]\[rs]n\[aq]\f[R], \f[CB]\[aq]\[rs]r\[aq]\f[R], \f[CB]\[aq]\[rs]t\[aq]\f[R], \f[CB]\[aq]\[rs]\[aq]\f[R], and \f[CB]\[aq]\[rs]u0000\[aq]\f[R] are
+replaced by strings \f[CB]\[dq]\[rs]\[rs]n\[dq]\f[R], \f[CB]\[dq]\[rs]\[rs]r\[dq]\f[R], \f[CB]\[dq]\[rs]\[rs]t\[dq]\f[R], \f[CB]\[dq]\[rs]\[rs]\[rs]\[rs]\[dq]\f[R], \f[CB]\[dq]\[rs]\[rs]0\[dq]\f[R]\&.
+(In raw output, these look like \f[CB]\[rs]n\f[R], \f[CB]\[rs]r\f[R], \f[CB]\[rs]t\f[R], \f[CB]\[rs]\[rs]\f[R], and \f[CB]\[rs]0\f[R]\&.)
+The result is not surrounded by \f[CB]\[dq]\f[R]\&.
+
+.IP \[bu] 2
+The transformed elements are joined with \f[CB]\[rs]t\f[R] (tabulator)\&.
+
+.RE
+
+.PP
+For example:
+.IP
+.EX
+[true, null, false, 1, \[dq]hello \[rs]\[dq]quotes\[rs]\[dq] and \[rs]n\[rs]r\[rs]t\[rs]\[rs] escapes\[dq]] | totsv \-\->
+\[dq]true\[rs]t\[rs]tfalse\[rs]t1\[rs]thello \[rs]\[dq]quotes\[rs]\[dq] and \[rs]\[rs]n\[rs]\[rs]r\[rs]\[rs]t\[rs]\[rs]\[rs]\[rs] escapes\[dq]
+.EE
+
+.PP
+TSV strings are always unquoted\&.
+Encode control characters using \f[CB]\[rs]0\f[R], \f[CB]\[rs]t\f[R], \f[CB]\[rs]r\f[R], \f[CB]\[rs]n\f[R], and \f[CB]\[rs]\[rs]\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]with\[rs]\[rs]0NUL\[dq] | fromtsv \-\-> [\[dq]with\[rs]u0000NUL\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]with\[rs]\[rs]tTAB\[dq] | fromtsv \-\-> [\[dq]with\[rs]tTAB\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]with\[rs]\[rs]rCR\[dq]  | fromtsv \-\-> [\[dq]with\[rs]rCR\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]with\[rs]\[rs]nLF\[dq]  | fromtsv \-\-> [\[dq]with\[rs]nLF\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]with\[rs]\[rs]\[rs]\[rs]\[dq]   | fromtsv \-\-> [\[dq]with\[rs]\[rs]\[dq]]\f[R]
+
+.RE
+
+
+
+
+
+.SS DATE & TIME
+
+.PP
+The filters in this section serve to
+convert between different time formats, such as:
+.RS 2
+
+.IP \[bu] 2
+Unix epoch: Marks a point in time by the number of seconds passed since
+January 1, 1970 00:00:00 (UTC)\&.
+You can obtain the current time as Unix epoch via \f[CB]now\f[R]\&.
+
+.IP \[bu] 2
+ISO\-8601 datetime string: Represents a date, a time, and a time zone as a string,
+such as \f[CB]\[dq]1970\-01\-01T00:00:00Z\[dq]\f[R] (corresponding to Unix epoch \f[CB]0\f[R])\&.
+
+.IP \[bu] 2
+“Broken down time” (BDT) array: Represents a date and a time as an array of the shape
+\f[CB][year, month, day, hour, minute, second, weekday, yearday]\f[R]\&.
+All components are integers, except for \f[CB]second\f[R],
+which may be a floating\-point number\&.
+The \f[CB]month\f[R] is counted from \f[CB]0\f[R],
+the \f[CB]weekday\f[R] is counted from Sunday (which is \f[CB]0\f[R]), and
+the \f[CB]yearday\f[R] is the day in the year counted from \f[CB]0\f[R]\&.
+When a BDT array is used as input, only the first six components are considered\&.
+
+.RE
+
+.PP
+You can convert between these representations via:
+.RS 2
+
+.IP \[bu] 2
+Unix epoch from/to ISO 8601: \f[CB]fromdate\f[R], \f[CB]todate\f[R]
+
+.IP \[bu] 2
+BDT to Unix epoch: \f[CB]mktime\f[R]
+
+.IP \[bu] 2
+Unix epoch to BDT: \f[CB]gmtime, localtime\f[R]
+
+.IP \[bu] 2
+Unix epoch or BDT from/to custom string: \f[CB]strptime\f[R], \f[CB]strftime\f[R], \f[CB]strflocaltime\f[R]
+
+.RE
+
+.PP
+As example, let us consider the time where the
+Hill Valley courthouse’s clock tower was struck by lightning, namely
+\c
+.UR https://en.wikipedia.org/wiki/Hill_Valley_(Back_to_the_Future%29#Town_square
+Saturday, November 12, 1955, at 10:04 p\&.m\&. PST
+.UE \c
+\&.
+The corresponding date can be written in ISO 8601 as
+\f[CB]\[dq]1955\-11\-12T10:04:00\-08:00\[dq]\f[R]\&.
+We can convert that to a Unix epoch and from there to a (UTC) BDT via:
+.IP
+.EX
+\[dq]1955\-11\-12T22:04:00\-08:00\[dq] | fromdate | gmtime \-\->
+[
+  1955,
+  10,
+  13,
+  6,
+  4,
+  0,
+  0,
+  316
+]
+.EE
+
+.PP
+We can infer that at this moment, in UTC
+it was November 13
+(the BDT month is \f[CB]10\f[R] and not \f[CB]11\f[R], because BDT months are counted from \f[CB]0\f[R]),
+at 06:04:00\&.
+Furthermore, that day
+was a Sunday (because the \f[CB]weekday\f[R] is \f[CB]0\f[R]), which
+was the \f[CB]316\f[R]\-th day of the year (where \f[CB]0\f[R] is the first day)\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not allow time zone information in ISO 8601 datetime strings\&.
+.RE
+
+
+.SS \f[CB]fromdate\f[R], \f[CB]todate\f[R], \f[CB]fromdateiso8601\f[R], \f[CB]todateiso8601\f[R]
+
+.PP
+These filters convert between Unix time and ISO\-8601 timestamps\&.
+.PP
+For example, the
+\c
+.UR https://en.wikipedia.org/wiki/Apollo_13#Accident
+Apollo 13 accident
+.UE \c
+
+happened at 03:08 UTC on April 14, 1970\&.
+Its corresponding Unix time is
+\f[CB]\[dq]1970\-04\-14T03:08:00Z\[dq] | fromdate \-\-> 8910480\f[R]\&.
+We can get back the ISO\-8601 timestamp via
+\f[CB]8910480 | todate \-\-> \[dq]1970\-04\-14T03:08:00Z\[dq]\f[R]\&.
+.PP
+These filters can handle floating\-point numbers, e\&.g\&.
+\f[CB]0\&.123456 | todate \-\-> \[dq]1970\-01\-01T00:00:00\&.123456Z\[dq]\f[R] and
+\f[CB]\[dq]1970\-01\-01T00:00:00\&.123456Z\[dq] | fromdate \-\-> 0\&.123456\f[R]\&.
+In particular, \f[CB]fromdate\f[R] yields a floating\-point number if
+the time cannot be represented losslessly as an integer\&.
+.PP
+The filters
+\f[CB]fromdateiso8601\f[R] and \f[CB]todateiso8601\f[R] are synonyms of
+\f[CB]fromdate\f[R] and \f[CB]todate\f[R], respectively\&.
+
+
+.SS \f[CB]strftime($fmt)\f[R], \f[CB]strflocaltime($fmt)\f[R]
+
+.PP
+The filters \f[CB]strftime($fmt)\f[R] and \f[CB]strflocaltime($fmt)\f[R] take as input either
+a number that is interpreted as Unix epoch, or
+a BDT array\&.
+The filters yield a string representation of the input time, using the format \f[CB]$fmt\f[R]\&.
+.PP
+If the input is a Unix epoch,
+both \f[CB]strftime\f[R] and \f[CB]strflocaltime\f[R] interpret it as UTC timestamp\&.
+If the input is a BDT array, then
+\f[CB]strftime\f[R] interprets input as UTC and
+\f[CB]strflocaltime\f[R] interprets input as user local time\&.
+\f[CB]strftime\f[R] outputs the time as UTC and
+\f[CB]strflocaltime\f[R] outputs the time as user local time\&.
+.PP
+For example, if the user is in the CET zone (+0100):
+.RS 2
+
+.IP \[bu] 2
+\f[CB]0 | strftime(\[dq]%T %z (%Z)\[dq]) \-\-> \[dq]00:00:00 +0000 (UTC)\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB][1970, 0, 1, 0, 0, 0] | strftime(\[dq]%T %z (%Z)\[dq]) \-\-> \[dq]00:00:00 +0000 (UTC)\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]0 | strflocaltime(\[dq]%T %z (%Z)\[dq])\f[R] yields \f[CB]\[dq]01:00:00 +0100 (CET)\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB][1970, 0, 1, 0, 0, 0] | strflocaltime(\[dq]%T %z (%Z)\[dq])\f[R] yields \f[CB]\[dq]00:00:00 +0100 (CET)\[dq]\f[R]
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] prints \f[CB]GMT\f[R] instead of \f[CB]UTC\f[R] in the examples above; however,
+GMT is not the same as UTC\&.
+.RE
+
+
+
+.SS \f[CB]strptime($fmt)\f[R]
+
+.PP
+The filter \f[CB]strptime($fmt)\f[R] takes a string and parses it using the format \f[CB]$fmt\f[R],
+yielding a BDT array\&.
+If no time zone is inferred from the input (e\&.g\&. via \f[CB]%Z\f[R]), it is assumed to be UTC\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]1970\-01\-01 00:00:00\[dq] | strptime(\[dq]%F %T\[dq]) \-\-> [1970, 0, 1, 0, 0, 0, 4, 0]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]1970\-01\-01 00:00:00 Europe/Vienna\[dq] | strptime(\[dq]%F %T %Q\[dq]) \-\-> [1970, 0, 1, 0, 0, 0, 4, 0]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]gmtime\f[R], \f[CB]localtime\f[R]
+
+.PP
+The filters \f[CB]gmtime\f[R] and \f[CB]localtime\f[R] take a Unix epoch as input and
+yield a corresponding BDT array, containing
+the time in UTC (\f[CB]gmtime\f[R]) or in the user local time (\f[CB]localtime\f[R])\&.
+.PP
+For example, if the user is in the CET zone (+0100):
+.RS 2
+
+.IP \[bu] 2
+\f[CB]0 | gmtime \-\-> [1970, 0, 1, 0, 0, 0, 4, 0]\f[R]
+
+.IP \[bu] 2
+\f[CB]0 | localtime\f[R] yields \f[CB][1970, 0, 1, 1, 0, 0, 4, 0]\f[R]
+
+.RE
+
+
+
+.SS \f[CB]mktime\f[R]
+
+.PP
+The filter \f[CB]mktime\f[R] takes a BDT array that is assumed to be in UTC,
+and yields the corresponding Unix epoch\&.
+For example, \f[CB][1970, 0, 1, 0, 0, 0] | mktime \-\-> 0\f[R]\&.
+
+
+
+.SS REGULAR EXPRESSIONS
+
+.PP
+All the filters in this section, such as \f[CB]test\f[R], take a string as input and
+fail if they receive any other type of value\&.
+Furthermore, they all take two string arguments, namely
+the regular expression \f[CB]$re\f[R] and
+the \f[CB]$flags\f[R] that determine how the regular expression is interpreted\&.
+Omitting \f[CB]$flags\f[R] is equivalent to passing \f[CB]\[dq]\[dq]\f[R] as \f[CB]$flags\f[R]\&.
+For example,
+\f[CB]test($re)\f[R] is equivalent to \f[CB]test($re; \[dq]\[dq])\f[R]\&.
+.PP
+The supported flags are:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]g\f[R]: global search
+
+.IP \[bu] 2
+\f[CB]n\f[R]: ignore empty matches
+
+.IP \[bu] 2
+\f[CB]i\f[R]: case\-insensitive
+
+.IP \[bu] 2
+\f[CB]m\f[R]: multi\-line mode: \f[CB]^\f[R] and \f[CB]$\f[R] match begin/end of line
+
+.IP \[bu] 2
+\f[CB]s\f[R]: single\-line mode: allow \f[CB]\&.\f[R] to match \f[CB]\[rs]n\f[R]
+
+.IP \[bu] 2
+\f[CB]l\f[R]: greedy
+
+.IP \[bu] 2
+\f[CB]x\f[R]: extended mode: ignore whitespace and allow line comments (starting with \f[CB]#\f[R])
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+jaq uses the \c
+.UR https://docs.rs/regex-lite
+\f[CB]regex\-lite\f[R]
+.UE \c
+ crate to
+compile and run regular expressions (regexes)\&.
+See the crate documentation for a description of the supported regex syntax\&.
+.RE
+
+
+.SS \f[CB]test\f[R]
+
+.PP
+The filter \f[CB]test\f[R] yields
+\f[CB]true\f[R] if some part of the input matches the regular expression, else \f[CB]false\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]jaq v3\&.0\[dq] | test(\[dq]v[0\-9]+\[rs]\[rs]\&.[0\-9]+\[dq]) \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]jaq V3\&.0\[dq] | test(\[dq]v[0\-9]+\[rs]\[rs]\&.[0\-9]+\[dq]) \-\-> false\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]jaq V3\&.0\[dq] | test(\[dq]v[0\-9]+\[rs]\[rs]\&.[0\-9]+\[dq]; \[dq]i\[dq]) \-\-> true\f[R]
+
+.RE
+
+
+
+.SS \f[CB]scan\f[R]
+
+.PP
+The filter \f[CB]scan\f[R] yields all parts of the input that match the regular expression\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]v2\&.0, v3\&.0\[dq] | scan(\[dq]v[0\-9]+\[rs]\[rs]\&.[0\-9]+\[dq]     ) \-\-> \[dq]v2\&.0\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]v2\&.0, v3\&.0\[dq] | scan(\[dq]v[0\-9]+\[rs]\[rs]\&.[0\-9]+\[dq]; \[dq]g\[dq]) \-\-> \[dq]v2\&.0\[dq] \[dq]v3\&.0\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]V2\&.0\[dq]       | scan(\[dq]v[0\-9]+\[rs]\[rs]\&.[0\-9]+\[dq]) \-\->\f[R] (no output)
+
+.RE
+
+
+
+.SS \f[CB]match\f[R]
+
+.PP
+The filter \f[CB]match\f[R] yields an object for every part of the input that matches the regular expression, containing:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]offset\[dq]\f[R]: the character index of the start of the match
+
+.IP \[bu] 2
+\f[CB]\[dq]length\[dq]\f[R]: the number of characters of the match
+
+.IP \[bu] 2
+\f[CB]\[dq]string\[dq]\f[R]: the contents of the match
+
+.IP \[bu] 2
+\f[CB]\[dq]captures\[dq]\f[R]: an array with an object for every capture group, containing:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]offset\[dq]\f[R],
+
+.IP \[bu] 2
+\f[CB]\[dq]length\[dq]\f[R],
+
+.IP \[bu] 2
+\f[CB]\[dq]string\[dq]\f[R]: as above, but for the capture group instead of the whole match
+
+.IP \[bu] 2
+\f[CB]\[dq]name\[dq]\f[R]: the name of the capture group if it has one, else this key is omitted
+
+.RE
+
+
+.RE
+
+.PP
+Example:
+.IP
+.EX
+\[dq]v2\&.0, v3\&.0\[dq] | match(\[dq]v(?<maj>[0\-9]+)\[rs]\[rs]\&.([0\-9]+)\[dq]; \[dq]g\[dq]) \-\->
+{
+  \[dq]offset\[dq]: 0,
+  \[dq]length\[dq]: 4,
+  \[dq]string\[dq]: \[dq]v2\&.0\[dq],
+  \[dq]captures\[dq]: [
+    {
+      \[dq]offset\[dq]: 1,
+      \[dq]length\[dq]: 1,
+      \[dq]string\[dq]: \[dq]2\[dq],
+      \[dq]name\[dq]: \[dq]maj\[dq]
+    },
+    {
+      \[dq]offset\[dq]: 3,
+      \[dq]length\[dq]: 1,
+      \[dq]string\[dq]: \[dq]0\[dq]
+    }
+  ]
+}
+{
+  \[dq]offset\[dq]: 6,
+  \[dq]length\[dq]: 4,
+  \[dq]string\[dq]: \[dq]v3\&.0\[dq],
+  \[dq]captures\[dq]: [
+    {
+      \[dq]offset\[dq]: 7,
+      \[dq]length\[dq]: 1,
+      \[dq]string\[dq]: \[dq]3\[dq],
+      \[dq]name\[dq]: \[dq]maj\[dq]
+    },
+    {
+      \[dq]offset\[dq]: 9,
+      \[dq]length\[dq]: 1,
+      \[dq]string\[dq]: \[dq]0\[dq]
+    }
+  ]
+}
+.EE
+
+
+
+.SS \f[CB]capture\f[R]
+
+.PP
+The filter \f[CB]capture\f[R] yields an object for every part of the input that matches the regular expression, containing
+for each named capture group an entry with
+the group name as key and its matched string as value\&.
+.PP
+Example:
+.IP
+.EX
+\[dq]v2\&.0, v3\&.0\[dq] | capture(\[dq]v(?<maj>[0\-9]+)\[rs]\[rs]\&.(?<min>[0\-9]+)\[dq]; \[dq]g\[dq]) \-\->
+{
+  \[dq]maj\[dq]: \[dq]2\[dq],
+  \[dq]min\[dq]: \[dq]0\[dq]
+}
+{
+  \[dq]maj\[dq]: \[dq]3\[dq],
+  \[dq]min\[dq]: \[dq]0\[dq]
+}
+.EE
+
+
+
+.SS \f[CB]split\f[R], \f[CB]splits\f[R]
+
+.PP
+The filter \f[CB]split($re; $flags)\f[R] yields an array of
+those parts of the input string that do \f[B]not\f[R] match the regular expression \f[CB]$re\f[R]\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]Here be\[rs]tspaces\[dq] | split(\[dq]\[rs]\[rs]s\[dq] ; \[dq]\[dq]) \-\-> [\[dq]Here\[dq], \[dq]be\[dq], \[dq]spaces\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]  More\[rs]n\[rs]n\[dq]      | split(\[dq]\[rs]\[rs]s+\[dq]; \[dq]\[dq]) \-\-> [\[dq]\[dq], \[dq]More\[dq], \[dq]\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[dq]                | split(\[dq]\[rs]\[rs]s\[dq] ; \[dq]\[dq]) \-\-> [\[dq]\[dq]]\f[R]
+
+.RE
+
+.PP
+Note that \f[CB]split($re; $flags)\f[R] is equivalent to \f[CB]split($re; \[dq]g\[dq] + $flags)\f[R],
+meaning that the string is split not only by the first match, but by all matches\&.
+Furthermore, unlike all other filters in this section,
+\f[CB]split($s)\f[R] is \f[B]not\f[R] equivalent to \f[CB]split($s; $flags)\f[R], because
+\f[CB]split($s)\f[R] splits a string by
+a separator that is \f[B]not\f[R] interpreted as regular expression;
+see \f[CB]split\f[R]\&.
+.PP
+The filter \f[CB]splits($re; $flags)\f[R] yields the elements of the array yielded by \f[CB]split($re; $flags)\f[R]\&.
+For example,
+\f[CB]\[dq]Here be\[rs]tspaces\[dq] | splits(\[dq]\[rs]\[rs]s\[dq]) \-\-> \[dq]Here\[dq] \[dq]be\[dq] \[dq]spaces\[dq]\f[R]\&.
+The filter \f[CB]splits($re)\f[R] is equivalent to \f[CB]splits($re; \[dq]\[dq])\f[R]\&.
+
+
+.SS \f[CB]sub\f[R], \f[CB]gsub\f[R]
+
+.PP
+The filter \f[CB]sub($re; f; $flags)\f[R] replaces
+all parts of the input string that match \f[CB]$re\f[R] by
+the output of \f[CB]f\f[R]\&.
+Here, \f[CB]f\f[R] receives an object as returned by \f[CB]capture\f[R]; that is,
+for every named capture group, it contains
+its name as key and its matched string as value\&.
+.PP
+For example:
+.IP
+.EX
+\[dq]Mr\&. 高橋 & Mrs\&. 嵯峨\[dq] | sub(\[dq](?<title>(Mr|Ms|Mrs)\[rs]\[rs]\&.) (?<name>\[rs]\[rs]S+)\[dq]; \[dq]\[rs](\&.name) (\[rs](\&.title))\[dq]; \[dq]g\[dq]) \-\->
+\[dq]高橋 (Mr\&.) & 嵯峨 (Mrs\&.)\[dq]
+.EE
+
+.PP
+When the filter \f[CB]f\f[R] yields multiple outputs,
+then all potential combinations are output\&.
+For example:
+.IP
+.EX
+\[dq]Thanks, fine\&.\[dq] | sub(\[dq](?<word>\[rs]\[rs]w+)\[dq]; \&.word, (\&.word | ascii_upcase); \[dq]g\[dq]) \-\->
+\[dq]Thanks, fine\&.\[dq]
+\[dq]Thanks, FINE\&.\[dq]
+\[dq]THANKS, fine\&.\[dq]
+\[dq]THANKS, FINE\&.\[dq]
+.EE
+
+.PP
+We have following short forms:
+.RS 2
+
+.IP \[bu] 2
+The filter \f[CB]gsub($re; f; $flags)\f[R] is equivalent to \f[CB]sub($re; f; \[dq]g\[dq] + $flags)\f[R]\&.
+
+.IP \[bu] 2
+The filter \f[CB]gsub($re; f)\f[R] is equivalent to \f[CB]gsub($re; f; \[dq]\[dq])\f[R]\&.
+
+.IP \[bu] 2
+The filter  \f[CB]sub($re; f)\f[R] is equivalent to  \f[CB]sub($re; f; \[dq]\[dq])\f[R]\&.
+
+.RE
+
+
+
+
+.SS I/O
+
+.PP
+This section contains filters that interact with the system\&.
+These filters may yield different outputs when given equal inputs\&.
+
+.SS \f[CB]input\f[R], \f[CB]inputs\f[R]
+
+.PP
+The filter \f[CB]inputs\f[R] yields all the inputs in the current input file\&.
+For example:
+.IP
+.EX
+$ echo 1 2 3 | jaq \-nc \[aq][inputs]\[aq]
+[1,2,3]
+.EE
+
+.PP
+This can be useful to fold over large (potentially infinite) amounts of values;
+for example, to create a cumulative sum over all input integers, you can use
+\f[CB]jaq \-n \[aq]foreach inputs as $x (0; \&.+$x)\[aq]\f[R]\&.
+.PP
+The filter \f[CB]input\f[R] yields the next input in the current input file\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+When there is no more input value left,
+in \f[CB]jq\f[R], \f[CB]input\f[R] yields an error, whereas in jaq, it yields no output value\&.
+That is, in jaq, \f[CB]input\f[R] is equivalent to \f[CB]first(inputs)\f[R]\&.
+.RE
+
+
+
+
+.SS \f[CB]debug\f[R], \f[CB]debug(f)\f[R]
+
+.PP
+The filter \f[CB]debug(f)\f[R] prints a debug message for every output of \f[CB]f\f[R]
+to the standard error stream (stderr), then yields its input\&.
+For example:
+.IP
+.EX
+$ jaq \-n \[aq]0 | debug(1, 2)\[aq]
+[\[dq]DEBUG:\[dq], 1]
+[\[dq]DEBUG:\[dq], 2]
+0
+.EE
+
+.PP
+The filter \f[CB]debug\f[R] is equivalent to \f[CB]debug(\&.)\f[R]\&.
+
+
+.SS \f[CB]stderr\f[R]
+
+.PP
+The filter \f[CB]stderr\f[R] prints its input to the standard error stream
+in raw and compact mode without newline\&.
+It then yields its input\&.
+.IP
+.EX
+$ jaq \-n \[aq]\[dq]Hi\[dq] | stderr\[aq]
+Hi\[dq]Hi\[dq]
+.EE
+
+
+
+.SS \f[CB]halt\f[R], \f[CB]halt($exit_code)\f[R]
+
+.PP
+The filter \f[CB]halt($exit_code)\f[R] terminates jaq with the given exit code\&.
+.PP
+The filter \f[CB]halt\f[R] terminates jaq with exit code 0\&.
+.IP
+.EX
+$ jaq \-n \[aq]1, halt    , 2\[aq]
+1
+$ jaq \-n \[aq]1, halt(42), 2\[aq]; echo $?
+1
+42
+.EE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not implement \f[CB]halt($exit_code)\f[R], only \f[CB]halt\f[R]\&.
+.RE
+
+
+
+
+.SS \f[CB]halt_error\f[R], \f[CB]halt_error($exit_code)\f[R]
+
+.PP
+The filter \f[CB]halt_error($exit_code)\f[R] prints its input via \f[CB]stderr\f[R]\&.
+It then quits the jaq process with the given exit code\&.
+.PP
+The filter \f[CB]halt_error\f[R] is equivalent to \f[CB]halt_error(5)\f[R]\&.
+.IP
+.EX
+$ jaq \-n \[aq]\[dq]Hi!\[dq] | halt_error(42)\[aq]; echo $?
+Hi!42
+$ jaq \-n \[aq]\[dq]Hi!\[dq] | halt_error    \[aq]; echo $?
+Hi!5
+.EE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] prints a newline after the input if it is not a string\&.
+.RE
+
+
+
+.SS \f[CB]now\f[R]
+
+.PP
+This filter yields the Unix epoch as floating\-point number\&.
+.IP
+.EX
+$ date +%s | jaq \[aq]now \- \&. as $dt | 0 <= $dt and $dt <= 2\[aq]
+true
+.EE
+
+
+
+.SS \f[CB]$ENV\f[R], \f[CB]env\f[R]
+
+.PP
+The variable \f[CB]$ENV\f[R] holds an object that contains an entry for every environment variable, where
+the key is the name of the variable and the value is its value\&.
+For example, \f[CB]{\[dq]EDITOR\[dq]: \[dq]vim\[dq], \[dq]SHELL\[dq]: \[dq]/usr/bin/bash\[dq]}\f[R]\&.
+.IP
+.EX
+$ MYFLAG=42 jaq \-n \[aq]$ENV\&.MYFLAG\[aq]
+\[dq]42\[dq]
+.EE
+
+.PP
+The filter \f[CB]env\f[R] is equivalent to \f[CB]$ENV\f[R]\&.
+
+
+.SS \f[CB]input_filename\f[R]
+
+.PP
+The filter \f[CB]input_filename\f[R] returns
+the name of the file currently read, or
+\f[CB]\[dq]<stdin>\[dq]\f[R] if standard input is currently read\&.
+.IP
+.EX
+$ jaq \-\-slurp \[aq]input_filename\[aq] \[dq]examples/benches\&.json\[dq]
+\[dq]examples/benches\&.json\[dq]
+$ echo 0 | jaq \[aq]input_filename\[aq]
+\[dq]<stdin>\[dq]
+.EE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In jq, this filter returns the name of the file most recently read from\&.
+This can lead to subtle differences compared to jaq\&. For example:
+.IP
+.EX
+$ echo 0 | jaq \-\-null\-input \[aq](\&., inputs) | input_filename\[aq]
+\[dq]<stdin>\[dq]
+\[dq]<stdin>\[dq]
+.EE
+
+.PP
+Here, jq yields \f[CB]null \[dq]<stdin>\[dq]\f[R]\&. Why?
+When executing the filter \f[CB]\&.\f[R], jq did not read any input, so
+\f[CB]input_filename\f[R] returns \f[CB]null\f[R]\&.
+However, when executing \f[CB]inputs\f[R], jq starts reading from standard input, so
+\f[CB]input_filename\f[R] returns \f[CB]\[dq]<stdin>\[dq]\f[R]\&.
+.PP
+In contrast, jaq considers a file as being read even when it has only been opened\&.
+.RE
+
+
+
+.SS \f[CB]repl\f[R]
+
+.PP
+The filter \f[CB]repl\f[R] starts an interactive REPL (read\-eval\-print\-loop)\&.
+You can nest calls to \f[CB]repl\f[R]; that is, you can run \f[CB]repl\f[R] from inside a \f[CB]repl\f[R]\&.
+Use CTRL\-D to exit a REPL\&.
+.PP
+This filter yields no output\&.
+It writes its history to a file \f[CB]jaq\-history\f[R] in the user’s cache directory\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+This filter has been inspired by \f[CB]fq\f[R]’s \f[CB]repl\f[R] filter\&.
+However, unlike \f[CB]fq\f[R], jaq does not require to be started with the \f[CB]\-\-repl\f[R] flag,
+and it allows calls to \f[CB]repl\f[R] anywhere in a filter, not only last in the pipeline\&.
+.PP
+\f[CB]jq\f[R] does not have this filter\&.
+.RE
+
+
+
+
+.SS UNSUPPORTED
+
+.PP
+This section lists filters present in \f[CB]jq\f[R], but not in jaq\&.
+.RS 2
+
+.IP \[bu] 2
+\c
+.UR https://jqlang.org/manual/#$__loc__
+\f[CB]$__loc__\f[R]
+.UE \c
+
+
+.IP \[bu] 2
+\f[CB]modulemeta\f[R]
+
+.IP \[bu] 2
+\c
+.UR https://jqlang.org/manual/#have_literal_numbers
+\f[CB]have_literal_numbers\f[R]
+.UE \c
+
+
+.IP \[bu] 2
+\c
+.UR https://jqlang.org/manual/#have_decnum
+\f[CB]have_decnum\f[R]
+.UE \c
+
+
+.IP \[bu] 2
+\c
+.UR https://jqlang.org/manual/#$jq_build_configuration
+\f[CB]$JQ_BUILD_CONFIGURATION\f[R]
+.UE \c
+
+
+.IP \[bu] 2
+\c
+.UR https://jqlang.org/manual/#builtins
+\f[CB]builtins\f[R]
+.UE \c
+
+
+.IP \[bu] 2
+\c
+.UR https://jqlang.org/manual/#input_line_number
+\f[CB]input_line_number\f[R]
+.UE \c
+
+
+.RE
+
+.PP
+jaq supports none of jq’s
+\c
+.UR https://jqlang.org/manual/#sql-style-operators
+SQL\-style operators
+.UE \c
+,
+mostly for aesthetic reasons (uppercase\-names) and because jq is not SQL:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]INDEX\f[R]
+
+.IP \[bu] 2
+\f[CB]JOIN\f[R]
+
+.IP \[bu] 2
+\f[CB]IN\f[R]
+
+.RE
+
+.PP
+jaq does not support \f[CB]jq\f[R]’s \c
+.UR https://jqlang.org/manual/#streaming
+\f[CB]\-\-stream\f[R]
+.UE \c
+ option;
+therefore, it also does not implement the related filters:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]truncate_stream\f[R]
+
+.IP \[bu] 2
+\f[CB]fromstream\f[R]
+
+.IP \[bu] 2
+\f[CB]tostream\f[R]
+
+.RE
+
+
+
+
+.SH ADVANCED FEATURES
+
+
+.SS ASSIGNMENTS
+
+.PP
+jq allows for assignments of the form \f[CB]p |= f\f[R], where \f[CB]p\f[R] is an arbitrary filter\&.
+This makes assignments in jq uniquely powerful compared to other languages\&.
+For example, a program from the jq manual that blew my mind was the following:
+.IP
+.EX
+(\&.posts[] | select(\&.author == \[dq]stedolan\[dq]) | \&.comments) += [\[dq]terrible\&.\[dq]]
+.EE
+
+.PP
+This iterates over all posts,
+selects those whose author is “stedolan”,
+takes its comments, and adds a not very flattering comment to it\&.
+(This does not reflect my opinion about Stephen Dolan —
+I think that he did a great job creating jq\&.)
+.PP
+jaq and \f[CB]jq\f[R] pursue different approaches to execute assignments:
+.RS 2
+
+.IP \[bu] 2
+\f[B]Path\-based\f[R]: In \f[CB]jq\f[R], an assignment \f[CB]p |= f\f[R]
+constructs paths to all values that match \f[CB]p\f[R] and
+applies the filter \f[CB]f\f[R] to these values\&.
+
+.IP \[bu] 2
+\f[B]Pathless\f[R]: In jaq, an assignment \f[CB]p |= f\f[R] is transformed to
+a different filter that does not construct any paths\&.
+
+.RE
+
+.PP
+For example, consider the update
+\f[CB][1, 2, 3] | \&.[] |= \&.+1 \-\-> [2, 3, 4]\f[R]:
+When \f[CB]jq\f[R] executes this, it calculates
+\f[CB][1, 2, 3] | path(\&.[]) \-\-> [0] [1] [2]\f[R] and applies
+\f[CB]\&.+1\f[R] on each value at these paths\&.
+On the other hand, jaq transforms the update to
+\f[CB][1, 2, 3] | [\&.[] | \&.+1] \-\-> [2, 3, 4]\f[R] —
+the assignment does not involve any path construction\&.
+.PP
+Fortunately, like in the example above, in most cases,
+the result of the both approaches is the same\&.
+The following sections explain the two approaches in more detail,
+and how to write updates that behave the same in both \f[CB]jq\f[R] and jaq\&.
+
+.SS Path\-based
+
+.PP
+The path\-based update model used by \f[CB]jq\f[R] executes \f[CB]p |= u\f[R] by
+first collecting the paths corresponding to \f[CB]p\f[R],
+then updating the input at these paths by \f[CB]u\f[R]\&.
+We can approximate this behaviour by \f[CB]getpath(path(p)) |= u\f[R] —
+the actual \f[CB]jq\f[R] update behaviour is much more complex,
+only sparely documented, and
+has changed in backwards\-incompatible ways between minor versions\&.
+
+.PP
+The filters \f[CB]reduce\f[R] / \f[CB]foreach\f[R] are both defined in jaq
+in terms of simpler filters \f[CB]f\f[R] that \f[CB]path(f)\f[R] can evaluate\&.
+Therefore, in jaq, you can use \f[CB]reduce\f[R] / \f[CB]foreach\f[R] inside \f[CB]path(f)\f[R],
+as well as on the left\-hand side of updates\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][{a: 1}] | path(reduce  (0, \[dq]a\[dq]) as $i (\&.; \&.[$i])) \-\->     [0, \[dq]a\[dq]]\f[R]
+
+.IP \[bu] 2
+\f[CB][{a: 1}] | path(foreach (0, \[dq]a\[dq]) as $i (\&.; \&.[$i])) \-\-> [0] [0, \[dq]a\[dq]]\f[R]
+
+.RE
+
+.PP
+Similarly, you can use compound paths:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3]   | path(\&.[]?) \-\-> [0] [1] [2]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]\[dq]          | path(\&.[]?) \-\->\f[R] (no output)
+
+.IP \[bu] 2
+\f[CB]{a: [1, 2]} | path(\&.a[]) \-\-> [\[dq]a\[dq], 0] [\[dq]a\[dq], 1]\f[R]
+
+.RE
+
+.PP
+All other filters defined in the core language yield an error,
+because they construct new values instead of returning references to their inputs\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]try path(0    ) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]try path(1 + 2) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]try path(1 = 2) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+\f[CB]jq\f[R] does not support \f[CB]reduce\f[R] / \f[CB]foreach\f[R] in \f[CB]path\f[R]\&.
+.PP
+On the other hand, \f[CB]jq\f[R] is more permissive with paths of intermediate values\&.
+For example, \f[CB]try path([] | empty) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R], because jaq reduces
+\f[CB]path([] | empty)\f[R] to
+\f[CB]path([]) as $p | \&.\&.\&.\f[R], which fails because \f[CB]path([])\f[R] is not defined\&.
+Conversely, \f[CB]jq\f[R] yields no output for this filter\&.
+Interestingly, \f[CB]path([] | \&.[])\f[R] yields an error in both jaq and \f[CB]jq\f[R],
+so I do not understand why the example with \f[CB]empty\f[R] does not yield an error, too\&.
+.PP
+In jaq,
+\f[CB][] | path(\&.[0: ]) \-\-> [{\[dq]start\[dq]: 0}]\f[R] and
+\f[CB][] | path(\&.[ :0]) \-\-> [{\[dq]end\[dq]  : 0}]\f[R], whereas \f[CB]jq\f[R] yields
+\f[CB][{start: 0   , end: null}]\f[R] and
+\f[CB][{start: null, end: 0   }]\f[R], respectively\&.
+That means that \f[CB]jq\f[R] always adds missing \f[CB]start\f[R]/\f[CB]end\f[R] indices as \f[CB]null\f[R],
+whereas jaq omits them\&.
+.RE
+
+
+
+.SS Pathless
+
+.PP
+The pathless update model that is used by jaq
+reduces updates \f[CB]p |= u\f[R] to simpler expressions, depending on \f[CB]p\f[R]\&.
+It yields the same results as path\-based updates in most common cases,
+while having the following advantages:
+.RS 2
+
+.IP \[bu] 2
+It does not need to construct paths, resulting in higher performance\&.
+
+.IP \[bu] 2
+It considers multiple outputs by \f[CB]u\f[R] where possible, whereas
+path\-based updates consider at most one output\&.
+For example,
+\f[CB]0 | (\&., \&.) |= (\&., \&.+1) \-\-> 0 1 1 2\f[R] in jaq,
+whereas it yields only \f[CB]0\f[R] in jq\&.
+However,
+\f[CB]{a: 1} | \&.a |= (2, 3) \-\-> {\[dq]a\[dq]: 2}\f[R] in both jaq and jq,
+because an object can only associate a single value with any given key,
+so we cannot use multiple outputs in a meaningful way here\&.
+
+.IP \[bu] 2
+It avoids iterator invalidation problems that path\-based updates are prone to\&.
+
+.RE
+
+.PP
+However, pathless updates do not support a few filters on the
+left\-hand side of updates that path\-based updates support, such as:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]try f catch g\f[R]
+
+.IP \[bu] 2
+\f[CB]first(f)\f[R], \f[CB]last(f)\f[R]
+
+.IP \[bu] 2
+\f[CB]limit($n; f)\f[R]
+
+.IP \[bu] 2
+\f[CB]skip($n; f)\f[R]
+
+.RE
+
+.PP
+For example, the following filters all yield an error in jaq:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | try      \&.[]  \-= 1\f[R] yields \f[CB][0, 1, 2]\f[R] in jq\&.
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | first(   \&.[]) \-= 1\f[R] yields \f[CB][0, 2, 3]\f[R] in jq\&.
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | limit(2; \&.[]) \-= 1\f[R] yields \f[CB][0, 1, 3]\f[R] in jq\&.
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | skip (1; \&.[]) \-= 1\f[R] yields \f[CB][1, 1, 2]\f[R] in jq\&.
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | last (   \&.[]) \-= 1\f[R] yields an error in jq\&.
+
+.RE
+
+.PP
+In such cases, you can fall back to path\-based updates in jaq by writing
+\f[CB]getpath(path(p)) |= u\f[R] instead of \f[CB]p |= u\f[R]\&.
+For example, the following filters yield the same outputs in jaq and \f[CB]jq\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | getpath(path(try      \&.[] )) \-= 1 \-\-> [0, 1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | getpath(path(first(   \&.[]))) \-= 1 \-\-> [0, 2, 3]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | getpath(path(limit(2; \&.[]))) \-= 1 \-\-> [0, 1, 3]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | getpath(path(skip (1; \&.[]))) \-= 1 \-\-> [1, 1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB][1, 2, 3] | getpath(path(last (   \&.[]))) \-= 1 \-\-> [1, 2, 2]\f[R]
+(this example yields an error in \f[CB]jq\f[R], whereas it works in jaq)
+
+.RE
+
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+In \f[CB]jq\f[R], \f[CB]\&. |= empty\f[R] yields \f[CB]null\f[R] for any input, whereas jaq yields no output\&.
+Similarily,
+in \f[CB]jq\f[R], \f[CB]\&. |= (\&., \&.)\f[R] yields its input once, whereas jaq yields its input twice\&.
+.PP
+In \f[CB]jq\f[R], \f[CB][0, 1] | \&.[3] = 3\f[R] yields \f[CB][0, 1, null, 3]\f[R]; that is,
+\f[CB]jq\f[R] fills up the list with \f[CB]null\f[R]s if we update beyond its size\&.
+In contrast, jaq fails with an out\-of\-bounds error in such a case\&.
+.PP
+\f[CB]jq\f[R] does not support updating string slices, whereas jaq does\&.
+.PP
+In \f[CB]jq\f[R],
+\f[CB]null | \&.a   = 1\f[R] yields \f[CB]{\[dq]a\[dq]: 1}\f[R] and
+\f[CB]null | \&.[0] = 1\f[R] yields \f[CB][1]\f[R], meaning that
+\f[CB]jq\f[R] treats \f[CB]null\f[R] as empty array or object when
+updating it with a string or integer index\&.
+Because jaq supports non\-string object keys, this is ambiguous, because
+it is not clear whether
+\f[CB]null | \&.[0] = 1\f[R] should yield
+\f[CB]{0: 1}\f[R] or \f[CB][1]\f[R]\&.
+For that reason, jaq yields an error on updates of null with any kind of index\&.
+.RE
+
+
+
+
+.SS PATTERNS
+
+.PP
+The filter \f[CB]f as $x | g\f[R] binds the outputs of \f[CB]f\f[R] to a
+variable \f[CB]$x\f[R]\&.
+At the place of \f[CB]$x\f[R], we can use a \f[B]pattern\f[R] to
+\f[I]destructure\f[R] the input into multiple variables\&.
+.PP
+Consider the following filter:
+.IP
+.EX
+[ 1, {a:  2}] |
+\&.[0]   as $x  |
+\&.[1]\&.a as $y  |
+$x, $y \-\->
+ 1   2
+.EE
+
+.PP
+We can write this more compactly using a pattern as follows:
+.IP
+.EX
+[ 1, {a:  2}] as
+[$x, {a: $y}] |
+ $x,     $y \-\->
+  1       2
+.EE
+
+.PP
+Here, \f[CB][$x, {a: $y}]\f[R] is a pattern that is used to match the value \f[CB][1, {a: 2}]\f[R]\&.
+It binds
+\f[CB]1\f[R] to \f[CB]$x\f[R] and
+\f[CB]2\f[R] to \f[CB]$y\f[R]\&.
+.PP
+Similarly to object construction,
+\f[CB]{$x}\f[R] is equivalent to \f[CB]{x: $x}\f[R] also for object patterns\&.
+For example, we could have written the previous example equivalently as
+\f[CB][1, {a: 2}] as [$x, {$a}] | $x, $a \-\-> 1 2\f[R]
+.PP
+When a pattern does not exist in its input,
+its corresponding variables are bound to \f[CB]null\f[R]:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][1, {b: 2}] as [$x, {$a}] | $x, $a \-\-> 1 null\f[R]
+
+.IP \[bu] 2
+\f[CB][1        ] as [$x,   $y] | $x, $y \-\-> 1 null\f[R]
+
+.IP \[bu] 2
+\f[CB][1, {a: 2}] as [$x, [$y]] | $x, $y \-\-> 1 null\f[R]
+
+.RE
+
+.PP
+If the types of a pattern and its input do not match,
+an error is thrown:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]try ([1] as {$a} | $a) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.IP \[bu] 2
+\f[CB]try ( 1  as [$x] | $x) catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+.PP
+Patterns do not have to match their whole input:
+.RS 2
+
+.IP \[bu] 2
+\f[CB][   1,    2] as [$x] | $x \-\-> 1\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: 1, b: 2} as {$a} | $a \-\-> 1\f[R]
+
+.RE
+
+.PP
+Patterns can be arbitrarily nested:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]{a: [1, {b: [2]}]} as {a: [$x, {b: [$y]}]} | $x, $y \-\-> 1 2\f[R]
+
+.IP \[bu] 2
+\f[CB][[[1]]] as [[[$x]]] | $x \-\-> 1\f[R]
+
+.IP \[bu] 2
+\f[CB]{a: {b: {c: 1}}} as {a: {b: {c: $x}}} | $x \-\-> 1\f[R]
+
+.RE
+
+.PP
+We can write any filter \f[CB](f)\f[R] as object key in a pattern:
+.IP
+.EX
+{a: 1, b: 2, c: 3, d: 4} as
+{(\[dq]a\[dq],  \[dq]b\[dq]): $x, (\[dq]c\[dq], \[dq]d\[dq]): $y} |
+[$x, $y] \-\->
+[1, 3] [1, 4] [2, 3] [2, 4]
+.EE
+
+.PP
+We can also use patterns in \f[CB]reduce\f[R] and \f[CB]foreach\f[R]:
+.IP
+.EX
+[{\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}, {\[dq]a\[dq]: 3, \[dq]b\[dq]: 4}] |
+foreach \&.[] as {(\[dq]a\[dq], \[dq]b\[dq]): $x} ([]; \&. + [$x]) \-\->
+[1]
+[1,2]
+[1,2,3]
+[1,2,3,4]
+.EE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+jaq does not support \f[CB]jq\f[R]’s destructuring alternative operator
+\c
+.UR https://jqlang.org/manual/#destructuring-alternative-operator
+\f[CB]?//\f[R]
+.UE \c
+\&.
+.RE
+
+
+
+
+.SS MODULES
+
+.PP
+jq allows dividing programs into multiple files that are called \f[B]modules\f[R]\&.
+.PP
+At the beginning of any jq module, there is a module header that consists of
+a (potentially empty) sequence of instructions listed in this section\&.
+The module header is then followed by a sequence of definitions\&.
+Finally, the main module that is called from the command\-line interface
+(via \f[CB]\-\-from\-file\f[R] or inline)
+must contain a single filter at the end, which is the filter that is executed\&.
+.PP
+All \f[CB]include\f[R]/\f[CB]import\f[R] instructions search for files as explained in the
+search paths section\&.
+
+.SS Module metadata
+
+.PP
+The instruction \f[CB]module meta;\f[R] sets the metadata of the current module to
+the output of \f[CB]meta\f[R], where \f[CB]meta\f[R] is a filter\&.
+This instruction may occur
+only at the beginning of the module header and
+only once\&.
+.PP
+For example, \f[CB]module \[dq]My module\[dq]; 1 \-\-> 1\f[R]\&.
+.PP
+\f[I]Compatibility\f[R]
+.RS
+jaq ignores this instruction, whereas
+\f[CB]jq\f[R] uses it to provides the output of \f[CB]meta\f[R] via the \f[CB]modulemeta\f[R] filter\&.
+.RE
+
+
+
+.SS Module inclusion
+
+.PP
+The instructions
+\f[CB]include \[dq]mod\[dq];\f[R] and
+\f[CB]include \[dq]mod\[dq] meta;\f[R]
+make all filters defined in the module \f[CB]mod\&.jq\f[R] accessible in the current module\&.
+.PP
+For example, if \f[CB]foo\&.jq\f[R] in the current working directory contains \f[CB]def bar: 1;\f[R], then
+\f[CB]jaq \-L \&. \-n \[aq]include \[dq]foo\[dq]; bar\[aq]\f[R] yields \f[CB]1\f[R]\&.
+
+
+.SS Module import
+
+.PP
+The instructions
+\f[CB]import \[dq]mod\[dq] as name;\f[R] and
+\f[CB]import \[dq]mod\[dq] as name meta;\f[R]
+make all definitions in the module \f[CB]mod\&.jq\f[R] accessible in the current module
+with the prefix \f[CB]name::\f[R]\&.
+.PP
+For example:
+.IP
+.EX
+$ echo \[aq]def bar: 1;\[aq] > foo\&.jq && jaq \-L \&. \-n \[aq]import \[dq]foo\[dq] as myfoo; myfoo::bar\[aq] && rm foo\&.jq
+1
+.EE
+
+
+
+.SS Data import
+
+.PP
+The instructions
+\f[CB]import \[dq]data\[dq] as $name;\f[R] and
+\f[CB]import \[dq]data\[dq] as $name meta;\f[R]
+load all JSON values in \f[CB]data\&.json\f[R] to an array,
+bind it to the variable \f[CB]$name\f[R], and
+make it accessible in the current module\&.
+.PP
+For example:
+.IP
+.EX
+$ echo 1 2 3 > foo\&.json && jaq \-L \&. \-nc \[aq]import \[dq]foo\&.json\[dq] as $myfoo; $myfoo\[aq] && rm foo\&.json
+[1,2,3]
+.EE
+
+
+
+.SS Search paths
+
+.PP
+An \f[CB]include\f[R]/\f[CB]import\f[R] instruction searches for its given file
+in the following directories, in the following order:
+.RS 2
+
+.IP \[bu] 2
+The global search paths given via \f[CB]\-\-library\-path\f[R]\&.
+They are interpreted relative to the current working directory\&.
+
+.IP \[bu] 2
+The local search paths given via metadata:
+When an \f[CB]include\f[R]/\f[CB]import\f[R] instruction has \f[CB]meta\f[R] of the shape
+\f[CB]{\&.\&.\&., search: \&.\&.\&., \&.\&.\&.}\f[R], then
+the value at the key \f[CB]\[dq]search\[dq]\f[R] sets the local search paths for that instruction to:
+.RS 2
+
+.IP \[bu] 2
+If the value is a string: Just that string\&.
+
+.IP \[bu] 2
+If the value is an array: All strings in the array\&.
+
+.IP \[bu] 2
+Otherwise: Nothing\&.
+
+.RE
+
+If the module containing the \f[CB]include\f[R]/\f[CB]import\f[R] instruction is a file, then
+these paths are interpreted relative to the parent directory of that module\&.
+Otherwise, these paths are interpreted relative to the current working directory\&.
+(That is the case if the module containing the \f[CB]include\f[R]/\f[CB]import\f[R] instruction
+is given inline on the command\-line\&.)
+
+.RE
+
+.PP
+Every global and local search path is substituted as follows:
+.RS 2
+
+.IP \[bu] 2
+If it starts with \f[CB]~\f[R], then
+\f[CB]~\f[R] is substituted with the user’s home directory,
+given by the environment variable \f[CB]HOME\f[R] on Linux and \f[CB]USERPROFILE\f[R] on Windows\&.
+
+.IP \[bu] 2
+If it starts with \f[CB]$ORIGIN\f[R], then
+\f[CB]$ORIGIN\f[R] is substituted by the directory in which the \f[CB]jaq\f[R] executable resides\&.
+
+.RE
+
+.PP
+For example,
+\f[CB]jaq \-L ~/foo \-L bar \[aq]include \[dq]decode\[dq] {search: [\[dq]baz\[dq], \[dq]$ORIGIN/quux\[dq]]}; 1\[aq]\f[R]
+searches for the file \f[CB]decode\&.jq\f[R] at the following paths in the given order:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]~/foo/decode\&.jq\f[R] (where \f[CB]~\f[R] is substituted by the user’s home directory)
+
+.IP \[bu] 2
+\f[CB]\&./bar/decode\&.jq\f[R]
+
+.IP \[bu] 2
+\f[CB]\&./baz/decode\&.jq\f[R]
+
+.IP \[bu] 2
+\f[CB]$ORIGIN/quux/decode\&.jq\f[R]
+(where \f[CB]$ORIGIN\f[R] is substituted by the parent directory of the \f[CB]jaq\f[R] executable)
+
+.RE
+
+.PP
+The first path that corresponds to an existing file is taken\&.
+.PP
+Now, suppose that \f[CB]decode\&.jq\f[R] contains an instruction
+\f[CB]import \[dq]binary\[dq] as $binary {search: \[dq]\&.\[dq]}\f[R]\&.
+This searches for \f[CB]binary\&.json\f[R] at the following paths:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]~/foo/binary\&.json\f[R]
+
+.IP \[bu] 2
+\f[CB]\&./bar/binary\&.json\f[R] (relative to the current working directory)
+
+.IP \[bu] 2
+\f[CB]\&./binary\&.json\f[R] (relative to the parent directory of \f[CB]decode\&.jq\f[R])
+
+.RE
+
+.PP
+\f[I]Compatibility\f[R]
+.RS
+If a file to load has been given without extension,
+such as \f[CB]decode\f[R] and \f[CB]binary\f[R] above, then
+jaq adds an extension (\f[CB]\&.jq\f[R] for modules or \f[CB]\&.json\f[R] for data)\&.
+\f[CB]jq\f[R] adds an extension \f[I]unconditionally\f[R]; that is,
+even if an extension has been given as part of the file name,
+\f[CB]jq\f[R] adds an extension\&.
+.PP
+jaq’s behaviour is motivated by allowing instructions like
+\f[CB]import \[dq]binary\&.cbor\[dq] as $binary\f[R] in the future\&.
+Here, unconditionally adding the \f[CB]\&.json\f[R] extension would be counterproductive\&.
+.RE
+
+
+
+
+.SS COMMENTS
+
+.PP
+A comment
+starts with \f[CB]#\f[R] and
+ends with the first newline that is not preceded by an uneven number of backslashes (\f[CB]\[rs]\f[R])\&.
+For example:
+.IP
+.EX
+[
+  1,
+  # comment
+  2,
+  # comment \[rs]\[rs]
+  3,
+  # comment \[rs]
+    comment
+  4,
+  # comment \[rs]\[rs]\[rs]
+    comment \[rs]
+    comment
+  5
+]
+.EE
+
+.PP
+This is equivalent to \f[CB][1, 2, 3, 4, 5]\f[R]\&.
+
+
+
+.SH FORMATS
+
+.PP
+jaq supports reading and writing several data formats\&.
+This section describes these data formats\&.
+.PP
+You can load and write data in these formats using either:
+.RS 2
+
+.IP \[bu] 2
+the command\-line options \f[CB]\-\-from\f[R] / \f[CB]\-\-to\f[R], or
+
+.IP \[bu] 2
+(de\-)serialisation filters such as
+\f[CB]fromjson\f[R] and \f[CB]toyaml\f[R]
+
+.RE
+
+.PP
+The command\-line options \f[CB]\-\-from\f[R] and \f[CB]\-\-to\f[R] always yield
+better or equal performance than the corresponding filters\&.
+
+.SS JSON
+
+.PP
+\c
+.UR https://www.json.org
+JSON
+.UE \c
+ (JavaScript Object Notation)
+is specified in \c
+.UR https://datatracker.ietf.org/doc/html/rfc8259
+RFC 8259
+.UE \c
+\&.
+.PP
+jaq can read all valid JSON values; however, like \f[CB]jq\f[R],
+it also accepts certain values that are invalid JSON\&.
+This set of values is documented in the XJON section\&.
+
+
+.SS XJON
+
+.PP
+The native data format of jaq is a superset of JSON called \f[B]XJON\f[R]
+(eXtended JavaScript Object Notation, pronounced like “action”)\&.
+.PP
+XJON extends JSON with following constructs:
+.RS 2
+
+.IP \[bu] 2
+Line comments: \f[CB]# \&.\&.\&. \[rs]n\f[R] is interpreted as comment
+
+.IP \[bu] 2
+Special floating\-point numbers: \f[CB]NaN\f[R], \f[CB]Infinity\f[R], \f[CB]+Infinity\f[R], \f[CB]\-Infinity\f[R]
+
+.IP \[bu] 2
+Numbers starting with \f[CB]+\f[R] or multiple zeros:
+The beginning of a number corresponds to the regex
+\f[CB][+\-]?\[rs]d+\f[R] in XJON and
+\f[CB]\-?(0|[1\-9]\[rs]d*)\f[R] in JSON\&.
+That means that in XJON,
+\f[CB]+7\&.1\f[R], \f[CB]007\f[R], \f[CB]\-042\f[R] are all valid numbers, whereas they are invalid in JSON\&.
+
+.IP \[bu] 2
+UTF\-8 strings with invalid code units:
+The JSON standard is slightly ambiguous whether
+strings may contain invalid UTF\-8 code units\&.
+XJON explicitly allows for invalid code units in UTF\-8 strings,
+e\&.g\&. the output of \f[CB]printf \[aq]\[dq]\[rs]xFF\[dq]\[aq]\f[R]\&.
+This increases compatibility with tools that output such strings (e\&.g\&. file names)\&.
+Furthermore, it allows for constant\-time loading of strings via \f[CB]\-\-rawfile\f[R],
+where jq takes linear time due to UTF\-8 validation\&.
+
+.IP \[bu] 2
+Byte strings:
+A byte string is created via \f[CB]b\[dq]\&.\&.\&.\[dq]\f[R], where \f[CB]\&.\&.\&.\f[R] is a sequence of:
+.RS 2
+
+.IP \[bu] 2
+bytes in the range 0x20 to (including) 0xFF,
+excluding the ASCII characters \f[CB]\[aq]\[dq]\[aq]\f[R] and \f[CB]\[aq]\[rs]\[aq]\f[R]
+
+.IP \[bu] 2
+an escape sequence, starting with a backslash (\f[CB]\[aq]\[rs]\[aq]\f[R]) and followed by
+\f[CB]b\f[R], \f[CB]f\f[R], \f[CB]n\f[R], \f[CB]r\f[R], \f[CB]t\f[R], \f[CB]\[aq]\[dq]\[aq]\f[R], \f[CB]\[aq]\[rs]\[aq]\f[R], or
+\f[CB]xHH\f[R], where \f[CB]HH\f[R] is a hexadecimal number
+For example: \f[CB]b\[dq]Here comes \[rs]xFF, dadadada\[rs]nHere comes \[rs]xFF\[rs]nAnd I say: \[rs]\[dq]It\[aq]s alright\[rs]\[dq]\[rs]x00\[dq]\f[R]\&.
+Byte strings of this shape can also be found in other languages, like
+Rust & Python (with leading \f[CB]b\f[R]) and JavaScript & C (without leading \f[CB]b\f[R])\&.
+
+.RE
+
+
+.IP \[bu] 2
+Objects with non\-string keys:
+Where JSON limits object keys to strings,
+XJON allows arbitrary values as object keys\&.
+For example: \f[CB]{null: 0, true: 1, 2: 3, \[dq]str\[dq]: 4, [\[dq]arr\[dq]]: 5, {}: 6}\f[R]
+
+.RE
+
+.PP
+The goal behind XJON was to
+support a set of values present in YAML and CBOR, namely
+byte strings and objects with non\-string keys, while keeping the format
+both human\-readable and simple & performant to parse, like JSON\&.
+.PP
+XJON can losslessly encode any jaq value; in particular,
+decoding an XJON\-encoded value is equivalent to the original value\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]nan |        \&.          | isnan \-\-> true\f[R] in jaq and \f[CB]jq\f[R]
+
+.IP \[bu] 2
+\f[CB]nan | tojson | fromjson | isnan \-\-> true\f[R] in jaq, but \f[CB]false\f[R] in \f[CB]jq\f[R]
+
+.RE
+
+.PP
+That means that \f[CB]tojson | fromjson\f[R] is equivalent to \f[CB]\&.\f[R] in jaq, whereas
+it is \f[I]not\f[R] equivalent in \f[CB]jq\f[R], in particular because of \f[CB]NaN\f[R] and \f[CB]Infinity\f[R]\&.
+.PP
+Currently, wherever jaq accepts JSON, it also accepts XJON\&.
+That means that jaq accepts the following, even if it is not valid JSON:
+.IP
+.EX
+$ echo \[aq]NaN b\[dq]Bytes\[dq] {1: 2} # Over and out\[aq] | jaq \-\-from json \-c
+NaN
+b\[dq]Bytes\[dq]
+{1:2}
+.EE
+
+
+
+.SS YAML
+
+.PP
+\c
+.UR https://yaml.org/
+YAML
+.UE \c
+ (YAML Ain’t Markup Language™) is
+“a human\-friendly data serialization language for all programming languages”\&.
+It is also a JSON and XJON superset\&.
+That means that every jaq value can be encoded as YAML value\&.
+.PP
+jaq supports reading YAML with anchors (\f[CB]&foo\f[R]) and aliases (\f[CB]*foo\f[R])\&.
+These allow the creation of shared data structures\&.
+However, jaq does not support self\-referential data, i\&.e\&.
+data that contains an alias pointing to itself\&.
+For example:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq][&a 1, &b 2, *a, *b]\[dq] | fromyaml \-\-> [1, 2, 1, 2]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq][&b [&a [], *a], *b]\[dq] | fromyaml \-\-> [[[], []], [[], []]]\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]&a[*a]\[dq] | try fromyaml catch \-1 \-\-> \-1\f[R]
+
+.RE
+
+.PP
+jaq validates tags for scalar YAML values, such as
+\f[CB]null\f[R], booleans, numbers, and strings:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]!!bool true\[dq] | fromyaml \-\-> true\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]!!int  true\[dq] | try fromyaml catch \[dq]fail\[dq] \-\-> \[dq]fail\[dq]\f[R]
+
+.RE
+
+.PP
+On the other hand, jaq ignores tags for arrays and objects:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]\[dq]!!foo []\[dq] | fromyaml \-\-> []\f[R]
+
+.IP \[bu] 2
+\f[CB]\[dq]!!bar {}\[dq] | fromyaml \-\-> {}\f[R]
+
+.RE
+
+.PP
+jaq produces YAML that is very close to JSON/XJON\&.
+jaq’s compact YAML output differs from XJON mostly by writing
+byte strings as Base64\-encoded \f[CB]!!binary\f[R] string and
+special floating\-point values as \f[CB]\&.inf\f[R], \f[CB]\-\&.inf\f[R], and \f[CB]\&.nan\f[R]:
+.IP
+.EX
+[infinite, \-infinite, nan, (\[dq]a\[dq] | tobytes), {\[dq]a\[dq]: 1}] | tojson, toyaml \-\->
+\[dq][Infinity,\-Infinity,NaN,b\[rs]\[dq]a\[rs]\[dq],{\[rs]\[dq]a\[rs]\[dq]:1}]\[dq]
+\[dq][\&.inf, \-\&.inf, \&.nan, !!binary YQ==, {a: 1}]\[dq]
+.EE
+
+.PP
+jaq preserves invalid UTF\-8 sequences in text strings when writing YAML\&.
+However, jaq yields an error when trying to
+parse YAML containing invalid UTF\-8 sequences\&.
+.PP
+When using \f[CB]\-\-to yaml\f[R], jaq writes
+\f[CB]\-\-\-\f[R] before every output value and
+\f[CB]\&.\&.\&.\f[R] after  every output value\&.
+This is done to indicate the start/end of YAML documents\&.
+For example:
+.IP
+.EX
+$ jaq \-n \[aq][1, {a: 2, b: [3]}]\[aq] \-\-to yaml
+\-\-\-
+\- 1
+\-
+  a: 2
+  b:
+    \- 3
+\&.\&.\&.
+$ echo 1 2 | jaq \-\-to yaml
+\-\-\-
+1
+\&.\&.\&.
+\-\-\-
+2
+\&.\&.\&.
+.EE
+
+.PP
+Use \f[CB]\-j\f[R] to omit YAML document start/end markers\&.
+This can come in handy when merging multiple arrays:
+.IP
+.EX
+$ echo \[aq][1, 2] [3, 4]\[aq] | jaq \-\-to yaml \-j
+\- 1
+\- 2
+\- 3
+\- 4
+.EE
+
+.PP
+Both \f[CB]\-\-from yaml\f[R] and the filter \f[CB]fromyaml\f[R]
+load the full input into memory before parsing it\&.
+
+
+.SS CBOR
+
+.PP
+\c
+.UR https://cbor.io/
+CBOR
+.UE \c
+ (Concise Binary Object Representation)
+is a binary format specified in
+\c
+.UR https://www.rfc-editor.org/rfc/rfc8949.html
+RFC 8949
+.UE \c
+\&.
+.PP
+CBOR values are a superset of jaq values\&.
+That means that there are CBOR values for which there are no equivalent jaq values, for example:
+.RS 2
+
+.IP \[bu] 2
+\c
+.UR https://www.rfc-editor.org/rfc/rfc8949.html#name-epoch-based-date-time
+date\-time
+.UE \c
+
+
+.IP \[bu] 2
+\c
+.UR https://www.rfc-editor.org/rfc/rfc8949.html#name-undefined-values
+undefined
+.UE \c
+
+
+.IP \[bu] 2
+\c
+.UR https://www.rfc-editor.org/rfc/rfc8949.html#fractions
+decimal fractions and bigfloats
+.UE \c
+
+
+.RE
+
+.PP
+jaq fails when trying to decode such CBOR values\&.
+.PP
+Every jaq value can be encoded losslessly as a CBOR value, except for
+text strings with invalid UTF\-8 code units\&.
+Invalid UTF\-8 sequences are replaced with \f[CB]U+FFFD\f[R], which looks like this: “�”\&.
+.PP
+jaq writes sequences of CBOR values by concatenating them without any separator\&.
+That means that \f[CB]\-\-to cbor\f[R] is equivalent to \f[CB]\-\-to cbor \-\-join\-output\f[R]\&.
+jaq can also read sequences of concatenated CBOR values\&.
+
+
+.SS TOML
+
+.PP
+\c
+.UR https://toml.io
+TOML
+.UE \c
+ is a configuration file format\&.
+We can read and query TOML files like JSON files:
+.IP
+.EX
+$ jaq \[aq]\&.profile\&.release[\[dq]codegen\-units\[dq]]\[aq] Cargo\&.toml
+1
+.EE
+
+.PP
+Furthermore, we can also write TOML files:
+.IP
+.EX
+$ echo \[aq]a = {b = 1, c = {d = nan, e = [], f = [{g = inf}, {h = \-inf}]}}\[aq] | jaq \-\-from toml \-\-to toml
+[a]
+b = 1
+
+[a\&.c]
+d = nan
+e = []
+
+[[a\&.c\&.f]]
+g = inf
+
+[[a\&.c\&.f]]
+h = \-inf
+.EE
+
+.PP
+Compared to jaq values,
+TOML has date\-time values, but
+TOML has neither
+\f[CB]null\f[R],
+byte strings, nor
+non\-string object keys\&.
+Furthermore, the root of a TOML value must be an object\&.
+That means that TOML writing may fail in various ways:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]0                | try totoml catch \-1 \-\-> \-1\f[R] (non\-object root)
+
+.IP \[bu] 2
+\f[CB]{a: null       } | try totoml catch \-1 \-\-> \-1\f[R] (null)
+
+.IP \[bu] 2
+\f[CB]{a: 0 | tobytes} | try totoml catch \-1 \-\-> \-1\f[R] (byte string)
+
+.IP \[bu] 2
+\f[CB]{(1): 2        } | try totoml catch \-1 \-\-> \-1\f[R] (non\-string object key)
+
+.RE
+
+.PP
+jaq can read \c
+.UR https://toml.io/en/v1.1.0
+TOML 1\&.1\&.0
+.UE \c
+ values,
+except for date\-time values\&.
+jaq should generally be able to read TOML values it has written,
+with the exception of big integers\&.
+The next example creates an object \f[CB]{a: 2^1024}\f[R] containing a big integer,
+successfully writes it as TOML, then fails when trying to read it back:
+.PP
+\f[CB]{a: nth(1024; 1 | recurse(\&.*2))} | totoml | try fromtoml catch \-1 \-\-> \-1\f[R]
+.PP
+When writing TOML, jaq converts invalid UTF\-8 sequences as for CBOR\&.
+That means that even if reading a written TOML value succeeds,
+its output may not be the same as its input:
+.PP
+\f[CB]{a: [\-255] | implode} | (totoml | fromtoml) == \&. \-\-> false\f[R]
+
+
+.SS XML
+
+.PP
+jaq reads data adhering to the \c
+.UR https://www.w3.org/TR/xml/
+XML 1\&.0
+.UE \c
+ standard\&.
+However, it treats only XML data encoded as UTF\-8\&.
+.PP
+jaq can read XHTML files, but it cannot directly read HTML files\&.
+You can use tools such as
+\c
+.UR https://github.com/jfisteus/html2xhtml
+html2xhtml
+.UE \c
+ to convert HTML to XHTML\&.
+.PP
+Mappings between XML to JSON generally have to make a compromise between
+“friendliness” and round\-tripping;
+see “\c
+.UR https://www.w3.org/2011/10/integration-workshop/p/XML_JSON_mapping_paper.pdf
+Experiences with JSON and XML Transformations
+.UE \c
+”\&.
+Here, “friendliness” means that JSON generated from XML has a flat structure,
+making it easy to consume it\&.
+Stefan Goessner gives a nice discussion of different “friendly” mappings in
+“\c
+.UR https://www.xml.com/pub/a/2006/05/31/converting-between-xml-and-json.html
+Converting Between XML and JSON
+.UE \c
+”\&.
+The take\-away message is: “Friendly” mappings lose information\&.
+For that reason, jaq does not use a “friendly” mapping, but rather
+a mapping that preserves XML information perfectly,
+making it suitable for round\-tripping\&.
+.PP
+As an example, consider the following input:
+.IP
+.EX
+<a href=\[dq]https://www\&.w3\&.org\[dq]>World Wide Web Consortium (<em>W3C</em>)</a>
+.EE
+
+.PP
+We can see its internal representation in jaq by:
+.IP
+.EX
+$ echo \[aq]<a href=\[dq]https://www\&.w3\&.org\[dq]>World Wide Web Consortium (<em>W3C</em>)</a>\[aq] \[rs]
+| jaq \-\-from xml \&.
+{
+  \[dq]t\[dq]: \[dq]a\[dq],
+  \[dq]a\[dq]: {
+    \[dq]href\[dq]: \[dq]https://www\&.w3\&.org\[dq]
+  },
+  \[dq]c\[dq]: [
+    \[dq]World Wide Web Consortium (\[dq],
+    {
+      \[dq]t\[dq]: \[dq]em\[dq],
+      \[dq]c\[dq]: [
+        \[dq]W3C\[dq]
+      ]
+    },
+    \[dq])\[dq]
+  ]
+}
+.EE
+
+
+.SS TAC objects
+
+.PP
+Tags are represented by \f[I]TAC objects\f[R]\&. A TAC object may have the following fields:
+.RS 2
+
+.IP \[bu] 2
+\f[CB]t\f[R]: Name of the tag, such as \f[CB]h1\f[R] for \f[CB]<h1>\&.\&.\&.</h1>\f[R]\&.
+This field must always be present in a TAC object\&.
+
+.IP \[bu] 2
+\f[CB]a\f[R]: Attributes of the tag, such as \f[CB]{\[dq]id\[dq]: \[dq]foo\[dq], style: \[dq]color:blue;\[dq]}\f[R]\&.
+If this field is present, it must contain an object with string values\&.
+
+.IP \[bu] 2
+\f[CB]c\f[R]: Children of the tag\&.
+If this field is not present, this tag will be interpreted as self\-closing (such as \f[CB]<br/>\f[R])\&.
+When a TAC object produced by jaq (either via \f[CB]\-\-from xml\f[R] or \f[CB]fromxml\f[R])
+has the \f[CB]c\f[R] field, it always holds an array of XML values\&.
+When writing XML values (either via \f[CB]\-\-to xml\f[R] or \f[CB]toxml\f[R]),
+jaq accepts any XML value at the \f[CB]c\f[R] field\&.
+
+.RE
+
+.PP
+An example query to obtain all links in an XHTML file:
+.IP
+.EX
+\&.\&. | select(\&.t? == \[dq]a\[dq]) | \&.a\&.href
+.EE
+
+.PP
+We can also transform input XML and yield output XML\&.
+For example, to transform all \f[CB]em\f[R] tags to \f[CB]i\f[R] tags:
+.IP
+.EX
+(\&.\&. | select(\&.t? == \[dq]em\[dq]) | \&.t) = \[dq]i\[dq]
+.EE
+
+.PP
+To yield XML output instead of JSON output, use the option \f[CB]\-\-to xml\f[R]:
+.IP
+.EX
+$ echo \[aq]<a href=\[dq]https://www\&.w3\&.org\[dq]>World Wide Web Consortium (<em>W3C</em>)</a>\[aq] \[rs]
+| jaq \-\-from xml \-\-to xml \[aq](\&.\&. | select(\&.t? == \[dq]em\[dq]) | \&.t) = \[dq]i\[dq]\[aq]
+<a href=\[dq]https://www\&.w3\&.org\[dq]>World Wide Web Consortium (<i>W3C</i>)</a>
+.EE
+
+.PP
+Finally, we can extract all text from an XML file (discarding CDATA blocks):
+.IP
+.EX
+def xml_text: if isstring then \&. else \&.c[]? | xml_text end; [xml_text]
+.EE
+
+
+
+.SS Other values
+
+.RS 2
+
+.IP \[bu] 2
+Strings are neither escaped nor unescaped; that means,
+\f[CB]Tom &amp; Jerry\f[R]  in the source XML becomes
+\f[CB]\[dq]Tom &amp; Jerry\[dq]\f[R] in the target JSON\&.
+The \f[CB]@html\f[R]/\f[CB]@htmld\f[R] filters can be used for manual (un\-)escaping\&.
+
+.IP \[bu] 2
+A comment such as \f[CB]<!\-\- this comment \-\->\f[R] is converted to
+\f[CB]{\[dq]comment\[dq]: \[dq] this comment \[dq]}\f[R]\&.
+
+.IP \[bu] 2
+A CDATA block such as \f[CB]<![CDATA[Tom & Jerry]]>\f[R] is converted to
+\f[CB]{\[dq]cdata\[dq]: \[dq]Tom & Jerry\[dq]}\f[R]\&.
+
+.IP \[bu] 2
+An XML declaration such as
+\f[CB]<?xml version=\[dq]1\&.0\[dq] encoding=\[dq]UTF\-8\[dq] standalone=\[dq]yes\[dq]?>\f[R] is converted to
+\f[CB]{\[dq]xmldecl\[dq]: {\[dq]version\[dq]: \[dq]1\&.0\[dq], \[dq]encoding\[dq]: \[dq]UTF\-8\[dq], \[dq]standalone\[dq]: \[dq]yes\[dq]}}\f[R]\&.
+(Note that the values given in this declaration, such as the encoding,
+are ignored by jaq’s XML parser\&.)
+
+.IP \[bu] 2
+A processing instruction such as
+\f[CB]<?xml\-stylesheet href=\[dq]common\&.css\[dq]?>\f[R] is converted to
+\f[CB]{\[dq]pi\[dq]: {\[dq]target\[dq]: \[dq]xml\-stylesheet\[dq], \[dq]content\[dq]: \[dq]href=\[rs]\[dq]common\&.css\[rs]\[dq]\[dq]}}\f[R]\&.
+
+.RE
+
+.PP
+To put all of this together, consider the following XML file:
+.IP
+.EX
+$ cat examples/test\&.xhtml
+<?xml version=\[aq]1\&.0\[aq]?>
+<?xml\-stylesheet href=\[dq]common\&.css\[dq]?>
+<!DOCTYPE html>
+<html xmlns=\[dq]http://www\&.w3\&.org/1999/xhtml\[dq]>
+  <body>
+    <!\-\- CDATA blocks do not require escaping \-\->
+    <![CDATA[Hello & goodbye!]]><br/>
+  </body>
+</html>
+.EE
+
+.PP
+This yields the following in jaq:
+.IP
+.EX
+$ jaq \&. examples/test\&.xhtml
+{
+  \[dq]xmldecl\[dq]: {
+    \[dq]version\[dq]: \[dq]1\&.0\[dq]
+  }
+}
+{
+  \[dq]pi\[dq]: {
+    \[dq]target\[dq]: \[dq]xml\-stylesheet\[dq],
+    \[dq]content\[dq]: \[dq]href=\[rs]\[dq]common\&.css\[rs]\[dq]\[dq]
+  }
+}
+{
+  \[dq]doctype\[dq]: {
+    \[dq]name\[dq]: \[dq]html\[dq]
+  }
+}
+{
+  \[dq]t\[dq]: \[dq]html\[dq],
+  \[dq]a\[dq]: {
+    \[dq]xmlns\[dq]: \[dq]http://www\&.w3\&.org/1999/xhtml\[dq]
+  },
+  \[dq]c\[dq]: [
+    \[dq]\[rs]n  \[dq],
+    {
+      \[dq]t\[dq]: \[dq]body\[dq],
+      \[dq]c\[dq]: [
+        \[dq]\[rs]n    \[dq],
+        {
+          \[dq]comment\[dq]: \[dq] CDATA blocks do not require escaping \[dq]
+        },
+        \[dq]\[rs]n    \[dq],
+        {
+          \[dq]cdata\[dq]: \[dq]Hello & goodbye!\[dq]
+        },
+        {
+          \[dq]t\[dq]: \[dq]br\[dq]
+        },
+        \[dq]\[rs]n  \[dq]
+      ]
+    },
+    \[dq]\[rs]n\[dq]
+  ]
+}
+.EE
+
+.PP
+The output contains several values consisting only of whitespace, such as \f[CB]\[dq]\[rs]n    \[dq]\f[R]\&.
+These are conserved by jaq because XML is a whitespace\-sensitive format\&.
+
+
+
+.SS CSV / TSV
+
+.PP
+\c
+.UR https://www.rfc-editor.org/rfc/rfc4180
+CSV
+.UE \c
+ (Comma\-Separated Values) and
+TSV (Tabulator\-Separated Values) are tabular data formats\&.
+A CSV/TSV table consists of rows of fields\&.
+Rows are separated by newlines\&.
+Fields are separated by commas in CSV and tabs in TSV\&.
+.PP
+jaq interprets each row as an array of values:
+.IP
+.EX
+$ printf \[dq]a,b\[rs]n1,2\[rs]n3,4\[dq] | jaq \-c \-\-from csv
+[\[dq]a\[dq],\[dq]b\[dq]]
+[1,2]
+[3,4]
+$ printf \[dq]a,b\[rs]n1,2\[rs]n3,4\[dq] | jaq \-c \-\-from csv \-\-slurp
+[[\[dq]a\[dq],\[dq]b\[dq]],[1,2],[3,4]]
+.EE
+
+.PP
+When writing tables using \f[CB]\-\-to\f[R], jaq prints the raw output of the filter
+\f[CB]tocsv\f[R] / \f[CB]totsv\f[R]:
+.IP
+.EX
+$ jaq \-n \[aq][\[dq]a\[dq],\[dq]b\[dq]], [1,2], [3,4]\[aq] \-\-to csv
+\[dq]a\[dq],\[dq]b\[dq]
+1,2
+3,4
+$ jaq \-n \[aq][\[dq]a\[dq],\[dq]b\[dq]], [1,2], [3,4] | @csv\[aq] \-\-raw\-output
+\[dq]a\[dq],\[dq]b\[dq]
+1,2
+3,4
+.EE
+
+
+.SS Headers
+
+.PP
+jaq currently does not provide any special handling for table headers,
+where the first row of a table contains field names\&.
+However, there are a few filters in \f[CB]examples/table\&.jq\f[R]
+that aim to simplify handling of tables with headers\&.
+If you find these filters useful or have a problem with them,
+please \c
+.UR https://github.com/01mf02/jaq/issues/418
+leave your feedback
+.UE \c
+
+to help me decide whether to integrate them into jaq’s standard library\&.
+Let us see their usage\&.
+.PP
+For example, let us look at
+\c
+.UR https://en.wikipedia.org/wiki/Ferris_Bueller%27s_Day_Off
+Ferris Bueller
+.UE \c
+’s student record:
+.IP
+.EX
+$ cat examples/ferris\&.csv
+ID,Name,Home phone,Days absent
+38\-106,\[dq]Bueller, Ferris\[dq],555\-6452,9
+.EE
+
+.PP
+Hmmm, this is a bit hard to read, and Edward R\&. Rooney, Dean of Students, is a busy man\&.
+Let us help him out a bit:
+.IP
+.EX
+$ jaq \-L examples \[aq]include \[dq]table\[dq]; from_table\[aq] \-s examples/ferris\&.csv
+{
+  \[dq]ID\[dq]: \[dq]38\-106\[dq],
+  \[dq]Name\[dq]: \[dq]Bueller, Ferris\[dq],
+  \[dq]Home phone\[dq]: \[dq]555\-6452\[dq],
+  \[dq]Days absent\[dq]: 9
+}
+.EE
+
+.PP
+Ah, much better\&. So what does Edward R\&. Rooney have to say about Ferris to Ferris’s mom?
+.RS
+
+.PP
+“So far this semester, he has been absent nine times\&.”
+— “Nine times?”
+— “Nine times\&.”
+— “I don’t remember him being sick nine times\&.”
+— “That’s probably because he wasn’t sick\&. He was skipping school\&. Wake up and smell the coffee, Mrs\&. Bueller\&. It’s a fool’s paradise\&. He’s just leading you down the primrose path\&.”
+— “I can’t believe it\&.”
+— “I got it right here in front of me\&. He has missed nine days\&.”
+.RE
+
+.PP
+Now it’s time for Ferris to shine:
+.IP
+.EX
+$ jaq \-L examples \[aq]include \[dq]table\[dq]; from_table | \&.[\[dq]Days absent\[dq]] \-= 7\[aq] \-s examples/ferris\&.csv
+{
+  \[dq]ID\[dq]: \[dq]38\-106\[dq],
+  \[dq]Name\[dq]: \[dq]Bueller, Ferris\[dq],
+  \[dq]Home phone\[dq]: \[dq]555\-6452\[dq],
+  \[dq]Days absent\[dq]: 2
+}
+.EE
+
+.RS
+
+.PP
+“Grace! GRACE!!!”
+.RE
+
+.PP
+Next, let’s have a look at Ferris’s courses:
+.IP
+.EX
+$ cat examples/ferris\-courses\&.tsv
+Perds	Days	Course	Teacher	Rm	Grade 1	Grade 2	Grade 3	Grade EX
+01\-04	MTWF	Eng Comp	Hollndr	221	B+	A
+05\-08	MWTF	Calculus	McMurry	309	B	A\-
+09\-10	TWTF	Chemistry	Gunner	260	A\-	A
+11\-13	All	Lunch		Caf
+14\-19	MTWF	Gym	Carlyle	127	B+	A\-
+23\-25	TWTF	Computr Sc	Cohen	114	A\-	A
+26\-29	MWTF	Utpian Scy	Jardin	241	A	A
+30\-32	MTWF	Euro Hist	Rice	334	B+	B+
+.EE
+
+.PP
+Let’s see … in which courses did Ferris get a B+ as first grade? Anyone? Anyone?
+.IP
+.EX
+$ jaq \-L examples \[aq]include \[dq]table\[dq]; with_table(map(select(\&.[\[dq]Grade 1\[dq]] == \[dq]B+\[dq])))\[aq] \[rs]
+  \-s examples/ferris\-courses\&.tsv \-\-to tsv
+Perds	Days	Course	Teacher	Rm	Grade 1	Grade 2	Grade 3	Grade EX
+01\-04	MTWF	Eng Comp	Hollndr	221	B+	A		
+14\-19	MTWF	Gym	Carlyle	127	B+	A\-		
+30\-32	MTWF	Euro Hist	Rice	334	B+	B+		
+.EE
+
+.PP
+Yeah, Ferris … you still got a bit of work ahead of you on the database\&.
+.PP
+So far, we slurped in all tables before processing them, using \f[CB]\-s\f[R]\&.
+This can be wasteful, especially when processing large tables, because
+this reads the whole table into memory\&.
+We can also read tables row\-by\-row:
+One useful pattern there is to use
+\f[CB]inputs\f[R] \f[B]without\f[R] the habitual \f[CB]\-n\f[R] option\&.
+That way, the first row (= header) becomes the filter input,
+and the remaining rows can then be retrieved with \f[CB]inputs\f[R]\&.
+Putting this together, we can rewrite the previous example:
+.IP
+.EX
+$ jaq \-L examples \[aq]include \[dq]table\[dq]; \&., \&. as $header | from_row(inputs) | select(\&.[\[dq]Grade 1\[dq]] == \[dq]B+\[dq]) | to_row($header)\[aq] \[rs]
+  examples/ferris\-courses\&.tsv \-\-to tsv
+Perds	Days	Course	Teacher	Rm	Grade 1	Grade 2	Grade 3	Grade EX
+01\-04	MTWF	Eng Comp	Hollndr	221	B+	A		
+14\-19	MTWF	Gym	Carlyle	127	B+	A\-		
+30\-32	MTWF	Euro Hist	Rice	334	B+	B+		
+.EE
+
+.PP
+This concludes our little Ferris Bueller arc\&.
+If you do not know the film yet, I greatly recommend you to change that\&.
+And remember: “Life moves pretty fast\&. If you don’t stop and look around once in a while, you could miss it\&.”
+
+
+
+
+.SH "مثال‌ها (EXAMPLES)"
+
+.PP
+The following examples should give an impression of what jaq can currently do\&.
+You should obtain the same outputs by replacing jaq with jq\&.
+.PP
+Access a field:
+.IP
+.EX
+$ echo \[aq]{\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}\[aq] | jaq \[aq]\&.a\[aq]
+1
+.EE
+
+.PP
+Add values:
+.IP
+.EX
+$ echo \[aq]{\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}\[aq] | jaq \[aq]add\[aq]
+3
+.EE
+
+.PP
+Construct an array from an object in two ways and show that they are equal:
+.IP
+.EX
+$ echo \[aq]{\[dq]a\[dq]: 1, \[dq]b\[dq]: 2}\[aq] | jaq \[aq][\&.a, \&.b] == [\&.[]]\[aq]
+true
+.EE
+
+.PP
+Apply a filter to all elements of an array and filter the results:
+.IP
+.EX
+$ echo \[aq][0, 1, 2, 3]\[aq] | jaq \-c \[aq]map(\&.*2) | [\&.[] | select(\&. < 5)]\[aq]
+[0,2,4]
+.EE
+
+.PP
+Read (slurp) input values into an array and get the average of its elements:
+.IP
+.EX
+$ echo \[aq]1 2 3 4\[aq] | jaq \-s \[aq]add / length\[aq]
+2\&.5
+.EE
+
+.PP
+Repeatedly apply a filter to itself and output the intermediate results:
+.IP
+.EX
+$ echo \[aq]0\[aq] | jaq \-c \[aq][recurse(\&.+1; \&. < 3)]\[aq]
+[0,1,2]
+.EE
+
+.PP
+Lazily fold over inputs and output intermediate results:
+.IP
+.EX
+$ seq 5 | jaq \-n \[aq]foreach inputs as $x (0; \&. + $x)\[aq]
+1
+3
+6
+10
+15
+.EE
+
+
+.SS LEWIS’S PUZZLE
+
+.PP
+The following puzzle was communicated to me at a workshop by a certain Mr\&. Lewis,
+where I solved it together with him in jq\&.
+It goes as follows:
+.PP
+We have a sequence of strings:
+.IP
+.EX
+X
+XYZX
+XYZXABXYZX
+.EE
+
+.PP
+For example, the 4th letter of the 2nd string (always counting from zero) is ‘A’\&.
+What is the 10244th letter of the 30th string?
+.PP
+First, let us understand how this sequence is built\&.
+To get the next sequence of letters,
+we take the previous sequence,
+concatenate it with the next two letters in the alphabet,
+then concatenate it with the previous sequence again\&.
+.PP
+If we take numbers instead of letters, we can write this down as:
+.IP
+.EX
+X(0  ) = 0
+X(N+1) = X(N) (m+1) (m+2) X(N), where m is the largest element in X(N)
+.EE
+
+.PP
+We can now write the strings as JSON arrays\&.
+The first array is \f[CB][0]\f[R], and we can produce each following array by
+a filter \f[CB]next\f[R], on which we \f[CB]recurse\f[R] to get an sequence of all arrays\&.
+.IP
+.EX
+def next: \&. + [max + (1, 2)] + \&.;
+[0] | limit(3; recurse(next)) \-\->
+[0]
+[0,1,2,0]
+[0,1,2,0,3,4,0,1,2,0]
+.EE
+
+.PP
+However, this does not scale well — getting to the 30th array
+will take a very long time, because the arrays grow exponentially\&.
+Feel free to try it, but watch out not to get your RAM eaten\&. :)
+(I recommend monitoring RAM usage when doing this experiment\&.
+Otherwise, you may very well crash your computer due to memory exhaustion\&.
+Guess how I know?)
+.PP
+To solve this problem, we can exploit jq’s sharing\&.
+Note that each array contains
+a portion to the left that is equal to
+a portion on the right;
+for example, \f[CB][0, 1, 2, 0]\f[R] in the 2nd array\&.
+We can therefore choose a slightly different array representation that
+allows us to \f[B]share\f[R] all the equal parts of the array, just by
+inserting the previous arrays into a new array\&.
+.IP
+.EX
+def next: [\&., \&.[2] + (1,2), \&.];
+[0] | limit(3; recurse(next)) \-\->
+[0]
+[[0],1,2,[0]]
+[[[0],1,2,[0]],3,4,[[0],1,2,[0]]]
+.EE
+
+.PP
+In all arrays produced by \f[CB]next\f[R], the first and the last elements are now
+shared, meaning that they are stored only a single time in memory\&.
+That allows us to store exponentially large data in linear memory,
+thus cracking the puzzle\&.
+.PP
+To get the largest number of the previous array, we used the fact that
+the 2nd element of each array contains the largest number in the array\&.
+For example,
+the 2nd element of the 1st array is \f[CB]2\f[R], and
+the 2nd element of the 2nd array is \f[CB]4\f[R]\&.
+(For the 0th array, the 2nd element is \f[CB]null\f[R],
+but the maximum element of that array is \f[CB]0\f[R]\&.
+However, \f[CB]null\f[R] is interpreted by addition just like \f[CB]0\f[R],
+so this difference does not matter to us\&.)
+We can therefore get the two next largest numbers very elegantly via
+\f[CB]\&.[2] + (1, 2)\f[R]\&.
+.PP
+We can now get the numbers of any such array with \f[CB]\&.\&. | numbers\f[R]\&.
+For example, the numbers of the 2nd array are:
+.IP
+.EX
+[[[0],1,2,[0]],3,4,[[0],1,2,[0]]] | \&.\&. | numbers \-\->
+0 1 2 0 3 4 0 1 2 0
+.EE
+
+.PP
+Putting all this together, we get our solution via:
+.IP
+.EX
+def next: [\&., \&.[2] + (1,2), \&.];
+[0] | nth(30; recurse(next)) | nth(10244; \&.\&. | numbers) \-\->
+2
+.EE
+
+.PP
+This now runs almost instantaneously, and gives us the answer \f[CB]2\f[R]\&.
+Going back to the original puzzle, because \f[CB]X = 0\f[R], \f[CB]Y = 1\f[R], \f[CB]Z = 2\f[R],
+the final answer to the puzzle is \f[CB]Z\f[R]\&.
+
+
+.SS HTML SCRAPING
+
+.PP
+I wanted to extract the
+\c
+.UR https://www.rfc-editor.org/rfc/rfc8949.html#name-examples-of-encoded-cbor-da
+list of examples from the CBOR specification
+.UE \c
+,
+in order to create a test suite for the CBOR encoder/decoder in jaq\&.
+For this, I copied the relevant section from the HTML source code and
+pasted it into \f[CB]examples/cbor\-examples\&.xhtml\f[R]\&.
+The interesting parts look like this:
+.IP
+.EX
+<table>
+<tbody>
+<tr>
+  <td class=\[dq]text\-left\[dq] rowspan=\[dq]1\[dq] colspan=\[dq]1\[dq]>25</td>
+  <td class=\[dq]text\-left\[dq] rowspan=\[dq]1\[dq] colspan=\[dq]1\[dq]>0x1819</td>
+</tr>
+<tr>
+  <td class=\[dq]text\-left\[dq] rowspan=\[dq]1\[dq] colspan=\[dq]1\[dq]>100</td>
+  <td class=\[dq]text\-left\[dq] rowspan=\[dq]1\[dq] colspan=\[dq]1\[dq]>0x1864</td>
+</tr>
+</tbody>
+</table>
+.EE
+
+.PP
+Here, I was interested in the pairs \f[CB]25\f[R] / \f[CB]0x1819\f[R] and \f[CB]100\f[R] / \f[CB]0x1864\f[R],
+meaning that the number \f[CB]25\f[R] is encoded in CBOR as \f[CB]0x1819\f[R]\&.
+.PP
+Finally, I came up with a jq program to extract this data\&.
+It consists of the following tasks:
+.RS 2
+
+.IP \[bu] 2
+Select all \f[CB]<tr>\f[R] elements with \f[CB]\&.\&. | select(\&.t? == \[dq]tr\[dq])\f[R]\&.
+
+.IP \[bu] 2
+Get its children with \f[CB]\&.c\f[R]\&.
+
+.IP \[bu] 2
+Iterate over the children with \f[CB]\&.[]\f[R] and get their children with \f[CB]\&.c?[]\f[R]\&.
+
+.RE
+
+.PP
+(I use \f[CB]\&.c?\f[R] here instead of \f[CB]\&.c\f[R] because XML is whitespace\-sensitive, so in
+\f[CB]<tr> <td></td> </tr>\f[R], the \f[CB]<tr>\f[R] element has actually three children, namely
+two space strings \f[CB]\[dq] \[dq]\f[R] and the \f[CB]<td>\f[R] element\&.
+Indexing the strings with \f[CB]\&.c\f[R] yields an error, whereas
+indexing them with \f[CB]\&.c?\f[R] just yields nothing, allowing us to ignore the space\&.)
+.PP
+We can see the effects of that on a slightly simplified version of the HTML:
+.IP
+.EX
+\[dq]<table>\[dq] +
+\[dq]<tr>  <td>25</td> <td>0x1819</td> </tr>\[dq] +
+\[dq]<tr> <td>100</td> <td>0x1864</td> </tr>\[dq] +
+\[dq]</table>\[dq]
+| fromxml | \&.\&. | select(\&.t? == \[dq]tr\[dq])\&.c | [\&.[]\&.c?[]] \-\->
+[ \[dq]25\[dq], \[dq]0x1819\[dq]]
+[\[dq]100\[dq], \[dq]0x1864\[dq]]
+.EE
+
+.PP
+To run this via the CLI:
+.IP
+.EX
+jaq \[aq]\&.\&. | select(\&.t? == \[dq]tr\[dq])\&.c | [\&.[]\&.c?[]]\[aq] examples/cbor\-examples\&.xhtml
+.EE
+
+.PP
+We can create a series of tests as follows:
+.IP
+.EX
+jaq \[aq]\&.\&. | select(\&.t? == \[dq]tr\[dq])\&.c | [\&.[]\&.c?[]] | @json \[dq]jc(\[rs](\&.[0]), \[rs](\&.[1][2:]));\[dq]\[aq] \[rs]
+  examples/cbor\-examples\&.xhtml \-r
+.EE
+
+.PP
+I used exactly this command to create a draft for jaq’s CBOR parsing test suite\&.
+
+
+
+
+.SH "نویسنده (AUTHOR)"
+
+.PP
+Michael Färber
+
+
+.SH "همچنین ببینید (SEE ALSO)"
+
+.PP
+\f[I]jq\f[R](1)
+

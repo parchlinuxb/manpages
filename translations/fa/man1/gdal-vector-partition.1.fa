@@ -1,0 +1,339 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "GDAL-VECTOR-PARTITION" "1" "Aug 18, 2026" "" "GDAL"
+.SH "نام (NAME)"
+gdal-vector-partition \- Partition a vector dataset into multiple files
+.sp
+Added in version 3.12.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Usage: gdal vector partition [OPTIONS] <INPUT> <OUTPUT>
+
+Partition a vector dataset into multiple files.
+
+Positional arguments:
+  \-i, \-\-input <INPUT>                                  Input vector datasets [required] [not available in pipelines]
+  \-o, \-\-output <OUTPUT>                                Output directory [required]
+
+Common Options:
+  \-h, \-\-help                                           Display help message and exit
+  \-\-json\-usage                                         Display usage as JSON document and exit
+  \-\-config <KEY>=<VALUE>                               Configuration option [may be repeated]
+  \-q, \-\-quiet                                          Quiet mode (no progress bar or warning message) [not available in pipelines]
+
+Options:
+  \-\-overwrite                                          Whether overwriting existing output dataset is allowed
+                                                       Mutually exclusive with \-\-append
+  \-\-append                                             Whether appending to existing layer is allowed
+                                                       Mutually exclusive with \-\-overwrite
+  \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>  Output format
+  \-\-co, \-\-creation\-option <KEY>=<VALUE>                Creation option [may be repeated]
+  \-\-lco, \-\-layer\-creation\-option <KEY>=<VALUE>         Layer creation option [may be repeated]
+  \-\-field <FIELD>                                      Attribute or geometry field(s) on which to partition [may be repeated]
+  \-\-scheme <SCHEME>                                    Partitioning scheme. SCHEME=hive|flat (default: hive)
+  \-\-pattern <PATTERN>                                  Filename pattern (\(aqpart_%010d\(aq for scheme=hive, \(aq{LAYER_NAME}_{FIELD_VALUE}_%010d\(aq for scheme=flat)
+  \-\-feature\-limit <FEATURE\-LIMIT>                      Maximum number of features per file
+  \-\-max\-file\-size <MAX\-FILE\-SIZE>                      Maximum file size (MB or GB suffix can be used)
+  \-\-omit\-partitioned\-field                             Whether to omit partitioned fields from target layer definition
+  \-\-skip\-errors                                        Skip errors when writing features
+
+Advanced Options:
+  \-\-if, \-\-input\-format <INPUT\-FORMAT>                  Input formats [may be repeated] [not available in pipelines]
+  \-\-oo, \-\-open\-option <KEY>=<VALUE>                    Open options [may be repeated] [not available in pipelines]
+.EE
+.UNINDENT
+.UNINDENT
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgdal vector partition\fP dispatches features into different
+files, depending on the values the feature take on a subset of attribute or
+geometry fields specified by the user and/or by limiting each output layer
+to a maximum number of features and/or a maximum file size.
+.sp
+Two partitioning schemes are available:
+.INDENT 0.0
+.IP \(bu 2
+\fBhive\fP, corresponding to
+\X'tty: link https://arrow.apache.org/docs/python/generated/pyarrow.dataset.HivePartitioning.html'\fI\%Apache Hive partitioning\fP\X'tty: link',
+is the default one.
+.sp
+Each partitioning field corresponds to a nested directory. Let\(aqs consider a
+layer with fields \(dqcontinent\(dq and \(dqcountry\(dq, chosen as partitioning fields.
+All features where \(dqcontinent\(dq evaluates to \(dqEurope\(dq and \(dqcountry\(dq evaluates to
+\(dqFrance\(dq, will be written in the \(dqcontinent=Europe/country=France/\(dq subdirectory
+of the output directory.
+.sp
+NULL values for partitioning fields are encoded as \fB__HIVE_DEFAULT_PARTITION__\fP
+in the directory name. Non\-ASCII characters, space, equal sign, or characters
+not compatible with directory name constraints are percent\-encoded
+(e.g. \fB%20\fP for space).
+.IP \(bu 2
+\fBflat\fP where files are written directly under the output directory using
+a default filename pattern of \fB{LAYER_NAME}_{FIELD_VALUE}_%10d\fP\&.
+.UNINDENT
+.sp
+By default, the format of the input dataset will be used for the output, if
+it can be determined and the input driver supports writing. Otherwise,
+\fI\%\-\-format\fP must be used.
+.sp
+\fBgdal vector partition\fP can be used as the last step of a pipeline.
+.sp
+The following options are available:
+.SH PROGRAM-SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-feature\-limit <FEATURE\-LIMIT>
+Maximum number of features per file. By default, unlimited. If the limit
+is exceeded, several parts are created.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-field <FIELD\-NAME>
+Fields(s) on which to partition
+.sp
+Only attribute fields of type String, Integer and Integer64 are allowed.
+The order into which fields are specified matter to determine the directory
+hierarchy.
+.sp
+Starting with GDAL 3.13, geometry field names can be specified (\fBOGR_GEOMETRY\fP
+being the generic name for the first geometry field). Partitioning on
+geometry fields is done on the geometry type. This can be useful for file
+formats where a single geometry type per layer is allowed.
+.sp
+Starting with GDAL 3.13, \fI\%\-\-field\fP is no longer required, but when
+it is not specified, \fI\%\-\-feature\-limit\fP and/or \fI\%\-\-max\-file\-size\fP
+must be specified.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-max\-file\-size <MAX\-FILE\-SIZE>
+Maximum file size (MB or GB suffix can be used). By default, unlimited.
+If the limit is exceeded, several parts are created.
+.sp
+Note that the maximum file size is used as a hint, and might not be
+strictly respected, because the evaluation of the file size corresponding
+to a feature is based on a heuristics, as the file size itself cannot be
+reliably used when it is under writing. In particular, the heuristics does
+not assume any compression, so for compressed formats, the actual size of
+a part can be significantly smaller than the specified limit.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-omit\-partitioned\-field
+Whether to omit partitioned fields from the target layer definition.
+Automatically set for Parquet output format and Hive partitioning.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output <OUTPUT\-DIRECTORY>
+Root of the output directory. [required]
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-pattern <PATTERN>
+Filename pattern. User chosen string, with substitutions for:
+.INDENT 7.0
+.IP \(bu 2
+\fB{LAYER_NAME}\fP, when found, is substituted with the
+layer name (percent encoded where needed).
+.IP \(bu 2
+\fB{FIELD_VALUE}\fP, when found, is substituted with the partitioning field value
+(percent encoded where needed). If several partitioning fields are used,
+each value is separated by underscore (\fI_\fP). Empty strings are substituted
+with \fB__EMPTY__\fP and null fields with \fB__NULL__\fP\&.
+.IP \(bu 2
+\fB%[0?][0\-9]?[0]?d\fP: C\-style integer formatter for the part number.
+Valid values are for example \fB%d\fP or \fB%05d\fP\&.
+One and only one part number specifier must be present in the pattern.
+.UNINDENT
+.sp
+Default values for the pattern are \fBpart_%010d\fP for the hive scheme,
+and \fB{LAYER_NAME}_{FIELD_VALUE}_%010d\fP for the flat scheme.\(ga
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-scheme hive|flat
+Partitioning scheme. Defaults to \fBhive\fP\&.
+.UNINDENT
+.SH STANDARD OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-append
+Whether the output directory must be opened in append mode. Implies that
+it already exists and that the output format supports appending.
+.sp
+This mode is useful when adding new features to an already an existing
+partitioned dataset.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-co, \-\-creation\-option <NAME>=<VALUE>
+Many formats have one or more optional dataset creation options that can be
+used to control particulars about the file created. For instance,
+the GeoPackage driver supports creation options to control the version.
+.sp
+May be repeated.
+.sp
+The dataset creation options available vary by format driver, and some
+simple formats have no creation options at all. A list of options
+supported for a format can be listed with the
+\fI\%\-\-formats\fP
+command line option but the documentation for the format is the
+definitive source of information on driver creation options.
+See \fI\%Vector drivers\fP format
+specific documentation for legal creation options for each format.
+.sp
+Note that dataset creation options are different from layer creation options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-if, \-\-input\-format <format>
+Format/driver name to be attempted to open the input file(s). It is generally
+not necessary to specify it, but it can be used to skip automatic driver
+detection, when it fails to select the appropriate driver.
+This option can be repeated several times to specify several candidate drivers.
+Note that it does not force those drivers to open the dataset. In particular,
+some drivers have requirements on file extensions.
+.sp
+May be repeated.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-lco, \-\-layer\-creation\-option <NAME>=<VALUE>
+Many formats have one or more optional layer creation options that can be
+used to control particulars about the layer created. For instance,
+the GeoPackage driver supports layer creation options to control the
+feature identifier or geometry column name, setting the identifier or
+description, etc.
+.sp
+May be repeated.
+.sp
+The layer creation options available vary by format driver, and some
+simple formats have no layer creation options at all. A list of options
+supported for a format can be listed with the
+\fI\%\-\-formats\fP
+command line option but the documentation for the format is the
+definitive source of information on driver creation options.
+See \fI\%Vector drivers\fP format
+specific documentation for legal creation options for each format.
+.sp
+Note that layer creation options are different from dataset creation options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-oo, \-\-open\-option <NAME>=<VALUE>
+Dataset open option (format specific).
+.sp
+May be repeated.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>
+Which output vector format to use. Allowed values may be given by
+\fBgdal \-\-formats | grep vector | grep rw | sort\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-overwrite
+Allow program to overwrite existing target file or dataset.
+Otherwise, by default, \fBgdal\fP errors out if the target file or
+dataset already exists.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-skip\-errors
+Added in version 3.12.
+
+.sp
+Whether failures to write feature(s) should be ignored. Note that this option
+sets the size of the transaction unit to one feature at a time, which may
+cause severe slowdown when inserting into databases.
+.UNINDENT
+.SH RETURN STATUS CODE
+.sp
+The program returns status code 0 in case of success, and non\-zero in case of
+error (non\-blocking errors emitted as warnings are considered as a successful
+execution).
+.SH "مثال‌ها (EXAMPLES)"
+.SS Example 1: Create a partition based on the \(dqcontinent\(dq and \(dqcountry\(dq fields
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal vector partition world_cities.gpkg out_directory \-\-field continent,country \-\-format Parquet
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 2: Create a partition based on the \(dqcountry\(dq field, filtering on cities with population bigger than 1 million, with a flat partitioning scheme
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal pipeline ! read world_cities.gpkg ! filter \-\-where \(dqpop > 1e6\(dq ! partition out_directory \-\-field country \-\-format GPKG \-\-scheme flat
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 3: Create multiple Shapefiles, one for each geometry type, from a GeoPackage file, by grouping together POLYGON/MULTIPOLYGON or LINESTRING/MULTILINESTRING.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal vector pipeline ! read input.gpkg ! set\-geom\-type \-\-multi ! partition out_directory \-\-scheme flat \-\-field OGR_GEOMETRY \-\-format \(dqESRI Shapefile\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 4: Split a file into files with at most 100,000 features.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal vector partition world_cities.gpkg out_directory \-\-feature\-limit 100000 \-\-scheme flat \-\-format Parquet
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 5: Sort a file spatially and split it into files with at most 100,000 features.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal vector pipeline read world_cities.gpkg ! sort ! partition out_directory \-\-feature\-limit 100000 \-\-scheme flat \-\-format Parquet
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Even Rouault <even.rouault@spatialys.com>
+.SH "حق نشر (COPYRIGHT)"
+1998-2026
+.\" Generated by docutils manpage writer.
+.

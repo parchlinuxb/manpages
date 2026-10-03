@@ -1,0 +1,174 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "NOTMUCH-DUMP" "1" "Apr 17, 2026" "0.40" "notmuch"
+.SH "نام (NAME)"
+notmuch-dump \- creates a plain-text dump of the tags of each message
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBnotmuch\fP \fBdump\fP [\-\-gzip] [\-\-format=(batch\-tag|sup)] [\-\-output=<\fIfile\fP>] [\-\-] [<\fIsearch\-term\fP> ...]
+.SH "توضیحات (DESCRIPTION)"
+.sp
+Dump tags for messages matching the given search terms.
+.sp
+Output is to the given filename, if any, or to stdout.
+.sp
+These tags are the only data in the notmuch database that can\(aqt be
+recreated from the messages themselves. The output of notmuch dump is
+therefore the only critical thing to backup (and much more friendly to
+incremental backup than the native database files.)
+.sp
+See notmuch\-search\-terms \%<#\:notmuch-search-terms-7> for details of the supported syntax
+for <search\-terms>. With no search terms, a dump of all messages in
+the database will be generated. A \fB\-\-\fP argument instructs notmuch that
+the remaining arguments are search terms.
+.sp
+Supported options for \fBdump\fP include
+.INDENT 0.0
+.TP
+.B \-\-gzip
+Compress the output in a format compatible with \fBgzip(1) \%<https://\:manpages\:.debian\:.org/\:gzip\:.1\:.html>\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-format=(sup|batch\-tag)
+Notmuch restore supports two plain text dump formats, both with
+one message\-id per line, followed by a list of tags.
+.INDENT 7.0
+.TP
+.B batch\-tag
+The default \fBbatch\-tag\fP dump format is intended to more
+robust against malformed message\-ids and tags containing
+whitespace or non\-\fBascii(7) \%<https://\:manpages\:.debian\:.org/\:ascii\:.7\:.html>\fP characters. Each line
+has the form:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
++<*encoded\-tag*\e > +<*encoded\-tag*\e > ... \-\- id:<*quoted\-message\-id*\e >
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Tags are hex\-encoded by replacing every byte not matching the
+regex \fB[A\-Za\-z0\-9@=.,_+\-]\fP with \fB%nn\fP where nn is the two
+digit hex encoding. The message ID is a valid Xapian query,
+quoted using Xapian boolean term quoting rules: if the ID
+contains whitespace or a close paren or starts with a double
+quote, it must be enclosed in double quotes and double quotes
+inside the ID must be doubled. The astute reader will notice
+this is a special case of the batch input format for
+notmuch\-tag \%<#\:notmuch-tag-1>; note that the single message\-id query is
+mandatory for notmuch\-restore \%<#\:notmuch-restore-1>\&.
+.TP
+.B sup
+The \fBsup\fP dump file format is specifically chosen to be
+compatible with the format of files produced by
+\fBsup\-dump(1) \%<https://\:manpages\:.debian\:.org/\:sup-dump\:.1\:.html>\fP\&. So if you\(aqve previously been using sup
+for mail, then the notmuch\-restore \%<#\:notmuch-restore-1> command provides
+you a way to import all of your tags (or labels as sup calls
+them). Each line has the following form:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+<*message\-id*\e > **(** <*tag*\e > ... **)**
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+with zero or more tags are separated by spaces. Note that
+(malformed) message\-ids may contain arbitrary non\-null
+characters. Note also that tags with spaces will not be
+correctly restored with this format.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-include=(config|properties|tags)
+Control what kind of metadata is included in the output.
+.INDENT 7.0
+.TP
+.B config
+Output configuration data stored in the database. Each line
+starts with \(dq#@ \(dq, followed by a space separated key\-value
+pair.  Both key and value are hex encoded if needed.
+.TP
+.B properties
+Output per\-message (key,value) metadata.  Each line starts
+with \(dq#= \(dq, followed by a message id, and a space separated
+list of key=value pairs.  Ids, keys and values are hex encoded
+if needed.  See notmuch\-properties \%<#\:notmuch-properties-7> for more details.
+.TP
+.B tags
+Output per\-message boolean metadata, namely tags. See \fIformat\fP above
+for description of the output.
+.UNINDENT
+.sp
+The default is to include all available types of data.  The option
+can be specified multiple times to select some subset. As of
+version 3 of the dump format, there is a header line of the
+following form:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+#notmuch\-dump <*format*>:<*version*> <*included*>
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+where <\fIincluded\fP> is a comma separated list of the above options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output=<filename>
+Write output to given file instead of stdout.
+.UNINDENT
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+notmuch \%<#\:notmuch-1>,
+notmuch\-config \%<#\:notmuch-config-1>,
+notmuch\-count \%<#\:notmuch-count-1>,
+notmuch\-hooks \%<#\:notmuch-hooks-5>,
+notmuch\-insert \%<#\:notmuch-insert-1>,
+notmuch\-new \%<#\:notmuch-new-1>,
+notmuch\-properties \%<#\:notmuch-properties-7>,
+notmuch\-reply \%<#\:notmuch-reply-1>,
+notmuch\-restore \%<#\:notmuch-restore-1>,
+notmuch\-search \%<#\:notmuch-search-1>,
+notmuch\-search\-terms \%<#\:notmuch-search-terms-7>,
+notmuch\-show \%<#\:notmuch-show-1>,
+notmuch\-tag \%<#\:notmuch-tag-1>
+.SH "نویسنده (AUTHOR)"
+Carl Worth and many others
+.SH "حق نشر (COPYRIGHT)"
+2009-2026, Carl Worth and many others
+.\" End of generated man page.

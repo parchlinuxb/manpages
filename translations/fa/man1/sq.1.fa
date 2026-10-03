@@ -1,0 +1,516 @@
+.TH SQ 1 1.4.0 "Sequoia PGP" "User Commands"
+.SH "نام (NAME)"
+sq \- A command\-line frontend for Sequoia, an implementation of OpenPGP
+.SH "خلاصه دستور (SYNOPSIS)"
+.br
+\fBsq encrypt\fR [\fIOPTIONS\fR] \fIFILE\fR
+.br
+\fBsq decrypt\fR [\fIOPTIONS\fR] \fIFILE\fR
+.br
+\fBsq sign\fR [\fIOPTIONS\fR] \fIFILE\fR
+.br
+\fBsq verify\fR [\fIOPTIONS\fR] \fIFILE\fR
+.br
+\fBsq download\fR [\fIOPTIONS\fR]  
+.br
+\fBsq inspect\fR [\fIOPTIONS\fR] \fIFILE\fR
+.br
+\fBsq cert\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq key\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq pki\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq network\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq keyring\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq packet\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq config\fR [\fIOPTIONS\fR]  \fISUBCOMMAND\fR
+.br
+\fBsq version\fR [\fIOPTIONS\fR]  
+.SH "توضیحات (DESCRIPTION)"
+A command\-line frontend for Sequoia, an implementation of OpenPGP.
+.PP
+Functionality is grouped and available using subcommands.  This interface is not completely stateless.  In particular, the user's default certificate store is used.  This can be disabled using `\-\-cert\-store=none`.  Similarly, a key store is used to manage and protect secret key material.  This can be disabled using `\-\-key\-store=none`.
+.PP
+OpenPGP data can be provided in binary or ASCII armored form.  This will be handled automatically.  Emitted OpenPGP data is ASCII armored by default.
+.PP
+We use the term "certificate", or "cert" for short, to refer to OpenPGP keys that do not contain secrets.  Conversely, we use the term "key" to refer to OpenPGP keys that do contain secrets.
+.PP
+
+.SH "گزینه‌ها (OPTIONS)"
+.SS "Global options"
+.TP
+\fB\-\-batch\fR
+Prevents any kind of prompting
+.IP
+Enables batch mode.  In batch mode, sq will never ask for user input,
+such as prompting for passwords.
+
+.TP
+\fB\-\-cert\-store\fR=\fIPATH\fR
+Specify the location of the certificate store
+.IP
+By default, `sq` uses the OpenPGP certificate directory in Sequoia's home directory (see `\-\-home`), $HOME/.local/share/pgp.cert.d.  This can be overridden by setting the `PGP_CERT_D` environment variable.
+.IP
+Use 'default' to explicitly use the default cert store, use 'none' to not use a cert store.
+.TP
+\fB\-\-cli\-version\fR=\fICLI_VERSION\fR
+Select a CLI version
+.IP
+`sq`'s CLI is versioned using a semantic versioning scheme.  Setting this options causes `sq` to error out if it does not implement an interface that is compatible with the specified version.  For instance, if you set this to 1.1.0 and `sq` only implements version
+1.0.0 of the interface, then `sq` will error out.
+.IP
+`sq` may implement multiple interfaces (e.g., 1.1.4, and 2.0.5).  By default, it selects the newest version.  As such, if you require a particular interface, you need to set this option for every call to `sq`.
+.IP
+This option must be the first option on the command line.
+.IP
+This version of `sq` implements version 1.4.0 of the CLI interface.
+.IP
+Stable since 1.2.0.
+
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+Print help (see a summary with '\-h')
+.TP
+\fB\-\-home\fR=\fIPATH\fR
+Set the home directory
+.IP
+Sequoia's default home directory is `$HOME`.  When using the default location, files are placed according to the local standard, e.g., the XDG Base Directory Specification.  When an alternate location is specified, the user data, configuration files, and cache data are placed under a single, unified directory.  This is a lightweight way to partially isolate `sq`.
+.IP
+Use 'default' to explicitly use the default location, use 'none' to not use a home directory.
+.TP
+\fB\-\-key\-store\fR=\fIPATH\fR
+Override the key store server and its data
+.IP
+A key store server manages and protects secret key material.  By default, `sq` connects to the key store server for Sequoia's default home directory (see `\-\-home`), $HOME/.local/share/sequoia/keystore.  If no key store server is running, one is started.
+.IP
+This option causes `sq` to use an alternate key store server.  If necessary, a key store server is started, and configured to look for its data in the specified location.
+.IP
+Use 'default' to explicitly use the default server, use 'none' to not use a key store.
+.TP
+\fB\-\-keyring\fR=\fIPATH\fR
+Specify the location of a keyring to use
+.IP
+Keyrings are used in addition to any certificate store.  The content of the keyring is not imported into the certificate store.  When a certificate is looked up, it is looked up in all keyrings and any certificate store, and the results are merged together.
+.TP
+\fB\-\-known\-notation\fR=\fINOTATION\fR
+Add NOTATION to the list of known notations
+.IP
+This is used when validating signatures. Signatures that have unknown notations with the critical bit set are considered invalid.
+.TP
+\fB\-\-overwrite\fR
+Overwrite existing files
+.TP
+\fB\-\-password\-file\fR=\fIFILE\fR
+Seed the password cache with the specified password
+.IP
+The password is added to the password cache.  When decrypting secret key material, the password cache is only used if the key is not protected by a retry counter, which automatically locks the key if a wrong password is entered too many times.
+.IP
+Note that the entire key file will be used as the password, including any surrounding whitespace like a trailing newline.
+.TP
+\fB\-\-policy\-as\-of\fR=\fITIME\fR
+Select the cryptographic policy as of the specified time
+.IP
+The time is expressed as an ISO 8601 formatted timestamp.  The policy determines what cryptographic constructs are allowed.
+.IP
+If you are working with a message that sq rejects, because it is protected by cryptographic constructs that are now considered broken, you can use this option to select a different cryptographic policy.  If you are relying on the cryptography, e.g., you are verifying a signature, then you should only do this if you are confident that the message hasn't been tampered with.
+.IP
+TIME is interpreted as an ISO 8601 timestamp.  To set the policy time to January 1, 2007 at midnight UTC, you can do:
+.IP
+$ sq \-\-policy\-as\-of 20070101 verify \-\-message msg.pgp
+.IP
+Defaults to the reference time, which can be set using \-\-time.
+
+.TP
+\fB\-q\fR, \fB\-\-quiet\fR
+Be more quiet
+.IP
+The default can be changed in the configuration file using the setting `ui.quiet`.
+.TP
+\fB\-\-time\fR=\fITIME\fR
+Set the reference time as an ISO 8601 formatted timestamp
+.IP
+Normally, commands use the current time as the reference time.  This argument allows the user to use a difference reference time.  For instance, when creating a key using `sq key generate`, the creation time is normally set to the current time, but can be overridden using this option.  Similarly, when verifying a message, the message is verified with respect to the current time.  This option allows the user to use a different time.
+.IP
+TIME is interpreted as an ISO 8601 timestamp.  To set the certification time to July 21, 2013 at midnight UTC, you can do:
+.IP
+$ sq \-\-time 20130721 verify \-\-message msg.pgp
+.IP
+To include a time, say 5:50 AM, add a T, the time and optionally the timezone (the default timezone is UTC):
+.IP
+$ sq \-\-time 20130721T0550+0200 \-\-message verify msg.pgp
+
+.TP
+\fB\-\-trust\-root\fR=\fIFINGERPRINT|KEYID\fR
+Consider the specified certificate to be a trust root
+.IP
+Trust roots are used by trust models, e.g., the Web of Trust, to authenticate certificates and User IDs.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Be more verbose
+.IP
+The default can be changed in the configuration file using the setting `ui.verbose`.
+.SH SUBCOMMANDS
+.SS "sq encrypt"
+Encrypt a message.
+.PP
+Encrypt a message for any number of recipients and with any number of passwords, optionally signing the message in the process.
+.PP
+The converse operation is `sq decrypt`.
+.PP
+`sq encrypt` respects the reference time set by the top\-level `\-\-time` argument.  It uses the reference time when selecting encryption keys, and it sets the signature's creation time to the reference time.
+.PP
+
+
+.SS "sq decrypt"
+Decrypt a message.
+.PP
+Decrypt a message using either supplied keys, or by prompting for a password.  If message tampering is detected, an error is returned. See below for details.
+.PP
+If certificates are supplied using the `\-\-signer\-file` option, any signatures that are found are checked using these certificates. Verification is only successful if there is no bad signature, and the number of successfully verified signatures reaches the threshold configured with the `\-\-signatures` parameter.
+.PP
+If the signature verification fails, or if message tampering is detected, the program terminates with an exit status indicating failure.  and the output file is deleted.  If the output was sent to stdout, then the last 25 MiB of the message are withheld (consequently, if the message is smaller than 25 MiB, no output is produced).
+.PP
+The converse operation is `sq encrypt`.
+.PP
+
+
+.SS "sq sign"
+Sign messages or data files.
+.PP
+Creates signed messages or detached signatures.  Detached signatures are often used to sign software packages.
+.PP
+The converse operation is `sq verify`.
+.PP
+`sq sign` respects the reference time set by the top\-level `\-\-time` argument.  When set, it uses the specified time instead of the current time, when determining what keys are valid, and it sets the signature's creation time to the reference time instead of the current time.
+.PP
+
+
+.SS "sq verify"
+Verify signed messages or detached signatures.
+.PP
+When verifying signed messages, the message is written to stdout or the file given to `\-\-output`.
+.PP
+When a detached message is verified, no output is produced.  Detached signatures are often used to sign software packages.
+.PP
+Verification is only successful if there is no bad signature, and the number of successfully verified signatures reaches the threshold configured with the `\-\-signatures` parameter.  If the verification fails, the program terminates with an exit status indicating failure, and the output file is deleted.  If the output was sent to stdout, then the last 25 MiB of the message are withheld (consequently, if the message is smaller than 25 MiB, no output is produced).
+.PP
+A signature is considered to have been authenticated if the signer can be authenticated.  If the signer is provided via `\-\-signer\-file`, then the signer is considered authenticated.  Otherwise, the signer is looked up and authenticated using the Web of Trust.  If at least one User ID can be fully authenticated, then the signature is considered to have been authenticated.  If the signature includes a Signer User ID subpacket, then only that User ID is considered.  Note: the User ID need not be self signed.
+.PP
+The converse operation is `sq sign`.
+.PP
+If you are looking for a standalone program to verify detached signatures, consider using sequoia\-sqv.
+.PP
+`sq verify` respects the reference time set by the top\-level `\-\-time` argument.  When set, it verifies the message as of the reference time instead of the current time.
+.PP
+
+
+.SS "sq download"
+Download and authenticate the data.
+.PP
+This command downloads the data from the specified URL, checks the
+signature, and then authenticates the signer.  If the signer cannot be
+authenticated, the data is deleted, if possible.
+.PP
+
+
+.SS "sq inspect"
+Inspect data, like file(1).
+.PP
+It is often difficult to tell from cursory inspection using cat(1) or file(1) what kind of OpenPGP one is looking at.  This subcommand inspects the data and provides a meaningful human\-readable description of it.
+.PP
+`sq inspect` respects the reference time set by the top\-level `\-\-time` argument.  It uses the reference time when determining what binding signatures are active.
+.PP
+
+
+.SS "sq cert"
+Manage certificates.
+.PP
+We use the term "certificate", or "cert" for short, to refer to OpenPGP keys that do not contain secrets.  This subcommand provides primitives to generate and otherwise manipulate certs.
+.PP
+Conversely, we use the term "key" to refer to OpenPGP keys that do contain secrets.  See `sq key` for operations on keys.
+.PP
+
+.SS "sq key"
+Manage keys.
+.PP
+We use the term "key" to refer to OpenPGP keys that do contain secrets.  This subcommand provides primitives to generate and otherwise manipulate keys.
+.PP
+Conversely, we use the term "certificate", or "cert" for short, to refer to OpenPGP keys that do not contain secrets.  See `sq cert` for operations on certificates.
+.PP
+
+.SS "sq pki"
+Authenticate certs using the Web of Trust.
+.PP
+The "Web of Trust" is a decentralized trust model popularized by PGP. It is a superset of X.509, which is a hierarchical trust model, and is the most popular trust model on the public internet today.  As used on the public internet, however, X.509 relies on a handful of global certification authorities (CAs) who often undermine its security.
+.PP
+The Web of Trust is more nuanced than X.509.  Using the Web of Trust, require multiple, independent paths to authenticate a binding by only partially trusting CAs.  This prevents a single bad actor from compromising their security.  And those who have stronger security requirements can use the Web of Trust in a completely decentralized manner where only the individuals they select – who are not necessarily institutions – act as trusted introducers.
+.PP
+
+.SS "sq network"
+Retrieve and publish certificates over the network.
+.PP
+OpenPGP certificates can be discovered and updated from, and published on services accessible over the network.  This is a collection of commands to interact with these services.
+.PP
+
+.SS "sq keyring"
+Manage collections of keys or certs.
+.PP
+Collections of keys or certificates (also known as "keyrings" when they contain secret key material, and "certrings" when they don't) are any number of concatenated certificates.  This subcommand provides tools to list, split, merge, and filter keyrings.
+.PP
+Note: In the documentation of this subcommand, we sometimes use the terms keys and certs interchangeably.
+.PP
+
+.SS "sq packet"
+Low\-level packet manipulation.
+.PP
+An OpenPGP data stream consists of packets.  These tools allow working with packet streams.  They are mostly of interest to developers, but `sq packet dump` may be helpful to a wider audience both to provide valuable information in bug reports to OpenPGP\-related software, and as a learning tool.
+.PP
+
+.SS "sq config"
+Query, inspect, and create the configuration file.
+.PP
+This subcommand can be used to query and inspect the configuration file (default location: $HOME/.config/sequoia/sq/config.toml), and to create a template that can be edited to your liking.
+.PP
+Configuration file: $HOME/.config/sequoia/sq/config.toml
+.PP
+
+.SS "sq version"
+Detailed version and output version information.
+.PP
+With no further options, this command lists the version of `sq`, the version of the underlying OpenPGP implementation `sequoia\-openpgp`, and which cryptographic library is used.
+.PP
+
+.SH "محیط (ENVIRONMENT)"
+.TP
+\fBSEQUOIA_CERT_STORE\fR=\fIPATH\fR
+Specify the location of the certificate store
+.IP
+By default, `sq` uses the OpenPGP certificate directory in Sequoia's home directory (see `\-\-home`), $HOME/.local/share/pgp.cert.d.  This can be overridden by setting the `PGP_CERT_D` environment variable.
+.IP
+Use 'default' to explicitly use the default cert store, use 'none' to not use a cert store.
+.TP
+\fBSEQUOIA_HOME\fR=\fIPATH\fR
+Set the home directory
+.IP
+Sequoia's default home directory is `$HOME`.  When using the default location, files are placed according to the local standard, e.g., the XDG Base Directory Specification.  When an alternate location is specified, the user data, configuration files, and cache data are placed under a single, unified directory.  This is a lightweight way to partially isolate `sq`.
+.IP
+Use 'default' to explicitly use the default location, use 'none' to not use a home directory.
+.TP
+\fBSEQUOIA_KEY_STORE\fR=\fIPATH\fR
+Override the key store server and its data
+.IP
+A key store server manages and protects secret key material.  By default, `sq` connects to the key store server for Sequoia's default home directory (see `\-\-home`), $HOME/.local/share/sequoia/keystore.  If no key store server is running, one is started.
+.IP
+This option causes `sq` to use an alternate key store server.  If necessary, a key store server is started, and configured to look for its data in the specified location.
+.IP
+Use 'default' to explicitly use the default server, use 'none' to not use a key store.
+.SH "مثال‌ها (EXAMPLES)"
+.SS "sq encrypt"
+.PP
+
+.PP
+Encrypt a file for a recipient given by fingerprint.
+.PP
+.nf
+.RS
+sq encrypt \-\-for=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RS
+.RS
+\-\-signer\-email=juliet@example.org document.txt
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Encrypt a file for a recipient given by email.
+.PP
+.nf
+.RS
+sq encrypt \-\-for\-email=alice@example.org \\
+.RE
+.RS
+.RS
+\-\-signer\-email=juliet@example.org document.txt
+.RE
+.RE
+.fi
+.PP
+.SS "sq decrypt"
+.PP
+
+.PP
+Decrypt a file using a secret key
+.PP
+.nf
+.RS
+sq decrypt \-\-recipient\-file juliet\-secret.pgp ciphertext.pgp
+.RE
+.PP
+.fi
+
+.PP
+Decrypt a file verifying signatures
+.PP
+.nf
+.RS
+sq decrypt \-\-recipient\-file juliet\-secret.pgp \-\-signer\-file \\
+.RE
+.RS
+.RS
+romeo.pgp ciphertext.pgp
+.RE
+.RE
+.PP
+.fi
+
+.PP
+decrypt a file using the key store
+.PP
+.nf
+.RS
+sq decrypt ciphertext.pgp
+.RE
+.fi
+.PP
+.SS "sq sign"
+.PP
+
+.PP
+Create a signed message.
+.PP
+.nf
+.RS
+sq sign \-\-signer\-file juliet\-secret.pgp \-\-message document.txt
+.RE
+.PP
+.fi
+
+.PP
+Create a detached signature.
+.PP
+.nf
+.RS
+sq sign \-\-signer\-file juliet\-secret.pgp \\
+.RE
+.RS
+.RS
+\-\-signature\-file=document.txt.sig document.txt
+.RE
+.RE
+.fi
+.PP
+.SS "sq verify"
+.PP
+
+.PP
+Verify a signed message.
+.PP
+.nf
+.RS
+sq verify \-\-message document.pgp
+.RE
+.PP
+.fi
+
+.PP
+Verify a detached signature.
+.PP
+.nf
+.RS
+sq verify \-\-signature\-file=document.sig document.txt
+.RE
+.PP
+.fi
+
+.PP
+Verify a message as of June 19, 2024 at midnight UTC.
+.PP
+.nf
+.RS
+sq verify \-\-time 2024\-06\-19 \-\-message document.pgp
+.RE
+.fi
+.PP
+.SS "sq download"
+.PP
+
+.PP
+Download and verify the Debian 12 checksum file.
+.PP
+.nf
+.RS
+sq download \-\-url=file://debian/SHA512SUMS \\
+.RE
+.RS
+.RS
+\-\-signature\-url=file://debian/SHA512SUMS.sign \\
+.RE
+.RE
+.RS
+.RS
+\-\-signer=DF9B9C49EAA9298432589D76DA87E80D6294BE9B \\
+.RE
+.RE
+.RS
+.RS
+\-\-output=SHA512SUMS
+.RE
+.RE
+.fi
+.PP
+.SS "sq inspect"
+.PP
+
+.PP
+Inspect a certificate.
+.PP
+.nf
+.RS
+sq inspect juliet.pgp
+.RE
+.PP
+.fi
+
+.PP
+Show how the certificate looked on July 21, 2013.
+.PP
+.nf
+.RS
+sq inspect \-\-time 20130721 juliet.pgp
+.RE
+.PP
+.fi
+
+.PP
+Inspect an encrypted message.
+.PP
+.nf
+.RS
+sq inspect message.pgp
+.RE
+.PP
+.fi
+
+.PP
+Inspect a detached signature.
+.PP
+.nf
+.RS
+sq inspect document.sig
+.RE
+.fi
+.PP
+.SH "همچنین ببینید (SEE ALSO)"
+.nh
+\fBsq\-encrypt\fR(1), \fBsq\-decrypt\fR(1), \fBsq\-sign\fR(1), \fBsq\-verify\fR(1), \fBsq\-download\fR(1), \fBsq\-inspect\fR(1), \fBsq\-cert\fR(1), \fBsq\-key\fR(1), \fBsq\-pki\fR(1), \fBsq\-network\fR(1), \fBsq\-keyring\fR(1), \fBsq\-packet\fR(1), \fBsq\-config\fR(1), \fBsq\-version\fR(1).
+.hy
+.PP
+For the full documentation see <https://book.sequoia\-pgp.org>.
+.SH "نسخه (VERSION)"
+1.4.0

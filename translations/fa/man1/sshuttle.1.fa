@@ -1,0 +1,607 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "SSHUTTLE" "1" "Dec 14, 2025" "1.3" "sshuttle"
+.SH "نام (NAME)"
+sshuttle \- sshuttle documentation
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBsshuttle\fP [\fIoptions\fP] \fB\-r\fP \fI[username@]sshserver[:port]\fP <\fIsubnets\fP ...>
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBsshuttle\fP allows you to create a VPN connection from your
+machine to any remote server that you can connect to via ssh, as long
+as that server has a sufficiently new Python installation.
+.sp
+To work, you must have root access on the local machine,
+but you can have a normal account on the server.
+.sp
+It\(aqs valid to run \fBsshuttle\fP more than once simultaneously on
+a single client machine, connecting to a different server
+every time, so you can be on more than one VPN at once.
+.sp
+If run on a router, \fBsshuttle\fP can forward traffic for your
+entire subnet to the VPN.
+.SH "گزینه‌ها (OPTIONS)"
+.INDENT 0.0
+.TP
+.B <subnets>
+A list of subnets to route over the VPN, in the form
+\fBa.b.c.d[/width][port[\-port]]\fP\&. Valid examples are 1.2.3.4 (a
+single IP address) and 1.2.3.4/32 (equivalent to 1.2.3.4),
+1.2.3.0/24 (a 24\-bit subnet, ie. with a 255.255.255.0 netmask).
+Specify subnets 0/0 to match all IPv4 addresses and ::/0 to match
+all IPv6 addresses. Any of the previous examples are also valid if
+you append a port or a port range, so 1.2.3.4:8000 will only
+tunnel traffic that has as the destination port 8000 of 1.2.3.4
+and 1.2.3.0/24:8000\-9000 will tunnel traffic going to any port
+between 8000 and 9000 (inclusive) for all IPs in the 1.2.3.0/24
+subnet. A hostname can be provided instead of an IP address. If
+the hostname resolves to multiple IPs, all of the IPs are
+included. If a width is provided with a hostname, the width is
+applied to all of the hostnames IPs (if they are all either IPv4
+or IPv6). Widths cannot be supplied to hostnames that resolve to
+both IPv4 and IPv6. Valid examples are example.com,
+example.com:8000, example.com/24, example.com/24:8000 and
+example.com:8000\-9000.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-method <auto|nat|nft|tproxy|pf|ipfw>
+Which firewall method should sshuttle use? For auto, sshuttle attempts to
+guess the appropriate method depending on what it can find in PATH. The
+default value is auto.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-l <[ip:]port>, \-\-listen=<[ip:]port>
+Use this ip address and port number as the transparent
+proxy port.  By default \fBsshuttle\fP finds an available
+port automatically and listens on IP 127.0.0.1
+(localhost), so you don\(aqt need to override it, and
+connections are only proxied from the local machine,
+not from outside machines.  If you want to accept
+connections from other machines on your network (ie. to
+run \fBsshuttle\fP on a router) try enabling IP Forwarding in
+your kernel, then using \fB\-\-listen 0.0.0.0:0\fP\&.
+You can use any name resolving to an IP address of the machine running
+\fBsshuttle\fP, e.g. \fB\-\-listen localhost\fP\&.
+.sp
+For the nft, tproxy and pf methods this can be an IPv6 address. Use
+this option with comma separated values if required, to provide both
+IPv4 and IPv6 addresses, e.g. \fB\-\-listen 127.0.0.1:0,[::1]:0\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-H, \-\-auto\-hosts
+Scan for remote hostnames and update the local /etc/hosts
+file with matching entries for as long as the VPN is
+open.  This is nicer than changing your system\(aqs DNS
+(/etc/resolv.conf) settings, for several reasons.  First,
+hostnames are added without domain names attached, so
+you can \fBssh thatserver\fP without worrying if your local
+domain matches the remote one.  Second, if you \fBsshuttle\fP
+into more than one VPN at a time, it\(aqs impossible to
+use more than one DNS server at once anyway, but
+\fBsshuttle\fP correctly merges /etc/hosts entries between
+all running copies.  Third, if you\(aqre only routing a
+few subnets over the VPN, you probably would prefer to
+keep using your local DNS server for everything else.
+.sp
+\fBsshuttle\fP tries to store a cache of the hostnames in
+~/.sshuttle.hosts on the remote host. Similarly, it tries to read
+the file when you later reconnect to the host with \-\-auto\-hosts
+enabled to quickly populate the host list. When troubleshooting
+this feature, try removing this file on the remote host when
+sshuttle is not running.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-N, \-\-auto\-nets
+In addition to the subnets provided on the command
+line, ask the server which subnets it thinks we should
+route, and route those automatically.  The suggestions
+are taken automatically from the server\(aqs routing
+table.
+.sp
+This feature does not detect IPv6 routes. Specify IPv6 subnets
+manually. For example, specify the \fB::/0\fP subnet on the command
+line to route all IPv6 traffic.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dns
+Capture local DNS requests and forward to the remote DNS
+server. All queries to any of the local system\(aqs DNS
+servers (/etc/resolv.conf and, if it exists,
+/run/systemd/resolve/resolv.conf) will be intercepted and
+resolved on the remote side of the tunnel instead, there
+using the DNS specified via the \fB\-\-to\-ns\fP option,
+if specified. Only plain DNS traffic sent to these servers
+on port 53 are captured.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ns\-hosts=<server1[,server2[,server3[...]]]>
+Capture local DNS requests to the specified server(s)
+and forward to the remote DNS server. Contrary to the
+\fB\-\-dns\fP option, this flag allows to specify the
+DNS server(s) the queries to which to intercept,
+instead of intercepting all DNS traffic on the local
+machine. This can be useful when only certain DNS
+requests should be resolved on the remote side of the
+tunnel, e.g. in combination with dnsmasq.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-to\-ns=<server>
+The DNS to forward requests to when remote DNS
+resolution is enabled. If not given, sshuttle will
+simply resolve using the system configured resolver on
+the remote side (via /etc/resolv.conf on the remote
+side).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-python
+Specify the name/path of the remote python interpreter. The
+default is to use \fBpython3\fP (or \fBpython\fP, if \fBpython3\fP
+fails) in the remote system\(aqs PATH.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-r <[username@]sshserver[:port]>, \-\-remote=<[username@]sshserver[:port]>
+The remote hostname and optional username and ssh
+port number to use for connecting to the remote server.
+For example, example.com, \%<testuser@\:example\:.com>,
+\%<testuser@\:example\:.com>:2222, or example.com:2244. This
+hostname is passed to ssh, so it will recognize any
+aliases and settings you may have configured in
+~/.ssh/config.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-x <subnet>, \-\-exclude=<subnet>
+Explicitly exclude this subnet from forwarding.  The
+format of this option is the same as the \fB<subnets>\fP
+option.  To exclude more than one subnet, specify the
+\fB\-x\fP option more than once.  You can say something like
+\fB0/0 \-x 1.2.3.0/24\fP to forward everything except the
+local subnet over the VPN, for example.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-X <file>, \-\-exclude\-from=<file>
+Exclude the subnets specified in a file, one subnet per
+line. Useful when you have lots of subnets to exclude.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v, \-\-verbose
+Print more information about the session.  This option
+can be used more than once for increased verbosity.  By
+default, \fBsshuttle\fP prints only error messages.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-e, \-\-ssh\-cmd
+The command to use to connect to the remote server. The
+default is just \fBssh\fP\&.  Use this if your ssh client is
+in a non\-standard location or you want to provide extra
+options to the ssh command, for example, \fB\-e \(aqssh \-v\(aq\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-remote\-shell
+For Windows targets, specify configured remote shell program alternative to defacto posix shell.
+It would be either \fBcmd\fP or \fBpowershell\fP unless something like git\-bash is in use.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-cmd\-delimiter
+Do not add a double dash (\-\-) delimiter before invoking Python on
+the remote host. This option is useful when the ssh command used
+to connect is a custom command that does not interpret this
+delimiter correctly.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-seed\-hosts
+A comma\-separated list of hostnames to use to
+initialize the \fB\-\-auto\-hosts\fP scan algorithm.
+\fB\-\-auto\-hosts\fP does things like poll netstat output
+for lists of local hostnames, but can speed things up
+if you use this option to give it a few names to start
+from.
+.sp
+If this option is used \fIwithout\fP \fB\-\-auto\-hosts\fP,
+then the listed hostnames will be scanned and added, but
+no further hostnames will be added.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-latency\-control
+Sacrifice latency to improve bandwidth benchmarks. ssh
+uses really big socket buffers, which can overload the
+connection if you start doing large file transfers,
+thus making all your other sessions inside the same
+tunnel go slowly. Normally, \fBsshuttle\fP tries to avoid
+this problem using a \(dqfullness check\(dq that allows only
+a certain amount of outstanding data to be buffered at
+a time.  But on high\-bandwidth links, this can leave a
+lot of your bandwidth underutilized.  It also makes
+\fBsshuttle\fP seem slow in bandwidth benchmarks (benchmarks
+rarely test ping latency, which is what \fBsshuttle\fP is
+trying to control).  This option disables the latency
+control feature, maximizing bandwidth usage.  Use at
+your own risk.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-latency\-buffer\-size
+Set the size of the buffer used in latency control. The
+default is \fB32768\fP\&. Changing this option allows a compromise
+to be made between latency and bandwidth without completely
+disabling latency control (with \fB\-\-no\-latency\-control\fP).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-D, \-\-daemon
+Automatically fork into the background after connecting
+to the remote server.  Implies \fB\-\-syslog\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-s <file>, \-\-subnets=<file>
+Include the subnets specified in a file instead of on the
+command line. One subnet per line.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-syslog
+after connecting, send all log messages to the
+\fBsyslog(3)\fP service instead of stderr.  This is
+implicit if you use \fB\-\-daemon\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-pidfile=<pidfilename>
+when using \fB\-\-daemon\fP, save \fBsshuttle\fP\(aqs pid to
+\fIpidfilename\fP\&.  The default is \fBsshuttle.pid\fP in the
+current directory.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-disable\-ipv6
+Disable IPv6 support for methods that support it (nat, nft,
+tproxy, and pf).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-firewall
+(internal use only) run the firewall manager.  This is
+the only part of \fBsshuttle\fP that must run as root.  If
+you start \fBsshuttle\fP as a non\-root user, it will
+automatically run \fBsudo\fP or \fBsu\fP to start the firewall
+manager, but the core of \fBsshuttle\fP still runs as a
+normal user.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hostwatch
+(internal use only) run the hostwatch daemon.  This
+process runs on the server side and collects hostnames for
+the \fB\-\-auto\-hosts\fP option.  Using this option by itself
+makes it a lot easier to debug and test the \fB\-\-auto\-hosts\fP
+feature.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-sudoers\-no\-modify
+sshuttle prints a configuration to stdout which allows a user to
+run sshuttle without a password. This option is INSECURE because,
+with some cleverness, it also allows the user to run any command
+as root without a password. The output also includes a suggested
+method for you to install the configuration.
+.sp
+Use \-\-sudoers\-user to modify the user that it applies to.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-sudoers\-user
+Set the user name or group with %group_name for passwordless
+operation. Default is the current user. Set to ALL for all users
+(NOT RECOMMENDED: See note about security in \-\-sudoers\-no\-modify
+documentation above). Only works with the \-\-sudoers\-no\-modify
+option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-t <mark>, \-\-tmark=<mark>
+An option used by the tproxy method: Use the specified traffic
+mark. The mark must be a hexadecimal value. Defaults to 0x01.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Print program version.
+.UNINDENT
+.SH CONFIGURATION FILE
+.sp
+All the options described above can optionally be specified in a configuration
+file.
+.sp
+To run \fBsshuttle\fP with options defined in, e.g., \fI/etc/sshuttle.conf\fP
+just pass the path to the file preceded by the \fI@\fP character, e.g.
+\fI@/etc/sshuttle.conf\fP\&.
+.sp
+When running \fBsshuttle\fP with options defined in a configuration file,
+options can still be passed via the command line in addition to what is
+defined in the file. If a given option is defined both in the file and in
+the command line, the value in the command line will take precedence.
+.sp
+Arguments read from a file must be one per line, as shown below:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+value
+\-\-option1
+value1
+\-\-option2
+value2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The configuration file supports comments for human\-readable
+annotations. For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# company\-internal API
+8.8.8.8/32
+# home IoT
+192.168.63.0/24
+.EE
+.UNINDENT
+.UNINDENT
+.SH ENVIRONMENT VARIABLE
+.sp
+You can specify command line options with the \fISSHUTTLE_ARGS\fP environment
+variable. If a given option is defined in both the environment variable and
+command line, the value on the command line will take precedence.
+.sp
+For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+SSHUTTLE_ARGS=\(dq\-e \(aqssh \-v\(aq \-\-dns\(dq sshuttle \-r example.com 0/0
+.EE
+.UNINDENT
+.UNINDENT
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Use the following command to route all IPv4 TCP traffic through remote
+(\-r) host example.com (and possibly other traffic too, depending on
+the selected \-\-method). The 0/0 subnet, short for 0.0.0.0/0, matches
+all IPv4 addresses. The ::/0 subnet, matching all IPv6 addresses could
+be added to the example. We also exclude (\-x) example.com:22 so that
+we can establish ssh connections from our local machine to the remote
+host without them being routed through sshuttle. Excluding the remote
+host may be necessary on some machines for sshuttle to work properly.
+Press Ctrl+C to exit. To also route DNS queries through sshuttle, try
+adding \-\-dns. Add or remove \-v options to see more or less
+information:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sshuttle \-r example.com \-x example.com:22 0/0
+
+Starting sshuttle proxy (version ...).
+[local sudo] Password:
+fw: Starting firewall with Python version 3.9.5
+fw: ready method name nat.
+c : IPv6 disabled since it isn\(aqt supported by method nat.
+c : Method: nat
+c : IPv4: on
+c : IPv6: off (not available with nat method)
+c : UDP : off (not available with nat method)
+c : DNS : off (available)
+c : User: off (available)
+c : Subnets to forward through remote host (type, IP, cidr mask width, startPort, endPort):
+c :   (<AddressFamily.AF_INET: 2>, \(aq0.0.0.0\(aq, 0, 0, 0)
+c : Subnets to exclude from forwarding:
+c :   (<AddressFamily.AF_INET: 2>, \(aq...\(aq, 32, 22, 22)
+c :   (<AddressFamily.AF_INET: 2>, \(aq127.0.0.1\(aq, 32, 0, 0)
+c : TCP redirector listening on (\(aq127.0.0.1\(aq, 12299).
+c : Starting client with Python version 3.9.5
+c : Connecting to server...
+user@example.com\(aqs password:
+ s: Starting server with Python version 3.6.8
+ s: latency control setting = True
+ s: auto\-nets:False
+c : Connected to server.
+fw: setting up.
+fw: iptables \-w \-t nat \-N sshuttle\-12299
+fw: iptables \-w \-t nat \-F sshuttle\-12299
+\&...
+Accept: 192.168.42.121:60554 \-> 77.141.99.22:22.
+^C
+c : Keyboard interrupt: exiting.
+c : SW\(aqunknown\(aq:Mux#1: deleting (1 remain)
+c : SW#7:192.168.42.121:60554: deleting (0 remain)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Connect to a remote server, with automatic hostname
+and subnet guessing:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sshuttle \-vNHr example.com \-x example.com:22
+Starting sshuttle proxy (version ...).
+[local sudo] Password:
+fw: Starting firewall with Python version 3.9.5
+fw: ready method name nat.
+c : IPv6 disabled since it isn\(aqt supported by method nat.
+c : Method: nat
+c : IPv4: on
+c : IPv6: off (not available with nat method)
+c : UDP : off (not available with nat method)
+c : DNS : off (available)
+c : User: off (available)
+c : Subnets to forward through remote host (type, IP, cidr mask width, startPort, endPort):
+c : NOTE: Additional subnets to forward may be added below by \-\-auto\-nets.
+c : Subnets to exclude from forwarding:
+c :   (<AddressFamily.AF_INET: 2>, \(aq...\(aq, 32, 22, 22)
+c :   (<AddressFamily.AF_INET: 2>, \(aq127.0.0.1\(aq, 32, 0, 0)
+c : TCP redirector listening on (\(aq127.0.0.1\(aq, 12300).
+c : Starting client with Python version 3.9.5
+c : Connecting to server...
+user@example.com\(aqs password:
+ s: Starting server with Python version 3.6.8
+ s: latency control setting = True
+ s: auto\-nets:True
+c : Connected to server.
+c : seed_hosts: []
+ s: available routes:
+ s:   77.141.99.0/24
+fw: setting up.
+fw: iptables \-w \-t nat \-N sshuttle\-12300
+fw: iptables \-w \-t nat \-F sshuttle\-12300
+\&...
+c : Accept: 192.168.42.121:60554 \-> 77.141.99.22:22.
+^C
+c : Keyboard interrupt: exiting.
+c : SW\(aqunknown\(aq:Mux#1: deleting (1 remain)
+c : SW#7:192.168.42.121:60554: deleting (0 remain)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Run \fBsshuttle\fP with a \fI/etc/sshuttle.conf\fP configuration file:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sshuttle @/etc/sshuttle.conf
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use the options defined in \fI/etc/sshuttle.conf\fP but be more verbose:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sshuttle @/etc/sshuttle.conf \-vvv
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Override the remote server defined in \fI/etc/sshuttle.conf\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ sshuttle @/etc/sshuttle.conf \-r otheruser@test.example.com
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Example configuration file:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+192.168.0.0/16
+\-\-remote
+user@example.com
+.EE
+.UNINDENT
+.UNINDENT
+.SH DISCUSSION
+.sp
+When it starts, \fBsshuttle\fP creates an ssh session to the
+server specified by the \fB\-r\fP option.
+.sp
+After connecting to the remote server, \fBsshuttle\fP uploads its
+(python) source code to the remote end and executes it
+there.  Thus, you don\(aqt need to install \fBsshuttle\fP on the
+remote server, and there are never \fBsshuttle\fP version
+conflicts between client and server.
+.sp
+Unlike most VPNs, \fBsshuttle\fP forwards sessions, not packets.
+That is, it uses kernel transparent proxying (\fIiptables
+REDIRECT\fP rules on Linux) to
+capture outgoing TCP sessions, then creates entirely
+separate TCP sessions out to the original destination at
+the other end of the tunnel.
+.sp
+Packet\-level forwarding (eg. using the tun/tap devices on
+Linux) seems elegant at first, but it results in
+several problems, notably the \(aqtcp over tcp\(aq problem.  The
+tcp protocol depends fundamentally on packets being dropped
+in order to implement its congestion control algorithm; if
+you pass tcp packets through a tcp\-based tunnel (such as
+ssh), the inner tcp packets will never be dropped, and so
+the inner tcp stream\(aqs congestion control will be
+completely broken, and performance will be terrible.  Thus,
+packet\-based VPNs (such as IPsec and openvpn) cannot use
+tcp\-based encrypted streams like ssh or ssl, and have to
+implement their own encryption from scratch, which is very
+complex and error prone.
+.sp
+\fBsshuttle\fP\(aqs simplicity comes from the fact that it can
+safely use the existing ssh encrypted tunnel without
+incurring a performance penalty.  It does this by letting
+the client\-side kernel manage the incoming tcp stream, and
+the server\-side kernel manage the outgoing tcp stream;
+there is no need for congestion control to be shared
+between the two separate streams, so a tcp\-based tunnel is
+fine.
+.sp
+\fBSee also:\fP
+.INDENT 0.0
+.INDENT 3.5
+\fBssh(1)\fP, \fBpython(1)\fP
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Brian May
+.SH "حق نشر (COPYRIGHT)"
+2016, Brian May
+.\" End of generated man page.

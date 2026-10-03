@@ -1,0 +1,1130 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "ABIDIFF" "1" "May 01, 2026" "" "Libabigail"
+.SH "نام (NAME)"
+abidiff \- compare ABIs of ELF files 
+.sp
+abidiff compares the Application Binary Interfaces (ABI) of two shared
+libraries in ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> format.  It emits a meaningful report describing the
+differences between the two ABIs.
+.sp
+This tool can also compare the textual representations of the ABI of
+two ELF binaries (as emitted by \fBabidw\fP) or an ELF binary against a
+textual representation of another ELF binary.
+.sp
+For a comprehensive ABI change report between two input shared
+libraries that includes changes about function and variable sub\-types,
+\fBabidiff\fP uses by default, debug information in DWARF \%<http://\:www\:.dwarfstd\:.org> format, if
+present, otherwise it compares interfaces using debug information in
+CTF \%<https://\:raw\:.githubusercontent\:.com/\:wiki/\:oracle/\:binutils-gdb/\:files/\:ctf-spec\:.pdf> or BTF \%<https://\:docs\:.kernel\:.org/\:bpf/\:btf\:.html> formats, if present. Finally, if no debug info in
+these formats is found, it only considers ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols and report
+about their addition or removal.
+.sp
+This tool uses the libabigail library to analyze the binary as well as its
+associated debug information.  Here is its general mode of operation.
+.sp
+When instructed to do so, a binary and its associated debug
+information is read and analyzed.  To that effect, libabigail analyzes
+by default the descriptions of the types reachable by the interfaces
+(functions and variables) that are visible outside of their
+translation unit.  Once that analysis is done, an Application Binary
+Interface Corpus is constructed by only considering the subset of
+types reachable from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are
+defined and exported by the binary.  It\(aqs that final ABI corpus which
+libabigail considers as representing the ABI of the analyzed binary.
+.sp
+Libabigail then has capabilities to generate textual representations
+of ABI Corpora, compare them, analyze their changes and report about
+them.
+.SH INVOCATION
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+abidiff [options] <first\-shared\-library> <second\-shared\-library>
+.EE
+.UNINDENT
+.UNINDENT
+.SH "محیط (ENVIRONMENT)"
+.sp
+abidiff loads two default suppression specifications files \%<#\:suppr-spec-label>, merges their content and use it to filter out ABI
+change reports that might be considered as false positives to users.
+.INDENT 0.0
+.IP \(bu 2
+Default system\-wide suppression specification file
+.sp
+It\(aqs located by the optional environment variable
+LIBABIGAIL_DEFAULT_SYSTEM_SUPPRESSION_FILE.  If that environment
+variable is not set, then abidiff tries to load the suppression file
+$libdir/libabigail/libabigail\-default.abignore.  If that file is not
+present, then no default system\-wide suppression specification file
+is loaded.
+.IP \(bu 2
+Default user suppression specification file.
+.sp
+It\(aqs located by the optional environment
+LIBABIGAIL_DEFAULT_USER_SUPPRESSION_FILE.  If that environment
+variable is not set, then abidiff tries to load the suppression file
+$HOME/.abignore.  If that file is not present, then no default user
+suppression specification is loaded.
+.UNINDENT
+.SH "گزینه‌ها (OPTIONS)"
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-add\-binaries1\fP <\fIbin1,bin2,bin3,..\fP>
+.sp
+For each of the comma\-separated binaries given in argument to this
+option, if the binary is found in the directory specified by the
+\fB\-\-added\-binaries\-dir1\fP option, then \fBabidiff\fP loads the ABI
+corpus of the binary and adds it to a set of corpora (called an
+ABI Corpus Group) that includes the first argument of \fBabidiff\fP\&.
+.sp
+That ABI corpus group is then compared against the second corpus
+group given in argument to \fBabidiff\fP\&.
+.IP \(bu 2
+\fB\-\-add\-binaries2\fP <\fIbin1,bin2,bin3,..\fP>
+.sp
+For each of the comma\-separated binaries given in argument to this
+option, if the binary is found in the directory specified by the
+\fB\-\-added\-binaries\-dir2\fP option, then \fBabidiff\fP loads the ABI
+corpus of the binary and adds it to a set of corpora(called an ABI
+Corpus Group) that includes the second argument of \fBabidiff\fP\&.
+.sp
+That ABI corpus group is then compared against the first corpus
+group given in argument to \fBabidiff\fP\&.
+.IP \(bu 2
+\fB\-\-added\-binaries\-dir1 | \-\-abd1\fP <added\-binaries\-directory\-1>
+.sp
+This option is to be used in conjunction with the
+\fB\-\-add\-binaries1\fP, \fB\-\-follow\-dependencies\fP and
+\fB\-\-list\-dependencies\fP options.  Binaries referred to by these
+options, if found in the directory \fIadded\-binaries\-directory\-1\fP,
+are loaded as ABI corpus and are added to the first ABI corpus group
+that is to be used in the comparison.
+.IP \(bu 2
+\fB\-\-added\-binaries\-dir2 | \-\-abd2\fP <added\-binaries\-directory\-2>
+.sp
+This option is to be used in conjunction with the
+\fB\-\-add\-binaries2\fP, \fB\-\-follow\-dependencies\fP and
+\fB\-\-list\-dependencies\fP options.  Binaries referred to by these
+options, if found in the directory \fIadded\-binaries\-directory\-2\fP,
+are loaded as ABI corpus and are added to the second ABI corpus
+group to be used in the comparison.
+.IP \(bu 2
+\fB\-\-added\-fns\fP
+.sp
+In the resulting report about the differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, only display
+the globally defined functions that were added to
+\fIsecond\-shared\-library\fP\&.
+.IP \(bu 2
+\fB\-\-added\-vars\fP
+.sp
+In the resulting report about the differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, only display
+the global variables that were added (defined) to
+\fIsecond\-shared\-library\fP\&.
+.IP \(bu 2
+\fB\-\-allow\-non\-exported\-interfaces\fP
+.sp
+When looking at the debug information accompanying a binary, this
+tool analyzes the descriptions of the types reachable by the
+interfaces (functions and variables) that are visible outside of
+their translation unit.  Once that analysis is done, an ABI corpus
+is constructed by only considering the subset of types reachable
+from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are defined and
+exported by the binary.  It\(aqs those final ABI Corpora that are
+compared by this tool.
+.sp
+The problem with that approach however is that analyzing all the
+interfaces that are visible from outside their translation unit
+can amount to a lot of data, especially when those binaries are
+applications, as opposed to shared libraries.  One example of such
+applications is the Linux Kernel \%<https://\:kernel\:.org>\&.  Analyzing massive ABI
+Corpora like these can be extremely slow.
+.sp
+In the presence of an \(dqaverage sized\(dq binary however one can
+afford having libabigail analyze all interfaces that are visible
+outside of their translation unit, using this option.
+.sp
+Note that this option is turned on by default, unless we are in
+the presence of the Linux Kernel \%<https://\:kernel\:.org>\&.
+.IP \(bu 2
+\fB\-\-btf\fP
+.sp
+When comparing binaries, extract ABI information from BTF \%<https://\:docs\:.kernel\:.org/\:bpf/\:btf\:.html> debug
+information, if present.
+.IP \(bu 2
+\fB\-\-changed\-fns\fP
+.sp
+In the resulting report about the differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, only display
+the changes in sub\-types of the global functions defined in
+\fIfirst\-shared\-library\fP\&.
+.IP \(bu 2
+\fB\-\-changed\-vars\fP
+.sp
+In the resulting report about the differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, only display
+the changes in the sub\-types of the global variables defined in
+\fIfirst\-shared\-library\fP
+.IP \(bu 2
+\fB\-\-ctf\fP
+.sp
+When comparing binaries, extract ABI information from CTF \%<https://\:raw\:.githubusercontent\:.com/\:wiki/\:oracle/\:binutils-gdb/\:files/\:ctf-spec\:.pdf> debug
+information, if present.
+.IP \(bu 2
+\fB\-\-debug\-info\-dir1 | \-\-d1\fP <\fIdi\-path1\fP>
+.sp
+For cases where the debug information for \fIfirst\-shared\-library\fP
+is split out into a separate file, tells \fBabidiff\fP where to find
+that separate debug information file.
+.sp
+Note that \fIdi\-path\fP must point to the root directory under which
+the debug information is arranged in a tree\-like manner.  Under
+Red Hat based systems, that directory is usually
+\fB<root>/usr/lib/debug\fP\&.
+.sp
+This option can be provided several times with different root
+directories.  In that case, \fBabidiff\fP will potentially look into
+all those root directories to find the split debug info for
+\fIfirst\-shared\-library\fP\&.
+.sp
+Note also that this option is not mandatory for split debug
+information installed by your system\(aqs package manager because
+then \fBabidiff\fP knows where to find it.
+.IP \(bu 2
+\fB\-\-debug\-info\-dir2 | \-\-d2\fP <\fIdi\-path2\fP>
+.sp
+Like \fB\-\-debug\-info\-dir1\fP, this options tells \fBabidiff\fP where
+to find the split debug information for the
+\fIsecond\-shared\-library\fP file.
+.sp
+This option can be provided several times with different root
+directories.  In that case, \fBabidiff\fP will potentially look into
+all those root directories to find the split debug info for
+\fIsecond\-shared\-library\fP\&.
+.IP \(bu 2
+\fB\-\-debug\-self\-comparison\fP
+.sp
+In this mode, error messages are emitted for types which fail type
+canonicalization, in some circumstances, when comparing a binary
+against itself.
+.sp
+When comparing a binary against itself, canonical types of the
+second binary should be equal (as much as possible) to canonical
+types of the first binary.  When some discrepancies are detected
+in this mode, an abort signal is emitted and execution is halted.
+This option should be used while executing the tool in a debugger,
+for troubleshooting purposes.
+.sp
+This is an optional debugging and sanity check option.  To enable
+it the libabigail package needs to be configured with
+the \-\-enable\-debug\-self\-comparison configure option.
+.IP \(bu 2
+\fB\-\-debug\-tc\fP
+.sp
+In this mode, the process of type canonicalization is put under
+heavy scrutiny.  Basically, during type canonicalization, each
+type comparison is performed twice: once in a structural mode
+(comparing every sub\-type member\-wise), and once using canonical
+comparison.  The two comparisons should yield the same result.
+Otherwise, an abort signal is emitted and the process can be
+debugged to understand why the two kinds of comparison yield
+different results.
+.sp
+This is an optional debugging and sanity check option.  To enable
+it the libabigail package needs to be configured with
+the \-\-enable\-debug\-type\-canonicalization configure option.
+.IP \(bu 2
+\fB\-\-deleted\-fns\fP
+.sp
+In the resulting report about the differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, only display
+the globally defined functions that got deleted from
+\fIfirst\-shared\-library\fP\&.
+.IP \(bu 2
+\fB\-\-deleted\-vars\fP
+.sp
+In the resulting report about the differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, only display
+the globally defined variables that were deleted from
+\fIfirst\-shared\-library\fP\&.
+.IP \(bu 2
+\fB\-\-drop\fP <\fIregex\fP>
+.sp
+When reading the \fIfirst\-shared\-library\fP and
+\fIsecond\-shared\-library\fP ELF input files, drop the globally defined
+functions and variables which name match the regular expression
+\fIregex\fP\&.  As a result, no change involving these functions or
+variables will be emitted in the diff report.
+.IP \(bu 2
+\fB\-\-drop\-fn\fP <\fIregex\fP>
+.sp
+When reading the \fIfirst\-shared\-library\fP and
+\fIsecond\-shared\-library\fP ELF input files, drop the globally defined
+functions which name match the regular expression \fIregex\fP\&.  As a
+result, no change involving these functions will be emitted in the
+diff report.
+.IP \(bu 2
+\fB\-\-drop\-var\fP <\fIregex\fP>
+.sp
+When reading the \fIfirst\-shared\-library\fP and
+\fIsecond\-shared\-library\fP ELF input files, drop the globally defined
+variables matching a the regular expression \fIregex\fP\&.
+.IP \(bu 2
+\fB\-\-drop\-private\-types\fP
+.sp
+This option is to be used with the \fB\-\-headers\-dir1\fP,
+\fBheader\-file1\fP, \fBheader\-file2\fP and \fB\-\-headers\-dir2\fP options.
+With this option, types that are \fINOT\fP defined in the headers are
+entirely dropped from the internal representation build by
+Libabigail to represent the ABI.  They thus don\(aqt have to be
+filtered out from the final ABI change report because they are not
+even present in Libabigail\(aqs representation.
+.sp
+Without this option however, those private types are kept in the
+internal representation and later filtered out from the report.
+.sp
+This options thus potentially makes Libabigail consume less
+memory.  It\(aqs meant to be mainly used to optimize the memory
+consumption of the tool on binaries with a lot of publicly defined
+and exported types.
+.IP \(bu 2
+\fB\-\-dump\-diff\-tree\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+After the diff report, emit a textual representation of the diff
+nodes tree used by the comparison engine to represent the changed
+functions and variables.  That representation is emitted to the
+error output for debugging purposes.  Note that this diff tree is
+relevant only to functions and variables that have some sub\-type
+changes.  Added or removed functions and variables do not have any
+diff nodes tree associated to them.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-exported\-interfaces\-only\fP
+.sp
+By default, when looking at the debug information accompanying a
+binary, this tool analyzes the descriptions of the types reachable
+by the interfaces (functions and variables) that are visible
+outside of their translation unit.  Once that analysis is done, an
+ABI corpus is constructed by only considering the subset of types
+reachable from interfaces associated to ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols that are
+defined and exported by the binary.  It\(aqs those final ABI Corpora
+that are compared by this tool.
+.sp
+The problem with that approach however is that analyzing all the
+interfaces that are visible from outside their translation unit
+can amount to a lot of data, especially when those binaries are
+applications, as opposed to shared libraries.  One example of such
+applications is the Linux Kernel \%<https://\:kernel\:.org>\&.  Analyzing massive ABI
+corpora like these can be extremely slow.
+.sp
+To mitigate that performance issue, this option allows libabigail
+to only analyze types that are reachable from interfaces
+associated with defined and exported ELF \%<http://\:en\:.wikipedia\:.org/\:wiki/\:Executable_and_Linkable_Format> symbols.
+.sp
+Note that this option is turned on by default when analyzing the
+Linux Kernel \%<https://\:kernel\:.org>\&.  Otherwise, it\(aqs turned off by default.
+.IP \(bu 2
+\fB\-\-fail\-no\-debug\-info\fP
+.sp
+If no debug info was found, then this option makes the program to
+fail.  Otherwise, without this option, the program will attempt to
+compare properties of the binaries that are not related to debug
+info, like pure ELF properties.
+.IP \(bu 2
+\fB\-\-follow\-dependencies | \-\-fdeps\fP
+.sp
+For each dependency of the first argument of \fBabidiff\fP, if it\(aqs
+found in the directory specified by the \fB\-\-added\-binaries\-dir1\fP
+option, then construct an ABI corpus out of the dependency, add it
+to a set of corpora (called an ABI Corpus Group) that includes the
+first argument of \fBabidiff\fP\&.
+.sp
+Similarly, for each dependency of the second argument of
+\fBabidiff\fP, if it\(aqs found in the directory specified by the
+\fB\-\-added\-binaries\-dir2\fP option, then construct an ABI corpus out
+of the dependency, add it to an ABI corpus group that includes the
+second argument of \fBabidiff\fP\&.
+.sp
+These two ABI corpus groups are then compared against each other.
+.sp
+Said otherwise, this makes \fBabidiff\fP compare the set of its
+first input and its dependencies against the set of its second
+input and its dependencies.
+.IP \(bu 2
+\fB\-\-harmless\fP
+.sp
+In the diff report, display only the harmless \%<#\:harmlesschangeconcept-label> changes.  By default, the harmless
+changes are filtered out of the diff report keep the clutter to a
+minimum and have a greater chance to spot real ABI issues.
+.IP \(bu 2
+\fB\-\-headers\-dir1 | \-\-hd1\fP <headers\-directory\-path\-1>
+.sp
+Specifies where to find the public headers of the first shared
+library (or binary in general) that the tool has to consider.  The
+tool will thus filter out ABI changes on types that are not
+defined in public headers.
+.sp
+Note that several public header directories can be specified for
+the first shared library.  In that case the \fB\-\-headers\-dir1\fP
+option should be present several times on the command line, like
+in the following example:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff \-\-headers\-dir1 /some/path       \e
+          \-\-headers\-dir1 /some/other/path \e
+          binary\-version\-1 binary\-version\-2
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-headers\-dir2 | \-\-hd2\fP <headers\-directory\-path\-2>
+.sp
+Specifies where to find the public headers of the second shared
+library that the tool has to consider.  The tool will thus filter
+out ABI changes on types that are not defined in public headers.
+.sp
+Note that several public header directories can be specified for
+the second shared library.  In that case the \fB\-\-headers\-dir2\fP
+option should be present several times like in the following
+example:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff \-\-headers\-dir2 /some/path       \e
+          \-\-headers\-dir2 /some/other/path \e
+          binary\-version\-1 binary\-version\-2
+.EE
+.UNINDENT
+.UNINDENT
+.IP \(bu 2
+\fB\-\-header\-file1 | \-\-hf1\fP <header\-file\-path\-1>
+.sp
+Specifies where to find one public header of the first shared
+library that the tool has to consider.  The tool will thus filter
+out ABI changes on types that are not defined in public headers.
+.IP \(bu 2
+\fB\-\-header\-file2 | \-\-hf2\fP <header\-file\-path\-2>
+.sp
+Specifies where to find one public header of the second shared
+library that the tool has to consider.  The tool will thus filter
+out ABI changes on types that are not defined in public headers.
+.IP \(bu 2
+\fB\-\-help | \-h\fP
+.sp
+Display a short help about the command and exit.
+.IP \(bu 2
+\fB\-\-ignore\-soname\fP
+.sp
+Ignore differences in the SONAME when doing a comparison
+.IP \(bu 2
+\fB\-\-impacted\-interfaces\fP
+.sp
+When showing leaf changes, this option instructs abidiff to show
+the list of impacted interfaces.  This option is thus to be used
+in addition the \fB\-\-leaf\-changes\-only\fP option, otherwise, it\(aqs
+ignored.
+.IP \(bu 2
+\fB\-\-keep\fP <\fIregex\fP>
+.sp
+When reading the \fIfirst\-shared\-library\fP and
+\fIsecond\-shared\-library\fP ELF input files, keep the globally defined
+functions and variables which names match the regular expression
+\fIregex\fP\&.  All other functions and variables are dropped on the
+floor and will thus not appear in the resulting diff report.
+.IP \(bu 2
+\fB\-\-keep\-fn\fP <\fIregex\fP>
+.sp
+When reading the \fIfirst\-shared\-library\fP and
+\fIsecond\-shared\-library\fP ELF input files, keep the globally defined
+functions which name match the regular expression \fIregex\fP\&.  All
+other functions are dropped on the floor and will thus not appear
+in the resulting diff report.
+.IP \(bu 2
+\fB\-\-keep\-var\fP <\fIregex\fP>
+.sp
+When reading the \fIfirst\-shared\-library\fP and
+\fIsecond\-shared\-library\fP ELF input files, keep the globally defined
+which names match the regular expression \fIregex\fP\&.  All other
+variables are dropped on the floor and will thus not appear in the
+resulting diff report.
+.IP \(bu 2
+\fB\-\-kmi\-whitelist | \-w\fP <\fIpath\-to\-whitelist\fP>
+.sp
+When analyzing a Linux kernel binary, this option points to the
+white list of names of ELF symbols of functions and variables
+which ABI must be considered.  That white list is called a \(dqKernel
+Module Interface white list\(dq.  This is because for the Kernel, we
+don\(aqt talk about \fBABI\fP; we rather talk about the interface
+between the Kernel and its module. Hence the term \fBKMI\fP rather
+than \fBABI\fP\&.
+.sp
+Any other function or variable which ELF symbol are not present in
+that white list will not be considered by this tool.
+.sp
+If this option is not provided \-\- thus if no white list is
+provided \-\- then the entire KMI, that is, the set of all publicly
+defined and exported functions and global variables by the Linux
+Kernel binaries, is considered.
+.IP \(bu 2
+\fB\-\-leaf\-changes\-only|\-l\fP only show leaf changes, so don\(aqt show
+impact analysis report.  This option implies \fB\-\-redundant\fP\&.
+.sp
+The typical output of abidiff when comparing two binaries looks
+like this
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff libtest\-v0.so libtest\-v1.so
+Functions changes summary: 0 Removed, 1 Changed, 0 Added function
+Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+
+1 function with some indirect sub\-type change:
+
+  [C]\(aqfunction void fn(C&)\(aq at test\-v1.cc:13:1 has some indirect sub\-type changes:
+    parameter 1 of type \(aqC&\(aq has sub\-type changes:
+      in referenced type \(aqstruct C\(aq at test\-v1.cc:7:1:
+        type size hasn\(aqt changed
+        1 data member change:
+         type of \(aqleaf* C::m0\(aq changed:
+           in pointed to type \(aqstruct leaf\(aq at test\-v1.cc:1:1:
+             type size changed from 32 to 64 bits
+             1 data member insertion:
+               \(aqchar leaf::m1\(aq, at offset 32 (in bits) at test\-v1.cc:4:1
+
+$
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+So in that example the report emits information about how the data
+member insertion change of \(dqstruct leaf\(dq is reachable from
+function \(dqvoid fn(C&)\(dq.  In other words, the report not only shows
+the data member change on \(dqstruct leaf\(dq, but it also shows the
+impact of that change on the function \(dqvoid fn(C&)\(dq.
+.sp
+In abidiff parlance, the change on \(dqstruct leaf\(dq is called a leaf
+change.  So the \fB\-\-leaf\-changes\-only \-\-impacted\-interfaces\fP
+options show, well, only the leaf change.  And it goes like this:
+.INDENT 2.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff \-l libtest\-v0.so libtest\-v1.so
+\(aqstruct leaf\(aq changed:
+  type size changed from 32 to 64 bits
+  1 data member insertion:
+    \(aqchar leaf::m1\(aq, at offset 32 (in bits) at test\-v1.cc:4:1
+
+  one impacted interface:
+    function void fn(C&)
+$
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note how the report ends by showing the list of interfaces
+impacted by the leaf change.
+.sp
+Now if you don\(aqt want to see that list of impacted interfaces,
+then you can just avoid using the \fB\-\-impacted\-interface\fP option.
+You can learn about that option below, in any case.
+.IP \(bu 2
+\fB\-\-list\-dependencies | \-\-ldeps\fP
+.sp
+This option lists all the dependencies of the input arguments of
+\fBabidiff\fP that are found in the directories specified by the
+options \fB\-\-added\-binaries\-dir1\fP and \fB\-\-added\-binaries\-dir2\fP
+.IP \(bu 2
+\fB\-\-no\-added\-syms\fP
+.sp
+In the resulting report about the differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, do not display
+added functions or variables.  Do not display added functions or
+variables ELF symbols either.  All other kinds of changes are
+displayed unless they are explicitely forbidden by other options
+on the command line.
+.IP \(bu 2
+\fB\-\-no\-assume\-odr\-for\-cplusplus\fP
+.sp
+When analyzing a binary originating from C++ code using DWARF \%<http://\:www\:.dwarfstd\:.org>
+debug information, libabigail assumes the One Definition Rule \%<https://\:en\:.wikipedia\:.org/\:wiki/\:One_Definition_Rule>
+to speed\-up the analysis.  In that case, when several types have
+the same name in the binary, they are assumed to all be equal.
+.sp
+This option disables that assumption and instructs libabigail to
+actually actually compare the types to determine if they are
+equal.
+.IP \(bu 2
+\fB\-\-no\-architecture\fP
+.sp
+Do not take architecture in account when comparing ABIs.
+.IP \(bu 2
+\fB\-\-no\-change\-categorization | \-x\fP
+.sp
+This option disables the categorization of changes into harmless
+and harmful changes.  Note that this categorization is a
+pre\-requisite for the filtering of changes so this option disables
+that filtering.  The goal of this option is to speed\-up the
+execution of the program for cases where the graph of changes is
+huge and where the user is just interested in looking at, for
+instance, leaf node changes without caring about their possible
+impact on interfaces.  In that case, this option would be used
+along with the \fB\-\-leaf\-changes\-only\fP one.
+.IP \(bu 2
+\fB\-\-no\-corpus\-path\fP
+.sp
+Do not emit the path attribute for the ABI corpus.
+.IP \(bu 2
+\fB\-\-no\-default\-suppression\fP
+.sp
+Do not load the default suppression specification files\&.
+.IP \(bu 2
+\fB\-\-no\-harmful\fP
+.sp
+In the diff report, do not display the harmful \%<#\:harmfulchangeconcept-label> changes.  By default, only the
+harmful changes are displayed in diff report.
+.IP \(bu 2
+\fB\-\-no\-leverage\-dwarf\-factorization\fP
+.sp
+When analyzing a binary which DWARF \%<http://\:www\:.dwarfstd\:.org> debug information was
+processed with the DWZ \%<https://\:sourceware\:.org/\:dwz> tool, the type information is supposed
+to be already factorized.  That context is used by libabigail to
+perform some speed optimizations.
+.sp
+This option disables those optimizations.
+.IP \(bu 2
+\fB\-\-no\-linkage\-name\fP
+.sp
+In the resulting report, do not display the linkage names of
+the added, removed, or changed functions or variables.
+.IP \(bu 2
+\fB\-\-no\-linux\-kernel\-mode\fP
+.sp
+Without this option, if abidiff detects that the binaries it is
+looking at are Linux Kernel binaries (either vmlinux or modules)
+then it only considers functions and variables which ELF symbols
+are listed in the __ksymtab and __ksymtab_gpl sections.
+.sp
+With this option, abidiff considers the binary as a non\-special
+ELF binary.  It thus considers functions and variables which are
+defined and exported in the ELF sense.
+.IP \(bu 2
+\fB\-\-no\-redundant\fP
+.sp
+In the diff report, do \fINOT\fP display redundant changes.  A
+redundant change is a change that has been displayed elsewhere in
+the report.  This option is switched on by default.
+.IP \(bu 2
+\fB\-\-no\-show\-locs\fP
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+Do not show information about where in the \fIsecond shared library\fP
+the respective type was changed.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-no\-show\-relative\-offset\-changes\fP
+.sp
+Without this option, when the offset of a data member changes,
+the change report not only mentions the older and newer offset,
+but it also mentions by how many bits the data member changes.
+With this option, the latter is not shown.
+.IP \(bu 2
+\fB\-\-no\-unreferenced\-symbols\fP
+.sp
+In the resulting report, do not display change information about
+function and variable symbols that are not referenced by any debug
+information.  Note that for these symbols not referenced by any
+debug information, the change information displayed is either
+added or removed symbols.
+.IP \(bu 2
+\fB\-\-non\-reachable\-types|\-t\fP
+.sp
+Analyze and emit change reports for all the types of the binary,
+including those that are not reachable from global functions and
+variables.
+.sp
+This option might incur some serious performance degradation as
+the number of types analyzed can be huge.  However, if paired with
+the \fB\-\-headers\-dir{1,2}\fP and/or \fBheader\-file{1,2}\fP options,
+the additional non\-reachable types analyzed are restricted to
+those defined in public headers files, thus hopefully making the
+performance hit acceptable.
+.sp
+Also, using this option alongside suppression specifications (by
+also using the \fB\-\-suppressions\fP option) might help keep the number of
+analyzed types (and the potential performance degradation) in
+control.
+.sp
+Note that without this option, only types that are reachable from
+global functions and variables are analyzed, so the tool detects
+and reports changes on these reachable types only.
+.IP \(bu 2
+\fB\-\-redundant\fP
+.sp
+In the diff report, do display redundant changes.  A redundant
+change is a change that has been displayed elsewhere in the
+report.
+.IP \(bu 2
+\fB\-\-show\-bits\fP
+.sp
+Show sizes and offsets in bits, not bytes.  This option is
+activated by default.
+.IP \(bu 2
+\fB\-\-show\-bytes\fP
+.sp
+Show sizes and offsets in bytes, not bits.  By default, sizes and
+offsets are shown in bits.
+.IP \(bu 2
+\fB\-\-show\-dec\fP
+.sp
+Show sizes and offsets in decimal base.  This option is activated
+by default.
+.IP \(bu 2
+\fB\-\-show\-hex\fP
+.sp
+Show sizes and offsets in hexadecimal base.
+.IP \(bu 2
+\fB\-\-stat\fP
+.sp
+Rather than displaying the detailed ABI differences between
+\fIfirst\-shared\-library\fP and \fIsecond\-shared\-library\fP, just display
+some summary statistics about these differences.
+.IP \(bu 2
+\fB\-\-stats\fP
+.sp
+Emit statistics about various internal things.
+.IP \(bu 2
+\fB\-\-suppressions | \-\-suppr\fP <\fIpath\-to\-suppressions\fP>
+.sp
+Use a suppression specification \%<#\:suppr-spec-label> file
+located at \fIpath\-to\-suppressions\fP\&.  Note that this option can
+appear multiple times on the command line.  In that case, all of
+the provided suppression specification files are taken into
+account.
+.sp
+Please note that, by default, if this option is not provided, then
+the default suppression specification files are loaded .
+.IP \(bu 2
+\fB\-\-symtabs\fP
+.sp
+Only display the symbol tables of the \fIfirst\-shared\-library\fP and
+\fIsecond\-shared\-library\fP\&.
+.IP \(bu 2
+\fB\-\-verbose\fP
+.sp
+Emit verbose logs about the progress of miscellaneous internal
+things.
+.IP \(bu 2
+\fB\-\-version | \-v\fP
+.sp
+Display the version of the program and exit.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH RETURN VALUES
+.sp
+The exit code of the \fBabidiff\fP command is either 0 if the ABI of the
+binaries being compared are equal, or non\-zero if they differ or if
+the tool encountered an error.
+.sp
+In the later case, the exit code is a 8\-bits\-wide bit field in which
+each bit has a specific meaning.
+.sp
+The first bit, of value 1, named \fBABIDIFF_ERROR\fP means there was an
+error.
+.sp
+The second bit, of value 2, named \fBABIDIFF_USAGE_ERROR\fP means there
+was an error in the way the user invoked the tool.  It might be set,
+for instance, if the user invoked the tool with an unknown command
+line switch, with a wrong number or argument, etc.  If this bit is
+set, then the \fBABIDIFF_ERROR\fP bit must be set as well.
+.sp
+The third bit, of value 4, named \fBABIDIFF_ABI_CHANGE\fP means the ABI
+of the binaries being compared are different.
+.sp
+The fourth bit, of value 8, named \fBABIDIFF_ABI_INCOMPATIBLE_CHANGE\fP
+means the ABI of the binaries compared are different in an
+incompatible way.  If this bit is set, then the \fBABIDIFF_ABI_CHANGE\fP
+bit must be set as well.  If the \fBABIDIFF_ABI_CHANGE\fP is set and the
+\fBABIDIFF_INCOMPATIBLE_CHANGE\fP is \fINOT\fP set, then it means that the
+ABIs being compared might or might not be compatible.  In that case, a
+human being needs to review the ABI changes to decide if they are
+compatible or not.
+.sp
+Note that, at the moment, there are only a few kinds of ABI changes
+that would result in setting the flag \fBABIDIFF_ABI_INCOMPATIBLE_CHANGE\fP\&.
+Those ABI changes are either:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+the removal of the symbol of a function or variable that has been
+defined and exported.
+.IP \(bu 2
+the modification of the index of a member of a virtual function
+table (for C++ programs and libraries).
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+With time, when more ABI change patterns are found to \fIalways\fP
+constitute incompatible ABI changes, we will adapt the code to
+recognize those cases and set the \fBABIDIFF_ABI_INCOMPATIBLE_CHANGE\fP
+accordingly.  So, if you find such patterns, please let us know.
+.sp
+The remaining bits are not used for the moment.
+.SH USAGE EXAMPLES
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+Detecting an ABI change in a sub\-type of a function:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ cat \-n test\-v0.cc
+         1      // Compile this with:
+         2      //   g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+         3
+         4      struct S0
+         5      {
+         6        int m0;
+         7      };
+         8
+         9      void
+        10      foo(S0* /*parameter_name*/)
+        11      {
+        12        // do something with parameter_name.
+        13      }
+$
+$ cat \-n test\-v1.cc
+         1      // Compile this with:
+         2      //   g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+         3
+         4      struct type_base
+         5      {
+         6        int inserted;
+         7      };
+         8
+         9      struct S0 : public type_base
+        10      {
+        11        int m0;
+        12      };
+        13
+        14      void
+        15      foo(S0* /*parameter_name*/)
+        16      {
+        17        // do something with parameter_name.
+        18      }
+$
+$ g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+$ g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+$
+$ abidiff libtest\-v0.so libtest\-v1.so; echo \(dqexit code: $?\(dq
+Functions changes summary: 0 Removed, 1 Changed, 0 Added function
+Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+
+1 function with some indirect sub\-type change:
+
+  [C]\(aqfunction void foo(S0*)\(aq has some indirect sub\-type changes:
+        parameter 0 of type \(aqS0*\(aq has sub\-type changes:
+          in pointed to type \(aqstruct S0\(aq:
+            size changed from 32 to 64 bits
+            1 base class insertion:
+              struct type_base
+            1 data member change:
+             \(aqint S0::m0\(aq offset changed from 0 to 32
+exit code: 4
+$
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Note how the exit code is 4, meaning the third bit ABIDIFF_ABI_CHANGE
+of value 4 is set to 1.  This means the tool categorizes the ABI
+change as harmful \%<#\:harmfulchangeconcept-label> and thus
+requires a user review.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 2. 3
+Detecting an incompatible ABI change in the type of a function:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ cat \-n test\-v0.cc
+     1  // Compile this with:
+     2  //   g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+     3
+     4  struct S0
+     5  {
+     6    int m0;
+     7  };
+     8
+     9  S0
+    10  foo()
+    11  {
+    12    S0 s = {};
+    13    return s;
+    14  }
+$
+$ cat \-n test\-v1.cc
+     1  // Compile this with:
+     2  //   g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+     3
+     4  struct type_base
+     5  {
+     6    int inserted;
+     7  };
+     8
+     9  struct S0 : public type_base
+    10  {
+    11    int m0;
+    12  };
+    13
+    14  S0
+    15  foo()
+    16  {
+    17    S0 s = {};
+    18    return s;
+    19  }
+$
+$ g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+$ g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+$
+$ abidiff libtest\-v0.so libtest\-v1.so; echo \(dqexit code: $?\(dq
+Functions changes summary: 0 Removed, 1 Changed, 0 Added function
+Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+
+1 function with incompatible sub\-type changes:
+
+  [C] \(aqfunction S0 foo(void)\(aq at test\-v0.cc:10:1 has some sub\-type changes:
+    return type changed:
+      type size changed from 32 to 64 (in bits)
+      1 base class insertion:
+        struct type_base at test\-v1.cc:4:1
+      1 data member change:
+        \(aqint m0\(aq offset changed from 0 to 32 (in bits) (by +32 bits)
+
+exit code: 12
+$
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Note how the exit code is 12, meaning both the third bit
+ABIDIFF_ABI_CHANGE of value 4 and the fourth bit
+ABIDIFF_ABI_INCOMPATIBLE_CHANGE of value 8 are set to 1.  This means
+the tool categorizes the ABI change as incompatible \%<#\:incompatiblechangeconcept-label>\&.  It\(aqs an ABI break.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 3. 3
+Detecting another change in a sub\-type of a function:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ cat \-n test\-v0.cc
+         1      // Compile this with:
+         2      //   g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+         3
+         4      struct S0
+         5      {
+         6        int m0;
+         7      };
+         8
+         9      void
+        10      foo(S0& /*parameter_name*/)
+        11      {
+        12        // do something with parameter_name.
+        13      }
+$
+$ cat \-n test\-v1.cc
+         1      // Compile this with:
+         2      //   g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+         3
+         4      struct S0
+         5      {
+         6        char inserted_member;
+         7        int m0;
+         8      };
+         9
+        10      void
+        11      foo(S0& /*parameter_name*/)
+        12      {
+        13        // do something with parameter_name.
+        14      }
+$
+$ g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+$ g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+$
+$ abidiff libtest\-v0.so libtest\-v1.so; echo \(dqexit code: $?\(dq
+Functions changes summary: 0 Removed, 1 Changed, 0 Added function
+Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+
+1 function with some indirect sub\-type change:
+
+  [C]\(aqfunction void foo(S0&)\(aq has some indirect sub\-type changes:
+        parameter 0 of type \(aqS0&\(aq has sub\-type changes:
+          in referenced type \(aqstruct S0\(aq:
+            size changed from 32 to 64 bits
+            1 data member insertion:
+              \(aqchar S0::inserted_member\(aq, at offset 0 (in bits)
+            1 data member change:
+             \(aqint S0::m0\(aq offset changed from 0 to 32
+
+exit code: 4
+$
+.EE
+.UNINDENT
+.UNINDENT
+.IP 4. 3
+Detecting that functions got removed or added to a library:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ cat \-n test\-v0.cc
+         1      // Compile this with:
+         2      //   g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+         3
+         4      struct S0
+         5      {
+         6        int m0;
+         7      };
+         8
+         9      void
+        10      foo(S0& /*parameter_name*/)
+        11      {
+        12        // do something with parameter_name.
+        13      }
+$
+$ cat \-n test\-v1.cc
+         1      // Compile this with:
+         2      //   g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+         3
+         4      struct S0
+         5      {
+         6        char inserted_member;
+         7        int m0;
+         8      };
+         9
+        10      void
+        11      bar(S0& /*parameter_name*/)
+        12      {
+        13        // do something with parameter_name.
+        14      }
+$
+$ g++ \-g \-Wall \-shared \-o libtest\-v0.so test\-v0.cc
+$ g++ \-g \-Wall \-shared \-o libtest\-v1.so test\-v1.cc
+$
+$ abidiff libtest\-v0.so libtest\-v1.so; echo \(dqexit code: $?\(dq
+Functions changes summary: 1 Removed, 0 Changed, 1 Added functions
+Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+
+1 Removed function:
+  \(aqfunction void foo(S0&)\(aq    {_Z3fooR2S0}
+
+1 Added function:
+  \(aqfunction void bar(S0&)\(aq    {_Z3barR2S0}
+
+exit code: 12
+$
+.EE
+.UNINDENT
+.UNINDENT
+.IP 5. 3
+Comparing two sets of binaries that are passed on the command line:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff \-\-add\-binaries1=file2\-v1              \e
+          \-\-add\-binaries2=file2\-v2,file2\-v1     \e
+          \-\-added\-binaries\-dir1 dir1            \e
+          \-\-added\-binaries\-dir2 dir2            \e
+          file1\-v1 file1\-v2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that the files \fBfile2\-v1\fP, and \fBfile2\-v2\fP are to be
+found in \fBdir1\fP and \fBdir2\fP or in the current directory.
+.IP 6. 3
+Compare two libraries and their dependencies:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+$ abidiff \-\-follow\-dependencies                      \e
+          \-\-added\-binaries\-dir1 /some/where          \e
+          \-\-added\-binaries\-dir2 /some/where/else     \e
+          foo bar
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This compares the set of binaries comprised by \fBfoo\fP and its
+dependencies against the set of binaries comprised by \fBbar\fP and
+its dependencies.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Dodji Seketeli
+.SH "حق نشر (COPYRIGHT)"
+2014-2025, Red Hat, Inc.
+.\" End of generated man page.

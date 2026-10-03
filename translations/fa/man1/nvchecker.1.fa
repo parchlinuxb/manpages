@@ -1,0 +1,1820 @@
+'\" t
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "nvchecker" "1" "2026-08-15" "2.22"
+.SH "نام (NAME)"
+nvchecker \- New version checker for software releases
+.sp
+\fBnvchecker\fP (short for \fInew version checker\fP) is for checking if a new version of some software has been released.
+.sp
+This is the version 2.0 branch. For the old version 1.x, please switch to the \fBv1.x\fP branch.
+ \%<https://\:github\:.com/\:lilydjwg/\:nvchecker/\:actions?\:query=workflow%3A%22run+tests%22> \%<https://\:badge\:.fury\:.io/\:py/\:nvchecker>
+.SH Dependency
+.INDENT 0.0
+.IP \(bu 2
+Python 3.9+
+.IP \(bu 2
+Python library: structlog, platformdirs, tomli (on Python < 3.11)
+.IP \(bu 2
+One of these Python library combinations (ordered by preference):
+.INDENT 2.0
+.IP \(bu 2
+tornado + pycurl
+.IP \(bu 2
+aiohttp
+.IP \(bu 2
+httpx with http2 support (experimental; only latest version is supported)
+.IP \(bu 2
+tornado
+.UNINDENT
+.IP \(bu 2
+All commands used in your software version configuration files
+.UNINDENT
+.SH Install and Run
+.sp
+To install:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip3 install nvchecker
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To use the latest code, you can also clone this repository and run:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+python3 setup.py install
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To see available options:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+nvchecker \-\-help
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Run with one or more software version files:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+nvchecker \-c config_file.toml
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A simple config file may look like:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[nvchecker]
+source = \(dqgithub\(dq
+github = \(dqlilydjwg/nvchecker\(dq
+
+[python\-toml]
+source = \(dqpypi\(dq
+pypi = \(dqtoml\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You normally will like to specify some \(dqversion record files\(dq; see below.
+.SS JSON logging
+.sp
+With \fB\-\-logger=json\fP or \fB\-\-logger=both\fP, you can get a structured logging
+for programmatically consuming. You can use \fB\-\-json\-log\-fd=FD\fP to specify the
+file descriptor to send logs to (take care to do line buffering). The logging
+level option (\fB\-l\fP or \fB\-\-logging\fP) doesn\(aqt take effect with this.
+.sp
+The JSON log is one JSON string per line. The following documented events and
+fields are stable, undocumented ones may change without notice.
+.INDENT 0.0
+.TP
+.B event=updated
+An update is detected. Fields \fBname\fP, \fBrevision\fP, \fBold_version\fP and \fBversion\fP are
+available. \fBold_version\fP may be \fBnull\fP and \fBrevision\fP may be absent.
+.TP
+.B event=up\-to\-date
+There is no update. Fields \fBname\fP and \fBversion\fP are available.
+.TP
+.B event=no\-result
+No version is detected. There may be an error. Fields \fBname\fP is available.
+.TP
+.B level=error
+There is an error. Fields \fBname\fP and \fBexc_info\fP may be available to give
+further information.
+.UNINDENT
+.SS Upgrade from 1.x version
+.sp
+There are several backward\-incompatible changes from the previous 1.x version.
+.INDENT 0.0
+.IP 1. 3
+Version 2.x requires Python 3.7+ to run.
+.IP 2. 3
+The command syntax changes a bit. You need to use a \fB\-c\fP switch to specify your software version configuration file (or use the default).
+.IP 3. 3
+The configuration file format has been changed from ini to toml \%<https://\:toml\:.io>\&. You can use the \fBnvchecker\-ini2toml\fP script to convert your old configuration files. However, comments and formatting will be lost, and some options may not be converted correctly.
+.IP 4. 3
+Several options have been renamed. \fBmax_concurrent\fP to \fBmax_concurrency\fP, and all option names have their \fB\-\fP be replaced with \fB_\fP\&.
+.IP 5. 3
+All software configuration tables need a \fBsource\fP option to specify which source is to be used rather than being figured out from option names in use. This enables additional source plugins to be discovered.
+.IP 6. 3
+The version record files have been changed to use JSON format (the old format will be converted on writing).
+.IP 7. 3
+The \fBvcs\fP source is removed. (It\(aqs available inside lilac \%<https://\:github\:.com/\:archlinuxcn/\:lilac> at the moment.) A \fBgit\fP source is provided.
+.IP 8. 3
+\fBinclude_tags_pattern\fP and \fBignored_tags\fP are removed. Use List Options instead.
+.UNINDENT
+.SH Version Record Files
+.sp
+Version record files record which version of the software you know or is available. They are a simple JSON object mapping software names to known versions.
+.SS The \fBnvtake\fP Command
+.sp
+This command helps to manage version record files. It reads both old and new version record files, and a list of names given on the commandline. It then update the versions of those names in the old version record file.
+.sp
+This helps when you have known (and processed) some of the updated software, but not all. You can tell nvchecker that via this command instead of editing the file by hand.
+.sp
+This command will help most if you specify where you version record files are in your config file. See below for how to use a config file.
+.SS The \fBnvcmp\fP Command
+.sp
+This command compares the \fBnewver\fP file with the \fBoldver\fP one and prints out any differences as updates, e.g.:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ nvcmp \-c sample_source.toml
+Sparkle Test App None \-> 2.0
+test 0.0 \-> 0.1
+.EE
+.UNINDENT
+.UNINDENT
+.SH "فایل‌های پیکربندی (CONFIGURATION FILES)"
+.sp
+The software version source files are in toml \%<https://\:toml\:.io> format. The \fIkey name\fP is the name of the software. Following fields are used to tell nvchecker how to determine the current version of that software.
+.sp
+See sample_source.toml \%<https://\:github\:.com/\:lilydjwg/\:nvchecker/\:blob/\:master/\:sample_config\:.toml> for an example.
+.SS Configuration Table
+.sp
+A special table named \fB__config__\fP provides some configuration options.
+.sp
+Relative path are relative to the source files, and \fB~\fP and environmental variables are expanded.
+.sp
+Currently supported options are:
+.INDENT 0.0
+.TP
+.B oldver
+Specify a version record file containing the old version info.
+.TP
+.B newver
+Specify a version record file to store the new version info.
+.TP
+.B proxy
+The HTTP proxy to use. The format is \fBproto://host:port\fP, e.g. \fBhttp://localhost:8087\fP\&. Different backends have different level support for this, e.g. with \fBpycurl\fP you can use \fBsocks5h://host:port\fP proxies.
+.TP
+.B max_concurrency
+Max number of concurrent jobs. Default: 20.
+.TP
+.B http_timeout
+Time in seconds to wait for HTTP requests. Default: 20.
+.TP
+.B keyfile
+Specify a toml config file containing key (token) information. This file
+should contain a \fBkeys\fP table, mapping key names to key values. See
+specific source for the key name(s) to use.
+.sp
+Sample \fBkeyfile.toml\fP:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+[keys]
+# https://github.com/settings/tokens
+# scope: repo \-> public_repo
+github = \(dqghp_<stripped>\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Global Options
+.sp
+The following options apply to every check sources. You can use them in any
+item in your configuration file.
+.INDENT 0.0
+.TP
+.B prefix
+Strip the prefix string if the version string starts with it. Otherwise the
+version string is returned as\-is.
+.sp
+If both \fBprefix\fP and \fBfrom_pattern\fP/\fBto_pattern\fP are used, \fBprefix\fP
+is applied first.
+.TP
+.B from_pattern, to_pattern
+Both are Python\-compatible regular expressions. If \fBfrom_pattern\fP is found
+in the version string, it will be replaced with \fBto_pattern\fP\&.
+.sp
+If \fBfrom_pattern\fP is not found, the version string remains unchanged and no
+error is emitted.
+.TP
+.B missing_ok
+Suppress warnings and errors if a version checking module finds nothing.
+Not all sources support it.
+.TP
+.B proxy
+The HTTP proxy to use. The format is \fBproto://host:port\fP, e.g.
+\fBhttp://localhost:8087\fP\&. Different backends have different level support
+for this, e.g. with \fBpycurl\fP you can use \fBsocks5h://host:port\fP proxies.
+.sp
+Set it to \fB\(dq\(dq\fP (empty string) to override the global setting.
+.sp
+This only works when the source implementation uses the builtin HTTP client,
+and doesn\(aqt work with the \fBaur\fP source because it\(aqs batched (however the
+global proxy config still applies).
+.TP
+.B user_agent
+The user agent string to use for HTTP requests.
+.TP
+.B tries
+Try specified times when a network error occurs. Default is \fB1\fP\&.
+.sp
+This only works when the source implementation uses the builtin HTTP client.
+.TP
+.B httptoken
+A personal authorization token used to fetch the url with the \fBAuthorization\fP header.
+The type of token depends on the authorization required.
+.INDENT 7.0
+.IP \(bu 2
+For Bearer token set : \fBBearer <Your_bearer_token>\fP
+.IP \(bu 2
+For Basic token set : \fBBasic <Your_base64_encoded_token>\fP
+.UNINDENT
+.sp
+In the keyfile add \fBhttptoken_{name}\fP token.
+.TP
+.B verify_cert
+Whether to verify the HTTPS certificate or not. Default is \fBtrue\fP\&.
+.UNINDENT
+.SS List Options
+.sp
+The following options apply to sources that return a list. See
+individual source tables to determine whether they are
+supported.
+.INDENT 0.0
+.TP
+.B include_regex
+Only consider version strings that match the given regex. The whole string
+should match the regex. Be sure to use \fB\&.*\fP when you mean it!
+.TP
+.B exclude_regex
+Don\(aqt consider version strings that match the given regex. The whole string
+should match the regex. Be sure to use \fB\&.*\fP when you mean it! This option
+has higher precedence that \fBinclude_regex\fP; that is, if matched by this
+one, it\(aqs excluded even it\(aqs also matched by \fBinclude_regex\fP\&.
+.TP
+.B sort_version_key
+Sort the version string using this key function. Choose among
+\fBparse_version\fP, \fBvercmp\fP, \fBawesomeversion\fP and \fBportage\fP\&. Default value is
+\fBparse_version\fP\&. \fBparse_version\fP uses an old version of
+\fBpkg_resources.parse_version\fP\&. \fBvercmp\fP uses \fBpyalpm.vercmp\fP\&.
+\fBawesomeversion\fP uses awesomeversion \%<https://\:github\:.com/\:ludeeus/\:awesomeversion>\&.
+\fBportage\fP uses \fBportage.versions.vercmp\fP\&.
+.TP
+.B ignored
+Version strings that are explicitly ignored, separated by whitespace. This
+can be useful to avoid some known mis\-named versions, so newer ones won\(aqt be
+\(dqoverridden\(dq by the old broken ones.
+.UNINDENT
+.SS Search in a Webpage
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqregex\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Search through a specific webpage for the version string. This type of version finding has these fields:
+.INDENT 0.0
+.TP
+.B url
+The URL of the webpage to fetch.
+.TP
+.B encoding
+(\fIOptional\fP) The character encoding of the webpage, if \fBlatin1\fP is not appropriate.
+.TP
+.B regex
+A regular expression used to find the version string.
+.sp
+It can have zero or one capture group. The capture group or the whole match is the version string.
+.sp
+When multiple version strings are found, the maximum of those is chosen.
+.TP
+.B post_data
+(\fIOptional\fP) When present, a \fBPOST\fP request (instead of a \fBGET\fP) will be used. The value should be a string containing the full body of the request. The encoding of the string can be specified using the \fBpost_data_type\fP option.
+.TP
+.B post_data_type
+(\fIOptional\fP) Specifies the \fBContent\-Type\fP of the request body (\fBpost_data\fP). By default, this is \fBapplication/x\-www\-form\-urlencoded\fP\&.
+.UNINDENT
+.sp
+This source supports List Options\&.
+.SS Search in an HTTP header
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqhttpheader\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Send an HTTP request and search through a specific header.
+.INDENT 0.0
+.TP
+.B url
+The URL of the HTTP request.
+.TP
+.B header
+(\fIOptional\fP) The header to look at. Default is \fBLocation\fP\&. Another useful header is \fBContent\-Disposition\fP\&.
+.TP
+.B regex
+A regular expression used to find the version string.
+.sp
+It can have zero or one capture group. The capture group or the whole match is the version string.
+.sp
+When multiple version strings are found, the maximum of those is chosen.
+.TP
+.B method
+(\fIOptional\fP) The HTTP method to use. Default is \fBHEAD\fP\&.
+.TP
+.B follow_redirects
+(\fIOptional\fP) Whether to follow 3xx HTTP redirects. Default is \fBfalse\fP\&. If you are looking at a \fBLocation\fP header, you shouldn\(aqt change this.
+.UNINDENT
+.SS Search with an HTML Parser
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqhtmlparser\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Send an HTTP request and search through the body a specific xpath.
+.INDENT 0.0
+.TP
+.B url
+The URL of the HTTP request.
+.TP
+.B xpath
+An xpath expression used to find the version string.
+.TP
+.B is_xml
+Set to \fBtrue\fP to use an XML parser instead of an HTML one.
+.TP
+.B post_data
+(\fIOptional\fP) When present, a \fBPOST\fP request (instead of a \fBGET\fP) will be used. The value should be a string containing the full body of the request. The encoding of the string can be specified using the \fBpost_data_type\fP option.
+.TP
+.B post_data_type
+(\fIOptional\fP) Specifies the \fBContent\-Type\fP of the request body (\fBpost_data\fP). By default, this is \fBapplication/x\-www\-form\-urlencoded\fP\&.
+.UNINDENT
+.sp
+This source can parse an RSS feed like this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[ProxmoxVE]
+source = \(dqhtmlparser\(dq
+url = \(dqhttps://my.proxmox.com/en/announcements/tag/proxmox\-ve/rss\(dq
+xpath = \(dq//item/title\(dq
+is_xml = true
+from_pattern = \(aqProxmox VE ([\ed.]+) released!\(aq
+to_pattern = \(aq\e1\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+An additional dependency \(dqlxml\(dq is required.
+You can use \fBpip install \(aqnvchecker[htmlparser]\(aq\fP\&.
+.UNINDENT
+.UNINDENT
+.SS Search with an JSON Parser (jq)
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqjq\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Send an HTTP request and search through the body with a specific \fBjq\fP filter.
+.INDENT 0.0
+.TP
+.B url
+The URL of the HTTP request.
+.TP
+.B filter
+An \fBjq\fP filter used to find the version string.
+.TP
+.B post_data
+(\fIOptional\fP) When present, a \fBPOST\fP request (instead of a \fBGET\fP) will be used. The value should be a string containing the full body of the request. The encoding of the string can be specified using the \fBpost_data_type\fP option.
+.TP
+.B post_data_type
+(\fIOptional\fP) Specifies the \fBContent\-Type\fP of the request body (\fBpost_data\fP). By default, this is \fBapplication/json\fP\&.
+.UNINDENT
+.sp
+This source supports List Options\&.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+An additional dependency \(dqjq\(dq is required.
+.UNINDENT
+.UNINDENT
+.SS Find with a Command
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqcmd\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use a shell command line to get the version. The output is striped first, so trailing newlines do not bother.
+.INDENT 0.0
+.TP
+.B cmd
+The command line to use. This will run with the system\(aqs standard shell (i.e. \fB/bin/sh\fP).
+.UNINDENT
+.SS Check AUR
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqaur\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check Arch User Repository \%<https://\:aur\:.archlinux\:.org> for updates.
+Per\-item proxy setting doesn\(aqt work for this because several items will be
+batched into one request.
+.INDENT 0.0
+.TP
+.B aur
+The package name in AUR. If empty, use the name of software (the \fItable name\fP).
+.TP
+.B strip_release
+Strip the release part.
+.TP
+.B use_last_modified
+Append last modified time to the version.
+.UNINDENT
+.SS Check GitHub
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgithub\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check GitHub \%<https://\:github\:.com> for updates. The version returned is in
+date format \fB%Y%m%d.%H%M%S\fP, e.g. \fB20130701.012212\fP, unless \fBuse_latest_release\fP,
+\fBuse_max_tag\fP or \fBuse_max_release\fP is used. See below.
+.INDENT 0.0
+.TP
+.B github
+The github repository, with author, e.g. \fBlilydjwg/nvchecker\fP\&.
+.TP
+.B branch
+Which branch to track? Default: the repository\(aqs default.
+.TP
+.B path
+Only commits containing this file path will be returned.
+.TP
+.B host
+Hostname for self\-hosted GitHub instance.
+.TP
+.B use_latest_release
+Set this to \fBtrue\fP to check for the latest release on GitHub.
+.sp
+GitHub releases are not the same as git tags. You\(aqll see big version names
+and descriptions in the release page for such releases, e.g.
+zfsonlinux/zfs\(aqs \%<https://\:github\:.com/\:zfsonlinux/\:zfs/\:releases>, and those
+small ones like nvchecker\(aqs \%<https://\:github\:.com/\:lilydjwg/\:nvchecker/\:releases>
+are only git tags that should use \fBuse_max_tag\fP below.
+.sp
+Will return the release\(aqs tag name instead of date. (For historical reasons
+it doesn\(aqt return the release name. See below to change.)
+.TP
+.B use_max_release
+Set this to \fBtrue\fP to check for the max release on GitHub.
+This option returns the largest one sorted by the
+\fBsort_version_key\fP option. Will return the tag name instead of date.
+.TP
+.B use_release_name
+When \fBuse_latest_release\fP or \fBuse_max_release\fP is \fBtrue\fP,
+setting this to \fBtrue\fP will cause nvchecker to return the release name
+instead of the tag name.
+.TP
+.B include_prereleases
+When \fBuse_latest_release\fP or \fBuse_max_release\fP is \fBtrue\fP,
+set this to \fBtrue\fP to take prereleases into account.
+.sp
+This returns the release names (not the tag names).
+.sp
+This requires a token because it\(aqs using the v4 GraphQL API.
+.TP
+.B use_latest_tag
+Set this to \fBtrue\fP to check for the latest tag on GitHub.
+.sp
+This requires a token because it\(aqs using the v4 GraphQL API.
+.TP
+.B query
+When \fBuse_latest_tag\fP is \fBtrue\fP, this sets a query for the tag. The exact
+matching method is not documented by GitHub.
+.TP
+.B use_max_tag
+Set this to \fBtrue\fP to check for the max tag on GitHub. Unlike
+\fBuse_max_release\fP, this option includes both annotated tags and
+lightweight ones, and return the largest one sorted by the
+\fBsort_version_key\fP option. Will return the tag name instead of date.
+.TP
+.B token
+A personal authorization token used to call the API.
+.UNINDENT
+.sp
+An authorization token may be needed in order to use \fBuse_latest_tag\fP,
+\fBinclude_prereleases\fP or to request more frequently than anonymously.
+.sp
+To set an authorization token, you can set:
+.INDENT 0.0
+.IP \(bu 2
+the token option
+.IP \(bu 2
+an entry in the keyfile for the host (e.g. \fBgithub.com\fP)
+.IP \(bu 2
+an entry in your \fBnetrc\fP file for the host
+.UNINDENT
+.sp
+This source supports List Options when \fBuse_max_tag\fP or
+\fBuse_max_release\fP is set.
+.SS RichResult metadata
+.sp
+When available from the existing GitHub API responses, this source populates
+the following optional \fBRichResult\fP fields. No additional API requests are
+issued solely to retrieve timestamp information.
+.TS
+box center;
+l|l|l.
+T{
+Mode
+T}	T{
+creation_time
+T}	T{
+revision_creation_time
+T}
+_
+T{
+default commit/path
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}	T{
+commit timestamp
+T}
+_
+T{
+\fBuse_latest_release\fP
+T}	T{
+release publish time
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}
+_
+T{
+\fBuse_max_release\fP
+T}	T{
+release publish time
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}
+_
+T{
+\fBuse_latest_release\fP +
+T}	T{
+T}	T{
+T}
+_
+T{
+\fBinclude_prereleases\fP
+T}	T{
+release publish time
+T}	T{
+commit timestamp
+T}
+_
+T{
+\fBuse_latest_tag\fP
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}	T{
+tag creation time (annotated tags) or commit
+timestamp (lightweight tags)
+T}
+_
+T{
+\fBuse_max_tag\fP
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}
+.TE
+.SS Check Gitea
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgitea\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check Gitea \%<https://\:gitea\:.com> for updates. The version returned is in date format \fB%Y%m%d\fP, e.g. \fB20130701\fP,
+unless \fBuse_max_tag\fP is used. See below.
+.INDENT 0.0
+.TP
+.B gitea
+The gitea repository, with author, e.g. \fBgitea/tea\fP\&.
+.TP
+.B branch
+Which branch to track? Default: the repository\(aqs default.
+.TP
+.B use_max_tag
+Set this to \fBtrue\fP to check for the max tag on Gitea. Will return the biggest one
+sorted by old \fBpkg_resources.parse_version\fP\&. Will return the tag name instead of date.
+.TP
+.B use_latest_release
+Set this to \fBtrue\fP to check for the latest release name on gitea.
+.sp
+Gitea releases are not the same as git tags. You\(aqll see big version names
+and descriptions in the release page for such releases, e.g.
+ciberandy/qiv\(aqs \%<https://\:codeberg\:.org/\:ciberandy/\:qiv/\:releases>
+.TP
+.B host
+Hostname for self\-hosted Gitea instance.
+.TP
+.B token
+Gitea authorization token used to call the API.
+.UNINDENT
+.sp
+To set an authorization token, you can set:
+.INDENT 0.0
+.IP \(bu 2
+the token option
+.IP \(bu 2
+an entry in the keyfile for the host (e.g. \fBgitea.com\fP)
+.IP \(bu 2
+an entry in your \fBnetrc\fP file for the host
+.UNINDENT
+.sp
+This source supports List Options when \fBuse_max_tag\fP is set.
+.SS Check Gogs / Forgejo / Codeberg
+.sp
+Please use the above \(dqgitea\(dq source. Gitea is a fork of Gogs \%<https://\:gogs\:.io>\&.
+Forgejo \%<https://\:forgejo\:.org> is a fork of Gitea. Codeberg is a code
+hosting provider that uses Forgejo. They share the same API endpoints nvchecker uses.
+.sp
+Alternatively, you can try the generic \(dqgit\(dq source.
+.SS Check BitBucket
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqbitbucket\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check BitBucket \%<https://\:bitbucket\:.org> for updates. The version returned
+is in date format \fB%Y%m%d\fP, e.g. \fB20130701\fP, unless \fBuse_max_tag\fP is used. See below.
+.INDENT 0.0
+.TP
+.B bitbucket
+The bitbucket repository, with author, e.g. \fBlilydjwg/dotvim\fP\&.
+.TP
+.B branch
+Which branch to track? Default: the repository\(aqs default.
+.TP
+.B use_max_tag
+Set this to \fBtrue\fP to check for the max tag on BitBucket. Will return the biggest one
+sorted by old \fBpkg_resources.parse_version\fP\&. Will return the tag name instead of date.
+.TP
+.B use_sorted_tags
+If \fBtrue\fP, tags are queried and sorted according to the \fBquery\fP and
+\fBsort\fP keys. Will return the tag name instead of the date.
+.TP
+.B query
+A query string use to filter tags when \fBuse_sorted_tags\fP set (see
+here \%<https://\:developer\:.atlassian\:.com/\:cloud/\:bitbucket/\:rest/\:intro/#\:querying>
+for examples). The string does not need to be escaped.
+.TP
+.B sort
+A field used to sort the tags when \fBuse_sorted_tags\fP is set (see
+here \%<https://\:developer\:.atlassian\:.com/\:cloud/\:bitbucket/\:rest/\:intro/#\:filtering>
+for examples). Defaults to \fB\-target.date\fP (sorts tags in descending order
+by date).
+.TP
+.B max_page
+How many pages do we search for the max tag? Default is 3. This works when
+\fBuse_max_tag\fP is set.
+.UNINDENT
+.sp
+This source supports List Options when \fBuse_max_tag\fP or
+\fBuse_sorted_tags\fP is set.
+.SS Check GitLab
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgitlab\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check GitLab \%<https://\:gitlab\:.com> for updates. The version returned is in date format \fB%Y%m%d\fP, e.g. \fB20130701\fP,
+unless \fBuse_max_tag\fP is used. See below.
+.INDENT 0.0
+.TP
+.B gitlab
+The gitlab repository, with author, e.g. \fBDeepin/deepin\-music\fP\&.
+.TP
+.B branch
+Which branch to track?
+.TP
+.B use_max_tag
+Set this to \fBtrue\fP to check for the max tag on GitLab. Will return the biggest one
+sorted by old \fBpkg_resources.parse_version\fP\&. Will return the tag name instead of date.
+.TP
+.B host
+Hostname for self\-hosted GitLab instance.
+.TP
+.B token
+GitLab authorization token used to call the API.
+.UNINDENT
+.sp
+To set an authorization token, you can set:
+.INDENT 0.0
+.IP \(bu 2
+the token option
+.IP \(bu 2
+an entry in the keyfile for the host (e.g. \fBgitlab.com\fP)
+.IP \(bu 2
+an entry in your \fBnetrc\fP file for the host
+.UNINDENT
+.sp
+This source supports List Options when \fBuse_max_tag\fP is set.
+.SS RichResult metadata
+.sp
+When available from the existing GitLab API responses, this source populates
+the following optional \fBRichResult\fP fields. No additional API requests are
+issued solely to retrieve timestamp information.
+.TS
+box center;
+l|l|l.
+T{
+Mode
+T}	T{
+\fBcreation_time\fP
+T}	T{
+\fBrevision_creation_time\fP
+T}
+_
+T{
+default commit
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}	T{
+commit timestamp
+T}
+_
+T{
+\fBuse_max_tag\fP
+T}	T{
+tag creation time
+T}	T{
+commit timestamp
+T}
+.TE
+.SS Check PyPI
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqpypi\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check PyPI \%<https://\:pypi\:.python\:.org> for updates. Yanked releases are ignored.
+.INDENT 0.0
+.TP
+.B pypi
+The name used on PyPI, e.g. \fBPySide\fP\&.
+.TP
+.B use_pre_release
+Whether to accept pre release. Default is false.
+.UNINDENT
+.sp
+This source supports List Options\&.
+.sp
+RichResult metadata:
+.TS
+box center;
+l|l|l.
+T{
+Mode
+T}	T{
+\fBcreation_time\fP
+T}	T{
+\fBrevision_creation_time\fP
+T}
+_
+T{
+all versions
+T}	T{
+earliest available file upload time
+T}	T{
+.INDENT 0.0
+.IP \(bu 2
+.UNINDENT
+T}
+.TE
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+An additional dependency \(dqpackaging\(dq is required.
+You can use \fBpip install \(aqnvchecker[pypi]\(aq\fP\&.
+.UNINDENT
+.UNINDENT
+.SS Check RubyGems
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgems\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check RubyGems \%<https://\:rubygems\:.org> for updates.
+.INDENT 0.0
+.TP
+.B gems
+The name used on RubyGems, e.g. \fBsass\fP\&.
+.UNINDENT
+.sp
+This source supports List Options\&.
+.SS Check NPM Registry
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqnpm\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check NPM Registry \%<https://\:registry\:.npmjs\:.org> for updates.
+.INDENT 0.0
+.TP
+.B npm
+The name used on NPM Registry, e.g. \fBcoffee\-script\fP\&.
+.UNINDENT
+.sp
+To configure which registry to query, a source plugin option is available.
+You can specify like this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[__config__.source.npm]
+registry = \(dqhttps://registry.npm.taobao.org\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Check Hackage
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqhackage\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check Hackage \%<https://\:hackage\:.haskell\:.org> for updates.
+.INDENT 0.0
+.TP
+.B hackage
+The name used on Hackage, e.g. \fBpandoc\fP\&.
+.UNINDENT
+.SS Check Maven
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqmaven\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check a Maven repository \%<https://\:maven\:.apache\:.org> for updates.
+.INDENT 0.0
+.TP
+.B repo
+URL of the repository to check (defaults to \fBhttps://repo1.maven.org/maven2\fP).
+.TP
+.B group
+Group identifier for the coordinates.
+.TP
+.B artifact
+Artifact identifier for the coordinates.
+.UNINDENT
+.SS Check CPAN
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqcpan\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check MetaCPAN \%<https://\:metacpan\:.org> for updates.
+.INDENT 0.0
+.TP
+.B cpan
+The name used on CPAN, e.g. \fBYAML\fP\&.
+.UNINDENT
+.SS Check CRAN
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqcran\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check CRAN \%<https://\:cran\:.r-project\:.org/\:web/\:packages> for updates.
+.INDENT 0.0
+.TP
+.B cran
+The name used on CRAN, e.g. \fBxml2\fP\&.
+.UNINDENT
+.SS Check Packagist
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqpackagist\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check Packagist \%<https://\:packagist\:.org> for updates.
+.INDENT 0.0
+.TP
+.B packagist
+The name used on Packagist, e.g. \fBmonolog/monolog\fP\&.
+.UNINDENT
+.SS Check crates.io
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqcratesio\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check crates.io \%<https://\:crates\:.io> for updates. Yanked releases are ignored.
+.INDENT 0.0
+.TP
+.B cratesio
+The crate name on crates.io, e.g. \fBtokio\fP\&.
+.TP
+.B use_pre_release
+Whether to accept pre release. Default is false.
+.UNINDENT
+.sp
+This source supports List Options\&.
+.SS Check Local Pacman Database
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqpacman\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This is used when you run \fBnvchecker\fP on an Arch Linux system and the program always keeps up with a package in your configured repositories for Pacman \%<https://\:wiki\:.archlinux\:.org/\:title/\:Pacman>\&.
+.INDENT 0.0
+.TP
+.B pacman
+The package name to reference to.
+.TP
+.B strip_release
+Strip the release part.
+.UNINDENT
+.SS Check Arch Linux official packages
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqarchpkg\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track the update of Arch Linux official packages \%<https://\:www\:.archlinux\:.org/\:packages>, without needing of pacman and an updated local Pacman databases.
+.INDENT 0.0
+.TP
+.B archpkg
+Name of the Arch Linux package.
+.TP
+.B strip_release
+Strip the release part, only return part before \fB\-\fP\&.
+.TP
+.B provided
+Instead of the package version, return the version this package provides. Its value is what the package provides, and \fBstrip_release\fP takes effect too. This is best used with libraries.
+.UNINDENT
+.SS Check Debian Linux official packages
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqdebianpkg\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track the update of Debian Linux official packages \%<https://\:packages\:.debian\:.org>, without needing of apt and an updated local APT database.
+.INDENT 0.0
+.TP
+.B debianpkg
+Name of the Debian Linux source package.
+.TP
+.B suite
+Name of the Debian release (jessie, wheezy, etc, defaults to sid)
+.TP
+.B strip_release
+Strip the release part.
+.UNINDENT
+.SS Check Ubuntu Linux official packages
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqubuntupkg\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track the update of Ubuntu Linux official packages \%<https://\:packages\:.ubuntu\:.com>, without needing of apt and an updated local APT database.
+.INDENT 0.0
+.TP
+.B ubuntupkg
+Name of the Ubuntu Linux source package.
+.TP
+.B suite
+Name of the Ubuntu release (xenial, zesty, etc, defaults to None, which means no limit on suite)
+.TP
+.B strip_release
+Strip the release part.
+.UNINDENT
+.SS Check Repology
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqrepology\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track updates from Repology \%<https://\:repology\:.org> (repology.org).
+.INDENT 0.0
+.TP
+.B repology
+Name of the \fBproject\fP to check.
+.TP
+.B repo
+Check the version in this repo. This field is required.
+.TP
+.B subrepo
+Check the version in this subrepo. This field is optional.
+When omitted all subrepos are queried.
+.UNINDENT
+.sp
+This source supports List Options\&.
+.SS Check Anitya
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqanitya\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track updates from Anitya \%<https://\:release-monitoring\:.org> (release\-monitoring.org).
+.INDENT 0.0
+.TP
+.B anitya
+\fBdistro/package\fP, where \fBdistro\fP can be a lot of things like \(dqfedora\(dq, \(dqarch linux\(dq, \(dqgentoo\(dq, etc. \fBpackage\fP is the package name of the chosen distribution.
+.TP
+.B anitya_id
+The identifier of the project/package in anitya.
+.UNINDENT
+.sp
+Note that either anitya or anitya_id needs to be specified, anitya_id is preferred when both specified.
+.SS Check Android SDK
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqandroid_sdk\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track updates of Android SDK packages listed in \fBsdkmanager \-\-list\fP\&.
+.INDENT 0.0
+.TP
+.B android_sdk
+The package path prefix. This value is matched against the \fBpath\fP attribute in all <remotePackage> nodes in an SDK manifest XML. The first match is used for version comparisons.
+.TP
+.B repo
+Should be one of \fBaddon\fP or \fBpackage\fP\&. Packages in \fBaddon2\-1.xml\fP use \fBaddon\fP and packages in \fBrepository2\-1.xml\fP use \fBpackage\fP\&.
+.TP
+.B channel
+Choose the target channel from one of \fBstable\fP, \fBbeta\fP, \fBdev\fP or \fBcanary\fP\&. This option also accepts a comma\-separated list to pick from multiple channels. For example, the latest unstable version is picked with \fBbeta,dev,canary\fP\&. The default is \fBstable\fP\&.
+.TP
+.B host_os
+Choose the target OS for the tracked package from one of \fBlinux\fP, \fBmacosx\fP, \fBwindows\fP\&. The default is \fBlinux\fP\&. For OS\-independent packages (e.g., Java JARs), this field is ignored.
+.UNINDENT
+.sp
+This source supports List Options\&.
+.SS Check Sparkle framework
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqsparkle\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track updates of macOS applications which using Sparkle framework \%<https://\:sparkle-project\:.org>\&.
+.INDENT 0.0
+.TP
+.B sparkle
+The url of the sparkle appcast.
+.TP
+.B release_notes_language
+The language of release notes to return when localized release notes are available (defaults to \fBen\fP for English, the unlocalized release notes are used as a fallback)
+.UNINDENT
+.SS Check Pagure
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqpagure\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to check updates from Pagure \%<https://\:pagure\:.io>\&.
+.INDENT 0.0
+.TP
+.B pagure
+The project name, optionally with a namespace.
+.TP
+.B host
+Hostname of alternative instance like src.fedoraproject.org.
+.UNINDENT
+.sp
+This source returns tags and supports List Options\&.
+.SS Check APT repository
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqapt\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to track the update of an arbitrary APT repository, without needing of apt and an updated local APT database.
+.INDENT 0.0
+.TP
+.B pkg
+Name of the APT binary package.
+.TP
+.B srcpkg
+Name of the APT source package.
+.TP
+.B mirror
+URL of the repository.
+.TP
+.B suite
+Name of the APT repository release (jessie, wheezy, etc)
+.TP
+.B repo
+Name of the APT repository (main, contrib, etc, defaults to main)
+.TP
+.B arch
+Architecture of the repository (i386, amd64, etc, defaults to amd64)
+.TP
+.B strip_release
+Strip the release part.
+.UNINDENT
+.sp
+Note that either pkg or srcpkg needs to be specified (but not both) or the item name will be used as pkg.
+.SS Check RPM repository
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqrpmrepo\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to check latest package versions in an arbitrary RPM repository in \fIrepomd\fP format used by package managers such as \fBdnf\fP (Fedora, RHEL, AlmaLinux etc.) or \fBzypper\fP (openSUSE) without the need for native RPM tools.
+.INDENT 0.0
+.TP
+.B pkg
+Name of the RPM package (you can also use \fBrpmrepo\fP as with other sources, but \fBpkg\fP is preferred for clarity)
+.TP
+.B repo
+URL of the repository (required, \fBrepodata/repomd.xml\fP should be there)
+.TP
+.B arch
+Architecture of the RPM package (\fBbinary\fP, \fBsrc\fP, \fBany\fP, \fBx86_64\fP, \fBaarch64\fP, etc, defaults to \fBbinary\fP)
+.UNINDENT
+.sp
+This source supports List Options\&.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+The additional dependency \fBlxml\fP is required. On Python versions earlier
+than 3.14, \fBzstandard\fP is required as well.
+You can install them with \fBpip install \(aqnvchecker[rpmrepo]\(aq\fP\&.
+.UNINDENT
+.UNINDENT
+.SS Check Git repository
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgit\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to check tags or branch commits of an arbitrary git repository, also useful for scenarios like a github project having too many tags.
+.INDENT 0.0
+.TP
+.B git
+URL of the Git repository.
+.TP
+.B use_commit
+Return a commit hash instead of tags.
+.TP
+.B branch
+When \fBuse_commit\fP is true, return the commit on the specified branch instead of the default one.
+.UNINDENT
+.sp
+When this source returns tags (\fBuse_commit\fP is not true) it supports List Options\&.
+.SS Check Git repository without git CLI using pygit2
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgit_pygit2\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This is similar to the \fBgit\fP source, but uses pygit2/libgit2 instead of
+invoking the \fBgit\fP executable. It is useful in environments where Python
+packages can be installed but external binaries cannot be executed.
+.INDENT 0.0
+.TP
+.B git
+URL of the Git repository.
+.TP
+.B username
+Username to use for HTTP authentication.
+.TP
+.B password_key
+Key name used to retrieve the password or access token from the configured
+keyfile.
+.TP
+.B use_commit
+Return a commit hash instead of tags.
+.TP
+.B branch
+When \fBuse_commit\fP is true, return the commit on the specified branch instead
+of the default one.
+.UNINDENT
+.sp
+Example for a private GitHub repository:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgit_pygit2\(dq
+git = \(dqhttps://github.com/example/private\-repo.git\(dq
+username = \(dqx\-access\-token\(dq
+password_key = \(dqgithub\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When this source returns tags (\fBuse_commit\fP is not true) it supports
+List Options\&.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+An additional dependency \fBpygit2\fP is required.
+.UNINDENT
+.UNINDENT
+.SS Check Git repository without git CLI using Dulwich
+.IP "System Message: WARNING/2 (usage.rst:, line 1040)"
+Title underline too short.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Check Git repository without git CLI using Dulwich
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgit_dulwich\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This is similar to the \fBgit\fP source, but uses Dulwich instead of invoking
+the \fBgit\fP executable. It is useful in environments where Python packages can
+be installed but external binaries cannot be executed.
+.sp
+This source does not support proxy environment variables currently.
+.INDENT 0.0
+.TP
+.B git
+URL of the Git repository.
+.TP
+.B username
+Username to use for HTTP authentication.
+.TP
+.B password_key
+Key name used to retrieve the password or access token from the configured
+keyfile.
+.TP
+.B use_commit
+Return a commit hash instead of tags.
+.TP
+.B branch
+When \fBuse_commit\fP is true, return the commit on the specified branch instead
+of the default one.
+.UNINDENT
+.sp
+Example for a private GitHub repository:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgit_dulwich\(dq
+git = \(dqhttps://github.com/example/private\-repo.git\(dq
+username = \(dqx\-access\-token\(dq
+password_key = \(dqgithub\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+When this source returns tags (\fBuse_commit\fP is not true) it supports
+List Options\&.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+An additional dependency \fBdulwich\fP is required.
+.UNINDENT
+.UNINDENT
+.SS Check Mercurial repository
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqmercurial\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to check tags of an arbitrary mercurial (hg) repository.
+.INDENT 0.0
+.TP
+.B mercurial
+URL of the Mercurial repository.
+.UNINDENT
+.sp
+This source returns tags and supports List Options\&.
+.SS Check container registry
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqcontainer\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to check tags of images on a container registry like Docker.
+.INDENT 0.0
+.TP
+.B container
+The path (and tag) for the container image. For official Docker images, use namespace \fBlibrary/\fP (e.g. \fBlibrary/python\fP).
+.sp
+If no tag is given, it checks latest available tag (sort by tag name), otherwise, it checks the tag\(aqs update time.
+.TP
+.B registry
+The container registry host. Default: \fBdocker.io\fP
+.UNINDENT
+.sp
+\fBregistry\fP and \fBcontainer\fP are the host and the path used in the pull
+command. Note that the \fBdocker\fP command allows omitting some parts of the
+container name while this plugin requires the full name. If the host part is
+omitted, use \fBdocker.io\fP, and if there is no slash in the path, prepend
+\fBlibrary/\fP to the path. Here are some examples:
+.TS
+box center;
+l|l|l.
+T{
+Pull        command
+T}	T{
+registry
+T}	T{
+container
+T}
+_
+T{
+docker pull quay.io/prometheus/node\-exporter
+T}	T{
+quay.io
+T}	T{
+prometheus/node\-exporter
+T}
+_
+T{
+docker pull quay.io/prometheus/node\-exporter:master
+T}	T{
+quay.io
+T}	T{
+prometheus/node\-exporter:master
+T}
+_
+T{
+docker pull openeuler/openeuler
+T}	T{
+docker.io
+T}	T{
+openeuler/openeuler
+T}
+_
+T{
+docker pull openeuler/openeuler:20.03\-lts
+T}	T{
+docker.io
+T}	T{
+openeuler/openeuler:20.03\-lts
+T}
+_
+T{
+docker pull python
+T}	T{
+docker.io
+T}	T{
+library/python
+T}
+_
+T{
+docker pull python:3.11
+T}	T{
+docker.io
+T}	T{
+library/python:3.11
+T}
+.TE
+.sp
+If no tag is given, this source returns tags and supports List Options\&.
+.SS Check ALPM database
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqalpm\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check package updates in a local ALPM database.
+.INDENT 0.0
+.TP
+.B alpm
+Name of the package.
+.TP
+.B repo
+Name of the package repository in which the package resides. If not provided, nvchecker will use \fBrepos\fP value, see below.
+.TP
+.B repos
+An array of possible repositories in which the package may reside in, nvchecker will use the first repository which contains the package. If not provided, \fBcore\fP, \fBextra\fP and \fBmultilib\fP will be used, in that order.
+.TP
+.B dbpath
+Path to the ALPM database directory. Default: \fB/var/lib/pacman\fP\&. You need to update the database yourself.
+.TP
+.B strip_release
+Strip the release part, only return the part before \fB\-\fP\&.
+.TP
+.B provided
+Instead of the package version, return the version this package provides. Its value is what the package provides, and \fBstrip_release\fP takes effect too. This is best used with libraries.
+.UNINDENT
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+An additional dependency \(dqpyalpm\(dq is required.
+.UNINDENT
+.UNINDENT
+.SS Check ALPM files database
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqalpmfiles\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Search package files in a local ALPM files database. The package does not need to be installed. This can be useful for checking shared library versions if a package does not list them in its \fBprovides\fP\&.
+.INDENT 0.0
+.TP
+.B pkgname
+Name of the package.
+.TP
+.B filename
+Regular expression for the file path. If it contains one matching group, that group is returned. Otherwise return the whole file path. Paths do not have an initial slash. For example, \fBusr/lib/libuv\e\e.so\e\e.([^.]+)\fP matches the major shared library version of libuv.
+.TP
+.B repo
+Name of the package repository in which the package resides. If not provided, search all repositories.
+.TP
+.B strip_dir
+Strip directory from the path before matching. Defaults to \fBfalse\fP\&.
+.TP
+.B dbpath
+Path to the ALPM database directory. Default: \fB/var/lib/pacman\fP\&. You need to update the database yourself with \fBpacman \-Fy\fP\&.
+.UNINDENT
+.sp
+This source runs the \fBpacman \-Flq ...\fP command. To configure how many pacman instances are running concurrently:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[__config__.source.alpmfiles]
+concurrency = 2
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+By default it is \fB2\fP\&. \fBpacman \-Flq ...\fP uses a lot of memory so be careful.
+.SS Check Open Vsx
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqopenvsx\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check Open Vsx \%<https://\:open-vsx\:.org> for updates.
+.INDENT 0.0
+.TP
+.B openvsx
+The extension\(aqs Unique Identifier on open\-vsx.org, e.g. \fBritwickdey.LiveServer\fP\&.
+.UNINDENT
+.SS Check Visual Studio Code Marketplace
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqvsmarketplace\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check Visual Studio Code Marketplace \%<https://\:marketplace\:.visualstudio\:.com/\:vscode> for updates.
+.INDENT 0.0
+.TP
+.B vsmarketplace
+The extension\(aqs Unique Identifier on marketplace.visualstudio.com/vscode, e.g. \fBritwickdey.LiveServer\fP\&.
+.UNINDENT
+.SS Check Go packages and modules
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqgo\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check Go packages and modules \%<https://\:pkg\:.go\:.dev> for updates.
+.INDENT 0.0
+.TP
+.B go
+The name of Go package or module, e.g. \fBgithub.com/caddyserver/caddy/v2/cmd\fP\&.
+.UNINDENT
+.SS Check opam repository
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqopam\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to check latest package versions in an arbitrary \fIopam repository <https://opam.ocaml.org/doc/Manual.html#Repositories>\fP without the need for the opam command line tool.
+.INDENT 0.0
+.TP
+.B pkg
+Name of the opam package
+.TP
+.B repo
+URL of the repository (optional, the default \fBhttps://opam.ocaml.org\fP repository is used if not specified)
+.UNINDENT
+.sp
+This source supports List Options\&.
+.SS Check Snapcraft
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqsnapcraft\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This source allows you to check the latest package versions in the Snapcraft \%<https://\:snapcraft\:.io>\&.
+.INDENT 0.0
+.TP
+.B snap
+Name of the snap package.
+.TP
+.B channel
+Name of the channel.
+.UNINDENT
+.SS Combine others\(aq results
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqcombiner\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This source can combine results from other entries.
+.INDENT 0.0
+.TP
+.B from
+A list of entry names to wait results for.
+.TP
+.B format
+A format string to combine the results into the final string.
+.UNINDENT
+.sp
+Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[entry\-1]
+source = \(dqcmd\(dq
+cmd = \(dqecho 1\(dq
+
+[entry\-2]
+source = \(dqcmd\(dq
+cmd = \(dqecho 2\(dq
+
+[entry\-3]
+source = \(dqcombiner\(dq
+from = [\(dqentry\-1\(dq, \(dqentry\-2\(dq]
+format = \(dq$1\-$2\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Manually updating
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+source = \(dqmanual\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This enables you to manually specify the version (maybe because you want to approve each release before it gets to the script).
+.INDENT 0.0
+.TP
+.B manual
+The version string.
+.UNINDENT
+.SS Extending
+.sp
+It\(aqs possible to extend the supported sources by writing
+plugins. See plugin for documentation.
+.\" End of generated man page.

@@ -1,0 +1,238 @@
+.TH INFORMANT 1 "02 SEPTEMBER 2024" informant-v0.6.0 "Informant Manual"
+.SH "نام (NAME)"
+informant \- An Arch Linux News reader and pacman hook.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.I informant
+[options] check
+
+.I informant
+[options] list [--reverse --unread]
+
+.I informant
+[options] read [<item> | --all]
+
+.SH "توضیحات (DESCRIPTION)"
+.I informant
+has three modes of operation: check, list and read.
+
+.SH COMMANDS
+
+.TP
+.B check
+Check for unread Arch Linux News items and exit with status code equal to the
+number of unread items.
+
+.TP
+.B list
+Print out the headlines of the most recent news items (regardless of whether or
+not they have been read). list also can take two options of its own:
+.RS
+.TP
+.B \-\-reverse
+Print the headlines oldest to newest (instead of newest to oldest).
+.TP
+.B \-\-unread
+Print the headlines of only unread items.
+.RE
+
+.TP
+.BR read " " [<item> | --all]
+Print the given news item and mark it as read.
+.B <item>
+can be given as an index (printed by the
+.B list
+command without the
+.B \-\-unread
+or
+.B \-\-reverse
+options) or as a string matching part of the headline of a news item.
+.B read
+will exit with status code 255 if it does not have permission to write to the
+save file.
+
+When run without
+.BR <item>
+or
+.B \-\-all
+read will run interactively printing all unread news items from oldest to newest
+prompting the user if they want to continue reading.
+.RS
+.TP
+.B \-\-all
+Mark all the most recent news items as read without printing them.
+.RE
+
+.SH "گزینه‌ها (OPTIONS)"
+These are the global options which can be applied to any of the subcommands.
+
+.TP
+.BR \-c " " <cfile> ", " \-\-config=<cfile>
+Read configuration from <file>. Configuration and syntax can be found below in
+CONFIGURATION.
+
+.TP
+.BR \-d ", " \-\-debug
+Print the debug messages and don't make changes to the save file.
+
+.TP
+.BR \-r ", " \-\-raw
+When printing items do not replace any markup, items will be printed exactly as
+returned by the RSS feed.
+
+.TP
+.BR \-f " " <file> ", " \-\-file=<file>
+Use <file> as the save location for marking items as read. This is a binary
+file.
+
+.B NOTE
+Changing the file will not change the file read by the pacman hook because the
+pacman hook runs as root, if you want to change that you can do so manually by
+editing /usr/share/libalpm/hooks/00-informant.hook
+
+.TP
+.BR \-p " " <pager> ", " \-\-pager=<pager>
+Use <pager> to display news items. This option overrides the
+.B $INFORMANT_PAGER
+environment variable.
+
+.TP
+.BR \-\-no\-cache
+Do not consider the cache (/var/cache/informant/) when fetching feeds (this
+could likely result in slower feed fetching but more up to date results). Using
+this may be helpful to verify issues running informant due to the cache.
+
+.TP
+.BR \-\-clear-cache
+Empty the cache directory (/var/cache/informant/) before fetching the feed(s).
+
+.TP
+.BR \-\-clear-readlist
+Empty the save file of read news items (/var/lib/informant.dat by default), this
+will mean that any previously read news items returned in the feed will need to
+be read again. The news feed only returns a set amount of files and over time
+there may end up being items in the save file that are no longer returned when
+fetching the feed, this option can be used to cleanup the save file.
+
+By clearing the save file and then marking everything as read you effectively
+remove all the old items from the save file:
+.EX
+    informant --clear-readlist read --all
+.EE
+
+.TP
+.BR \-h ", " \-\-help
+Print the help and exit.
+
+.TP
+.BR \-V ", " \-\-version
+Print the version information and exit.
+
+.SH "محیط (ENVIRONMENT)"
+
+.TP
+.BR INFORMANT_PAGER
+If
+.B $INFORMANT_PAGER
+is set it's value will be used as the name of the program used to display news
+items.
+
+.SH "پیکربندی (CONFIGURATION)"
+Informant can be configured to check multiple feeds instead of just the Arch
+Linux News feed (whether having it do so is actually useful or not is left up to
+the user). Informant will check for an
+.B informantrc.json
+file in a few places. It will check in this order:
+.RS
+.PP
+\- CLI provided option (cfile)
+
+.PP
+\- $HOME/.informantrc.json
+
+.PP
+\- $XDG_CONFIG_HOME/informantrc.json
+
+.PP
+\- /etc/informantrc.json
+
+.PP
+\- For each directory $d in $XDG_CONFIG_DIRS it will look for $d/informantrc.json
+.RE
+
+.PP
+.B NOTE
+IF you want the configuration file to be used in the pacman hook make sure to
+use a save location that will be accessible to informant when running as
+root/sudo.
+
+.SS Configuration Syntax
+The syntax of informantrc.json is a JSON object containig on key:
+.B feeds
+that is a list describing the feeds you want informant to check. Each feed is
+represented as a JSON object with the following keys:
+.RS
+
+.TP
+.BR name (optional)
+used to show which feed each news item is from
+
+.TP
+.BR url (required)
+the feed URL
+
+.TP
+.BR title-key (optional)
+defaults to
+.IR title ,
+the key used to reference the news item title in the feed
+
+.TP
+.BR body-key (optional)
+defaults to
+.IR summary ,
+the key used to reference the news item body in the feed
+
+.TP
+.BR timestamp-key (optional)
+defaults to
+.IR published ,
+the key used to reference the news item date in the feed
+.RE
+
+.PP
+For example, the below informantrc.json will configure informant to check the
+Arch Linux News feed as well as the Arch Linux 32 News Feed:
+.EX
+{
+    "feeds": [
+        {
+            "name": "Arch News",
+            "url": "https://archlinux.org/feeds/news",
+            "title-key": "title",
+            "body-key": "summary",
+            "timestamp-key": "published"
+        },
+        {
+            "name": "Arch32 News",
+            "url": "https://bbs.archlinux32.org/extern.php?action=feed&fid=12&type=atom",
+            "title-key": "title",
+            "body-key": "summary",
+            "timestamp-key": "updated"
+        }
+    ]
+}
+.EE
+
+.SH "نویسنده (AUTHOR)"
+Bradford Smith <\fIhttps://github.com/bradford-smith94\fR>
+
+.SH "مجوز (LICENSE)"
+MIT.
+
+.SH "اشکالات (BUGS)"
+Please report bugs at:
+<\fIhttps://github.com/bradford-smith94/informant/issues\fR>.
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR alpm-hooks (5)

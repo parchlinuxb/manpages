@@ -1,0 +1,190 @@
+.\"-
+.\" Copyright (c) 2012 Andreas Olsson
+.\" Copyright (c) 2016 Tim Duesterhus
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.TH SPIPED 1 "@DATE@" "spiped @VERSION@" "spiped README"
+.SH "نام (NAME)"
+spiped \- secure pipe daemon
+.SH "خلاصه دستور (SYNOPSIS)"
+.B spiped
+{\-e | \-d} \-s <source socket>
+\-t <target socket>
+\-k <key file>
+.br
+[\-DFj]
+[\-b <bind address>]
+[\-f | \-g]
+[\-n <max # connections>]
+.br
+[\-o <connection timeout>]
+[\-p <pidfile>]
+[\-r <rtime> | \-R]
+[\-\-syslog]
+.br
+[\-u <username> | <:groupname> | <username:groupname>]
+.br
+.B spiped
+\-v
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B \-e
+Take unencrypted connections from the
+.I source socket
+and send encrypted connections to the
+.IR "target socket" .
+.TP
+.B \-d
+Take encrypted connections from the
+.I source socket
+and send unencrypted connections to the
+.IR "target socket" .
+.TP
+.B \-s <source socket>
+Address on which spiped should listen for incoming connections.  The
+accepted formats are the same as the ones accepted by
+.IR "target socket" .
+Note that contrary to
+.I target socket
+hostnames are resolved when
+.B spiped
+is launched and are not re-resolved later; thus if DNS entries change
+.B spiped
+will continue to accept connections at the expired address.
+.TP
+.B \-t <target socket>
+Address to which
+.B spiped
+should connect.
+Must be in one of the following formats:
+.IP \(bu
+/absolute/path/to/unix/socket
+.IP \(bu
+host.name:port
+.IP \(bu
+[ip.v4.ad.dr]:port
+.IP \(bu
+[ipv6::addr]:port
+.IP
+Hostnames are re-resolved every
+.I rtime
+seconds.
+.TP
+.B \-k <key file>
+Use the provided key file to authenticate and encrypt.
+Pass "\-" to read from standard input.
+.TP
+.B \-b <bind address>
+Bind the outgoing address.  If this is a network address, the port number
+may either be specified or left to the operating system.  If you specify the
+port number, the operating system will not permit you to open a second
+connection until the first one has completely expired (i.e. the TCP state is
+no longer in the TIME-WAIT state).
+.TP
+.B \-D
+Wait for DNS.  Normally when
+.B spiped
+is launched it resolves addresses and binds to its
+.I source socket
+before the parent process returns; with this option it will daemonize
+first and retry failed DNS lookups until they succeed.  This allows
+.B spiped
+to launch even if DNS isn't set up yet, but at the expense of losing
+the guarantee that once
+.B spiped
+has finished launching it will be ready to create pipes.
+.TP
+.B \-f
+Use fast/weak handshaking: This reduces the CPU time spent in the
+initial connection setup by disabling the Diffie-Hellman handshake, at the
+expense of losing perfect forward secrecy.
+.TP
+.B \-g
+Require perfect forward secrecy by dropping connections if the other
+host is using the \-f option.
+.TP
+.B \-F
+Run in foreground.  This can be useful with systems like daemontools.
+.TP
+.B \-j
+Disable transport layer keep-alives.
+(By default they are enabled.)
+.TP
+.B \-n <max # connections>
+Limit on the number of simultaneous connections allowed.
+A value of 0 indicates that no limit should be imposed; this may be
+inadvisable in some circumstances, since
+.B spiped
+will terminate if it fails to allocate memory for handling a new
+connection.
+Defaults to 100 connections.
+.TP
+.B \-o <connection timeout>
+Timeout, in seconds, after which an attempt to connect to the target
+or a protocol handshake will be aborted (and the connection dropped)
+if not completed.  Defaults to 5s.
+.TP
+.B \-p <pidfile>
+File to which
+.BR spiped 's
+process ID should be written.  Defaults to
+.IR "source socket" .pid
+(in the current directory if
+.I source socket
+is not an absolute path).  No file will be written if -F (run in foreground)
+is used.
+.TP
+.B \-r <rtime>
+Re-resolve the address of
+.I target socket
+every
+.I rtime
+seconds.
+Defaults to re-resolution every 60 seconds.
+.TP
+.B \-R
+Disable target address re-resolution.
+.TP
+.B \-\-syslog
+After daemonizing, send warnings to syslog instead of stderr.  Has
+no effect if -F (run in foreground) is used.
+.TP
+.B \-u <username> | <:groupname> | <username:groupname>
+After binding a socket, change the user to
+.I username
+and/or the group to
+.IR groupname .
+.TP
+.B \-v
+Print version number.
+.SH SIGNALS
+spiped provides special treatment of the following signals:
+.TP
+.B SIGTERM
+On receipt of the
+.I SIGTERM
+signal
+.B spiped
+will stop accepting new connections and exit once there are
+no active connections left.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR spipe (1).

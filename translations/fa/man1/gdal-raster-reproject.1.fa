@@ -1,0 +1,539 @@
+.\" Man page generated from reStructuredText.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "GDAL-RASTER-REPROJECT" "1" "Aug 18, 2026" "" "GDAL"
+.SH "نام (NAME)"
+gdal-raster-reproject \- Reproject a raster dataset
+.sp
+Added in version 3.11.
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+Usage: gdal raster reproject [OPTIONS] <INPUT> <OUTPUT>
+
+Reproject a raster dataset.
+
+Positional arguments:
+  \-i, \-\-input <INPUT>                                  Input raster datasets [required] [not available in pipelines]
+  \-o, \-\-output <OUTPUT>                                Output raster dataset [required] [not available in pipelines]
+
+Common Options:
+  \-h, \-\-help                                           Display help message and exit
+  \-\-json\-usage                                         Display usage as JSON document and exit
+  \-\-config <KEY>=<VALUE>                               Configuration option [may be repeated]
+  \-q, \-\-quiet                                          Quiet mode (no progress bar or warning message) [not available in pipelines]
+
+Options:
+  \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>  Output format (\(dqGDALG\(dq allowed) [not available in pipelines]
+  \-\-co, \-\-creation\-option <KEY>=<VALUE>                Creation option [may be repeated] [not available in pipelines]
+  \-\-overwrite                                          Whether overwriting existing output dataset is allowed [not available in pipelines]
+                                                       Mutually exclusive with \-\-append
+  \-\-append                                             Append as a subdataset to existing output [not available in pipelines]
+                                                       Mutually exclusive with \-\-overwrite
+  \-s, \-\-input\-crs <INPUT\-CRS>                          Input CRS
+  \-\-like <DATASET>                                     Dataset to use as a template for target bounds, CRS, size and nodata
+  \-d, \-\-output\-crs <OUTPUT\-CRS>                        Output CRS
+  \-r, \-\-resampling <RESAMPLING>                        Resampling method. RESAMPLING=nearest|bilinear|cubic|cubicspline|lanczos|average|rms|mode|min|max|med|q1|q3|sum (default: nearest)
+  \-\-resolution <xres>,<yres>                           Target resolution (in destination CRS units)
+                                                       Mutually exclusive with \-\-size
+  \-\-size <width>,<height>                              Target size in pixels
+                                                       Mutually exclusive with \-\-resolution
+  \-\-bbox <BBOX>                                        Target bounding box (in destination CRS units)
+  \-\-bbox\-crs <BBOX\-CRS>                                CRS of target bounding box
+  \-j, \-\-num\-threads <NUM\-THREADS>                      Number of jobs (or ALL_CPUS) (default: ALL_CPUS)
+
+Advanced Options:
+  \-\-if, \-\-input\-format <INPUT\-FORMAT>                  Input formats [may be repeated] [not available in pipelines]
+  \-\-oo, \-\-open\-option <KEY>=<VALUE>                    Open options [may be repeated] [not available in pipelines]
+  \-\-target\-aligned\-pixels                              Round target extent to target resolution
+  \-\-input\-nodata <INPUT\-NODATA>                        Set nodata values for input bands (\(aqNone\(aq to unset). [1.. values]
+  \-\-output\-nodata <OUTPUT\-NODATA>                      Set nodata values for output bands (\(aqNone\(aq to unset). [1.. values]
+  \-\-add\-alpha                                          Adds an alpha mask band to the destination when the source raster have none.
+  \-\-wo, \-\-warp\-option <NAME>=<VALUE>                   Warping option(s) [may be repeated]
+  \-\-to, \-\-transform\-option <NAME>=<VALUE>              Transform option(s) [may be repeated]
+  \-\-et, \-\-error\-threshold <ERROR\-THRESHOLD>            Error threshold
+.EE
+.UNINDENT
+.UNINDENT
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgdal raster reproject\fP can be used to reproject a raster dataset.
+The program can reproject to any supported projection.
+.sp
+First, \fBgdal raster reproject\fP must determine the extent and resolution of the
+output, if these have not been specified using \fI\%\-\-bbox\fP and \fI\%\-\-resolution\fP\&.
+These are determined by transforming a sample of points from the source CRS to
+the destination CRS. Details of the procedure can be found in the documentation
+for \fI\%GDALSuggestedWarpOutput()\fP\&. If multiple inputs are provided to
+\fBgdal raster reproject\fP, the output extent will be calculated to cover all of them,
+at a resolution consistent with the highest\-resolution input.
+.sp
+Once the dimensions of the output image have been determined,
+\fBgdal raster reproject\fP divides the output image into chunks that can be processed
+independently.
+\fBgdal raster reproject\fP then iterates over scanlines in these chunks, and for each
+output pixel determines a rectangular region of source pixels that contribute
+to the value of the output pixel. The dimensions of this rectangular region
+are typically determined by estimating the relative scales of the source and
+destination raster, but can be manually specified (see documentation of the
+\fBXSCALE\fP parameter in \fI\%GDALWarpOptions::papszWarpOptions\fP).
+Because the source region is a simple rectangle, it is not possible for an
+output pixel to be associated with source pixels from both sides of the
+antimeridian or pole (when transforming from geographic coordinates).
+.sp
+The rectangular region of source pixels is then provided to a function that
+performs the resampling algorithm selected with \fI\%\-\-resampling\fP\&. Depending on the
+resampling algorithm and relative scales of the source and destination rasters,
+source pixels may be weighted either according to the approximate fraction of
+the source pixel that is covered by the destination pixel (e.g., \(dqmean\(dq and
+\(dqsum\(dq resampling), or by horizontal and vertical Cartesian distances between
+the center of the source pixel and the center of the target pixel (e.g.,
+bilinear or cubic spline resampling). In the latter case, the relative weight
+of an individual source pixel is determined by the product of the weights
+determined for its row and column; the diagonal Cartesian distance is not
+calculated.
+.sp
+This subcommand is also available as a potential step of \fI\%gdal raster pipeline\fP
+.SH PROGRAM-SPECIFIC OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-add\-alpha
+Create an output alpha band to identify nodata (unset/transparent) pixels.
+Value 0 is used for fully transparent pixels. The maximum value for the alpha
+band, for fully opaque pixels, depends on the data type and the presence of
+the NBITS band metadata item. If it is present, the maximum value is 2^NBITS\-1.
+Otherwise, if NBITS is not set and the alpha band is of type UInt16
+(resp. Int16), 65535 (resp. 32767) is used. Otherwise, 255 is used. The
+maximum value can also be overridden with \fB\-\-wo DST_ALPHA_MAX=<value>\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-bbox <xmin>,<ymin>,<xmax>,<ymax>
+Set georeferenced extents of output file to be created (in target SRS by
+default, or in the SRS specified with \fI\%\-\-bbox\-crs\fP)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-bbox\-crs <BBOX\-CRS>
+Specifies the SRS in which to interpret the coordinates given with \fI\%\-\-bbox\fP\&.
+.sp
+The coordinate reference systems that can be passed are anything supported by the
+OGRSpatialReference.SetFromUserInput() call, which includes EPSG Projected,
+Geographic or Compound CRS (i.e. EPSG:4296), a well known text (WKT) CRS definition,
+PROJ.4 declarations, or the name of a .prj file containing a WKT CRS definition.
+.sp
+If the SRS has an explicit vertical datum that points to a geoid grid, and the input dataset is a
+single band dataset, a vertical correction will be applied to the values of the
+dataset.
+.sp
+This must not be confused with \fI\%\-\-output\-crs\fP which is the target SRS of the output
+dataset. \fI\%\-\-bbox\-crs\fP is a convenience e.g. when knowing the output coordinates in a
+geodetic long/lat SRS, but still wanting a result in a projected coordinate system.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-like <DATASET>
+Name of GDAL input dataset that serves as a template for default values of
+options \fI\%\-\-size\fP, \fI\%\-\-resolution\fP
+\fI\%\-\-output\-crs\fP and \fI\%\-\-bbox\fP
+Note that the pixel values will \fInot\fP be copied, and that spatial registration of the
+template dataset through mechanisms such as GCP, RPC or geolocation array is
+ignored.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-et, \-\-error\-threshold <ERROR\-THRESHOLD>
+Error threshold for transformation approximation, expressed as a number of
+source pixels. Defaults to 0.125 pixels unless the \fBRPC_DEM\fP transformer
+option is specified, in which case an exact transformer, i.e.
+\fB\-\-error\-threshold=0\fP, will be used.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-j, \-\-num\-threads <value>
+Added in version 3.12.
+
+.sp
+Number of jobs to run at once.
+Default: number of CPUs detected.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-input\-crs, \-s <INPUT\-CRS>
+Set input spatial reference. If not specified the SRS found in the input
+dataset will be used.
+.sp
+The coordinate reference systems that can be passed are anything supported by the
+OGRSpatialReference.SetFromUserInput() call, which includes EPSG Projected,
+Geographic or Compound CRS (i.e. EPSG:4296), a well known text (WKT) CRS definition,
+PROJ.4 declarations, or the name of a .prj file containing a WKT CRS definition.
+.sp
+If the SRS has an explicit vertical datum that points to a geoid grid, and the input dataset is a
+single band dataset, a vertical correction will be applied to the values of the
+dataset.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-input\-nodata <NODATA>
+Set nodata masking values for input bands (different values can be supplied
+for each band). If more than one value is supplied all values should be quoted
+to keep them together as a single operating system argument.
+Masked values will not be used in interpolation (details given in \fI\%Nodata / source validity mask handling\fP)
+.sp
+Use a value of \fBNone\fP to ignore intrinsic nodata settings on the source dataset.
+.sp
+When this option is set to a non\-\fBNone\fP value, it causes the \fBUNIFIED_SRC_NODATA\fP
+warping option (see \fI\%GDALWarpOptions::papszWarpOptions\fP) to be
+set to \fBYES\fP, if it is not explicitly set.
+.sp
+If \fB\-\-input\-nodata\fP is not explicitly set, but the source dataset has nodata values,
+they will be taken into account, with \fBUNIFIED_SRC_NODATA\fP at \fBPARTIAL\fP
+by default.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output\-crs, \-d, <OUTPUT\-CRS>
+Set output spatial reference. If not specified the SRS found in the input
+dataset will be used.
+.sp
+The coordinate reference systems that can be passed are anything supported by the
+OGRSpatialReference.SetFromUserInput() call, which includes EPSG Projected,
+Geographic or Compound CRS (i.e. EPSG:4296), a well known text (WKT) CRS definition,
+PROJ.4 declarations, or the name of a .prj file containing a WKT CRS definition.
+.sp
+If the SRS has an explicit vertical datum that points to a geoid grid, and the input dataset is a
+single band dataset, a vertical correction will be applied to the values of the
+dataset.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output\-nodata <NODATA>
+Set nodata values for output bands (different values can be supplied for each band).
+If more than one value is supplied all values should be quoted to keep them together
+as a single operating system argument.  New files will be initialized to this
+value and if possible the nodata value will be recorded in the output
+file. Use a value of \fBNone\fP to ensure that nodata is not defined.
+If this argument is not used then nodata values will be copied from the source dataset.
+Note that a number of output formats, including GeoTIFF, do not support
+different per\-band nodata values, but a single one for all bands.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-r, \-\-resampling <RESAMPLING>
+Resampling method to use. Available methods are:
+.sp
+\fBnearest\fP: nearest neighbour resampling (default, fastest algorithm, worst interpolation quality).
+.sp
+\fBbilinear\fP: bilinear resampling.
+.sp
+\fBcubic\fP: cubic resampling.
+.sp
+\fBcubicspline\fP: cubic spline resampling.
+.sp
+\fBlanczos\fP: Lanczos windowed sinc resampling.
+.sp
+\fBaverage\fP: average resampling, computes the weighted average of all non\-NODATA contributing pixels.
+.sp
+\fBrms\fP root mean square / quadratic mean of all non\-NODATA contributing pixels
+.sp
+\fBmode\fP: mode resampling, selects the value which appears most often of all the sampled points. In the case of ties, the first value identified as the mode will be selected.
+.sp
+\fBmax\fP: maximum resampling, selects the maximum value from all non\-NODATA contributing pixels.
+.sp
+\fBmin\fP: minimum resampling, selects the minimum value from all non\-NODATA contributing pixels.
+.sp
+\fBmed\fP: median resampling, selects the median value of all non\-NODATA contributing pixels.
+.sp
+\fBq1\fP: first quartile resampling, selects the first quartile value of all non\-NODATA contributing pixels.
+.sp
+\fBq3\fP: third quartile resampling, selects the third quartile value of all non\-NODATA contributing pixels.
+.sp
+\fBsum\fP: compute the weighted sum of all non\-NODATA contributing pixels
+.sp
+\fBNOTE:\fP
+.INDENT 7.0
+.INDENT 3.5
+When downsampling is performed (use of \fI\%\-\-resolution\fP or \fI\%\-\-size\fP), existing
+overviews (either internal/implicit or external ones) on the source image
+will be used by default by selecting the closest overview to the desired output
+resolution.
+The resampling method used to create those overviews is generally not the one you
+specify through the \fI\%\-r\fP option.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-resolution <xres>,<yres>
+Set output file resolution (in target georeferenced units).
+.sp
+If not specified (or not deduced from \fI\%\-\-size\fP), the program will, in the
+general case, generate an output raster with xres=yres.
+.sp
+If neither \fI\%\-\-resolution\fP nor \fI\%\-\-size\fP are specified,
+that no reprojection is involved (including taking into account geolocation arrays
+or RPC), the resolution of the source file(s) will be preserved (in previous
+version, an output raster with xres=yres was always generated).
+.sp
+Mutually exclusive with \fI\%\-\-size\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-size <width>,<height>
+Set output file size in pixels and lines. If width or height is set to 0,
+the other dimension will be guessed from the computed resolution.
+.sp
+Mutually exclusive with \fI\%\-\-resolution\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-target\-aligned\-pixels
+Align the coordinates of the extent of the output
+file to the values of the \fI\%\-\-resolution\fP, such that the aligned extent
+includes the minimum extent (edges lines/columns that are detected as
+blank, before actual warping, will be removed).
+Alignment means that xmin / resx, ymin / resy,
+xmax / resx and ymax / resy are integer values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-to, \-\-transform\-option <NAME>=<VALUE>
+Set a transformer option suitable to pass to \fI\%GDALCreateGenImgProjTransformer2()\fP\&.
+See \fI\%GDALCreateRPCTransformerV2()\fP for RPC specific options.
+.sp
+To match the gdalwarp \-rpc option, use \-\-to METHOD=RPC
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-wo, \-\-warp\-option <NAME>=<VALUE>
+Set a warp option.  The \fI\%GDALWarpOptions::papszWarpOptions\fP docs show all options.
+Multiple options may be listed.
+.UNINDENT
+.SH STANDARD OPTIONS
+.INDENT 0.0
+.TP
+.B \-\-append
+Append input raster as a new subdataset to an existing output file.
+Only works with drivers that support adding subdatasets such as
+\fI\%GTiff \-\- GeoTIFF File Format\fP and \fI\%GPKG \-\- GeoPackage raster\fP
+This also creates the output dataset if it does not exist yet.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-co, \-\-creation\-option <NAME>=<VALUE>
+Many formats have one or more optional creation options that can be
+used to control particulars about the file created. For instance,
+the GeoTIFF driver supports creation options to control compression,
+and whether the file should be tiled.
+.sp
+May be repeated.
+.sp
+The creation options available vary by format driver, and some
+simple formats have no creation options at all. A list of options
+supported for a format can be listed with the
+\fI\%\-\-formats\fP
+command line option but the documentation for the format is the
+definitive source of information on driver creation options.
+See \fI\%Raster drivers\fP format
+specific documentation for legal creation options for each format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-if, \-\-input\-format <format>
+Format/driver name to be attempted to open the input file(s). It is generally
+not necessary to specify it, but it can be used to skip automatic driver
+detection, when it fails to select the appropriate driver.
+This option can be repeated several times to specify several candidate drivers.
+Note that it does not force those drivers to open the dataset. In particular,
+some drivers have requirements on file extensions.
+.sp
+May be repeated.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-oo, \-\-open\-option <NAME>=<VALUE>
+Dataset open option (format specific).
+.sp
+May be repeated.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-f, \-\-of, \-\-format, \-\-output\-format <OUTPUT\-FORMAT>
+Which output raster format to use. Allowed values may be given by
+\fBgdal \-\-formats | grep raster | grep rw | sort\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-overwrite
+Allow program to overwrite existing target file or dataset.
+Otherwise, by default, \fBgdal\fP errors out if the target file or
+dataset already exists.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-q, \-\-quiet
+Suppress progress bar and some warning messages.
+.UNINDENT
+.SH NODATA / SOURCE VALIDITY MASK HANDLING
+.sp
+Invalid values in source pixels, either identified through a nodata value
+metadata set on the source band, a mask band, an alpha band (for an alpha band,
+a value of 0 means invalid. Other values are used for blending values) or the use of
+\fI\%\-\-input\-nodata\fP will not be used in interpolation.
+The details of how it is taken into account depends on the resampling kernel:
+.INDENT 0.0
+.IP \(bu 2
+for nearest resampling, for each target pixel, the coordinate of its center
+is projected back to source coordinates and the source pixel containing that
+coordinate is identified. If this source pixel is invalid, the target pixel
+is considered as nodata.
+.IP \(bu 2
+for bilinear, cubic, cubicspline and lanczos, for each target pixel, the
+coordinate of its center is projected back to source coordinates and a
+corresponding source pixel is identified. If this source pixel is invalid, the
+target pixel is considered as nodata (in this case, valid pixels within the
+kernel radius would not be considered).
+Given that those resampling kernels have a non\-null kernel radius, this source
+pixel is just one among other several source pixels, and it might be possible
+that there are invalid values in those other contributing source pixels.
+The weights used to take into account those invalid values will be set to zero
+to ignore them.
+.IP \(bu 2
+for the other resampling methods, source pixels contributing to the target pixel
+are ignored if invalid. Only the valid ones are taken into account. If there are
+none, the target pixel is considered as nodata.
+.UNINDENT
+.SH APPROXIMATE TRANSFORMATION
+.sp
+By default \fBgdal raster reproject\fP uses a linear approximator for the
+transformations with a permitted error of 0.125 pixels in the source dataset.
+For each processing chunk, the approximator precisely transforms three points
+per output scanline (the start, middle, and end) from a row and column in the
+output dataset to a row and column in the source dataset.
+It then compares a linear approximation of the center point coordinates to the
+precisely transformed value.
+If the sum of the horizontal and vertical errors is less than the error
+threshold then the remaining source points are approximated using linear
+interpolation between the start and middle point, and between the middle and
+end point.
+If the error exceeds the threshold, the scanline is split into two sections and
+the approximator is recursively applied to each section until the error is less
+than the threshold or all points have been exactly computed.
+.sp
+Note that a processing chunk does not necessarily correspond to a whole destination
+scanline. If the output dataset is tiled, its shape will typically be one or
+several tiles. The \fBOPTIMIZE_SIZE\fP warping option can also influence the shape
+of the processing chunk. Consequently, for a single (non\-zero) value of the error threshold,
+the linear approximation might result in slightly different values in coordinate
+transformation, but all of them within the permitted error.
+.sp
+The error threshold (in source dataset pixels) can be controlled with the
+\fI\%\-\-error\-threshold\fP switch. If you want to compare a true pixel\-by\-pixel reprojection
+use \fB\-\-error\-threshold=0\fP which disables this approximator entirely.
+.SH FREQUENTLY ASKED QUESTIONS
+.sp
+Q1. Why does the quality of the output looks so bad (no anti\-aliasing)?
+.sp
+Did you specify a resampling method, with \fI\%\-\-resampling\fP, other than the
+default nearest neighbour?
+.sp
+Q2. Why do I get slightly different results whether the output dataset is tiled or not?
+.sp
+This is related to the fact that an approximate coordinate transformation is
+used by default to speed\-up computation. If you want to get the same results
+whether the output is tiled or not, set \fI\%\-\-error\-threshold\fP to zero.
+Note, however, that this will only work for relatively small images; other factors
+can still result in different result. See following question (Q3).
+.sp
+Q3. Why do I observe artifacts, that look like resolution changes and are aligned
+with rectangular areas of the output raster, when warping sufficiently large
+rasters, particularly in areas where the reprojection involves significant
+deformation and only with non\-nearest resampling ?
+.sp
+The warping engine operates on rectangular areas of the output
+dataset (generally aligned with tile boundaries for a compressed tile dataset).
+.sp
+During reprojection, a single source pixel does not generally correspond to a
+single output pixel. The resampling method must therefore properly account for this
+and compute a ratio between the number of source and target pixels in the
+horizontal (X) and vertical (Y) directions. These ratios are computed per warping
+chunk. This maximizes the local quality of the warping but has the downside of
+creating visual discontinuities between warping chunks.
+.sp
+If you favor a seamless result, you may manually specify the
+XSCALE and YSCALE warping options with \fI\%\-\-wo\fP\&.
+The XSCALE (resp. YSCALE) value is the ratio expressing the resampling factor,
+i.e. the number of destination pixels per source pixel, along the
+horizontal (resp. vertical) axis. It equals to one for no resampling, is
+below one for downsampling, and above one for upsampling.
+.SH GDALG OUTPUT (ON-THE-FLY / STREAMED DATASET)
+.sp
+This program supports serializing the command line as a JSON file using the \fBGDALG\fP output format.
+The resulting file can then be opened as a raster dataset using the
+\fI\%GDALG: GDAL Streamed Algorithm\fP driver, and apply the specified pipeline in a on\-the\-fly /
+streamed way.
+.SH RETURN STATUS CODE
+.sp
+The program returns status code 0 in case of success, and non\-zero in case of
+error (non\-blocking errors emitted as warnings are considered as a successful
+execution).
+.SH "مثال‌ها (EXAMPLES)"
+.SS Example 1: Reproject a GeoTIFF file to CRS EPSG:32632 (\(dqWGS 84 / UTM zone 32N\(dq)
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal raster reproject \-\-output\-crs=EPSG:32632 in.tif out.tif \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+.SS Example 2: Converting a raster that uses an embedded CRS without a known identifier
+.sp
+In this example, the input file has an embedded CRS defined in WKT2 but without an associated identifier,
+and it will be reprojected to the known \X'tty: link https://spatialreference.org/ref/esri/54052'\fI\%ESRI:54052\fP\X'tty: link' CRS identifier.
+.sp
+Using \fB\(dqPROFILE=BASELINE\(dq\fP creates a \fI\%PAM\fP file that stores the CRS using the \fBESRI:54052\fP identifier,
+instead of embedding CRS information in GeoTIFF metadata tags. See \fI\%GTiff\fP \fBPROFILE\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gdal raster reproject \-\-creation\-option \(dqPROFILE=BASELINE\(dq \-\-output\-crs=ESRI:54052 input.tif output.tif \-\-overwrite
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Even Rouault <even.rouault@spatialys.com>
+.SH "حق نشر (COPYRIGHT)"
+1998-2026
+.\" Generated by docutils manpage writer.
+.

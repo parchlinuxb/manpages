@@ -1,0 +1,77 @@
+.\" generated with Ronn-NG/v0.10.1
+.\" http://github.com/apjanke/ronn-ng/tree/0.10.1
+.SH "خلاصه دستور (SYNOPSIS)"
+Serve the bupstash protocol over stdin/stdout\.
+.P
+\fBbupstash serve [OPTIONS] REPOSITORY\fR
+.SH "توضیحات (DESCRIPTION)"
+\fBbupstash serve\fR serves the bupstash protocol over stdin/stdout allowing interaction with a repository\. Most bupstash commands operate via an instance of bupstash serve\.
+.P
+The serve command has flags that can be set to restrict access permissions, by default all access is permitted until the first \-\-allow\-* option is provided\. These flags can be enforced ssh authorized_keys file, or through mechanisms such as \fBsudo\fR or \fBdoas\fR configuration\.
+.P
+Clients with permission to read data may still not be able to decrypt it unless they have the correct client side decryption key\.
+.P
+Note that many errors are printed out of band via stderr, so alternative transports should consider how to also forward stderr data\.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\-\-allow\-init
+Allow the client to initialize new repositories\.
+.TP
+\-\-allow\-put
+Allow client to put more items into the repository\.
+.TP
+\-\-allow\-list
+Allow client to retrieve metadata and snapshot indexes for search and listing\.
+.TP
+\-\-allow\-get
+Allow client to retrieve data from the repository, implies \-\-allow\-list\.
+.TP
+\-\-allow\-remove
+Allow client to remove repository items, implies \-\-allow\-list\.
+.TP
+\-\-allow\-gc
+Allow client to run the repository garbage collector\.
+.TP
+\-\-allow\-sync
+Allow client to sync items into the repository, i\.e\. be the destination of a repository sync\.
+.SH "مثال‌ها (EXAMPLES)"
+.SS "Custom ssh flags using BUPSTASH_REPOSITORY_COMMAND"
+.nf
+$ export BUPSTASH_REPOSITORY_COMMAND="ssh \-p 2020 $SERVER bupstash serve /data/repository"
+$ bupstash list
+.fi
+.SS "Setup SSH access controls"
+Create a 'backups' user on your server\.
+.P
+In an your sshd config file in your server add the line:
+.IP "" 4
+.nf
+Match User backups
+    ForceCommand "/bin/bupstash\-put\-force\-command\.sh"
+.fi
+.IP "" 0
+.P
+Create /bin/bupstash\-put\-force\-command\.sh on your server:
+.IP "" 4
+.nf
+$ echo 'exec bupstash serve \-\-allow\-put /home/backups/bupstash\-backups' > bupstash\-put\-force\-command\.sh
+$ sudo cp bupstash\-put\-force\-command\.sh /bin/bupstash\-put\-force\-command\.sh
+$ sudo chown root:root /bin/bupstash\-put\-force\-command\.sh
+$ sudo chmod +x /bin/bupstash\-put\-force\-command\.sh
+.fi
+.IP "" 0
+.P
+Now any client with ssh access to the 'backups' user will only be able to add new backups to one repository:
+.IP "" 4
+.nf
+$ export BUPSTASH_REPOSITORY="ssh://backups@$SERVER"
+$ bupstash put \./data
+d1659c3f56f744c7767fc57da003ee5d
+$ bupstash list
+server has disabled query and search for this client
+.fi
+.IP "" 0
+.P
+Logging into the server via other means will have full access to the backups repository\. Different permissions can be configured using similar concepts along side different ssh configurations and keys\.
+.SH "همچنین ببینید (SEE ALSO)"
+bupstash(1), bupstash\-repository(7)

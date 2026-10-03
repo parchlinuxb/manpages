@@ -1,0 +1,2851 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "PYTHON-ENGINEIO" "1" "Jul 18, 2026" "" "python-engineio"
+.SH "نام (NAME)"
+python-engineio \- python-engineio Documentation
+.sp
+This project implements Python based Engine.IO client and server that can run
+standalone or integrated with a variety of Python web frameworks and
+applications.
+.SH GETTING STARTED
+.SS What is Engine.IO?
+.sp
+Engine.IO is a lightweight transport protocol that enables real\-time
+bidirectional event\-based communication between clients (typically, though
+not always, web browsers) and a server. The official implementations of the
+client and server components are written in JavaScript. This package provides
+Python implementations of both, each with standard and \fBasyncio\fP variants.
+.sp
+The Engine.IO protocol is extremely simple. Once a connection between a client
+and a server is established, either side can send \(dqmessages\(dq to the other
+side. Event handlers provided by the applications on both ends are invoked
+when a message is received, or when a connection is established or dropped.
+.SS Client Examples
+.sp
+The example that follows shows a simple Python client:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+
+eio = engineio.Client()
+
+@eio.on(\(aqconnect\(aq)
+def on_connect():
+    print(\(aqconnection established\(aq)
+
+@eio.on(\(aqmessage\(aq)
+def on_message(data):
+    print(\(aqmessage received with \(aq, data)
+    eio.send({\(aqresponse\(aq: \(aqmy response\(aq})
+
+@eio.on(\(aqdisconnect\(aq)
+def on_disconnect():
+    print(\(aqdisconnected from server\(aq)
+
+eio.connect(\(aqhttp://localhost:5000\(aq)
+eio.wait()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+And here is a similar client written using the official Engine.IO Javascript
+client:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+<script src=\(dq/path/to/engine.io.js\(dq></script>
+<script>
+    var socket = eio(\(aqhttp://localhost:5000\(aq);
+    socket.on(\(aqopen\(aq, function() { console.log(\(aqconnection established\(aq); });
+    socket.on(\(aqmessage\(aq, function(data) {
+        console.log(\(aqmessage received with \(aq + data);
+        socket.send({response: \(aqmy response\(aq});
+    });
+    socket.on(\(aqclose\(aq, function() { console.log(\(aqdisconnected from server\(aq); });
+</script>
+.EE
+.UNINDENT
+.UNINDENT
+.SS Client Features
+.INDENT 0.0
+.IP \(bu 2
+Can connect to other Engine.IO complaint servers besides the one in this package.
+.IP \(bu 2
+Compatible with Python 3.6+.
+.IP \(bu 2
+Two versions of the client, one for standard Python and another for \fBasyncio\fP\&.
+.IP \(bu 2
+Uses an event\-based architecture implemented with decorators that hides the
+details of the protocol.
+.IP \(bu 2
+Implements HTTP long\-polling and WebSocket transports.
+.UNINDENT
+.SS Server Examples
+.sp
+The following application is a basic example that uses the Eventlet
+asynchronous server:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+import eventlet
+
+eio = engineio.Server()
+app = engineio.WSGIApp(eio, static_files={
+    \(aq/\(aq: {\(aqcontent_type\(aq: \(aqtext/html\(aq, \(aqfilename\(aq: \(aqindex.html\(aq}
+})
+
+@eio.on(\(aqconnect\(aq)
+def connect(sid, environ):
+    print(\(dqconnect \(dq, sid)
+
+@eio.on(\(aqmessage\(aq)
+def message(sid, data):
+    print(\(dqmessage \(dq, data)
+    eio.send(sid, \(aqreply\(aq)
+
+@eio.on(\(aqdisconnect\(aq)
+def disconnect(sid):
+    print(\(aqdisconnect \(aq, sid)
+
+if __name__ == \(aq__main__\(aq:
+    eventlet.wsgi.server(eventlet.listen((\(aq\(aq, 5000)), app)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Below is a similar application, coded for asyncio and the Uvicorn web server:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+import uvicorn
+
+eio = engineio.AsyncServer()
+app = engineio.ASGIApp(eio, static_files={
+    \(aq/\(aq: {\(aqcontent_type\(aq: \(aqtext/html\(aq, \(aqfilename\(aq: \(aqindex.html\(aq}
+})
+
+@eio.on(\(aqconnect\(aq)
+def connect(sid, environ):
+    print(\(dqconnect \(dq, sid)
+
+@eio.on(\(aqmessage\(aq)
+async def message(sid, data):
+    print(\(dqmessage \(dq, data)
+    await eio.send(sid, \(aqreply\(aq)
+
+@eio.on(\(aqdisconnect\(aq)
+def disconnect(sid):
+    print(\(aqdisconnect \(aq, sid)
+
+if __name__ == \(aq__main__\(aq:
+    uvicorn.run(\(aq127.0.0.1\(aq, 5000)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Server Features
+.INDENT 0.0
+.IP \(bu 2
+Can accept clients running other complaint Engine.IO clients besides the one in this
+package.
+.IP \(bu 2
+Compatible with Python 3.6+.
+.IP \(bu 2
+Two versions of the server, one for standard Python and another for \fBasyncio\fP\&.
+.IP \(bu 2
+Supports large number of clients even on modest hardware due to being
+asynchronous.
+.IP \(bu 2
+Can be hosted on any WSGI \%<https://\:wsgi\:.readthedocs\:.io/\:en/\:latest/\:index\:.html> and
+ASGI \%<https://\:asgi\:.readthedocs\:.io/\:en/\:latest> web servers includind
+Gunicorn \%<https://\:gunicorn\:.org>, Uvicorn \%<https://\:github\:.com/\:encode/\:uvicorn>,
+eventlet \%<http://\:eventlet\:.net> and gevent \%<http://\:gevent\:.org>\&.
+.IP \(bu 2
+Can be integrated with WSGI applications written in frameworks such as Flask, Django,
+etc.
+.IP \(bu 2
+Can be integrated with aiohttp \%<http://\:aiohttp\:.readthedocs\:.io>,
+sanic \%<http://\:sanic\:.readthedocs\:.io> and tornado \%<http://\:www\:.tornadoweb\:.org>
+\fBasyncio\fP applications.
+.IP \(bu 2
+Uses an event\-based architecture implemented with decorators that hides the
+details of the protocol.
+.IP \(bu 2
+Implements HTTP long\-polling and WebSocket transports.
+.IP \(bu 2
+Supports XHR2 and XHR browsers as clients.
+.IP \(bu 2
+Supports text and binary messages.
+.IP \(bu 2
+Supports gzip and deflate HTTP compression.
+.IP \(bu 2
+Configurable CORS responses to avoid cross\-origin problems with browsers.
+.UNINDENT
+.SH THE ENGINE.IO CLIENT
+.sp
+This package contains two Engine.IO clients:
+.INDENT 0.0
+.IP \(bu 2
+The \fBengineio.Client()\fP \%<#\:engineio\:.Client> class creates a client compatible with the
+standard Python library.
+.IP \(bu 2
+The \fBengineio.AsyncClient()\fP \%<#\:engineio\:.AsyncClient> class creates a client compatible with
+the \fBasyncio\fP package.
+.UNINDENT
+.sp
+The methods in the two clients are the same, with the only difference that in
+the \fBasyncio\fP client most methods are implemented as coroutines.
+.SS Installation
+.sp
+To install the standard Python client along with its dependencies, use the
+following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install \(dqpython\-engineio[client]\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If instead you plan on using the \fBasyncio\fP client, then use this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install \(dqpython\-engineio[asyncio_client]\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.SS Creating a Client Instance
+.sp
+To instantiate an Engine.IO client, simply create an instance of the
+appropriate client class:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+
+# standard Python
+eio = engineio.Client()
+
+# asyncio
+eio = engineio.AsyncClient()
+.EE
+.UNINDENT
+.UNINDENT
+.SS Defining Event Handlers
+.sp
+To responds to events triggered by the connection or the server, event Handler
+functions must be defined using the \fBon\fP decorator:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+def on_connect():
+    print(\(aqI\(aqm connected!\(aq)
+
+@eio.on(\(aqmessage\(aq)
+def on_message(data):
+    print(\(aqI received a message!\(aq)
+
+@eio.on(\(aqdisconnect\(aq)
+def on_disconnect(reason):
+    print(\(aqI\(aqm disconnected! reason:\(aq, reason)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For the \fBasyncio\fP server, event handlers can be regular functions as above,
+or can also be coroutines:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqmessage\(aq)
+async def on_message(data):
+    print(\(aqI received a message!\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The argument given to the \fBon\fP decorator is the event name. The events that
+are supported are \fBconnect\fP, \fBmessage\fP and \fBdisconnect\fP\&.
+.sp
+The \fBdata\fP argument passed to the \fB\(aqmessage\(aq\fP event handler contains
+application\-specific data provided by the server with the event.
+.sp
+The \fBdisconnect\fP handler is invoked for client initiated disconnects, server
+initiated disconnects, or accidental disconnects, for example due to
+networking failures. The argument passed to this handler provides the
+disconnect reason. Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqdisconnect\(aq)
+def on_disconnect(reason):
+    if reason == eio.reason.CLIENT_DISCONNECT:
+        print(\(aqclient disconnection\(aq)
+    elif reason == eio.reason.SERVER_DISCONNECT:
+        print(\(aqthe server kicked me out\(aq)
+    else:
+        print(f\(aqdisconnect reason: {reason}\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Connecting to a Server
+.sp
+The connection to a server is established by calling the \fBconnect()\fP
+method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.connect(\(aqhttp://localhost:5000\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In the case of the \fBasyncio\fP client, the method is a coroutine:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.connect(\(aqhttp://localhost:5000\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Upon connection, the server assigns the client a unique session identifier.
+The applicaction can find this identifier in the \fBsid\fP attribute:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+print(\(aqmy sid is\(aq, eio.sid)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Sending Messages
+.sp
+The client can send a message to the server using the \fBsend()\fP method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.send({\(aqfoo\(aq: \(aqbar\(aq})
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Or in the case of \fBasyncio\fP, as a coroutine:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.send({\(aqfoo\(aq: \(aqbar\(aq})
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The single argument provided to the method is the data that is passed on
+to the server. The data can be of type \fBstr\fP, \fBbytes\fP, \fBdict\fP or
+\fBlist\fP\&. The data included inside dictionaries and lists is also
+constrained to these types.
+.sp
+The \fBsend()\fP method can be invoked inside an event handler as a response
+to a server event, or in any other part of the application, including in
+background tasks.
+.SS Disconnecting from the Server
+.sp
+At any time the client can request to be disconnected from the server by
+invoking the \fBdisconnect()\fP method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.disconnect()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For the \fBasyncio\fP client this is a coroutine:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.disconnect()
+.EE
+.UNINDENT
+.UNINDENT
+.SS Managing Background Tasks
+.sp
+When a client connection to the server is established, a few background
+tasks will be spawned to keep the connection alive and handle incoming
+events. The application running on the main thread is free to do any
+work, as this is not going to prevent the functioning of the Engine.IO
+client.
+.sp
+If the application does not have anything to do in the main thread and
+just wants to wait until the connection ends, it can call the \fBwait()\fP
+method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.wait()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Or in the \fBasyncio\fP version:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.wait()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For the convenience of the application, a helper function is
+provided to start a custom background task:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+def my_background_task(my_argument)
+    # do some background work here!
+    pass
+
+eio.start_background_task(my_background_task, 123)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The arguments passed to this method are the background function and any
+positional or keyword arguments to invoke the function with.
+.sp
+Here is the \fBasyncio\fP version:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+async def my_background_task(my_argument)
+    # do some background work here!
+    pass
+
+eio.start_background_task(my_background_task, 123)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that this function is not a coroutine, since it does not wait for the
+background function to end, but the background function is.
+.sp
+The \fBsleep()\fP method is a second convenience function that is provided for
+the benefit of applications working with background tasks of their own:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.sleep(2)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Or for \fBasyncio\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.sleep(2)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The single argument passed to the method is the number of seconds to sleep
+for.
+.SS Debugging and Troubleshooting
+.sp
+To help you debug issues, the client can be configured to output logs to the
+terminal:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+
+# standard Python
+eio = engineio.Client(logger=True)
+
+# asyncio
+eio = engineio.AsyncClient(logger=True)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBlogger\fP argument controls logging behavior:
+.INDENT 0.0
+.IP \(bu 2
+\fBTrue\fP: Enables log output to \fBstderr\fP at the \fBINFO\fP level.
+.IP \(bu 2
+\fBFalse\fP: Enables log output to \fBstderr\fP at the \fBERROR\fP level. This is
+the default.
+.IP \(bu 2
+A \fBlogging.Logger\fP instance: Uses the provided logger without additional
+configuration.
+.UNINDENT
+.sp
+Logging can help identify the cause of connection problems, unexpected
+disconnections and other issues.
+.SH THE ENGINE.IO SERVER
+.sp
+This package contains two Engine.IO servers:
+.INDENT 0.0
+.IP \(bu 2
+The \fBengineio.Server()\fP \%<#\:engineio\:.Server> class creates a server compatible with the
+standard Python library.
+.IP \(bu 2
+The \fBengineio.AsyncServer()\fP \%<#\:engineio\:.AsyncServer> class creates a server compatible with
+the \fBasyncio\fP package.
+.UNINDENT
+.sp
+The methods in the two servers are the same, with the only difference that in
+the \fBasyncio\fP server most methods are implemented as coroutines.
+.SS Installation
+.sp
+To install the Python Engine.IO server use the following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install \(dqpython\-engineio\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In addition to the server, you will need to select an asynchronous framework
+or server to use along with it. The list of supported packages is covered
+in the Deployment Strategies section.
+.SS Creating a Server Instance
+.sp
+An Engine.IO server is an instance of class \fBengineio.Server\fP \%<#\:engineio\:.Server>\&. This
+instance can be transformed into a standard WSGI application by wrapping it
+with the \fBengineio.WSGIApp\fP \%<#\:engineio\:.WSGIApp> class:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+
+# create a Engine.IO server
+eio = engineio.Server()
+
+# wrap with a WSGI application
+app = engineio.WSGIApp(eio)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For asyncio based servers, the \fBengineio.AsyncServer\fP \%<#\:engineio\:.AsyncServer> class provides
+the same functionality, but in a coroutine friendly format. If desired, The
+\fBengineio.ASGIApp\fP \%<#\:engineio\:.ASGIApp> class can transform the server into a standard
+ASGI application:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# create a Engine.IO server
+eio = engineio.AsyncServer()
+
+# wrap with ASGI application
+app = engineio.ASGIApp(eio)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+These two wrappers can also act as middlewares, forwarding any traffic that is
+not intended to the Engine.IO server to another application. This allows
+Engine.IO servers to integrate easily into existing WSGI or ASGI applications:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from wsgi import app  # a Flask, Django, etc. application
+app = engineio.WSGIApp(eio, app)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Serving Static Files
+.sp
+The Engine.IO server can be configured to serve static files to clients. This
+is particularly useful to deliver HTML, CSS and JavaScript files to clients
+when this package is used without a companion web framework.
+.sp
+Static files are configured with a Python dictionary in which each key/value
+pair is a static file mapping rule. In its simplest form, this dictionary has
+one or more static file URLs as keys, and the corresponding files in the server
+as values:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+static_files = {
+    \(aq/\(aq: \(aqlatency.html\(aq,
+    \(aq/static/engine.io.js\(aq: \(aqstatic/engine.io.js\(aq,
+    \(aq/static/style.css\(aq: \(aqstatic/style.css\(aq,
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+With this example configuration, when the server receives a request for \fB/\fP
+(the root URL) it will return the contents of the file \fBlatency.html\fP in the
+current directory, and will assign a content type based on the file extension,
+in this case \fBtext/html\fP\&.
+.sp
+Files with the \fB\&.html\fP, \fB\&.css\fP, \fB\&.js\fP, \fB\&.json\fP, \fB\&.jpg\fP, \fB\&.png\fP,
+\fB\&.gif\fP and \fB\&.txt\fP file extensions are automatically recognized and
+assigned the correct content type. For files with other file extensions or
+with no file extension, the \fBapplication/octet\-stream\fP content type is used
+as a default.
+.sp
+If desired, an explicit content type for a static file can be given as follows:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+static_files = {
+    \(aq/\(aq: {\(aqfilename\(aq: \(aqlatency.html\(aq, \(aqcontent_type\(aq: \(aqtext/plain\(aq},
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+It is also possible to configure an entire directory in a single rule, so that all
+the files in it are served as static files:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+static_files = {
+    \(aq/static\(aq: \(aq./public\(aq,
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In this example any files with URLs starting with \fB/static\fP will be served
+directly from the \fBpublic\fP folder in the current directory, so for example,
+the URL \fB/static/index.html\fP will return local file \fB\&./public/index.html\fP
+and the URL \fB/static/css/styles.css\fP will return local file
+\fB\&./public/css/styles.css\fP\&.
+.sp
+If a URL that ends in a \fB/\fP is requested, then a default filename of
+\fBindex.html\fP is appended to it. In the previous example, a request for the
+\fB/static/\fP URL would return local file \fB\&./public/index.html\fP\&. The default
+filename to serve for slash\-ending URLs can be set in the static files
+dictionary with an empty key:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+static_files = {
+    \(aq/static\(aq: \(aq./public\(aq,
+    \(aq\(aq: \(aqimage.gif\(aq,
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+With this configuration, a request for \fB/static/\fP would return
+local file \fB\&./public/image.gif\fP\&. A non\-standard content type can also be
+specified if needed:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+static_files = {
+    \(aq/static\(aq: \(aq./public\(aq,
+    \(aq\(aq: {\(aqfilename\(aq: \(aqimage.gif\(aq, \(aqcontent_type\(aq: \(aqtext/plain\(aq},
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The static file configuration dictionary is given as the \fBstatic_files\fP
+argument to the \fBengineio.WSGIApp\fP or \fBengineio.ASGIApp\fP classes:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# for standard WSGI applications
+eio = engineio.Server()
+app = engineio.WSGIApp(eio, static_files=static_files)
+
+# for asyncio\-based ASGI applications
+eio = engineio.AsyncServer()
+app = engineio.ASGIApp(eio, static_files=static_files)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The routing precedence in these two classes is as follows:
+.INDENT 0.0
+.IP \(bu 2
+First, the path is checked against the Engine.IO path.
+.IP \(bu 2
+Next, the path is checked against the static file configuration, if present.
+.IP \(bu 2
+If the path did not match the Engine.IO path or any static file, control is
+passed to the secondary application if configured, else a 404 error is
+returned.
+.UNINDENT
+.sp
+Note: static file serving is intended for development use only, and as such
+it lacks important features such as caching. Do not use in a production
+environment.
+.SS Defining Event Handlers
+.sp
+To responds to events triggered by the connection or the client, event Handler
+functions must be defined using the \fBon\fP decorator:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+def on_connect(sid):
+    print(\(aqA client connected!\(aq)
+
+@eio.on(\(aqmessage\(aq)
+def on_message(sid, data):
+    print(\(aqI received a message!\(aq)
+
+@eio.on(\(aqdisconnect\(aq)
+def on_disconnect(sid, reason):
+    print(\(aqClient disconnected! reason:\(aq, reason)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For the \fBasyncio\fP server, event handlers can be regular functions as above,
+or can also be coroutines:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqmessage\(aq)
+async def on_message(sid, data):
+    print(\(aqI received a message!\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The argument given to the \fBon\fP decorator is the event name. The events that
+are supported are \fBconnect\fP, \fBmessage\fP and \fBdisconnect\fP\&.
+.sp
+The \fBsid\fP argument passed into all the event handlers is a connection
+identifier for the client. All the events from a client will use the same
+\fBsid\fP value.
+.sp
+The \fBconnect\fP handler is the place where the server can perform
+authentication. The value returned by this handler is used to determine if the
+connection is accepted or rejected. When the handler does not return any value
+(which is the same as returning \fBNone\fP) or when it returns \fBTrue\fP the
+connection is accepted. If the handler returns \fBFalse\fP or any JSON
+compatible data type (string, integer, list or dictionary) the connection is
+rejected. A rejected connection triggers a response with a 401 status code.
+.sp
+The \fBdata\fP argument passed to the \fB\(aqmessage\(aq\fP event handler contains
+application\-specific data provided by the client with the event.
+.sp
+The \fBdisconnect\fP handler is invoked for client initiated disconnects,
+server initiated disconnects, or accidental disconnects, for example due to
+networking failures. The second argument passed to this handler provides the
+disconnect reason. Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqdisconnect\(aq)
+def on_disconnect(sid, reason):
+    if reason == eio.reason.CLIENT_DISCONNECT:
+        print(\(aqthe client went away\(aq)
+    elif reason == eio.reason.SERVER_DISCONNECT:
+        print(\(aqthe client was kicked out\(aq)
+    else:
+        print(f\(aqdisconnect reason: {reason}\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Sending Messages
+.sp
+The server can send a message to any client using the \fBsend()\fP method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.send(sid, {\(aqfoo\(aq: \(aqbar\(aq})
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Or in the case of \fBasyncio\fP, as a coroutine:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.send(sid, {\(aqfoo\(aq: \(aqbar\(aq})
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The first argument provided to the method is the connection identifier for
+the recipient client. The second argument is the data that is passed on
+to the server. The data can be of type \fBstr\fP, \fBbytes\fP, \fBdict\fP or
+\fBlist\fP\&. The data included inside dictionaries and lists is also
+constrained to these types.
+.sp
+The \fBsend()\fP method can be invoked inside an event handler as a response
+to a client event, or in any other part of the application, including in
+background tasks.
+.SS User Sessions
+.sp
+The server can maintain application\-specific information in a user session
+dedicated to each connected client. Applications can use the user session to
+write any details about the user that need to be preserved throughout the life
+of the connection, such as usernames or user ids.
+.sp
+The \fBsave_session()\fP and \fBget_session()\fP methods are used to store and
+retrieve information in the user session:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+def on_connect(sid, environ):
+    username = authenticate_user(environ)
+    eio.save_session(sid, {\(aqusername\(aq: username})
+
+@eio.on(\(aqmessage\(aq)
+def on_message(sid, data):
+    session = eio.get_session(sid)
+    print(\(aqmessage from \(aq, session[\(aqusername\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For the \fBasyncio\fP server, these methods are coroutines:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+async def on_connect(sid, environ):
+    username = authenticate_user(environ)
+    await eio.save_session(sid, {\(aqusername\(aq: username})
+
+@eio.on(\(aqmessage\(aq)
+async def on_message(sid, data):
+    session = await eio.get_session(sid)
+    print(\(aqmessage from \(aq, session[\(aqusername\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The session can also be manipulated with the \fIsession()\fP context manager:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+def on_connect(sid, environ):
+    username = authenticate_user(environ)
+    with eio.session(sid) as session:
+        session[\(aqusername\(aq] = username
+
+@eio.on(\(aqmessage\(aq)
+def on_message(sid, data):
+    with eio.session(sid) as session:
+        print(\(aqmessage from \(aq, session[\(aqusername\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For the \fBasyncio\fP server, an asynchronous context manager is used:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+def on_connect(sid, environ):
+    username = authenticate_user(environ)
+    async with eio.session(sid) as session:
+        session[\(aqusername\(aq] = username
+
+@eio.on(\(aqmessage\(aq)
+def on_message(sid, data):
+    async with eio.session(sid) as session:
+        print(\(aqmessage from \(aq, session[\(aqusername\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note: the contents of the user session are destroyed when the client
+disconnects.
+.SS Disconnecting a Client
+.sp
+At any time the server can disconnect a client from the server by invoking the
+\fBdisconnect()\fP method and passing the \fBsid\fP value assigned to the client:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.disconnect(sid)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For the \fBasyncio\fP client this is a coroutine:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.disconnect(sid)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Managing Background Tasks
+.sp
+For the convenience of the application, a helper function is provided to
+start a custom background task:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+def my_background_task(my_argument)
+    # do some background work here!
+    pass
+
+eio.start_background_task(my_background_task, 123)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The arguments passed to this method are the background function and any
+positional or keyword arguments to invoke the function with.
+.sp
+Here is the \fBasyncio\fP version:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+async def my_background_task(my_argument)
+    # do some background work here!
+    pass
+
+eio.start_background_task(my_background_task, 123)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that this function is not a coroutine, since it does not wait for the
+background function to end, but the background function is.
+.sp
+The \fBsleep()\fP method is a second convenience function that is provided for
+the benefit of applications working with background tasks of their own:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio.sleep(2)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Or for \fBasyncio\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+await eio.sleep(2)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The single argument passed to the method is the number of seconds to sleep
+for.
+.SS Debugging and Troubleshooting
+.sp
+To help you debug issues, the server can be configured to output logs to the
+terminal:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+
+# standard Python
+eio = engineio.Server(logger=True)
+
+# asyncio
+eio = engineio.AsyncServer(logger=True)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBlogger\fP argument controls logging behavior:
+.INDENT 0.0
+.IP \(bu 2
+\fBTrue\fP: Enables log output to \fBstderr\fP at the \fBINFO\fP level.
+.IP \(bu 2
+\fBFalse\fP: Enables log output to \fBstderr\fP at the \fBERROR\fP level. This is
+the default.
+.IP \(bu 2
+A \fBlogging.Logger\fP instance: Uses the provided logger without additional
+configuration.
+.UNINDENT
+.sp
+Logging can help identify the cause of connection problems, 400 responses,
+bad performance and other issues.
+.SS Deployment Strategies
+.sp
+The following sections describe a variety of deployment strategies for
+Engine.IO servers.
+.SS Uvicorn, Daphne, and other ASGI servers
+.sp
+The \fBengineio.ASGIApp\fP class is an ASGI compatible application that can
+forward Engine.IO traffic to an \fBengineio.AsyncServer\fP instance:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.AsyncServer(async_mode=\(aqasgi\(aq)
+app = engineio.ASGIApp(eio)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If desired, the \fBengineio.ASGIApp\fP class can forward any traffic that is not
+Engine.IO to another ASGI application, making it possible to deploy a standard
+ASGI web application and the Engine.IO server as a bundle:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.AsyncServer(async_mode=\(aqasgi\(aq)
+app = engineio.ASGIApp(eio, other_app)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBASGIApp\fP instance is a fully complaint ASGI instance that can be
+deployed with an ASGI compatible web server.
+.SS Aiohttp
+.sp
+aiohttp \%<http://\:aiohttp\:.readthedocs\:.io> provides a framework with support
+for HTTP and WebSocket, based on asyncio.
+.sp
+Instances of class \fBengineio.AsyncServer\fP will automatically use aiohttp
+for asynchronous operations if the library is installed. To request its use
+explicitly, the \fBasync_mode\fP option can be given in the constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.AsyncServer(async_mode=\(aqaiohttp\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A server configured for aiohttp must be attached to an existing application:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+app = web.Application()
+eio.attach(app)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The aiohttp application can define regular routes that will coexist with the
+Engine.IO server. A typical pattern is to add routes that serve a client
+application and any associated static files.
+.sp
+The aiohttp application is then executed in the usual manner:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+if __name__ == \(aq__main__\(aq:
+    web.run_app(app)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Tornado
+.sp
+Tornado \%<http://\:www\:.tornadoweb\:.org/> is a web framework with support
+for HTTP and WebSocket. Only Tornado version 5 and newer are supported, thanks
+to its tight integration with asyncio.
+.sp
+Instances of class \fBengineio.AsyncServer\fP will automatically use tornado
+for asynchronous operations if the library is installed. To request its use
+explicitly, the \fBasync_mode\fP option can be given in the constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.AsyncServer(async_mode=\(aqtornado\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A server configured for tornado must include a request handler for
+Engine.IO:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+app = tornado.web.Application(
+    [
+        (r\(dq/engine.io/\(dq, engineio.get_tornado_handler(eio)),
+    ],
+    # ... other application options
+)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The tornado application can define other routes that will coexist with the
+Engine.IO server. A typical pattern is to add routes that serve a client
+application and any associated static files.
+.sp
+The tornado application is then executed in the usual manner:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+app.listen(port)
+tornado.ioloop.IOLoop.current().start()
+.EE
+.UNINDENT
+.UNINDENT
+.SS Sanic
+.sp
+Note: Due to some backward incompatible changes introduced in recent versions
+of Sanic, it is currently recommended that a Sanic application is deployed with
+the ASGI integration instead.
+.sp
+Sanic \%<http://\:sanic\:.readthedocs\:.io> is a very efficient asynchronous web
+server for Python.
+.sp
+Instances of class \fBengineio.AsyncServer\fP will automatically use Sanic for
+asynchronous operations if the framework is installed. To request its use
+explicitly, the \fBasync_mode\fP option can be given in the constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.AsyncServer(async_mode=\(aqsanic\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A server configured for Sanic must be attached to an existing application:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+app = Sanic()
+eio.attach(app)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The Sanic application can define regular routes that will coexist with the
+Engine.IO server. A typical pattern is to add routes that serve a client
+application and any associated static files to this application.
+.sp
+The Sanic application is then executed in the usual manner:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+if __name__ == \(aq__main__\(aq:
+    app.run()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+It has been reported that the CORS support provided by the Sanic extension
+sanic\-cors \%<https://\:github\:.com/\:ashleysommer/\:sanic-cors> is incompatible with
+this package\(aqs own support for this protocol. To disable CORS support in this
+package and let Sanic take full control, initialize the server as follows:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.AsyncServer(async_mode=\(aqsanic\(aq, cors_allowed_origins=[])
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+On the Sanic side you will need to enable the \fICORS_SUPPORTS_CREDENTIALS\fP
+setting in addition to any other configuration that you use:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+app.config[\(aqCORS_SUPPORTS_CREDENTIALS\(aq] = True
+.EE
+.UNINDENT
+.UNINDENT
+.SS Eventlet
+.sp
+Eventlet \%<http://\:eventlet\:.net> is a high performance concurrent networking
+library for Python 2 and 3 that uses coroutines, enabling code to be written in
+the same style used with the blocking standard library functions. An Engine.IO
+server deployed with eventlet has access to the long\-polling and WebSocket
+transports.
+.sp
+Instances of class \fBengineio.Server\fP will automatically use eventlet for
+asynchronous operations if the library is installed. To request its use
+explicitly, the \fBasync_mode\fP option can be given in the constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.Server(async_mode=\(aqeventlet\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A server configured for eventlet is deployed as a regular WSGI application
+using the provided \fBengineio.WSGIApp\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+app = engineio.WSGIApp(eio)
+import eventlet
+eventlet.wsgi.server(eventlet.listen((\(aq\(aq, 8000)), app)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Eventlet with Gunicorn
+.sp
+An alternative to running the eventlet WSGI server as above is to use
+gunicorn \%<gunicorn\:.org>, a fully featured pure Python web server. The
+command to launch the application under gunicorn is shown below:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gunicorn \-k eventlet \-w 1 module:app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Due to limitations in its load balancing algorithm, gunicorn can only be used
+with one worker process, so the \fB\-w 1\fP option is required. Note that a
+single eventlet worker can handle a large number of concurrent clients.
+.sp
+Another limitation when using gunicorn is that the WebSocket transport is not
+available, because this transport it requires extensions to the WSGI standard.
+.sp
+Note: Eventlet provides a \fBmonkey_patch()\fP function that replaces all the
+blocking functions in the standard library with equivalent asynchronous
+versions. While python\-engineio does not require monkey patching, other
+libraries such as database drivers are likely to require it.
+.SS Gevent
+.sp
+Gevent \%<http://\:gevent\:.org> is another asynchronous framework based on
+coroutines, very similar to eventlet. An Engine.IO server deployed with
+gevent has access to the long\-polling and websocket transports.
+.sp
+Instances of class \fBengineio.Server\fP will automatically use gevent for
+asynchronous operations if the library is installed and eventlet is not
+installed. To request gevent to be selected explicitly, the \fBasync_mode\fP
+option can be given in the constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.Server(async_mode=\(aqgevent\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A server configured for gevent is deployed as a regular WSGI application
+using the provided \fBengineio.WSGIApp\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from gevent import pywsgi
+app = engineio.WSGIApp(eio)
+pywsgi.WSGIServer((\(aq\(aq, 8000), app).serve_forever()
+.EE
+.UNINDENT
+.UNINDENT
+.SS Gevent with Gunicorn
+.sp
+An alternative to running the gevent WSGI server as above is to use
+gunicorn \%<gunicorn\:.org>, a fully featured pure Python web server. The
+command to launch the application under gunicorn is shown below:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gunicorn \-k gevent \-w 1 module:app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Same as with eventlet, due to limitations in its load balancing algorithm,
+gunicorn can only be used with one worker process, so the \fB\-w 1\fP option is
+required. Note that a single gevent worker can handle a large number of
+concurrent clients.
+.sp
+Note: Gevent provides a \fBmonkey_patch()\fP function that replaces all the
+blocking functions in the standard library with equivalent asynchronous
+versions. While python\-engineio does not require monkey patching, other
+libraries such as database drivers are likely to require it.
+.SS uWSGI
+.sp
+When using the uWSGI server in combination with gevent, the Engine.IO server
+can take advantage of uWSGI\(aqs native WebSocket support.
+.sp
+Instances of class \fBengineio.Server\fP will automatically use this option for
+asynchronous operations if both gevent and uWSGI are installed and eventlet is
+not installed. To request this asynchoronous mode explicitly, the
+\fBasync_mode\fP option can be given in the constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# gevent with uWSGI
+eio = engineio.Server(async_mode=\(aqgevent_uwsgi\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A complete explanation of the configuration and usage of the uWSGI server is
+beyond the scope of this documentation. The uWSGI server is a fairly complex
+package that provides a large and comprehensive set of options. It must be
+compiled with WebSocket and SSL support for the WebSocket transport to be
+available. As way of an introduction, the following command starts a uWSGI
+server for the \fBlatency.py\fP example on port 5000:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ uwsgi \-\-http :5000 \-\-gevent 1000 \-\-http\-websockets \-\-master \-\-wsgi\-file latency.py \-\-callable app
+.EE
+.UNINDENT
+.UNINDENT
+.SS Standard Threads
+.sp
+While not comparable to eventlet and gevent in terms of performance,
+the Engine.IO server can also be configured to work with multi\-threaded web
+servers that use standard Python threads. This is an ideal setup to use with
+development servers such as Werkzeug \%<http://\:werkzeug\:.pocoo\:.org>\&.
+.sp
+Instances of class \fBengineio.Server\fP will automatically use the threading
+mode if neither eventlet nor gevent are not installed. To request the
+threading mode explicitly, the \fBasync_mode\fP option can be given in the
+constructor:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.Server(async_mode=\(aqthreading\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A server configured for threading is deployed as a regular web application,
+using any WSGI complaint multi\-threaded server. The example below deploys an
+Engine.IO application combined with a Flask web application, using Flask\(aqs
+development web server based on Werkzeug:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.Server(async_mode=\(aqthreading\(aq)
+app = Flask(__name__)
+app.wsgi_app = engineio.WSGIApp(eio, app.wsgi_app)
+
+# ... Engine.IO and Flask handler functions ...
+
+if __name__ == \(aq__main__\(aq:
+    app.run()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The example that follows shows how to start an Engine.IO application using
+Gunicorn\(aqs threaded worker class:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ gunicorn \-w 1 \-\-threads 100 module:app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+With the above configuration the server will be able to handle up to 100
+concurrent clients.
+.sp
+When using standard threads, WebSocket is supported through the
+simple\-websocket \%<https://\:github\:.com/\:miguelgrinberg/\:simple-websocket>
+package, which must be installed separately. This package provides a
+multi\-threaded WebSocket server that is compatible with Werkzeug and Gunicorn\(aqs
+threaded worker. Other multi\-threaded web servers are not supported and will
+not enable the WebSocket transport.
+.SS Scalability Notes
+.sp
+Engine.IO is a stateful protocol, which makes horizontal scaling more
+difficult. To deploy a cluster of Engine.IO processes hosted on one or
+multiple servers the following conditions must be met:
+.INDENT 0.0
+.IP \(bu 2
+Each Engine.IO server process must be able to handle multiple requests
+concurrently. This is required because long\-polling clients send two
+requests in parallel. Worker processes that can only handle one request at a
+time are not supported.
+.IP \(bu 2
+The load balancer must be configured to always forward requests from a client
+to the same process. Load balancers call this \fIsticky sessions\fP, or
+\fIsession affinity\fP\&.
+.UNINDENT
+.SS Cross\-Origin Controls
+.sp
+For security reasons, this server enforces a same\-origin policy by default. In
+practical terms, this means the following:
+.INDENT 0.0
+.IP \(bu 2
+If an incoming HTTP or WebSocket request includes the \fBOrigin\fP header,
+this header must match the scheme and host of the connection URL. In case
+of a mismatch, a 400 status code response is returned and the connection is
+rejected.
+.IP \(bu 2
+No restrictions are imposed on incoming requests that do not include the
+\fBOrigin\fP header.
+.UNINDENT
+.sp
+If necessary, the \fBcors_allowed_origins\fP option can be used to allow other
+origins. This argument can be set to a string to set a single allowed origin, or
+to a list to allow multiple origins. A special value of \fB\(aq*\(aq\fP can be used to
+instruct the server to allow all origins, but this should be done with care, as
+this could make the server vulnerable to Cross\-Site Request Forgery (CSRF)
+attacks.
+.SH API REFERENCE
+.INDENT 0.0
+.TP
+.B class engineio.Client(logger=False, json=None, request_timeout=5, http_session=None, ssl_verify=True, handle_sigint=True, websocket_extra_options=None, timestamp_requests=True)
+An Engine.IO client.
+.sp
+This class implements a fully compliant Engine.IO web client with support
+for websocket and long\-polling transports.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBlogger\fP \-\- To enable logging set to \fBTrue\fP or pass a logger object to
+use. To disable logging set to \fBFalse\fP\&. The default is
+\fBFalse\fP\&. Note that fatal errors are logged even when
+\fBlogger\fP is \fBFalse\fP\&.
+.IP \(bu 2
+\fBjson\fP \-\- An alternative JSON module to use for encoding and decoding
+packets. Custom json modules must have \fBdumps\fP and \fBloads\fP
+functions that are compatible with the standard library
+versions. This is a process\-wide setting, all instantiated
+servers and clients must use the same JSON module.
+.IP \(bu 2
+\fBrequest_timeout\fP \-\- A timeout in seconds for requests. The default is
+5 seconds.
+.IP \(bu 2
+\fBhttp_session\fP \-\- an initialized \fBrequests.Session\fP object to be used
+when sending requests to the server. Use it if you
+need to add special client options such as proxy
+servers, SSL certificates, custom CA bundle, etc.
+.IP \(bu 2
+\fBssl_verify\fP \-\- \fBTrue\fP to verify SSL certificates, or \fBFalse\fP to
+skip SSL certificate verification, allowing
+connections to servers with self signed certificates.
+The default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBhandle_sigint\fP \-\- Set to \fBTrue\fP to automatically handle disconnection
+when the process is interrupted, or to \fBFalse\fP to
+leave interrupt handling to the calling application.
+Interrupt handling can only be enabled when the
+client instance is created in the main thread.
+.IP \(bu 2
+\fBwebsocket_extra_options\fP \-\- Dictionary containing additional keyword
+arguments passed to
+\fBwebsocket.create_connection()\fP\&.
+.IP \(bu 2
+\fBtimestamp_requests\fP \-\- If \fBTrue\fP a timestamp is added to the query
+string of Socket.IO requests as a cache\-busting
+measure. Set to \fBFalse\fP to disable.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B connect(url, headers=None, transports=None, engineio_path=\(aqengine.io\(aq)
+Connect to an Engine.IO server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBurl\fP \-\- The URL of the Engine.IO server. It can include custom
+query string parameters if required by the server.
+.IP \(bu 2
+\fBheaders\fP \-\- A dictionary with custom headers to send with the
+connection request.
+.IP \(bu 2
+\fBtransports\fP \-\- The list of allowed transports. Valid transports
+are \fB\(aqpolling\(aq\fP and \fB\(aqwebsocket\(aq\fP\&. If not
+given, the polling transport is connected first,
+then an upgrade to websocket is attempted.
+.IP \(bu 2
+\fBengineio_path\fP \-\- The endpoint where the Engine.IO server is
+installed. The default value is appropriate for
+most cases.
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.Client()
+eio.connect(\(aqhttp://localhost:5000\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B wait()
+Wait until the connection with the server ends.
+.sp
+Client applications can use this function to block the main thread
+during the life of the connection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B send(data)
+Send a message to the server.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBdata\fP \-\- The data to send to the server. Data can be of type
+\fBstr\fP, \fBbytes\fP, \fBlist\fP or \fBdict\fP\&. If a \fBlist\fP
+or \fBdict\fP, the data will be serialized as JSON.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B disconnect(abort=False, reason=None)
+Disconnect from the server.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBabort\fP \-\- If set to \fBTrue\fP, do not wait for background tasks
+associated with the connection to end.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B start_background_task(target, *args, **kwargs)
+Start a background task.
+.sp
+This is a utility function that applications can use to start a
+background task.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBtarget\fP \-\- the target function to execute.
+.IP \(bu 2
+\fBargs\fP \-\- arguments to pass to the function.
+.IP \(bu 2
+\fBkwargs\fP \-\- keyword arguments to pass to the function.
+.UNINDENT
+.UNINDENT
+.sp
+This function returns an object that represents the background task,
+on which the \fBjoin()\fP method can be invoked to wait for the task to
+complete.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B sleep(seconds=0)
+Sleep for the requested amount of time.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_queue(*args, **kwargs)
+Create a queue object.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_queue_empty_exception()
+Return the queue empty exception raised by queues created by the
+\fBcreate_queue()\fP method.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_event(*args, **kwargs)
+Create an event object.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on(event, handler=None)
+Register an event handler.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The event name. Can be \fB\(aqconnect\(aq\fP, \fB\(aqmessage\(aq\fP or
+\fB\(aqdisconnect\(aq\fP\&.
+.IP \(bu 2
+\fBhandler\fP \-\- The function that should be invoked to handle the
+event. When this parameter is not given, the method
+acts as a decorator for the handler function.
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+# as a decorator:
+@eio.on(\(aqconnect\(aq)
+def connect_handler():
+    print(\(aqConnection request\(aq)
+
+# as a method:
+def message_handler(msg):
+    print(\(aqReceived message: \(aq, msg)
+    eio.send(\(aqresponse\(aq)
+eio.on(\(aqmessage\(aq, message_handler)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B class reason
+Disconnection reasons.
+.INDENT 7.0
+.TP
+.B CLIENT_DISCONNECT = \(aqclient disconnect\(aq
+Client\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B SERVER_DISCONNECT = \(aqserver disconnect\(aq
+Server\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_ERROR = \(aqtransport error\(aq
+Transport error.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B transport()
+Return the name of the transport currently in use.
+.sp
+The possible values returned by this function are \fB\(aqpolling\(aq\fP and
+\fB\(aqwebsocket\(aq\fP\&.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class engineio.AsyncClient(logger=False, json=None, request_timeout=5, http_session=None, ssl_verify=True, handle_sigint=True, websocket_extra_options=None, timestamp_requests=True)
+An Engine.IO client for asyncio.
+.sp
+This class implements a fully compliant Engine.IO web client with support
+for websocket and long\-polling transports, compatible with the asyncio
+framework on Python 3.5 or newer.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBlogger\fP \-\- To enable logging set to \fBTrue\fP or pass a logger object to
+use. To disable logging set to \fBFalse\fP\&. The default is
+\fBFalse\fP\&. Note that fatal errors are logged even when
+\fBlogger\fP is \fBFalse\fP\&.
+.IP \(bu 2
+\fBjson\fP \-\- An alternative JSON module to use for encoding and decoding
+packets. Custom json modules must have \fBdumps\fP and \fBloads\fP
+functions that are compatible with the standard library
+versions. This is a process\-wide setting, all instantiated
+servers and clients must use the same JSON module.
+.IP \(bu 2
+\fBrequest_timeout\fP \-\- A timeout in seconds for requests. The default is
+5 seconds.
+.IP \(bu 2
+\fBhttp_session\fP \-\- an initialized \fBaiohttp.ClientSession\fP object to be
+used when sending requests to the server. Use it if
+you need to add special client options such as proxy
+servers, SSL certificates, custom CA bundle, etc.
+.IP \(bu 2
+\fBssl_verify\fP \-\- \fBTrue\fP to verify SSL certificates, or \fBFalse\fP to
+skip SSL certificate verification, allowing
+connections to servers with self signed certificates.
+The default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBhandle_sigint\fP \-\- Set to \fBTrue\fP to automatically handle disconnection
+when the process is interrupted, or to \fBFalse\fP to
+leave interrupt handling to the calling application.
+Interrupt handling can only be enabled when the
+client instance is created in the main thread.
+.IP \(bu 2
+\fBwebsocket_extra_options\fP \-\- Dictionary containing additional keyword
+arguments passed to
+\fBaiohttp.ws_connect()\fP\&.
+.IP \(bu 2
+\fBtimestamp_requests\fP \-\- If \fBTrue\fP a timestamp is added to the query
+string of Socket.IO requests as a cache\-busting
+measure. Set to \fBFalse\fP to disable.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async connect(url, headers=None, transports=None, engineio_path=\(aqengine.io\(aq)
+Connect to an Engine.IO server.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBurl\fP \-\- The URL of the Engine.IO server. It can include custom
+query string parameters if required by the server.
+.IP \(bu 2
+\fBheaders\fP \-\- A dictionary with custom headers to send with the
+connection request.
+.IP \(bu 2
+\fBtransports\fP \-\- The list of allowed transports. Valid transports
+are \fB\(aqpolling\(aq\fP and \fB\(aqwebsocket\(aq\fP\&. If not
+given, the polling transport is connected first,
+then an upgrade to websocket is attempted.
+.IP \(bu 2
+\fBengineio_path\fP \-\- The endpoint where the Engine.IO server is
+installed. The default value is appropriate for
+most cases.
+.UNINDENT
+.UNINDENT
+.sp
+Note: this method is a coroutine.
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+eio = engineio.Client()
+await eio.connect(\(aqhttp://localhost:5000\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async wait()
+Wait until the connection with the server ends.
+.sp
+Client applications can use this function to block the main thread
+during the life of the connection.
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async send(data)
+Send a message to the server.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBdata\fP \-\- The data to send to the server. Data can be of type
+\fBstr\fP, \fBbytes\fP, \fBlist\fP or \fBdict\fP\&. If a \fBlist\fP
+or \fBdict\fP, the data will be serialized as JSON.
+.UNINDENT
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async disconnect(abort=False, reason=None)
+Disconnect from the server.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBabort\fP \-\- If set to \fBTrue\fP, do not wait for background tasks
+associated with the connection to end.
+.UNINDENT
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B start_background_task(target, *args, **kwargs)
+Start a background task.
+.sp
+This is a utility function that applications can use to start a
+background task.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBtarget\fP \-\- the target function to execute.
+.IP \(bu 2
+\fBargs\fP \-\- arguments to pass to the function.
+.IP \(bu 2
+\fBkwargs\fP \-\- keyword arguments to pass to the function.
+.UNINDENT
+.UNINDENT
+.sp
+The return value is a \fBasyncio.Task\fP object.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async sleep(seconds=0)
+Sleep for the requested amount of time.
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_queue(*args, **kwargs)
+Create a queue object.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_queue_empty_exception()
+Return the queue empty exception raised by queues created by the
+\fBcreate_queue()\fP method.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_event()
+Create an event object.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on(event, handler=None)
+Register an event handler.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The event name. Can be \fB\(aqconnect\(aq\fP, \fB\(aqmessage\(aq\fP or
+\fB\(aqdisconnect\(aq\fP\&.
+.IP \(bu 2
+\fBhandler\fP \-\- The function that should be invoked to handle the
+event. When this parameter is not given, the method
+acts as a decorator for the handler function.
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+# as a decorator:
+@eio.on(\(aqconnect\(aq)
+def connect_handler():
+    print(\(aqConnection request\(aq)
+
+# as a method:
+def message_handler(msg):
+    print(\(aqReceived message: \(aq, msg)
+    eio.send(\(aqresponse\(aq)
+eio.on(\(aqmessage\(aq, message_handler)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B class reason
+Disconnection reasons.
+.INDENT 7.0
+.TP
+.B CLIENT_DISCONNECT = \(aqclient disconnect\(aq
+Client\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B SERVER_DISCONNECT = \(aqserver disconnect\(aq
+Server\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_ERROR = \(aqtransport error\(aq
+Transport error.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B transport()
+Return the name of the transport currently in use.
+.sp
+The possible values returned by this function are \fB\(aqpolling\(aq\fP and
+\fB\(aqwebsocket\(aq\fP\&.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class engineio.Server(async_mode=None, ping_interval=25, ping_timeout=20, max_http_buffer_size=1000000, allow_upgrades=True, http_compression=True, compression_threshold=1024, cookie=None, cors_allowed_origins=None, cors_credentials=True, logger=False, json=None, async_handlers=True, monitor_clients=None, transports=None, **kwargs)
+An Engine.IO server.
+.sp
+This class implements a fully compliant Engine.IO web server with support
+for websocket and long\-polling transports.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBasync_mode\fP \-\- The asynchronous model to use. See the Deployment
+section in the documentation for a description of the
+available options. Valid async modes are \(dqthreading\(dq,
+\(dqeventlet\(dq, \(dqgevent\(dq and \(dqgevent_uwsgi\(dq. If this
+argument is not given, \(dqeventlet\(dq is tried first, then
+\(dqgevent_uwsgi\(dq, then \(dqgevent\(dq, and finally \(dqthreading\(dq.
+The first async mode that has all its dependencies
+installed is the one that is chosen.
+.IP \(bu 2
+\fBping_interval\fP \-\- The interval in seconds at which the server pings
+the client. The default is 25 seconds. For advanced
+control, a two element tuple can be given, where
+the first number is the ping interval and the second
+is a grace period added by the server.
+.IP \(bu 2
+\fBping_timeout\fP \-\- The time in seconds that the client waits for the
+server to respond before disconnecting. The default
+is 20 seconds.
+.IP \(bu 2
+\fBmax_http_buffer_size\fP \-\- The maximum size that is accepted for incoming
+messages.  The default is 1,000,000 bytes. In
+spite of its name, the value set in this
+argument is enforced for HTTP long\-polling and
+WebSocket connections.
+.IP \(bu 2
+\fBallow_upgrades\fP \-\- Whether to allow transport upgrades or not. The
+default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBhttp_compression\fP \-\- Whether to compress packages when using the
+polling transport. The default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBcompression_threshold\fP \-\- Only compress messages when their byte size
+is greater than this value. The default is
+1024 bytes.
+.IP \(bu 2
+\fBcookie\fP \-\- If set to a string, it is the name of the HTTP cookie the
+server sends back tot he client containing the client
+session id. If set to a dictionary, the \fB\(aqname\(aq\fP key
+contains the cookie name and other keys define cookie
+attributes, where the value of each attribute can be a
+string, a callable with no arguments, or a boolean. If set
+to \fBNone\fP (the default), a cookie is not sent to the
+client.
+.IP \(bu 2
+\fBcors_allowed_origins\fP \-\- Origin or list of origins that are allowed to
+connect to this server. Only the same origin
+is allowed by default. Set this argument to
+\fB\(aq*\(aq\fP or \fB[\(aq*\(aq]\fP to allow all origins, or
+to \fB[]\fP to disable CORS handling.
+.IP \(bu 2
+\fBcors_credentials\fP \-\- Whether credentials (cookies, authentication) are
+allowed in requests to this server. The default
+is \fBTrue\fP\&.
+.IP \(bu 2
+\fBlogger\fP \-\- To enable logging set to \fBTrue\fP or pass a logger object to
+use. To disable logging set to \fBFalse\fP\&. The default is
+\fBFalse\fP\&. Note that fatal errors are logged even when
+\fBlogger\fP is \fBFalse\fP\&.
+.IP \(bu 2
+\fBjson\fP \-\- An alternative JSON module to use for encoding and decoding
+packets. Custom JSON modules must have \fBdumps\fP and \fBloads\fP
+functions that are compatible with the standard library
+versions. This is a process\-wide setting, all instantiated
+servers and clients must use the same JSON module.
+.IP \(bu 2
+\fBasync_handlers\fP \-\- If set to \fBTrue\fP, run message event handlers in
+non\-blocking threads. To run handlers synchronously,
+set to \fBFalse\fP\&. The default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBmonitor_clients\fP \-\- If set to \fBTrue\fP, a background task will ensure
+inactive clients are closed. Set to \fBFalse\fP to
+disable the monitoring task (not recommended). The
+default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBtransports\fP \-\- The list of allowed transports. Valid transports
+are \fB\(aqpolling\(aq\fP and \fB\(aqwebsocket\(aq\fP\&. Defaults to
+\fB[\(aqpolling\(aq, \(aqwebsocket\(aq]\fP\&.
+.IP \(bu 2
+\fBkwargs\fP \-\- Reserved for future extensions, any additional parameters
+given as keyword arguments will be silently ignored.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B send(sid, data)
+Send a message to a client.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the recipient client.
+.IP \(bu 2
+\fBdata\fP \-\- The data to send to the client. Data can be of type
+\fBstr\fP, \fBbytes\fP, \fBlist\fP or \fBdict\fP\&. If a \fBlist\fP
+or \fBdict\fP, the data will be serialized as JSON.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B send_packet(sid, pkt)
+Send a raw packet to a client.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the recipient client.
+.IP \(bu 2
+\fBpkt\fP \-\- The packet to send to the client.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_session(sid)
+Return the user session for a client.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session id of the client.
+.UNINDENT
+.sp
+The return value is a dictionary. Modifications made to this
+dictionary are not guaranteed to be preserved unless
+\fBsave_session()\fP is called, or when the \fBsession\fP context manager
+is used.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B save_session(sid, session)
+Store the user session for a client.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the client.
+.IP \(bu 2
+\fBsession\fP \-\- The session dictionary.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B session(sid)
+Return the user session for a client with context manager syntax.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session id of the client.
+.UNINDENT
+.sp
+This is a context manager that returns the user session dictionary for
+the client. Any changes that are made to this dictionary inside the
+context manager block are saved back to the session. Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+def on_connect(sid, environ):
+    username = authenticate_user(environ)
+    if not username:
+        return False
+    with eio.session(sid) as session:
+        session[\(aqusername\(aq] = username
+
+@eio.on(\(aqmessage\(aq)
+def on_message(sid, msg):
+    with eio.session(sid) as session:
+        print(\(aqreceived message from \(aq, session[\(aqusername\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B disconnect(sid=None)
+Disconnect a client.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session id of the client to close. If this parameter
+is not given, then all clients are closed.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B handle_request(environ, start_response)
+Handle an HTTP request from the client.
+.sp
+This is the entry point of the Engine.IO application, using the same
+interface as a WSGI application. For the typical usage, this function
+is invoked by the \fBMiddleware\fP \%<#\:engineio\:.Middleware> instance, but it can be invoked
+directly when the middleware is not used.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBenviron\fP \-\- The WSGI environment.
+.IP \(bu 2
+\fBstart_response\fP \-\- The WSGI \fBstart_response\fP function.
+.UNINDENT
+.UNINDENT
+.sp
+This function returns the HTTP response body to deliver to the client
+as a byte sequence.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B shutdown()
+Stop Socket.IO background tasks.
+.sp
+This method stops background activity initiated by the Socket.IO
+server. It must be called before shutting down the web server.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B start_background_task(target, *args, **kwargs)
+Start a background task using the appropriate async model.
+.sp
+This is a utility function that applications can use to start a
+background task using the method that is compatible with the
+selected async mode.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBtarget\fP \-\- the target function to execute.
+.IP \(bu 2
+\fBargs\fP \-\- arguments to pass to the function.
+.IP \(bu 2
+\fBkwargs\fP \-\- keyword arguments to pass to the function.
+.UNINDENT
+.UNINDENT
+.sp
+This function returns an object that represents the background task,
+on which the \fBjoin()\fP methond can be invoked to wait for the task to
+complete.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B sleep(seconds=0)
+Sleep for the requested amount of time using the appropriate async
+model.
+.sp
+This is a utility function that applications can use to put a task to
+sleep without having to worry about using the correct call for the
+selected async mode.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_event(*args, **kwargs)
+Create an event object using the appropriate async model.
+.sp
+This is a utility function that applications can use to create an
+event without having to worry about using the correct call for the
+selected async mode.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_queue(*args, **kwargs)
+Create a queue object using the appropriate async model.
+.sp
+This is a utility function that applications can use to create a queue
+without having to worry about using the correct call for the selected
+async mode.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B generate_id()
+Generate a unique session id.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_queue_empty_exception()
+Return the queue empty exception for the appropriate async model.
+.sp
+This is a utility function that applications can use to work with a
+queue without having to worry about using the correct call for the
+selected async mode.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on(event, handler=None)
+Register an event handler.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The event name. Can be \fB\(aqconnect\(aq\fP, \fB\(aqmessage\(aq\fP or
+\fB\(aqdisconnect\(aq\fP\&.
+.IP \(bu 2
+\fBhandler\fP \-\- The function that should be invoked to handle the
+event. When this parameter is not given, the method
+acts as a decorator for the handler function.
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+# as a decorator:
+@eio.on(\(aqconnect\(aq)
+def connect_handler(sid, environ):
+    print(\(aqConnection request\(aq)
+    if environ[\(aqREMOTE_ADDR\(aq] in blacklisted:
+        return False  # reject
+
+# as a method:
+def message_handler(sid, msg):
+    print(\(aqReceived message: \(aq, msg)
+    eio.send(sid, \(aqresponse\(aq)
+eio.on(\(aqmessage\(aq, message_handler)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The handler function receives the \fBsid\fP (session ID) for the
+client as first argument. The \fB\(aqconnect\(aq\fP event handler receives the
+WSGI environment as a second argument, and can return \fBFalse\fP to
+reject the connection. The \fB\(aqmessage\(aq\fP handler receives the message
+payload as a second argument. The \fB\(aqdisconnect\(aq\fP handler does not
+take a second argument.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B class reason
+Disconnection reasons.
+.INDENT 7.0
+.TP
+.B CLIENT_DISCONNECT = \(aqclient disconnect\(aq
+Client\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PING_TIMEOUT = \(aqping timeout\(aq
+Ping timeout.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B SERVER_DISCONNECT = \(aqserver disconnect\(aq
+Server\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_CLOSE = \(aqtransport close\(aq
+Transport close.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_ERROR = \(aqtransport error\(aq
+Transport error.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B transport(sid)
+Return the name of the transport used by the client.
+.sp
+The two possible values returned by this function are \fB\(aqpolling\(aq\fP
+and \fB\(aqwebsocket\(aq\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session of the client.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class engineio.AsyncServer(async_mode=None, ping_interval=25, ping_timeout=20, max_http_buffer_size=1000000, allow_upgrades=True, http_compression=True, compression_threshold=1024, cookie=None, cors_allowed_origins=None, cors_credentials=True, logger=False, json=None, async_handlers=True, monitor_clients=None, transports=None, **kwargs)
+An Engine.IO server for asyncio.
+.sp
+This class implements a fully compliant Engine.IO web server with support
+for websocket and long\-polling transports, compatible with the asyncio
+framework on Python 3.5 or newer.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBasync_mode\fP \-\- The asynchronous model to use. See the Deployment
+section in the documentation for a description of the
+available options. Valid async modes are \(dqaiohttp\(dq,
+\(dqsanic\(dq, \(dqtornado\(dq and \(dqasgi\(dq. If this argument is not
+given, \(dqaiohttp\(dq is tried first, followed by \(dqsanic\(dq,
+\(dqtornado\(dq, and finally \(dqasgi\(dq. The first async mode that
+has all its dependencies installed is the one that is
+chosen.
+.IP \(bu 2
+\fBping_interval\fP \-\- The interval in seconds at which the server pings
+the client. The default is 25 seconds. For advanced
+control, a two element tuple can be given, where
+the first number is the ping interval and the second
+is a grace period added by the server.
+.IP \(bu 2
+\fBping_timeout\fP \-\- The time in seconds that the client waits for the
+server to respond before disconnecting. The default
+is 20 seconds.
+.IP \(bu 2
+\fBmax_http_buffer_size\fP \-\- The maximum size that is accepted for incoming
+messages.  The default is 1,000,000 bytes. In
+spite of its name, the value set in this
+argument is enforced for HTTP long\-polling and
+WebSocket connections.
+.IP \(bu 2
+\fBallow_upgrades\fP \-\- Whether to allow transport upgrades or not.
+.IP \(bu 2
+\fBhttp_compression\fP \-\- Whether to compress packages when using the
+polling transport.
+.IP \(bu 2
+\fBcompression_threshold\fP \-\- Only compress messages when their byte size
+is greater than this value.
+.IP \(bu 2
+\fBcookie\fP \-\- If set to a string, it is the name of the HTTP cookie the
+server sends back tot he client containing the client
+session id. If set to a dictionary, the \fB\(aqname\(aq\fP key
+contains the cookie name and other keys define cookie
+attributes, where the value of each attribute can be a
+string, a callable with no arguments, or a boolean. If set
+to \fBNone\fP (the default), a cookie is not sent to the
+client.
+.IP \(bu 2
+\fBcors_allowed_origins\fP \-\- Origin or list of origins that are allowed to
+connect to this server. Only the same origin
+is allowed by default. Set this argument to
+\fB\(aq*\(aq\fP or \fB[\(aq*\(aq]\fP to allow all origins, or
+to \fB[]\fP to disable CORS handling.
+.IP \(bu 2
+\fBcors_credentials\fP \-\- Whether credentials (cookies, authentication) are
+allowed in requests to this server.
+.IP \(bu 2
+\fBlogger\fP \-\- To enable logging set to \fBTrue\fP or pass a logger object to
+use. To disable logging set to \fBFalse\fP\&. Note that fatal
+errors are logged even when \fBlogger\fP is \fBFalse\fP\&.
+.IP \(bu 2
+\fBjson\fP \-\- An alternative JSON module to use for encoding and decoding
+packets. Custom JSON modules must have \fBdumps\fP and \fBloads\fP
+functions that are compatible with the standard library
+versions. This is a process\-wide setting, all instantiated
+servers and clients must use the same JSON module.
+.IP \(bu 2
+\fBasync_handlers\fP \-\- If set to \fBTrue\fP, run message event handlers in
+non\-blocking threads. To run handlers synchronously,
+set to \fBFalse\fP\&. The default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBmonitor_clients\fP \-\- If set to \fBTrue\fP, a background task will ensure
+inactive clients are closed. Set to \fBFalse\fP to
+disable the monitoring task (not recommended). The
+default is \fBTrue\fP\&.
+.IP \(bu 2
+\fBtransports\fP \-\- The list of allowed transports. Valid transports
+are \fB\(aqpolling\(aq\fP and \fB\(aqwebsocket\(aq\fP\&. Defaults to
+\fB[\(aqpolling\(aq, \(aqwebsocket\(aq]\fP\&.
+.IP \(bu 2
+\fBkwargs\fP \-\- Reserved for future extensions, any additional parameters
+given as keyword arguments will be silently ignored.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B attach(app, engineio_path=\(aqengine.io\(aq)
+Attach the Engine.IO server to an application.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async send(sid, data)
+Send a message to a client.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the recipient client.
+.IP \(bu 2
+\fBdata\fP \-\- The data to send to the client. Data can be of type
+\fBstr\fP, \fBbytes\fP, \fBlist\fP or \fBdict\fP\&. If a \fBlist\fP
+or \fBdict\fP, the data will be serialized as JSON.
+.UNINDENT
+.UNINDENT
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async send_packet(sid, pkt)
+Send a raw packet to a client.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the recipient client.
+.IP \(bu 2
+\fBpkt\fP \-\- The packet to send to the client.
+.UNINDENT
+.UNINDENT
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async get_session(sid)
+Return the user session for a client.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session id of the client.
+.UNINDENT
+.sp
+The return value is a dictionary. Modifications made to this
+dictionary are not guaranteed to be preserved. If you want to modify
+the user session, use the \fBsession\fP context manager instead.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async save_session(sid, session)
+Store the user session for a client.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBsid\fP \-\- The session id of the client.
+.IP \(bu 2
+\fBsession\fP \-\- The session dictionary.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B session(sid)
+Return the user session for a client with context manager syntax.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session id of the client.
+.UNINDENT
+.sp
+This is a context manager that returns the user session dictionary for
+the client. Any changes that are made to this dictionary inside the
+context manager block are saved back to the session. Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+@eio.on(\(aqconnect\(aq)
+def on_connect(sid, environ):
+    username = authenticate_user(environ)
+    if not username:
+        return False
+    with eio.session(sid) as session:
+        session[\(aqusername\(aq] = username
+
+@eio.on(\(aqmessage\(aq)
+def on_message(sid, msg):
+    async with eio.session(sid) as session:
+        print(\(aqreceived message from \(aq, session[\(aqusername\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async disconnect(sid=None)
+Disconnect a client.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session id of the client to close. If this parameter
+is not given, then all clients are closed.
+.UNINDENT
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async handle_request(*args, **kwargs)
+Handle an HTTP request from the client.
+.sp
+This is the entry point of the Engine.IO application. This function
+returns the HTTP response to deliver to the client.
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async shutdown()
+Stop Socket.IO background tasks.
+.sp
+This method stops background activity initiated by the Socket.IO
+server. It must be called before shutting down the web server.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B start_background_task(target, *args, **kwargs)
+Start a background task using the appropriate async model.
+.sp
+This is a utility function that applications can use to start a
+background task using the method that is compatible with the
+selected async mode.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBtarget\fP \-\- the target function to execute.
+.IP \(bu 2
+\fBargs\fP \-\- arguments to pass to the function.
+.IP \(bu 2
+\fBkwargs\fP \-\- keyword arguments to pass to the function.
+.UNINDENT
+.UNINDENT
+.sp
+The return value is a \fBasyncio.Task\fP object.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async sleep(seconds=0)
+Sleep for the requested amount of time using the appropriate async
+model.
+.sp
+This is a utility function that applications can use to put a task to
+sleep without having to worry about using the correct call for the
+selected async mode.
+.sp
+Note: this method is a coroutine.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_queue(*args, **kwargs)
+Create a queue object using the appropriate async model.
+.sp
+This is a utility function that applications can use to create a queue
+without having to worry about using the correct call for the selected
+async mode. For asyncio based async modes, this returns an instance of
+\fBasyncio.Queue\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_queue_empty_exception()
+Return the queue empty exception for the appropriate async model.
+.sp
+This is a utility function that applications can use to work with a
+queue without having to worry about using the correct call for the
+selected async mode. For asyncio based async modes, this returns an
+instance of \fBasyncio.QueueEmpty\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_event(*args, **kwargs)
+Create an event object using the appropriate async model.
+.sp
+This is a utility function that applications can use to create an
+event without having to worry about using the correct call for the
+selected async mode. For asyncio based async modes, this returns
+an instance of \fBasyncio.Event\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B generate_id()
+Generate a unique session id.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B on(event, handler=None)
+Register an event handler.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBevent\fP \-\- The event name. Can be \fB\(aqconnect\(aq\fP, \fB\(aqmessage\(aq\fP or
+\fB\(aqdisconnect\(aq\fP\&.
+.IP \(bu 2
+\fBhandler\fP \-\- The function that should be invoked to handle the
+event. When this parameter is not given, the method
+acts as a decorator for the handler function.
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+# as a decorator:
+@eio.on(\(aqconnect\(aq)
+def connect_handler(sid, environ):
+    print(\(aqConnection request\(aq)
+    if environ[\(aqREMOTE_ADDR\(aq] in blacklisted:
+        return False  # reject
+
+# as a method:
+def message_handler(sid, msg):
+    print(\(aqReceived message: \(aq, msg)
+    eio.send(sid, \(aqresponse\(aq)
+eio.on(\(aqmessage\(aq, message_handler)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The handler function receives the \fBsid\fP (session ID) for the
+client as first argument. The \fB\(aqconnect\(aq\fP event handler receives the
+WSGI environment as a second argument, and can return \fBFalse\fP to
+reject the connection. The \fB\(aqmessage\(aq\fP handler receives the message
+payload as a second argument. The \fB\(aqdisconnect\(aq\fP handler does not
+take a second argument.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B class reason
+Disconnection reasons.
+.INDENT 7.0
+.TP
+.B CLIENT_DISCONNECT = \(aqclient disconnect\(aq
+Client\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B PING_TIMEOUT = \(aqping timeout\(aq
+Ping timeout.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B SERVER_DISCONNECT = \(aqserver disconnect\(aq
+Server\-initiated disconnection.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_CLOSE = \(aqtransport close\(aq
+Transport close.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B TRANSPORT_ERROR = \(aqtransport error\(aq
+Transport error.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B transport(sid)
+Return the name of the transport used by the client.
+.sp
+The two possible values returned by this function are \fB\(aqpolling\(aq\fP
+and \fB\(aqwebsocket\(aq\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBsid\fP \-\- The session of the client.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class engineio.WSGIApp(engineio_app, wsgi_app=None, static_files=None, engineio_path=\(aqengine.io\(aq)
+WSGI application middleware for Engine.IO.
+.sp
+This middleware dispatches traffic to an Engine.IO application. It can
+also serve a list of static files to the client, or forward unrelated
+HTTP traffic to another WSGI application.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBengineio_app\fP \-\- The Engine.IO server. Must be an instance of the
+\fBengineio.Server\fP class.
+.IP \(bu 2
+\fBwsgi_app\fP \-\- The WSGI app that receives all other traffic.
+.IP \(bu 2
+\fBstatic_files\fP \-\- A dictionary with static file mapping rules. See the
+documentation for details on this argument.
+.IP \(bu 2
+\fBengineio_path\fP \-\- The endpoint where the Engine.IO application should
+be installed. The default value is appropriate for
+most cases.
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+import eventlet
+
+eio = engineio.Server()
+app = engineio.WSGIApp(eio, static_files={
+    \(aq/\(aq: {\(aqcontent_type\(aq: \(aqtext/html\(aq, \(aqfilename\(aq: \(aqindex.html\(aq},
+    \(aq/index.html\(aq: {\(aqcontent_type\(aq: \(aqtext/html\(aq,
+                    \(aqfilename\(aq: \(aqindex.html\(aq},
+})
+eventlet.wsgi.server(eventlet.listen((\(aq\(aq, 8000)), app)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class engineio.ASGIApp(engineio_server, other_asgi_app=None, static_files=None, engineio_path=\(aqengine.io\(aq, on_startup=None, on_shutdown=None)
+ASGI application middleware for Engine.IO.
+.sp
+This middleware dispatches traffic to an Engine.IO application. It can
+also serve a list of static files to the client, or forward unrelated
+HTTP traffic to another ASGI application.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBengineio_server\fP \-\- The Engine.IO server. Must be an instance of the
+\fBengineio.AsyncServer\fP class.
+.IP \(bu 2
+\fBstatic_files\fP \-\- A dictionary with static file mapping rules. See the
+documentation for details on this argument.
+.IP \(bu 2
+\fBother_asgi_app\fP \-\- A separate ASGI app that receives all other traffic.
+.IP \(bu 2
+\fBengineio_path\fP \-\- The endpoint where the Engine.IO application should
+be installed. The default value is appropriate for
+most cases. With a value of \fBNone\fP, all incoming
+traffic is directed to the Engine.IO server, with the
+assumption that routing, if necessary, is handled by
+a different layer. When this option is set to
+\fBNone\fP, \fBstatic_files\fP and \fBother_asgi_app\fP are
+ignored.
+.IP \(bu 2
+\fBon_startup\fP \-\- function to be called on application startup; can be
+coroutine
+.IP \(bu 2
+\fBon_shutdown\fP \-\- function to be called on application shutdown; can be
+coroutine
+.UNINDENT
+.UNINDENT
+.sp
+Example usage:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+import engineio
+import uvicorn
+
+eio = engineio.AsyncServer()
+app = engineio.ASGIApp(eio, static_files={
+    \(aq/\(aq: {\(aqcontent_type\(aq: \(aqtext/html\(aq, \(aqfilename\(aq: \(aqindex.html\(aq},
+    \(aq/index.html\(aq: {\(aqcontent_type\(aq: \(aqtext/html\(aq,
+                    \(aqfilename\(aq: \(aqindex.html\(aq},
+})
+uvicorn.run(app, \(aq127.0.0.1\(aq, 5000)
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B async not_found(receive, send)
+Return a 404 Not Found error to the client.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class engineio.Middleware(engineio_app, wsgi_app=None, engineio_path=\(aqengine.io\(aq)
+This class has been renamed to \fBWSGIApp\fP and is now deprecated.
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+Index \%<>
+.IP \(bu 2
+Module Index \%<>
+.IP \(bu 2
+Search Page \%<>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Miguel Grinberg
+.SH "حق نشر (COPYRIGHT)"
+2018, Miguel Grinberg
+.\" End of generated man page.

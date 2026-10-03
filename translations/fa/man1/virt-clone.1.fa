@@ -1,0 +1,242 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "virt-clone" "1" "" "" "Virtualization Support"
+.SH "نام (NAME)"
+virt-clone \- clone existing virtual machine images
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBvirt\-clone\fP [OPTION]...
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBvirt\-clone\fP is a command line tool for cloning existing virtual machine
+images using the \fBlibvirt\fP hypervisor management library. It will copy
+the disk images of any existing virtual machine, and define a new guest
+with an identical virtual hardware configuration. Elements which require
+uniqueness will be updated to avoid a clash between old and new guests.
+.sp
+By default, virt\-clone will show an error if the necessary information to
+clone the guest is not provided. The \-\-auto\-clone option will generate
+all needed input, aside from the source guest to clone.
+.sp
+Please note, virt\-clone does not change anything _inside_ the guest OS, it
+only duplicates disks and does host side changes. So things like changing
+passwords, changing static IP address, etc are outside the scope of this
+tool. For these types of changes, please see \fBvirt\-sysprep\fP\&.
+.SH GENERAL OPTIONS
+.sp
+Most options are not required. Minimum requirements are \-\-original or
+\-\-original\-xml (to specify the guest to clone), \-\-name, and appropriate
+storage options via \-file.
+.INDENT 0.0
+.TP
+.B \fB\-\-connect\fP URI
+Connect to a non\-default hypervisor. See virt\-install(1) for details
+.TP
+.B \fB\-o\fP, \fB\-\-original\fP ORIGINAL_GUEST
+Name of the original guest to be cloned. This guest must be shut off.
+.TP
+.B \fB\-\-original\-xml\fP ORIGINAL_XML
+Libvirt guest xml file to use as the original guest. The guest does not need to
+be defined on the libvirt connection. This takes the place of the
+\fB\-\-original\fP parameter.
+.TP
+.B \fB\-\-auto\-clone\fP
+Generate a new guest name, and paths for new storage.
+.sp
+An example of possible generated output:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+Original name        : MyVM
+Generated clone name : MyVM\-clone
+
+Original disk path   : /home/user/foobar.img
+Generated disk path  : /home/user/foobar\-clone.img
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If generated names collide with existing VMs or storage, a number is appended,
+such as foobar\-clone\-1.img, or MyVM\-clone\-3.
+.TP
+.B \fB\-n\fP, \fB\-\-name\fP NAME
+Name of the new guest virtual machine instance. This must be unique amongst
+all guests known to the hypervisor connection, including those not
+currently active.
+.TP
+.B \fB\-u\fP, \fB\-\-uuid\fP UUID
+UUID for the guest; if none is given a random UUID will be generated. If you
+specify UUID, you should use a 32\-digit hexadecimal number. UUID are intended
+to be unique across the entire data center, and indeed world. Bear this in
+mind if manually specifying a UUID
+.TP
+.B \fB\-f\fP, \fB\-\-file\fP PATH
+Path to the file, disk partition, or logical volume to use as the backing store
+for the new guest\(aqs virtual disk. If the original guest has multiple disks,
+this parameter must be repeated multiple times, once per disk in the original
+virtual machine.
+.TP
+.B \fB\-\-nvram\fP NVRAMFILE
+Optional path to the new nvram VARS file, if no path is specified and the
+guest has nvram the new nvram path will be auto\-generated. If the guest
+doesn\(aqt have nvram this option will be ignored.
+.TP
+.B \fB\-\-force\-copy\fP TARGET
+Force cloning the passed disk target (\(aqhdc\(aq, \(aqsda\(aq, etc.). By default,
+\fBvirt\-clone\fP will skip certain disks, such as those marked \(aqreadonly\(aq or
+\(aqshareable\(aq.
+.TP
+.B \fB\-\-skip\-copy\fP TARGET
+Skip cloning the passed disk target (\(aqhdc\(aq, \(aqsda\(aq, etc.). By default,
+\fBvirt\-clone\fP will clone certain disk images, typically read/write
+devices. Use this to skip copying of a specific device, so the new
+VM uses the same storage path as the original VM.
+.TP
+.B \fB\-\-nonsparse\fP
+Fully allocate the new storage if the path being cloned is a sparse file.
+See virt\-install(1) for more details on sparse vs. nonsparse.
+.TP
+.B \fB\-\-preserve\-data\fP
+No storage is cloned: disk images specified by \-\-file are preserved as is,
+and referenced in the new clone XML. This is useful if you want to clone
+a VM XML template, but not the storage contents.
+.TP
+.B \fB\-\-reflink\fP
+Perform a lightweight copy. This is much faster if source images and destination
+images are all on the same btrfs filesystem. This only works for raw format disk
+images, any non\-raw images will not attempt to use refink
+.TP
+.B \fB\-m\fP, \fB\-\-mac\fP MAC
+Fixed MAC address for the guest; If this parameter is omitted, or the value
+\fBRANDOM\fP is specified a suitable address will be randomly generated. Addresses
+are applied sequentially to the networks as they are listed in the original
+guest XML.
+.TP
+.B \fB\-\-print\-xml\fP
+Print the generated clone XML and exit without cloning.
+.TP
+.B \fB\-\-replace\fP
+Before cloning, try a simple \fBvirsh destroy\fP and \fBvirsh undefine\fP on
+any existing VM with the passed \fB\-\-name\fP\&. If those operations fail (like
+when \fBvirsh undefine\fP requires \fB\-\-nvram\fP flag), the clone will fail
+and you will need to manually remove the existing VM.
+.TP
+.B \fB\-h\fP, \fB\-\-help\fP
+Show the help message and exit
+.TP
+.B \fB\-\-version\fP
+Show program\(aqs version number and exit
+.TP
+.B \fB\-\-check\fP
+Enable or disable some validation checks. See virt\-install(1) for more details.
+.TP
+.B \fB\-q\fP, \fB\-\-quiet\fP
+Suppress non\-error output.
+.TP
+.B \fB\-d\fP, \fB\-\-debug\fP
+Print debugging information to the terminal when running the install process.
+The debugging information is also stored in
+\fB~/.cache/virt\-manager/virt\-clone.log\fP even if this parameter is omitted.
+.UNINDENT
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Clone the guest called \fBdemo\fP on the default connection, auto generating
+a new name and disk clone path.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-clone \e
+     \-\-original demo \e
+     \-\-auto\-clone
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Clone the guest called \fBdemo\fP which has a single disk to copy
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-clone \e
+     \-\-original demo \e
+     \-\-name newdemo \e
+     \-\-file /var/lib/xen/images/newdemo.img
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Clone a QEMU guest with multiple disks
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-clone \e
+     \-\-connect qemu:///system \e
+     \-\-original demo \e
+     \-\-name newdemo \e
+     \-\-file /var/lib/xen/images/newdemo.img \e
+     \-\-file /var/lib/xen/images/newdata.img
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Clone a guest to a physical device which is at least as big as the
+original guests disks. If the destination device is bigger, the
+new guest can do a filesystem resize when it boots.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-clone \e
+     \-\-connect qemu:///system \e
+     \-\-original demo \e
+     \-\-name newdemo \e
+     \-\-file /dev/HostVG/DemoVM \e
+     \-\-mac 52:54:00:34:11:54
+.EE
+.UNINDENT
+.UNINDENT
+.SH "اشکالات (BUGS)"
+.sp
+Please see \%<https://\:virt-manager\:.org/\:bugs>
+.SH "حق نشر (COPYRIGHT)"
+.sp
+Copyright (C) Fujitsu Limited, Copyright (C) Red Hat, Inc,
+and various contributors.
+This is free software. You may redistribute copies of it under the terms
+of the GNU General Public License \%<https://\:www\:.gnu\:.org/\:licenses/\:gpl\:.html>\&.
+There is NO WARRANTY, to the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+\fBvirt\-sysprep(1)\fP, \fBvirsh(1)\fP, \fBvirt\-install(1)\fP, \fBvirt\-manager(1)\fP, the project website \%<https://\:virt-manager\:.org>
+.\" End of generated man page.

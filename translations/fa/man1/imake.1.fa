@@ -1,0 +1,291 @@
+.\" Copyright (c) 1993, 1994, 1998 The Open Group
+.\"
+.\" Permission to use, copy, modify, distribute, and sell this software and its
+.\" documentation for any purpose is hereby granted without fee, provided that
+.\" the above copyright notice appear in all copies and that both that
+.\" copyright notice and this permission notice appear in supporting
+.\" documentation.
+.\"
+.\" The above copyright notice and this permission notice shall be included
+.\" in all copies or substantial portions of the Software.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+.\" OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+.\" MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+.\" IN NO EVENT SHALL THE OPEN GROUP BE LIABLE FOR ANY CLAIM, DAMAGES OR
+.\" OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+.\" ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+.\" OTHER DEALINGS IN THE SOFTWARE.
+.\"
+.\" Except as contained in this notice, the name of The Open Group shall
+.\" not be used in advertising or otherwise to promote the sale, use or
+.\" other dealings in this Software without prior written authorization
+.\" from The Open Group.
+.\"
+.de EX
+.RS
+.nf
+.ft CW
+..
+.de EE
+.ft
+.fi
+.RE
+..
+.TH IMAKE 1 2009-06-22 "imake 1.0.11"
+.SH "نام (NAME)"
+imake \- C preprocessor interface to the make utility
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBimake\fP [ \fB\-D\fP\fIdefine\fP ] [ \fB\-I\fP\fIdir\fP ]
+[ \fB\-U\fP\fIdefine\fP ]
+[ \fB\-T\fP\fItemplate\fP ]
+[ \fB\-f\fP \fIfilename\fP ] [ \fB\-C\fP \fIfilename\fP ]
+[ \fB\-s\fP \fIfilename\fP ] [ \fB\-e\fP ]
+[ \fB\-v\fP ]
+.SH "توضیحات (DESCRIPTION)"
+.B Imake
+is used to
+generate \fIMakefiles\fP from a template, a set of \fBcpp\fP macro functions,
+and a per-directory input file called an \fIImakefile\fP.  This allows machine
+dependencies (such as compiler options, alternate command names, and special
+\fBmake\fP rules) to be kept separate from the descriptions of the
+various items to be built.
+.SH "گزینه‌ها (OPTIONS)"
+The following command line options may be passed to \fBimake\fP:
+.TP 8
+.BI \-D define
+This option is passed directly to \fBcpp\fP.
+It is typically used to set directory-specific variables.
+For example, the X Window System used this flag to set
+\fBTOPDIR\fP to the name of the directory containing the top
+of the core distribution and \fBCURDIR\fP to the name of the current
+directory, relative to the top.
+.TP 8
+.BI \-I directory
+This option is passed directly to \fBcpp\fP.
+It is typically used to indicate the directory in which the
+\fBimake\fP template and configuration files may be found.
+.TP 8
+.BI \-U define
+This option is passed directly to \fBcpp\fP.
+It is typically used to unset variables when
+debugging \fBimake\fP configuration files.
+.TP 8
+.BI \-T template
+This option specifies the name of the master template file (which is usually
+located in the directory specified with \fB\-I\fP) used by \fBcpp\fP.
+The default is \fBImake.tmpl\fP.
+.TP 8
+.BI \-f " filename"
+This option specifies the name of the per-directory input file.
+The default is \fBImakefile\fP.
+.TP 8
+.BI \-C " filename"
+This option specifies the name of the \fI.c\fP file that is constructed
+in the current directory.
+The default is \fBImakefile.c\fP.
+.TP 8
+.BI \-s " filename"
+This option specifies the name of the \fBmake\fP description file to be
+generated but \fBmake\fP should not be invoked.
+If the \fIfilename\fP is a dash (\-), the output is written to \fIstdout\fP.
+The default is to generate, but not execute, a \fBMakefile\fP.
+.TP 8
+.B \-e
+This option indicates the \fBimake\fP should execute the generated
+\fIMakefile\fP.
+The default is to leave this to the user.
+.TP 8
+.B \-v
+This option indicates that \fBimake\fP should print the \fBcpp\fP command line
+that it is using to generate the \fIMakefile\fP.
+.SH "HOW IT WORKS"
+\fBImake\fP invokes \fBcpp\fP
+with any \fB\-I\fP or \fB\-D\fP flags passed on the command line
+and passes the name of a file containing the following 3 lines:
+.EX
+
+\&		#define IMAKE_TEMPLATE "Imake.tmpl"
+\&		#define INCLUDE_IMAKEFILE <Imakefile>
+\&		#include IMAKE_TEMPLATE
+
+.EE
+where \fBImake.tmpl\fP and \fBImakefile\fP may be overridden by the
+\fB\-T\fP and \fB\-f\fP command options, respectively.
+.PP
+The \fBIMAKE_TEMPLATE\fP typically
+reads in a file containing machine-dependent parameters
+(specified as \fBcpp\fP symbols), a site-specific parameters file,
+a file defining variables,
+a file containing \fBcpp\fP macro functions for generating \fBmake\fP rules,
+and finally the \fIImakefile\fP (specified by \fBINCLUDE_IMAKEFILE\fP)
+in the current directory.
+The \fIImakefile\fP uses the macro functions to indicate what
+targets should be built;
+\fBimake\fP takes care of generating the appropriate rules.
+.PP
+.B Imake
+configuration files contain two types of variables, imake variables
+and make variables.
+The imake variables are interpreted by cpp when
+.B imake
+is run.
+By convention they are mixed case.
+The make variables are written into the
+.B Makefile
+for later interpretation by
+.B make.
+By convention make variables are upper case.
+.PP
+The rules file (usually named \fBImake.rules\fP in the configuration
+directory) contains a variety of \fBcpp\fP macro functions that are
+configured according to the current platform.
+\fBImake\fP replaces any occurrences of the string ``@@'' with a newline
+to allow macros that generate more than one line of \fBmake\fP rules.
+For example, the macro
+.EX
+
+\&#define      program_target(program, objlist)        @@\e
+program:        objlist         @@\e
+        $(CC)  \-o  $@  objlist  $(LDFLAGS)
+
+.EE
+when called with
+.B "program_target(foo, foo1.o  foo2.o)"
+will expand to
+.EX
+
+foo:    foo1.o  foo2.o
+        $(CC)  \-o  $@  foo1.o  foo2.o  $(LDFLAGS)
+.EE
+.PP
+\fBImake\fP also replaces any occurrences of the word ``XCOMM'' with
+the character ``#'' to permit placing comments in the Makefile without
+causing ``invalid directive'' errors from the preprocessor.
+.PP
+Some complex \fBimake\fP macros require generated \fBmake\fP variables
+local to each invocation of the macro, often because their value
+depends on parameters passed to the macro.
+Such variables can be created by using an \fBimake\fP variable
+of the form \fBXVARdef\fP\fIn\fP, where \fIn\fP is a single digit.
+A unique \fBmake\fP variable will be substituted.
+Later occurrences of the variable \fBXVARuse\fP\fIn\fP will
+be replaced by the variable created by the corresponding
+\fBXVARdef\fP\fIn\fP.
+.PP
+On systems whose \fBcpp\fP reduces multiple tabs and spaces to a single space,
+\fBimake\fP attempts to put back any necessary tabs
+(\fBmake\fP is very picky about the difference between tabs and spaces).
+For this reason,
+colons (:) in command lines must be preceded by a backslash (\\).
+.SH "USE WITH THE X WINDOW SYSTEM"
+The X Window System used \fBimake\fP extensively up through the X11R6.9
+release, for both full builds within the source tree and external software.
+X has since moved to GNU autoconf and automake for its build system in
+X11R7.0 and later releases, but still maintains imake for building existing
+external software programs that have not yet converted.
+.PP
+As mentioned above, two special variables, \fBTOPDIR\fP and \fBCURDIR,\fP
+are set to make referencing files using relative path names easier.
+For example, the following command is generated automatically
+to build the \fBMakefile\fP in the directory \fBlib/X/\fP
+(relative to the top of the sources):
+.EX
+	%  ../.././config/imake  \-I../.././config  \\
+		\-DTOPDIR=../../.   \-DCURDIR=./lib/X
+.EE
+When building X programs outside the source tree,
+a special symbol \fBUseInstalled\fP is defined
+and \fBTOPDIR\fP and \fBCURDIR\fP are omitted.
+If the configuration files have been properly installed,
+the script \fBxmkmf\fP(1) may be used.
+.SH "INPUT FILES"
+Here is a summary of the files read by
+.B imake
+as used by X.
+The indentation shows what files include what other files.
+.EX
+    Imake.tmpl  generic variables
+        site.def        site-specific, BeforeVendorCF defined
+        *.cf    machine-specific
+            *Lib.rules  shared library rules
+        site.def        site-specific, AfterVendorCF defined
+        Imake.rules     rules
+        Project.tmpl    X-specific variables
+            *Lib.tmpl   shared library variables
+        Imakefile
+            Library.tmpl        library rules
+            Server.tmpl server rules
+            Threads.tmpl        multi-threaded rules
+.EE
+.LP
+Note that \fBsite.def\fP gets included twice,
+once before the \fI*.cf\fP file and once after.
+Although most site customizations should be specified after the \fI*.cf\fP file,
+some, such as the choice of compiler, need to be specified before,
+because other variable settings may depend on them.
+.LP
+The first time \fBsite.def\fP is included,
+the variable \fBBeforeVendorCF\fP is defined,
+and the second time, the variable \fBAfterVendorCF\fP is defined.
+All code in \fBsite.def\fP should be inside an #ifdef for one of these symbols.
+.SH "ENVIRONMENT VARIABLES"
+The following environment variables may be set, however their use is not
+recommended as they introduce dependencies that are not readily apparent
+when \fBimake\fP is run:
+.TP 5
+.B IMAKEINCLUDE
+If defined, this specifies a ``\-I'' include argument to pass to the
+C preprocessor.  E.g., ``\-I/usr/X11/config''.
+.TP 5
+.B IMAKECPP
+If defined, this should be a valid path to a preprocessor program.
+E.g., ``/usr/local/cpp''.
+By default,
+.B imake
+will use
+.B cc \-E
+or
+.BR /usr/bin/cpp ,
+depending on the OS specific configuration.
+.TP 5
+.B IMAKEMAKE
+If defined, this should be a valid path to a make program,
+such as ``/usr/local/make''.
+By default,
+.B imake
+will use whatever
+.B make
+program is found using
+.BR execvp (3).
+This variable is only used if the ``\-e'' option is specified.
+.SH "فایل‌ها (FILES)"
+.TP
+.B Imakefile.c
+temporary input file for cpp
+.TP
+.BI /tmp/Imf. XXXXXX
+temporary Makefile for -s
+.TP
+.BI /tmp/IIf. XXXXXX
+temporary Imakefile if specified Imakefile uses # comments
+.TP
+.B /usr/bin/cpp
+default C preprocessor
+.SH "همچنین ببینید (SEE ALSO)"
+.BR cpp (1),
+.BR make (1),
+.BR xmkmf (1)
+.TP
+Paul DuBois
+.I imake-Related Software and Documentation,
+http://www.snake.net/software/imake-stuff/
+.TP
+Paul DuBois
+.I Software Portability with imake, Second Edition,
+O'Reilly & Associates, 1996.
+.TP
+S. I. Feldman,
+.I Make \(em A Program for Maintaining Computer Programs
+.SH "نویسندگان (AUTHORS)"
+Todd Brunhoff, Tektronix and MIT Project Athena; Jim Fulton, MIT X Consortium

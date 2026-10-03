@@ -1,0 +1,188 @@
+'\" t
+.\"     Title: ostree prepare-root
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 08/20/2026
+.\"    Manual: ostree prepare-root
+.\"    Source: OSTree
+.\"  Language: English
+.\"
+.TH "OSTREE PREPARE\-ROOT" "1" "" "OSTree" "ostree prepare-root"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+ostree-prepare-root \- Change the view of a mounted root filesystem to an ostree deployment
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBostree\ prepare\-root\fR\ 'u
+\fBostree prepare\-root\fR {TARGET}
+.SH "توضیحات (DESCRIPTION)"
+.PP
+At its core, ostree operates on an existing mounted filesystem\&. Tooling such as
+ostree admin deploy
+will create a new directory that can be used as a bootable target\&. This tool is designed to run in an initramfs and set up "remapping" mounts as a view into that filesystem\&.
+.PP
+As of more recently, this tool also has optional support for composefs, which creates a distinct mount point layered on top of the underlying filesystem\&.
+.PP
+The most common pattern today is to use systemd in an initramfs\&. The systemd unit shipped upstream is ordered in this way:
+After=sysroot\&.mount
+and
+Before=initrd\-root\-fs\&.target
+.PP
+When it runs, the mounted filesystem at the provided
+TARGET
+(usually
+/sysroot) will be changed such that what appears at
+/sysroot
+is actually the "deployment root" \- i\&.e\&. a particular versioned subdirectory\&. What was formerly the "physical root" i\&.e\&. the real root of the filesystem will appear as
+/sysroot/sysroot\&.
+.PP
+For
+/var, by default a bind mount is created from the deployment root to
+/sysroot/var\&.
+.PP
+A read\-only bind mount is created over
+/sysroot/usr\&. The immutable bit (see chattr(1)) is set on the deployment root, so this provides basic protection for filesystem mutation\&. If the
+sysroot\&.readonly
+option is enabled, then
+/sysroot/sysroot
+is mounted read\-only to provide further protection and a writable bind mount for
+/sysroot/etc
+is created\&.
+.PP
+Finally, when higher level tooling such as systemd performs a switch\-root operation, what was
+/sysroot
+becomes
+/
+and after the transition into the real root, the system will be booted into the "deployment", which is a versioned immutable filesystem tree\&. The ostree tooling running in the real root thereafter performs further changes by operating on
+/sysroot
+which is now the "physical root"\&.
+.SH "پیکربندی (CONFIGURATION)"
+.PP
+The
+/usr/lib/ostree/prepare\-root\&.conf
+(or
+/etc/ostree/prepare\-root\&.conf) config file is parsed by
+ostree\-prepare\-root\&. This file must be present in the initramfs\&. The default dracut module will copy it from the real root if present\&.
+.PP
+\fIsysroot\&.readonly\fR
+.RS 4
+A boolean value; the default is
+false
+unless composefs is enabled\&. If this is set to
+true, then the
+/sysroot
+mount point is mounted read\-only\&.
+.RE
+.PP
+\fIetc\&.transient\fR
+.RS 4
+A boolean value; the default is
+false\&. If this is set to
+true, then the
+/etc
+mount point is mounted transiently i\&.e\&. a non\-persistent location\&.
+.RE
+.PP
+\fIroot\&.transient\fR
+.RS 4
+A boolean value; the default is
+false\&. Setting this flag to
+true
+requires composefs (See
+composefs\&.enabled)\&. When enabled, the root mount point
+/
+will be an overlayfs whose contents will be stored in a tmpfs, and hence discarded on OS upgrade or reboot\&.
+.sp
+This option is independent of
+etc\&.transient
+and
+sysroot\&.readonly; it is supported for example to have
+root\&.transient=true
+but
+etc\&.transient=false
+in which case changes to
+/etc
+continue to persist across updates, with the default OSTree 3\-way merge applied\&. Also related to persistence it is important to emphasize that
+/sysroot
+(the physical root filesystem) is still persistent by default; in\-place OS upgrades can be applied\&. This option has no effect on
+/var\&.
+.sp
+Enabling this option can make it significantly easier to adopt an image\-based model in some circumstances\&. For example, if you have a configuration management system that is inspecting machine\-specific state and e\&.g\&. dynamically installing packages or applying configuration, it can more easily be adapted to run on each boot, while still shifting a portion (or ideally most) image configuration to build time as part of the base image/commit\&.
+.RE
+.PP
+\fIroot\&.transient\-ro\fR
+.RS 4
+A boolean value; the default is
+false\&. This is like
+root\&.transient, but the overlayfs upper will be mounted read\-only by default\&. Use this when you want specific privileged components to be able to write to the upper by temporarily mounting it writable in a new mount namespace\&.
+.RE
+.PP
+\fIcomposefs\&.enabled\fR
+.RS 4
+This can be
+yes,
+no,
+maybe,
+signed, or
+verity\&. The default is
+no\&. If set to
+yes,
+signed, or
+verity, then composefs is always used, and the boot fails if it is not available\&. If set to
+signed
+or
+verity, before the content of a file is read, the integrity of its backing OSTree object is validated by the digest stored in the image\&. Additionally, if set to
+signed, boot will fail if the image cannot be validated by a public key\&. Setting this to
+maybe
+will cause composefs to be used at runtime only if the deployment has a composefs generated, which causes unpredicable and confusing semantics and is not recommended\&. In practice with the
+\fIcurrent\fR
+version of ostree, in the case where composefs is enabled at build time for both the version that made the deployment (often an older OS version), this will be equivalent to
+yes\&. But in general one either wants composefs or not, so choose an explicit value for that\&.
+.RE
+.PP
+\fIcomposefs\&.keypath\fR
+.RS 4
+Path to a file with Ed25519 public keys in the initramfs, used if
+composefs\&.enabled
+is set to
+signed\&. The default value for this is
+/etc/ostree/initramfs\-root\-binding\&.key\&. For a valid signed boot the target OSTree commit must be signed by at least one public key in this file, and the commitfs digest listed in the commit must match the target composefs image\&.
+.RE
+.PP
+The following kernel commandline parameters are also parsed:
+.PP
+\fIostree\&.prepare\-root\&.composefs\fR
+.RS 4
+This accepts the same values as
+composefs\&.enabled
+above, and overrides the config file (if present)\&. For example, specifying
+ostree\&.prepare\-root\&.composefs=0
+will disable composefs, even if it is enabled by default in the initrd config\&.
+.RE
+.SH "SYSTEMD"
+.PP
+As mentioned above, this tool comes with a systemd unit file
+ostree\-prepare\-root\&.service
+and it is primarily expected to be invoked this way\&.
+.SH "COMPOSEFS"
+.PP
+The default for ostree is to create a plain hardlinked filesystem tree\&. composefs support is currently experimental; see the upstream
+doc/composefs\&.md
+for more information on using it\&.

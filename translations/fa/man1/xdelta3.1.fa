@@ -1,0 +1,222 @@
+.TH XDELTA3 "1" "August 2009" "Xdelta3"
+.SH "نام (NAME)"
+xdelta3 \- VCDIFF (RFC 3284) binary diff tool
+.SH "خلاصه دستور (SYNOPSIS)"
+.B xdelta3 
+.RI [ command ]
+.RI [ options ] 
+.RI [ input 
+.RI [ output ]]
+.SH "توضیحات (DESCRIPTION)"
+.B xdelta3
+is a binary diff tool that uses the VCDIFF (RFC 3284) format and compression.
+.SH COMMANDS
+.TP
+.BI config
+prints xdelta3 configuration
+.TP
+.BI decode
+decompress the input, also set by -d
+.TP
+.BI encode
+compress the input, also set by -e (default)
+.TP
+.BI test
+run the builtin tests
+.TP
+.BI printdelta
+print information about the entire delta
+.TP
+.BI printhdr
+print information about the first window
+.TP
+.BI printhdrs
+print information about all windows
+.TP
+.BI recode
+encode with new application/secondary settings
+
+.SH "گزینه‌ها (OPTIONS)"
+standard options:
+.TP
+.BI "\-0 .. \-9"
+compression level
+.TP
+.BI "\-c"
+use stdout
+.TP
+.BI "\-d"
+decompress
+.TP
+.BI \-e
+compress
+.TP
+.BI \-f
+force overwrite
+.TP
+.BI \-h
+show help
+.TP
+.BI \-q
+be quiet
+.TP
+.BI \-v
+be verbose (max 2)
+.TP
+.BI \-V
+show version
+
+.TP
+memory options:
+.TP
+.BI \-B 
+.RI bytes
+source window size
+.TP
+.BI \-W 
+.RI bytes
+input window size
+.TP
+.BI \-P 
+.RI size
+compression duplicates window
+.TP
+.BI \-I 
+.RI size
+instruction buffer size (0 = unlimited)
+
+.TP
+compression options:
+.TP
+.BI \-s
+.RI source
+source file to copy from (if any)
+.TP
+.BI "\-S " [djw]
+enable/disable secondary compression
+.TP
+.BI \-N
+disable small string-matching compression
+.TP
+.BI \-D
+disable external decompression (encode/decode)
+.TP
+.BI \-R
+disable external recompression (decode)
+.TP
+.BI \-G
+omit the detected external-compression level from the application header
+(encode).  By default
+.B xdelta3
+records the level so decode recompresses the output to byte-identical bytes;
+.B \-G
+emits a legacy application header that older
+.B xdelta3
+versions can still recompress.
+.TP
+.BI \-n
+disable checksum (encode/decode)
+.TP
+.BI \-a
+disable armor.
+Armor mode (whole-file BLAKE3 verification) is on by default. When enabled,
+.B xdelta3
+embeds BLAKE3 digests of the source and target into the application header
+using the
+.I name#blake3
+syntax. On encode this requires a seekable source and target; on decode the
+source is verified before applying and the reconstructed target is verified
+afterward. If the source is a stream (not seekable) it cannot be verified, so
+.B xdelta3
+prints a warning and proceeds. If the supplied source already matches the
+delta's target digest -- i.e. the patch is already applied -- decode reports
+"already up to date" and exits with status 2.
+.B \-a
+disables this and restores the legacy application-header format and the
+non-seekable streaming behavior. The
+.B merge
+command verifies an armored chain of deltas when every input is armored.
+Armor verifies the logical (decompressed) content that
+.B xdelta3
+processes, so it composes correctly with external input decompression and
+output recompression.
+.TP
+.BI \-C 
+soft config (encode, undocumented)
+.TP
+.BI "\-A " [apphead]
+disable/provide application header (encode)
+.TP
+.BI \-J
+disable output (check/compute only)
+.TP
+.BI \-T
+use alternate code table (test)
+
+.SH "وضعیت خروج (EXIT STATUS)"
+.TP
+.B 0
+success.
+.TP
+.B 2
+the decoded armored delta's source already matches its target digest; the
+patch is already applied and nothing was done.
+.TP
+.B 1
+any other error.
+
+.SH "نکات (NOTES)"
+When
+.B xdelta3
+automatically decompresses an externally compressed input (bzip2, gzip, xz, or
+compress) it records the detected compression level in the application header
+and passes it to the recompressor on decode, so the recompressed output
+reproduces the original compression level.  The bzip2 block-size level is
+recovered exactly; the gzip and xz levels are best-effort guesses from the
+stream header and may select the format default when the exact level cannot be
+determined.  This makes the application-header compressor field
+.RB ( B ,
+.BR G ,
+.BR Z ,
+.BR Y )
+optionally carry a trailing level digit, e.g.\&
+.IR B9 .
+Use
+.B \-R
+to disable recompression,
+.B \-D
+to disable decompression entirely, or
+.B \-G
+to omit the level from the header for compatibility with older versions.
+.PP
+The
+.B XDELTA
+environment variable may contain extra args:
+
+.RS
+XDELTA="-s source-x.y.tar.gz" \\
+.br
+tar --use-compress-program=xdelta3 -cf \\
+.br
+target-x.z.tar.gz.vcdiff target-x.y/
+
+.SH "مثال‌ها (EXAMPLES)"
+
+Compress the differences between SOURCE and TARGET, yielding OUT, 
+using "djw" secondary compression:
+
+xdelta3 -S djw -s SOURCE TARGET OUT
+
+Do the same, using standard input and output:
+
+xdelta3 -S djw -s SOURCE < TARGET > OUT
+
+To decompress OUT, using SOURCE, yielding TARGET:
+
+xdelta3 -d -s SOURCE OUT TARGET
+
+.SH "نویسنده (AUTHOR)"
+xdelta3 was written by Josh MacDonald <josh.macdonald@gmail.com>.
+.PP
+This manual page was written by Leo 'costela' Antunes <costela@debian.org>
+for the Debian project (but may be used by others).

@@ -1,0 +1,333 @@
+.Dd 2025-12-25
+.Dt DARKMAN 1
+.Os
+.Sh "نام (NAME)"
+.Nm darkman
+.Nd control dark-mode and light-mode transitions
+.Sh "خلاصه دستور (SYNOPSIS)"
+.Nm
+.Op Ar options
+.Ar command
+.Sh "توضیحات (DESCRIPTION)"
+.Nm
+runs in the background and turns on dark mode at sundown, and turns it off
+again at sunrise.
+.Nm
+is not designed to be used interactively: it's designed to be set up once,
+and run in the background.
+.Pp
+It is also possible to trigger manual transitions and it is also possible to
+disable automatic transitions entirely.
+.Sh COMMANDS
+.Bl -tag -width Ds
+.It Cm run Op Fl -ready-fd Ar fd
+Runs the
+.Nm
+service.
+This command is intended to be executed by a service manager, init script or
+alike.
+.Pp
+The optional
+.Ar fd
+is a file descriptor where
+.Nm
+will notify when it is ready to receive connections from clients.
+The protocol used is compatible with readiness notifications for s6, dinit
+and systemd.
+.It Cm set Aq Cm light | dark
+Sets the current mode.
+.It Cm get
+Prints the current mode.
+.It Cm toggle
+Toggle the current mode.
+.El
+.Sh "گزینه‌ها (OPTIONS)"
+.Bl -tag -width Ds
+.It Fl -verbose
+Print detailed logs.
+Defaults to
+.Cm true
+for the
+.Cm run
+command and to
+.Cm false
+for all other commands.
+.El
+.Sh "پیکربندی (CONFIGURATION)"
+See
+.Xr darkman.conf 5
+for configuration file format and
+.Sx FILES
+for configuration file locations.
+.Sh INTEGRATIONS
+The open source desktop ecosystem is quite heterogeneous and making different
+applications switch between dark/light requires different mechanisms.
+.Pp
+.Nm
+seeks to implement the more widely adopted standards, while leaving room
+for users to hook in custom scripts for other applications.
+.Ss Custom executables
+.Nm
+can run custom executables (which can be simple shell scripts).
+.Pp
+Scripts are searched in a directory named
+.Pa darkman
+inside paths defined in the
+.Ev XDG_DATA_DIRS
+as well as
+.Ev XDG_DATA_HOME .
+Each script receives the current mode
+.Pq Dq dark No or Dq light
+as its first argument ($1).
+This allows a single script to handle both modes:
+.Bd -literal -offset indent
+#!/bin/sh
+case "$1" in
+dark) THEME=dark-theme ;;
+light) THEME=light-theme ;;
+esac
+gsettings set org.example.app theme "$THEME"
+.Ed
+.Pp
+For backwards compatibility,
+.Nm
+also searches
+.Pa dark-mode.d
+and
+.Pa light-mode.d
+directories (legacy format).
+Scripts in these directories run without arguments.
+Scripts in the
+.Pa darkman
+directory with the same name will override legacy scripts.
+.Pp
+Both of these variables and their fallbacks are defined in the XDG Base
+Directory Specification:
+.Lk https://specifications.freedesktop.org/basedir-spec/latest/
+.Pp
+These scripts or executables can perform any actions required like re-write
+configuration files for a PDF reader, control a notification daemon to
+switch to another theme, or toggle a DE-specific setting.
+.Pp
+Files must have the executable bit set in order to be considered an executable.
+Scripts must have the proper shebang for the OS to properly execute them.
+.Pp
+Typically, the
+.Ev XDG_DATA_*
+variables mentioned above will resolve to the following set of directories:
+.Bl -bullet -compact
+.It
+.Pa ~/.local/share/
+.It
+.Pa /usr/local/share/
+.It
+.Pa /usr/share/
+.El
+.Pp
+Example scripts (and discussion on how to integrate different applications) are
+available in the project repository:
+.Lk https://gitlab.com/WhyNotHugo/darkman
+.Pp
+Packages may also drop-in their own scripts into any of these locations,
+although application developers are encouraged to use the socket API to
+determine the current mode and listen for changes (see below for details).
+.Ss XDG Settings portal
+.Nm
+implements the XDG desktop portal's dark mode interface.
+Applications using this API should switch to dark/light mode based on
+.Nm Ns 's
+current preference.
+This interface was originally pushed by the GNOME and Elementary teams, and is
+currently supported by KDE, Firefox and many other projects.
+You should expect applications from those environments to support it, amongst
+others.
+.Pp
+For more details on this protocol, see:
+.Lk https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.Settings.html
+.Pp
+As of
+.Xr xdg-desktop-portal 1
+version 1.17.0, portals MUST be configured with per-user configuration
+.Xr portals.conf 5 .
+To force the usage of
+.Nm
+for dark/light mode setting, use something like the following:
+.Bd -literal -offset indent
+[preferred]
+org.freedesktop.impl.portal.Settings=darkman
+.Ed
+.Pp
+When using a desktop-specific configuration (e.g.:
+.Pa swaywm-portals.conf ) ,
+please keep in mind that the environment variable
+.Ev XDG_CURRENT_DESKTOP
+must be set for the
+.Xr xdg-desktop-portal 1 .
+.Pp
+The
+.Xr xdg-desktop-portal 1
+should start after
+.Nm
+has started and is ready.
+Use
+.Fl -ready-fd
+for readiness notification.
+This is likely not relevant on systemd-based setups, where the service manager
+intermediates in taking the named bus.
+.Pp
+For a more in-depth explanation, see this article:
+.Lk https://whynothugo.nl/journal/2024/04/09/darkman-portal-configuration/
+.Ss Socket API
+.Nm
+listens on a Unix socket for query and control commands.
+The socket exposes a simple text-based API where commands are followed by a
+newline, and
+.Nm
+writes a response also followed by a newline.
+.Pp
+The
+.Cm get , set
+and
+.Cm toggle
+commands use this API.
+It is also the recommended approach when writing custom tools
+(e.g.: switching the current mode based on the input from a light sensor).
+.Pp
+The following commands are available:
+.Bl -tag -width Ds
+.It Cm get
+Print the current mode.
+.It Cm set Ar mode
+Set the current mode.
+.Ar mode
+must be one of
+.Cm light
+or
+.Cm dark .
+.It Cm toggle
+Switch to the opposite mode.
+The new mode is printed as a response.
+.It Cm watch
+Print mode changes as they occur.
+The current mode is printed immediately, followed by each subsequent change.
+.El
+.Pp
+To interact with the socket manually:
+.Bd -literal -offset indent
+socat UNIX-CONNECT:${XDG_RUNTIME_DIR}/darkman/control.sock STDIO
+.Ed
+.Pp
+A
+.Nm libdarkman
+Go package is available to query this interface from other client applications.
+See its documentation for details:
+.Lk https://godocs.io/gitlab.com/WhyNotHugo/darkman/libdarkman
+.Ss Third party integrations
+For Emacs users, a third party package exists to integrate
+.Nm
+with Emacs:
+.Lk https://github.com/grtcdr/darkman.el
+.Pp
+There also exists a plugin for neovim users:
+.Lk https://github.com/4e554c4c/darkman.nvim
+.Sh LOCATION
+The current location may be specified in the configuration file.
+The location is used to calculate what time sundown and sunrise happen.
+.Pp
+It is also possible for
+.Nm
+to automatically determine the system's location using
+.Xr geoclue 1 .
+Geoclue's reliability varies depending on distribution and desktop environment,
+as an agent often needs to be configured for it to work properly.
+.Pp
+If no location is known, automatic transitions are disabled.
+.Sh "محیط (ENVIRONMENT)"
+The following environment variables are also read and will override the
+configuration file:
+.Bl -tag -width Ds
+.It Ev DARKMAN_LAT
+Overrides the latitude for the current location.
+.It Ev DARKMAN_LNG
+Overrides the longitude for the current location.
+.It Ev XDG_CURRENT_DESKTOP
+.Nm
+does not use this variable; it should be defined for the
+.Xr xdg-desktop-portal 1
+instead.
+.El
+.Sh "فایل‌ها (FILES)"
+.Nm
+searches for a configuration file in the following locations, using the first
+one found:
+.Bl -enum -compact
+.It
+.Pa $XDG_CONFIG_HOME/darkman/config.yaml
+.It
+Each directory in
+.Ev XDG_CONFIG_DIRS ,
+with
+.Pa darkman/config.yaml
+appended.
+.El
+.Pp
+If
+.Ev XDG_CONFIG_HOME
+is not set, it defaults to
+.Pa ~/.config .
+If
+.Ev XDG_CONFIG_DIRS
+is not set, it defaults to
+.Pa /etc/xdg .
+.Pp
+See
+.Xr darkman.conf 5
+for configuration file format.
+.Sh PRIVACY
+.Nm
+will trigger a darkmode/lightmode transition at sundown in the current
+location.
+Any application that is running locally can record or transmit the time of
+these transitions and attempt to extrapolate information related to the current
+location.
+.Pp
+When a web browser applies this transition at the same time, open websites can
+record this information too.
+.Pp
+A potential stalker or tracker can use the above information to infer that you
+are likely in a region of the world where sunset happened at a specific time.
+This region is usually a wide area spanning tens of thousands of kilometers, but
+can be smaller for certain geographical locations.
+.Pp
+The author of this tool uses a manually configured location with an integer
+latitude and longitude to achieve a sensible balance between privacy and
+convenience.
+.Sh DEVELOPMENT
+For issues and general development inquiries, see the project home currently
+hosted at GitLab:
+.Lk https://gitlab.com/WhyNotHugo/darkman
+.Sh DEBUGGING
+To confirm which value is relayed via the
+.Xr xdg-desktop-portal 1
+use:
+.Bd -literal -offset indent
+gdbus call --session \e
+    --dest org.freedesktop.portal.Desktop \e
+    --object-path /org/freedesktop/portal/desktop \e
+    --method org.freedesktop.portal.Settings.ReadOne \e
+    org.freedesktop.appearance color-scheme
+.Ed
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr portals.conf 5 ,
+.Xr gammastep 1 ,
+.Xr sd-ready-fd 1
+.Sh "نویسندگان (AUTHORS)"
+Developed by
+.An Hugo O. Barrera Aq Mt hugo@whynothugo.nl ,
+with invaluable contributions from the community.
+.Pp
+.Nm
+is an open source project licensed under the ISC licence and developed for
+anyone to use freely.
+If you would like to sponsor this project, see:
+.Lk https://whynothugo.nl/sponsor

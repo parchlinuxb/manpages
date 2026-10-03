@@ -1,0 +1,101 @@
+.TH REDO-WHICHDO 1 2021-07-27 "Redo 0.42d" "User Commands"
+.ad l
+.nh
+.SH "نام (NAME)"
+redo-whichdo \- show redo's search path for a .do file
+.SH "خلاصه دستور (SYNOPSIS)"
+redo-whichdo <target>
+.SH "توضیحات (DESCRIPTION)"
+\fBredo\fR(1) and \fBredo-ifchange\fR(1) build their targets by executing a ".do
+file" script with appropriate arguments.  .do files are searched starting
+from the directory containing the target, and if not found there, up the
+directory tree until a match is found.
+.PP
+To help debugging your scripts when redo is using an unexpected .do file, or
+to write advanced scripts that "proxy" from one .do file to another, you
+can use \fBredo-whichdo\fR to see the exact search path that \fBredo\fR uses.
+.PP
+The output format lists potential .do files, one per line, in order of
+preference, separated by newline characters, and stopping once a
+matching .do file has been found.  If the return code is zero,
+the last line is a .do file that actually exists; otherwise the entire
+search path has been exhausted (and printed).
+.SH "مثال (EXAMPLE)"
+Here's a typical search path for a source file (\fBx/y/a.b.o\fR).  Because the
+filename contains two dots (.), at each level of the hierarchy, \fBredo\fR needs
+to search \fBdefault.b.o.do\fR, \fBdefault.o.do\fR, and \fBdefault.do\fR.
+```sh
+$ redo-whichdo x/y/a.b.o; echo $?
+.RS +4n
+.nf
+.PP
+    x/y/a.b.o.do
+    x/y/default.b.o.do
+    x/y/default.o.do
+    x/y/default.do
+    x/default.b.o.do
+    x/default.o.do
+    x/default.do
+    default.b.o.do
+    default.o.do
+    0
+.fi
+.RE
+.PP
+\fB``
+You might use\fRredo-whichdo\fBto delegate from one .do script to another, 
+using code like the following.  This gets a little tricky because not only
+are you finding a new .do file, but you have\fRcd\fBto the .do file
+directory and adjust\fR$1\fBand\fR$2` appropriately.
+.RS +4n
+.nf
+.PP
+    ofile=$PWD/$3
+    x1=$1
+    cd "$SRCDIR"
+    redo-whichdo "$x1" | {
+        ifcreate=
+        while read dopath; do
+            if [ ! -e "$dopath" ]; then
+                ifcreate="$ifcreate $dopath"
+            else
+                redo-ifcreate $ifcreate
+                redo-ifchange "$dopath"
+
+                dofile=${dopath##*/}
+                dodir=${dopath%$dofile}
+
+                # Create updated $1 and $2 for the new .do file
+                x1_rel=${x1#$dodir}
+                ext=${dofile##*default}
+                if [ "$ext" != "$dofile" ]; then
+                    ext=${ext%.do}
+                else
+                    ext=''
+                fi
+                x2_rel=${x1#$dodir}
+                x2_rel=${x2_rel%$ext}
+
+                cd "$dodir"
+
+                set -- "$x1_rel" "$x2_rel" "$ofile"
+                . "./$dofile"
+                exit
+            fi
+        done
+        exit 3
+    }
+.fi
+.RE
+.SH REDO
+Part of the \fBredo\fR(1) suite.
+.SH CREDITS
+The original concept for \fBredo\fR was created by D. J.
+Bernstein and documented on his web site
+(http://cr.yp.to/redo.html).  This independent implementation
+was created by Avery Pennarun and you can find its source
+code at http://github.com/apenwarr/redo.
+.SH "همچنین ببینید (SEE ALSO)"
+\fBredo\fR(1), \fBredo-ifchange\fR(1), \fBredo-ifcreate\fR(1)
+.SH "نویسنده (AUTHOR)"
+Avery Pennarun <apenwarr@gmail.com>

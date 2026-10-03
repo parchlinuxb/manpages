@@ -1,0 +1,248 @@
+.TH JPM 1
+.SH "نام (NAME)"
+jpm \- the Janet Project Manager, a build tool for Janet
+.SH "خلاصه دستور (SYNOPSIS)"
+.B jpm
+[\fB\-\-flag ...\fR]
+[\fB\-\-option=value ...\fR]
+.IR command
+.IR args ...
+.SH "توضیحات (DESCRIPTION)"
+jpm is used for building Janet projects, installing dependencies,
+installing projects, building native modules, and exporting your Janet
+project to a standalone executable. Although not required for working
+with Janet, it removes much of the boilerplate with installing
+dependencies and building native modules. jpm requires only janet to
+run, and uses git to install dependencies (jpm will work without git
+installed).
+.SH DOCUMENTATION
+
+jpm has several subcommands, each used for managing either a single Janet project or
+all Janet modules installed on the system. Global commands, those that manage modules
+at the system level, do things like install and uninstall packages, as well as clear the cache.
+More interesting are the local commands. For more information on jpm usage, see https://janet-lang.org/docs/index.html
+
+For information on flags, see the usage documentation in the tool.
+
+.SH COMMANDS
+.TP
+.BR help
+Shows the usage text and exits immediately.
+
+.TP
+.BR build
+Builds all artifacts specified in the project.janet file in the current directory. Artifacts will
+be created in the ./build/ directory.
+
+.TP
+.BR configure [\fBpath\fR]
+Create a directory for out-of-tree builds, and also set project options. While jpm does not
+require an explicit configure step, this can be used to avoid needing to set the same options
+repeatedly. Out of tree builds are also a convenient way to have multiple configurations at the
+same time, such as a relase build and a debug build.
+
+.TP
+.BR install\ [\fBrepo...\fR]
+When run with no arguments, installs all installable artifacts in the current project to
+the current JANET_MODPATH for modules and JANET_BINPATH for executables and scripts. Can also
+take an optional git repository URL and will install all artifacts in that repository instead.
+When run with an argument, install does not need to be run from a jpm project directory. Will also
+install multiple dependencies in one command.
+.TP
+
+.BR update-installed
+Update to the latest version of all installed packges. Will do this by reinstalling from source
+control with latest available tag for each bundle. May overwrite any bundles that have been installed
+to a specific tag.
+
+.TP
+.BR uninstall\ [\fBname...\fR]
+Uninstall a project installed with install. uninstall expects the name of the project, not the
+repository url, path to installed file, or executable name. The name of the project must be specified
+at the top of the project.janet file in the declare-project form. If no name is given, uninstalls
+the current project if installed. Will also uninstall multiple packages in one command.
+
+.TP
+.BR clean
+Remove all artifacts created by jpm. This just deletes the build folder.
+
+.TP
+.BR test
+Runs jpm tests. jpm will run all janet source files in the test directory as tests. A test
+is considered failing if it exits with a non-zero exit code.
+
+.TP
+.BR deps
+Install all dependencies that this project requires recursively. jpm does not
+resolve dependency issues, like conflicting versions of the same module are required, or
+different modules with the same name. Dependencies are installed with git, so deps requires
+git to be on the PATH.
+
+.TP
+.BR clear-cache
+jpm caches git repositories that are needed to install modules from a remote
+source in a global cache ($JANET_PATH/.cache). If these dependencies are out of
+date or too large, clear-cache will remove the cache and jpm will rebuild it
+when needed. clear-cache is a global command, so a project.janet is not
+required.
+
+.TP
+.BR list-installed
+List all installed packages in the current syspath.
+
+.TP
+.BR list-pkgs\ [\fBsearch\fR]
+List all package aliases in the current package listing that contain the given search string.
+If no search string is given, prints the entire listing.
+
+.TP
+.BR clear-manifest
+jpm creates a manifest directory that contains a list of all installed files.
+By deleting this directory, jpm will think that nothing is installed and will
+try reinstalling everything on the jpm deps or jpm load-lockfile commands. Be careful with
+this command, as it may leave extra files on your system and shouldn't be needed
+most of the time in a healthy install.
+
+.TP
+.BR run\ [\fBrule\fR]
+Run a given rule defined in project.janet. Project definitions files (project.janet) usually
+contain a few artifact declarations, which set up rules that jpm can then resolve, or execute.
+A project.janet can also create custom rules to create arbitrary files or run arbitrary code, much
+like make. run will run a single rule or build a single file.
+
+.TP
+.BR rules
+List all rules that can be run via run. This is useful for exploring rules in the project.
+
+.TP
+.BR rule-tree\ [\fBroot\fR]\ [\fBdepth\fR]
+Show rule dependency tree in a pretty format. Optionally provide a rule to use as the tree
+root, as well as a max depth to print. By default, prints the full tree for all rules. This
+can be quite long, so it is recommended to give a root rule.
+
+.TP
+.BR show-paths
+Show all of the paths used when installing and building artifacts.
+
+.TP
+.BR update-pkgs
+Update the package listing by installing the 'pkgs' package. Same as jpm install pkgs
+
+.TP
+.BR quickbin\ [\fBentry\fR]\ [\fBexecutable\fR]
+Create a standalone, statically linked executable from a Janet source file that contains a main function.
+The main function is the entry point of the program and will receive command line arguments
+as function arguments. The entry file can import other modules, including native C modules, and
+jpm will attempt to include the dependencies into the generated executable.
+
+.TP
+.BR repl
+Run a repl in the same environment as the test environment. Allows
+you to use built natives without installing them.
+
+.TP
+.BR debug-repl
+Load the current project.janet file and start a repl in it's environment. This lets a user better
+debug the project file, as well as run rules manually.
+
+.TP
+.BR make-lockfile\ [\fBfilename\fR]
+Create a lockfile. A lockfile is a record that describes what dependencies were installed at the
+time of the lockfile's creation, including exact versions. A lockfile can then be later used
+to set up that environment on a different machine via load-lockfile. By default, the lockfile
+is created at lockfile.jdn, although any path can be used.
+
+.TP
+.BR load-lockfile\ [\fBfilename\fR]
+Install dependencies from a lockfile previously created with make-lockfile. By default, will look
+for a lockfile at lockfile.jdn, although any path can be used.
+
+.TP
+.BR new-project\ [\fBname\fR]
+Create a new Janet project interactively in a directory "name".
+
+.TP
+.BR new-c-project\ [\fBname\fR]
+Create a new C+Janet project interactively in a directory "name".
+
+.TP
+.BR new-exe-project\ [\fBname\fR]
+Create a new project for an executable in a directory "name".
+
+.SH "محیط (ENVIRONMENT)"
+
+.B JANET_TREE
+.RS
+A convenient way to set the modpath, binpath, syspath, and manpath all at once. This is equivalent to the
+--tree parameter to jpm.
+.RE
+
+.B JANET_PATH
+.RS
+The location to look for Janet libraries. This is the only environment variable Janet needs to
+find native and source code modules. If no JANET_PATH is set, Janet will look in
+the default location set at compile time, which can be determined with (dyn :syspath)
+.RE
+
+.B JANET_MODPATH
+.RS
+The location that jpm will use to install libraries to. Defaults to JANET_PATH, but you could
+set this to a different directory if you want to. Doing so would let you import Janet modules
+on the normal system path (JANET_PATH or (dyn :syspath)), but install to a different directory. It is also a more reliable way to install.
+This variable is overwritten by the --modpath=/some/path if it is provided.
+.RE
+
+.B JANET_HEADERPATH
+.RS
+The location that jpm will look for janet header files (janet.h and janetconf.h) that are used
+to build native modules and standalone executables. If janet.h and janetconf.h are available as
+default includes on your system, this value is not required. If not provided, will default to
+<jpm script location>/../include/janet. The --headerpath=/some/path option will override this
+variable.
+.RE
+
+.B JANET_LIBPATH
+.RS
+Similar to JANET_HEADERPATH, this path is where jpm will look for
+libjanet.a for creating standalone executables. This does not need to be
+set on a normal install.
+If not provided, this will default to <jpm script location>/../lib.
+The --libpath=/some/path option will override this variable.
+.RE
+
+.B JANET_BINPATH
+.RS
+The directory where jpm will install binary scripts and executables to.
+Defaults to
+(dyn :syspath)/bin
+The --binpath=/some/path will override this variable.
+.RE
+
+.B JANET_BUILDPATH
+.RS
+The directory where jpm will put intermediate files, object code, and compiled executables.
+Defaults to ./build
+The --buildpath=/some/path will override this variable. You should make that directories above this
+directory exist before building.
+.RE
+
+.B JANET_PKGLIST
+.RS
+The git repository URL that contains a listing of packages. This allows installing packages with short names, which
+is mostly a convenience. However, package dependencies can use short names, package listings
+can be used to choose a particular set of dependency versions for a whole project.
+.RE
+
+.B JANET_GIT
+.RS
+An optional path to a git executable to use to clone git dependencies. By default, uses "git" on the current $PATH. You shouldn't need to set this
+if you have a normal install of git.
+.RE
+
+.B JANET_JPM_CONFIG
+.RS
+An optional path to a config file to load. This option is overridden by the --config-file command
+line option.
+
+.SH "نویسنده (AUTHOR)"
+Written by Calvin Rose <calsrose@gmail.com>

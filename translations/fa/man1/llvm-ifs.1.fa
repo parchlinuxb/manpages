@@ -1,0 +1,255 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-IFS" "1" "2026-07-15" "22" "LLVM"
+.SH "نام (NAME)"
+llvm-ifs \- shared object stubbing tool
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBllvm\-ifs\fP [\fIoptions\fP] \fIinputs\fP
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBllvm\-ifs\fP is a tool that jointly produces human\-readable text\-based
+stubs (.ifs files) for shared objects and linkable shared object stubs
+(.so files) from either ELF shared objects or text\-based stubs. The text\-based
+stubs is useful for monitoring ABI changes of the shared object. The linkable
+shared object stubs can be used to avoid unnecessary relinks when the ABI of
+shared libraries does not change.
+.SH IFS FORMATS
+.sp
+Here is an example of the text representation (IFS) of a shared object produced
+by the \fBllvm\-ifs\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-\- !ifs\-v1
+IFSVersion: 3.0
+SoName: libtest.so /* Optional */
+Target: x86_64\-unknown\-linux\-gnu   /* Optional, format 1, same format as llvm target triple */
+Target: { Arch: x86_64, Endianness: little, Bitwidth: 64 } /* Optional, format 2 */
+NeededLibs:
+  \- libc.so.6
+Symbols:
+  \- { Name: sym0, Type: Notype }
+  \- { Name: sym1, Type: Object, Size: 0 }
+  \- { Name: sym2, Type: Func, Weak: false }
+  \- { Name: sym3, Type: TLS }
+  \- { Name: sym4, Type: Unknown, Warning: foo }
+\&...
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.IP \(bu 2
+\fBIFSVersion\fP: Version of the IFS file for reader compatibility.
+.IP \(bu 2
+\fBSoName\fP (optional): Name of the shared object file that is being stubbed.
+.IP \(bu 2
+\fBTarget\fP (optional): The architecture, endianness and bitwise information of
+this shared object. It can be either in explicit format or in implicit LLVM
+triple format. It can be optional and can be overridden from command line
+options.
+.IP \(bu 2
+\fBNeededLibs\fP: The list of the external shared objects that this library depends on.
+.IP \(bu 2
+\fBSymbols\fP: A collection of all data needed to link objects for each symbol, sorted by name in ascending order.
+.INDENT 2.0
+.IP \(bu 2
+\fBName\fP: Symbol name.
+.IP \(bu 2
+\fBType\fP: Whether the symbol is an object, function, no\-type, thread local storage, or unknown. Symbol types not explicitly supported are mapped as unknown to improve signal\-to\-noise ratio.
+.IP \(bu 2
+\fBSize\fP: The size of the symbol in question, doesn\(aqt apply to functions, and is optional for NoType symbols.
+.IP \(bu 2
+\fBUndefined\fP: Whether or not the symbol is defined in this shared object file.
+.IP \(bu 2
+\fBWeak\fP: Whether or not the symbol should be treated as weak.
+.IP \(bu 2
+\fBWarning\fP (optional): Warning text to output when this symbol is linked against.
+.UNINDENT
+.UNINDENT
+.sp
+This YAML based text format contains everything that is needed to generate a
+linkable ELF shared object as well as an Apple TAPI format file. The ordering
+of symbols is sorted, so these files can be easily compared using diff tools.
+If the content of the file changes, it indicates a potentially ABI breaking
+change.
+.SH ELF STUB FORMAT
+.sp
+A minimum ELF file that can be used by linker should have following sections properly populated:
+.INDENT 0.0
+.IP \(bu 2
+ELF header.
+.IP \(bu 2
+Section headers.
+.IP \(bu 2
+Dynamic symbol table (\fB\&.dynsym\fP section).
+.IP \(bu 2
+Dynamic string table (\fB\&.dynstr\fP section).
+.IP \(bu 2
+Dynamic table (\fB\&.dynamic\fP section).
+.INDENT 2.0
+.IP \(bu 2
+\fBDT_SYMTAB\fP entry.
+.IP \(bu 2
+\fBDT_STRTAB\fP entry.
+.IP \(bu 2
+\fBDT_STRSZ\fP entry.
+.IP \(bu 2
+\fBDT_NEEDED\fP entries. (optional)
+.IP \(bu 2
+\fBDT_SONAME\fP entry. (optional)
+.UNINDENT
+.IP \(bu 2
+Section header string table (\fB\&.shstrtab\fP section)
+.UNINDENT
+.sp
+This ELF file may have compatibility issues with ELF analysis tools that rely on the program headers.
+Linkers like LLD work fine with such a minimum ELF file without errors.
+.SH "گزینه‌ها (OPTIONS)"
+.INDENT 0.0
+.TP
+.B \-\-input\-format=[IFS|ELF|OtherObjectFileFormats]
+Specify input file format. Currently, only text IFS files and ELF shared
+object files are supported. This flag is optional as the input format can be
+inferred.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output\-elf=<output\-filename>
+Specify the output file for ELF shared object stub.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output\-ifs=<output\-filename>
+Specify the output file for text IFS.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-output\-tbd=<output\-filename>
+Specify the output file for Apple TAPI tbd.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-arch=[x86_64|AArch64|...]
+This flag is optional and it should only be used when reading an IFS file
+which does not define the \fBArch\fP (architecture). This flag defines the
+architecture of the output file, and can be any string supported by ELF
+\(aqe_machine\(aq field. If the value is conflicting with the IFS file, an error
+will be reported and the program will stop.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-endianness=[little|big]
+This flag is optional and it should only be used when reading an IFS file
+which does not define the \fBEndianness\fP\&. This flag defines the endianness of
+the output file. If the value is conflicting with the IFS file, an error
+will be reported and the program will stop.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-bitwidth=[32|64]
+This flag is optional and it should only be used when reading an IFS file
+which does not define the \fBBitWidth\fP\&. This flag defines the bit width of the
+output file. If the value is conflicting with the input IFS file, an error
+will be reported and the program will stop.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-target=<target triple>
+This flag is optional and should only be used when reading an IFS file
+which does not define any target information. This flag defines architecture,
+endianness and bit width of the output file using llvm target triple.
+This flag cannot be used simultaneously with other target related flags.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hint\-ifs\-target=<target triple>
+This flag is optional and should only be used when reading an ELF shared
+object and generating an IFS file. by default, llvm\-ifs will use \(aq\fBArch\fP,
+\fBEndianness\fP and \fBBitWidth\fP\(aq fields to reflect the target information from the
+input object file. Using this flag will tell llvm\-ifs the expected target
+triple in the output IFS file. If the value matches the target information
+from the object file, this value will be used in the \(aqTarget:\(aq filed in the
+generated IFS. If it conflicts with the input object file, an error will be
+reported and the program will stop.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-hint\-ifs\-target
+This flag is optional and should only be used when outputting an IFS file.
+This flag strips the \fBArch\fP field from the IFS file so it can be overridden
+later.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-strip\-ifs\-endianness
+This flag is optional and should only be used when outputting an IFS file.
+This flag strips the \fBEndianness\fP field from the IFS file so it can be
+overridden later.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-strip\-ifs\-bitwidth
+This flag is optional and should only be used when outputting an IFS file.
+This flag strips the \fBBitWidth\fP field from the IFS file so it can be overridden
+later.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-strip\-ifs\-target
+This flag is optional and should only be used when outputting an IFS file.
+This flag strips the \fBTarget\fP field from the IFS file so it can be overridden
+later.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-write\-if\-changed
+When this flag is set, llvm\-ifs will only write the output file if it does not
+already exist or the content will be different from the existing file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-strip\-size
+When this flag is set, llvm\-ifs will remove the size field from the output ifs
+file. This is useful for shared objects that only intend to be linked against
+position independent code which doesn\(aqt need copy relocations, or where the size
+of an object is not a useful part of the abi to track.
+.UNINDENT
+.SH "وضعیت خروج (EXIT STATUS)"
+.sp
+If \fBllvm\-ifs\fP succeeds, it will exit with 0. Otherwise, if an
+error occurs, it will exit with a non\-zero value.
+.SH "نویسنده (AUTHOR)"
+Maintained by the LLVM Team (https://llvm.org/).
+.SH "حق نشر (COPYRIGHT)"
+2003-2026, LLVM Project
+.\" End of generated man page.

@@ -1,0 +1,3164 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "vinyld" "1" "" ""
+.SH "نام (NAME)"
+vinyld \- HTTP accelerator daemon
+.\" Copyright (c) 2010-2020 Varnish Software AS
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\" See LICENSE file for full text of license
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+.INDENT 0.0
+.TP
+.B vinyld
+[\-a [name=][listen_address[,PROTO|,option=value,...]]
+[\-b [host[:port]|path]]
+[\-C]
+[\-d]
+[\-E extension]
+[\-F]
+[\-f config]
+[\-h type[,options]]
+[\-I clifile]
+[\-i identity]
+[\-j jail[,jailoptions]]
+[\-l vsl]
+[\-M address:port]
+[\-n workdir]
+[\-P file]
+[\-p param=value]
+[\-r param[,param...]]
+[\-S secret\-file]
+[\-s [name=]kind[,options]]
+[\-T address[:port]]
+[\-t TTL]
+[\-V]
+[\-W waiter]
+.UNINDENT
+.sp
+vinyld [\-x parameter|vsl|cli|builtin|optstring]
+.sp
+vinyld [\-?]
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The \fIvinyld\fP daemon accepts HTTP requests from clients, passes them on
+to a backend server and caches the returned documents to better
+satisfy future requests for the same document.
+.SH "گزینه‌ها (OPTIONS)"
+.SS Basic options
+.INDENT 0.0
+.TP
+.BI \-a \ <[name=][listen_address[,PROTO|,option=value,...]]>
+Generic syntax to accept client requests on a listen_address. See below for
+details.
+.sp
+Name is referenced in logs and available to vcl as \fBlocal.socket\fP\&. If name
+is not specified, \fBa\fP with a numerical sequence (\(dqa0\(dq, \(dqa1\(dq, etc.) is used.
+.sp
+Any arguments after the listen_address separated by comma are taken as either
+an acceptor \fBoption=value\fP pair if containing a \fB=\fP, or as a PROTO(col)
+selection otherwise.
+.sp
+Valid options depend on the acceptor type, see below.
+.sp
+PROTO can be \(dqHTTP\(dq (the default) or \(dqPROXY\(dq.  Both version 1
+and 2 of the proxy protocol can be used.
+.sp
+Multiple \-a arguments are allowed.
+.sp
+If no \-a argument is given, the default \fI\-a :80\fP will listen on
+all IPv4 and IPv6 interfaces.
+.TP
+.BI \-a \ <[name=][ip_address][:port][,PROTO]>
+The ip_address can be a host name (\(dqlocalhost\(dq), an IPv4 dotted\-quad
+(\(dq127.0.0.1\(dq) or an IPv6 address enclosed in square brackets
+(\(dq[::1]\(dq)
+.sp
+The port can be a port number (80), a service name (http), or a port
+range (80\-81). Port ranges are inclusive and cannot overlap. If port
+is not specified, port 80 (http) is used.
+.sp
+At least one of ip_address or port is required.
+.TP
+.BI \-a \ <[name=][path][,PROTO][,user=name][,group=name][,mode=octal]>
+(VCL4.1 and higher)
+.sp
+Accept connections on a Unix domain socket.  Path must be absolute
+(\(dq/path/to/listen.sock\(dq) or \(dq@\(dq followed by the name of an abstract
+socket (\(dq@myvinyld\(dq).
+.sp
+The user, group and mode sub\-arguments may be used to specify the
+permissions of the socket file \-\- use names for user and group, and
+a 3\-digit octal value for mode. These sub\-arguments do not apply to
+abstract sockets.
+.TP
+.BI \-b \ <[host[:port]|path]>
+Use the specified host as backend server. If port is not specified,
+the default is 8080.
+.sp
+If the value of \fB\-b\fP begins with \fB/\fP, it is interpreted as the
+absolute path of a Unix domain socket to which \fIvinyld\fP connects. In
+that case, the value of \fB\-b\fP must satisfy the conditions required
+for the \fB\&.path\fP field of a backend declaration, see \fIvcl(7)\fP\&.
+Backends with Unix socket addresses may only be used with VCL
+versions >= 4.1.
+.sp
+\-b can be used only once, and not together with f.
+.TP
+.BI \-f \ config
+Use the specified VCL configuration file instead of the builtin
+default.  See \fIvcl(7)\fP for details on VCL syntax.
+.sp
+If a single \-f option is used, then the VCL instance loaded from the
+file is named \(dqboot\(dq and immediately becomes active. If more than
+one \-f option is used, the VCL instances are named \(dqboot0\(dq, \(dqboot1\(dq
+and so forth, in the order corresponding to the \-f arguments, and
+the last one is named \(dqboot\(dq, which becomes active.
+.sp
+Either \-b or one or more \-f options must be specified, but not both,
+and they cannot both be left out, unless \-d is used to start
+\fIvinyld\fP in debugging mode. If the empty string is specified as
+the sole \-f option, then \fIvinyld\fP starts without starting the
+worker process, and the management process will accept CLI commands.
+You can also combine an empty \-f option with an initialization
+script (\-I option) and the child process will be started if there
+is an active VCL at the end of the initialization.
+.sp
+When used with a relative file name, config is searched in the
+\fBvcl_path\fP\&. It is possible to set this path prior to using \fB\-f\fP
+options with a \fB\-p\fP option. During startup, \fIvinyld\fP doesn\(aqt
+complain about unsafe VCL paths: unlike the \fIvinyl\-cli(7)\fP that
+could later be accessed remotely, starting \fIvinyld\fP requires
+local privileges.
+.UNINDENT
+.INDENT 0.0
+.TP
+.BI \-n \ workdir
+Runtime directory for the shared memory, compiled VCLs etc.
+.sp
+In performance critical applications, this directory should be on a RAM backed filesystem.
+.sp
+When running multiple vinyld instances, separate directories need to be used.
+.sp
+The default is taken from the \fBVINYL_DEFAULT_N\fP environment variable.
+.sp
+Relative paths will be appended to \fB/var/lib/lib/vinyl\-cache\fP\&.
+.sp
+If neither \fBVINYL_DEFAULT_N\fP nor \fB\-n\fP are present, the value is \fB/var/lib/lib/vinyl\-cache/vinyld\fP\&.
+.sp
+Note: These defaults may be distribution specific.
+.UNINDENT
+.SS Documentation options
+.sp
+For these options, \fIvinyld\fP prints information to standard output
+and exits. When a \-x option is used, it must be the only option (it
+outputs documentation in reStructuredText, aka RST).
+.sp
+\-?
+.INDENT 0.0
+.INDENT 3.5
+Print the usage message.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.BI \-x \ parameter
+Print documentation of the runtime parameters (\-p options), see
+List of Parameters\&.
+.TP
+.BI \-x \ vsl
+Print documentation of the tags used in the Vinyld Cache shared memory
+log, see \fIvsl(7)\fP\&.
+.TP
+.BI \-x \ cli
+Print documentation of the command line interface, see
+\fIvinyl\-cli(7)\fP\&.
+.TP
+.BI \-x \ builtin
+Print the contents of the default VCL program \fBbuiltin.vcl\fP\&.
+.TP
+.BI \-x \ optstring
+Print the optstring parameter to \fBgetopt(3)\fP to help writing
+wrapper scripts.
+.UNINDENT
+.SS Operations options
+.INDENT 0.0
+.TP
+.B  \-F
+Do not fork, run in the foreground. Only one of \-F or \-d can be
+specified, and \-F cannot be used together with \-C.
+.TP
+.BI \-T \ <address[:port]>
+Offer a management interface on the specified address and port. See
+\fIvinyl\-cli(7)\fP for documentation of the management commands.
+To disable the management interface use \fBnone\fP\&.
+.TP
+.BI \-M \ <address:port>
+Connect to this port and offer the command line interface.  Think of
+it as a reverse shell. When running with \-M and there is no backend
+defined the child process (the cache) will not start initially.
+.TP
+.BI \-P \ file
+Write the PID of the process to the specified file.
+.TP
+.BI \-i \ identity
+Specify the identity of the Vinyl Cache server. This can be accessed
+using \fBserver.identity\fP from VCL.
+.sp
+The server identity is used for the \fBreceived\-by\fP field of \fBVia\fP
+headers generated by Vinyl Cache. For this reason, it must be a valid
+token as defined by the HTTP grammar.
+.sp
+If not specified the output of \fBgethostname(3)\fP is used, in which
+case the syntax is assumed to be correct.
+.TP
+.BI \-I \ clifile
+Execute the management commands in the file given as \fBclifile\fP
+before the worker process starts, see CLI Command File\&.
+.TP
+.BI \-E \ extension
+Load the named extension. Extensions are modules (VMODs) which can modify
+\fIvinyld\fP behavior outside VCL, for example by adding storage\- or protocol
+implementations. Extensions are always also VMODs, even if they do not provide
+any functionality to VCL, but in most cases they will.
+.sp
+Any VMOD can be loaded as an extension, in which case it is simply pre\-loaded
+at startup and prevented from ever getting unloaded.
+.sp
+If \fIextension\fP contains any slashes \fB/\fP, it is taken as an abslute path.
+Otherwise, for \fIextention\fP \fBext\fP, a \fBvmod_ext.so\fP is searched for in
+\fBvmod_path\fP\&.
+.sp
+\fBvinyld\fP startup fails if loading the extension fails for any reason.
+.UNINDENT
+.SS Tuning options
+.INDENT 0.0
+.TP
+.BI \-t \ TTL
+Specifies the default time to live (TTL) for cached objects. This is
+a shortcut for specifying the \fIdefault_ttl\fP run\-time parameter.
+.TP
+.BI \-p \ <param=value>
+Set the parameter specified by param to the specified value, see
+List of Parameters for details. This option can be used multiple
+times to specify multiple parameters.
+.TP
+.BI \-s \ <[name=]type[,options]>
+Use the specified storage backend. See Storage Backend section.
+.sp
+This option can be used multiple times to specify multiple storage
+files. Name is referenced in logs, VCL, statistics, etc. If name
+is not specified, \(dqs0\(dq, \(dqs1\(dq and so forth is used.
+.TP
+.BI \-l \ <vsl>
+Specifies size of the space for the VSL records, shorthand for
+\fB\-p vsl_space=<vsl>\fP\&. Scaling suffixes like \(aqK\(aq and \(aqM\(aq can be
+used up to (G)igabytes. See vsl_space for more information.
+.UNINDENT
+.SS Security options
+.INDENT 0.0
+.TP
+.BI \-r \ <param[,param...]>
+Make the listed parameters read only. This gives the system
+administrator a way to limit what the Vinyl Cache CLI can do.  Consider
+making parameters such as \fIcc_command\fP, \fIvcc_allow_inline_c\fP and
+\fIvmod_path\fP read only as these can potentially be used to escalate
+privileges from the CLI.
+.TP
+.BI \-S \ secret\-file
+Path to a file containing a secret used for authorizing access to
+the management port. To disable authentication use \fBnone\fP\&.
+.sp
+If this argument is not provided, a secret drawn from the system
+PRNG will be written to a file called \fB_.secret\fP in the working
+directory (see opt_n) with default ownership and permissions of
+the user having started \fIvinyld\fP\&.
+.sp
+Thus, users wishing to delegate control over \fIvinyld\fP will probably
+want to create a custom secret file with appropriate permissions
+(ie. readable by a unix group to delegate control to).
+.TP
+.BI \-j \ <jail[,jailoptions]>
+Specify the jailing mechanism to use. See Jail section.
+.UNINDENT
+.SS Advanced, development and debugging options
+.INDENT 0.0
+.TP
+.B  \-d
+Enables debugging mode: The parent process runs in the foreground
+with a CLI connection on stdin/stdout, and the child process must be
+started explicitly with a CLI command. Terminating the parent
+process will also terminate the child.
+.sp
+Only one of \-d or \-F can be specified, and \-d cannot be used together
+with \-C.
+.TP
+.B  \-C
+Print VCL code compiled to C language and exit. Specify the VCL file
+to compile with the \-f option. Either \-f or \-b must be used with \-C,
+and \-C cannot be used with \-F or \-d.
+.TP
+.B  \-V
+Display the version number and exit. This must be the only option.
+.TP
+.BI \-h \ <type[,options]>
+Specifies the hash algorithm. See Hash Algorithm section for a list
+of supported algorithms.
+.TP
+.BI \-W \ waiter
+Specifies the waiter type to use.
+.UNINDENT
+.SS Hash Algorithm
+.sp
+The following hash algorithms are available:
+.INDENT 0.0
+.TP
+.BI \-h \ critbit
+self\-scaling tree structure. The default hash algorithm in Vinyl
+Cache 2.1 and onwards. In comparison to a more traditional B tree
+the critbit tree is almost completely lockless. Do not change this
+unless you are certain what you\(aqre doing.
+.TP
+.BI \-h \ simple_list
+A simple doubly\-linked list.  Not recommended for production use.
+.TP
+.BI \-h \ <classic[,buckets]>
+A standard hash table. The hash key is the CRC32 of the object\(aqs URL
+modulo the size of the hash table.  Each table entry points to a
+list of elements which share the same hash key. The buckets
+parameter specifies the number of entries in the hash table.  The
+default is 16383.
+.UNINDENT
+.SS Storage Backend
+.sp
+Multiple storage backends (where the cached and in\-flight objects are held) can
+be defined, and VCL can pilot which store is used by setting the
+\fIberesp.storage\fP variable (see \fIman vcl\-var\fP for more information).
+.sp
+The argument format to define storage backends is:
+.INDENT 0.0
+.TP
+.BI \-s \ <[name]=kind[,options]>
+If \fIname\fP is omitted, \fIvinyld\fP will name storages \fBs\fP\fIN\fP,
+starting with \fBs0\fP and incrementing \fIN\fP for every new storage.
+.sp
+For \fIkind\fP and \fIoptions\fP see details below.
+.UNINDENT
+.sp
+Storages can be used in vcl as \fBstorage.\fP\fIname\fP, so, for
+example if \fBmyStorage\fP was defined by \fB\-s myStorage=malloc,5G\fP, it
+could be used in VCL like so:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+set beresp.storage = storage.myStorage;
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A special \fIname\fP is \fBTransient\fP which is the default storage for
+uncacheable objects as resulting from a pass, hit\-for\-miss or
+hit\-for\-pass.
+.sp
+If no \fB\-s\fP options are given, the default is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-s default,100m
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If no \fBTransient\fP storage is defined, the default is an unbound
+\fBdefault\fP storage as if defined as:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-s Transient=default
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The following storage types and options are available:
+.INDENT 0.0
+.TP
+.BI \-s \ <default[,size]>
+The default storage type resolves to \fBumem\fP where available and
+\fBmalloc\fP otherwise.
+.TP
+.BI \-s \ <malloc[,size]>
+malloc is a memory based backend.
+.TP
+.BI \-s \ <umem[,size]>
+umem is a storage backend which is more efficient than malloc on
+platforms where it is available.
+.sp
+See the section on umem in chapter \fIStorage backends\fP of \fIThe
+Vinyl Users Guide\fP for details.
+.TP
+.BI \-s \ <file,path[,size[,granularity[,advice]]]>
+The file backend stores data in a file on disk. The file will be
+accessed using mmap. Note that this storage provide no cache persistence.
+.sp
+The path is mandatory. If path points to a directory, a temporary
+file will be created in that directory and immediately unlinked. If
+path points to a non\-existing file, the file will be created.
+.sp
+If size is omitted, and path points to an existing file with a size
+greater than zero, the size of that file will be used. If not, an
+error is reported.
+.sp
+Granularity sets the allocation block size. Defaults to the system
+page size or the filesystem block size, whichever is larger.
+.sp
+Advice tells the kernel how \fIvinyld\fP expects to use this mapped
+region so that the kernel can choose the appropriate read\-ahead
+and caching techniques. Possible values are \fBnormal\fP, \fBrandom\fP
+and \fBsequential\fP, corresponding to MADV_NORMAL, MADV_RANDOM and
+MADV_SEQUENTIAL madvise() advice argument, respectively. Defaults to
+\fBrandom\fP\&.
+.TP
+.BI \-s \ <persistent,path,size>
+Persistent storage. \fIvinyld\fP will store objects in a file in a manner
+that will secure the survival of \fImost\fP of the objects in the event
+of a planned or unplanned shutdown of \fIvinyld\fP\&. The persistent
+storage backend has multiple issues with it and will likely be
+removed from a future version of Vinyl Cache
+.UNINDENT
+.SS Jail
+.sp
+Vinyl Cache jails are a generalization over various platform specific
+methods to reduce the privileges of \fIvinyld\fP processes. They may have
+specific options. Available jails are:
+.INDENT 0.0
+.TP
+.BI \-j \ <solaris[,worker=\(gaprivspec\(ga]>
+Reduce \fIprivileges(5)\fP for \fIvinyld\fP and sub\-processes to the
+minimally required set. Only available on platforms which have the
+\fIsetppriv(2)\fP call.
+.sp
+The optional \fIworker\fP argument can be used to pass a
+privilege\-specification (see \fIppriv(1)\fP) by which to extend the
+effective set of the \fIvinyld\fP worker process. While extended
+privileges may be required by custom vmods, \fInot\fP using the \fIworker\fP
+option is always more secure.
+.sp
+Example to grant basic privileges to the worker process:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+\-j solaris,worker=basic
+.EE
+.UNINDENT
+.UNINDENT
+.TP
+.BI \-j \ <linux[,transparent_hugepage=\(gathp_setting\(ga][,\(gaunix jail option\(ga...]>
+Default on Linux platforms, it extends the UNIX jail with
+Linux\-specific mechanisms:
+.INDENT 7.0
+.IP \(bu 2
+It warns when \fIworkdir\fP is not on a \fBtmpfs\fP\&.
+.IP \(bu 2
+It tries to keep the process dumpable after dropping privileges.
+.IP \(bu 2
+It adds control over the transparent hugepage (THP) setting.
+.UNINDENT
+.sp
+\fIthp_setting\fP can take these values:
+.INDENT 7.0
+.IP \(bu 2
+\fBignore\fP: Do nothing
+.IP \(bu 2
+\fBenable\fP: Enable THP (see Note below)
+.IP \(bu 2
+\fBdisable\fP: Disable THP
+.IP \(bu 2
+\fBtry\-disable\fP (default): Try to disable, ignore failure (but emit a
+warning)
+.UNINDENT
+.sp
+Note: Technically, \fBenable\fP is \(dqdisable the disable\(dq, so it does not
+necessarily enable THP. The setting names have been chosen to avoid a
+confusing double negation.
+.TP
+.BI \-j \ <unix[,user=\(gauser\(ga][,ccgroup=\(gagroup\(ga][,workuser=\(gauser\(ga]>
+Default on all other platforms when \fIvinyld\fP is started with an
+effective uid of 0 (\(dqas root\(dq).
+.sp
+With the \fBunix\fP jail mechanism activated, \fIvinyld\fP will switch to
+an alternative user for subprocesses and change the effective uid of
+the master process whenever possible.
+.sp
+The optional \fIuser\fP argument specifies which alternative user to
+use. It defaults to \fBvinyl\fP\&.
+.sp
+The optional \fIccgroup\fP argument specifies a group to add to \fBvinyld\fP
+subprocesses requiring access to a c\-compiler. There is no default.
+.sp
+The optional \fIworkuser\fP argument specifies an alternative user to use
+for the worker process. It defaults to \fBvcache\fP\&.
+.sp
+The users given for the \fIuser\fP and \fIworkuser\fP arguments need to have
+the same primary (\(dqlogin\(dq) group.
+.sp
+For users migrating from Varnish Cache, shell commands similar to the
+following may be used to remove the previous default user and group:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+userdel varnish || true
+userdel vcache || true
+userdel varnishlog || true # to remove reference to varnish group
+groupdel varnish || true
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To set up a system for the default users with a group name
+\fBvinyl\fP, shell commands similar to these may be used:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+groupadd vinyl
+useradd \-g vinyl \-d /nonexistent \-s /bin/false \e
+  \-c \(dqVinyl Cache Daemon User\(dq vinyl
+useradd \-g vinyl \-d /nonexistent \-s /bin/false \e
+  \-c \(dqVinyl Cache Worker User\(dq vcache
+useradd \-g vinyl \-d /nonexistent \-s /bin/false \e
+  \-c \(dqVinyl Log User\(dq vinyllog
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that the \fBvinyllog\fP user is not required and only added because, by
+convention, it may be used to run \fBvinyllog\fP, \fBvinylncsa\fP and other
+VSM/VSL based tools.
+.TP
+.BI \-j \ none
+last resort jail choice: With jail mechanism \fBnone\fP, \fIvinyld\fP will
+run all processes with the privileges it was started with.
+.UNINDENT
+.SS Management Interface
+.sp
+If the \-T option was specified, \fIvinyld\fP will offer a command\-line
+management interface on the specified address and port.  The
+recommended way of connecting to the command\-line management interface
+is through \fIvinyladm(1)\fP\&.
+.sp
+The commands available are documented in \fIvinyl\-cli(7)\fP\&.
+.SS CLI Command File
+.sp
+The \-I option makes it possible to run arbitrary management commands
+when \fIvinyld\fP is launched, before the worker process is started. In
+particular, this is the way to load configurations, apply labels to
+them, and make a VCL instance active that uses those labels on
+startup:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+vcl.load panic /etc/vinyl\-cache/panic.vcl
+vcl.load siteA0 /etc/vinyl\-cache/siteA.vcl
+vcl.load siteB0 /etc/vinyl\-cache/siteB.vcl
+vcl.load siteC0 /etc/vinyl\-cache/siteC.vcl
+vcl.label siteA siteA0
+vcl.label siteB siteB0
+vcl.label siteC siteC0
+vcl.load main /etc/vinyl\-cache/main.vcl
+vcl.use main
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Every line in the file, including the last line, must be terminated by
+a newline or carriage return or is otherwise considered truncated, which
+is a fatal error.
+.sp
+If a command in the file is prefixed with \(aq\-\(aq, failure will not abort
+the startup.
+.sp
+Note that it is necessary to include an explicit \fIvcl.use\fP command to
+select which VCL should be the active VCL when relying on CLI Command File
+to load the configurations at startup.
+.SH RUN TIME PARAMETERS
+.sp
+Runtime parameters can either be set during startup with the \fB\-p\fP command
+line option for \fIvinyld(1)\fP or through the CLI using the \fBparam.set\fP or
+\fBparam.reset\fP commands. They can be locked during startup with the \fB\-r\fP
+command line option.
+.SS Run Time Parameter Units
+.sp
+There are different types of parameters that may accept a list of specific
+values, or optionally take a unit suffix.
+.SS bool
+.sp
+A boolean parameter accepts the values \fBon\fP and \fBoff\fP\&.
+.sp
+It will also recognize the following values:
+.INDENT 0.0
+.IP \(bu 2
+\fByes\fP and \fBno\fP
+.IP \(bu 2
+\fBtrue\fP and \fBfalse\fP
+.IP \(bu 2
+\fBenable\fP and \fBdisable\fP
+.UNINDENT
+.SS bytes
+.sp
+A bytes parameter requires one of the following units suffixes:
+.INDENT 0.0
+.IP \(bu 2
+\fBb\fP (bytes)
+.IP \(bu 2
+\fBk\fP (kibibytes, 1024 bytes)
+.IP \(bu 2
+\fBm\fP (mebibytes, 1024 kibibytes)
+.IP \(bu 2
+\fBg\fP (gibibytes, 1024 mebibytes)
+.IP \(bu 2
+\fBt\fP (tebibytes, 1024 gibibytes)
+.IP \(bu 2
+\fBp\fP (pebibytes, 1024 tebibytes)
+.UNINDENT
+.sp
+Multiplicator units may be appended with an extra \fBb\fP\&. For example \fB32k\fP
+is equivalent to \fB32kb\fP\&. Bytes units are case\-insensitive.
+.SS seconds
+.sp
+A duration parameter may accept the following units suffixes:
+.INDENT 0.0
+.IP \(bu 2
+\fBms\fP (milliseconds)
+.IP \(bu 2
+\fBs\fP (seconds)
+.IP \(bu 2
+\fBm\fP (minutes)
+.IP \(bu 2
+\fBh\fP (hours)
+.IP \(bu 2
+\fBd\fP (days)
+.IP \(bu 2
+\fBw\fP (weeks)
+.IP \(bu 2
+\fBy\fP (years)
+.UNINDENT
+.sp
+If the parameter is a timeout or a deadline, a value of \(dqnever\(dq (when allowed)
+disables the effect of the parameter.
+.SS Run Time Parameter Flags
+.sp
+Runtime parameters are marked with shorthand flags to avoid repeating
+the same text over and over in the table below. The meaning of the
+flags are:
+.INDENT 0.0
+.IP \(bu 2
+\fIexperimental\fP
+.sp
+We have no solid information about good/bad/optimal values for this
+parameter. Feedback with experience and observations are most
+welcome.
+.IP \(bu 2
+\fIdelayed\fP
+.sp
+This parameter can be changed on the fly, but will not take effect
+immediately.
+.IP \(bu 2
+\fIrestart\fP
+.sp
+The worker process must be stopped and restarted, before this
+parameter takes effect.
+.IP \(bu 2
+\fIreload\fP
+.sp
+The VCL programs must be reloaded for this parameter to take effect.
+.IP \(bu 2
+\fIwizard\fP
+.sp
+Do not touch unless you \fIreally\fP know what you\(aqre doing.
+.IP \(bu 2
+\fIonly_root\fP
+.sp
+Only works if \fIvinyld\fP is running as root.
+.UNINDENT
+.SS Default Value Exceptions on 32 bit Systems
+.sp
+Be aware that on 32 bit systems, certain default or maximum values are
+reduced relative to the values listed below, in order to conserve VM
+space:
+.INDENT 0.0
+.IP \(bu 2
+workspace_client: 24k
+.IP \(bu 2
+workspace_backend: 20k
+.IP \(bu 2
+http_resp_size: 8k
+.IP \(bu 2
+http_req_size: 12k
+.IP \(bu 2
+gzip_buffer: 4k
+.IP \(bu 2
+vsl_buffer: 4k
+.IP \(bu 2
+vsl_space: 1G (maximum)
+.IP \(bu 2
+thread_pool_stack: 64k
+.UNINDENT
+.SS List of Parameters
+.sp
+This text is produced from the same text you will find in the CLI if
+you use the param.show command:
+.\" The following is the autogenerated output from vinyld -x parameter
+.
+.SS accept_filter
+.sp
+NB: This parameter depends on a feature which is not available on all platforms.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on (if your platform supports accept filters)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Enable kernel accept\-filters. This may require a kernel module to be loaded to have an effect when enabled.
+.sp
+Enabling accept_filter may prevent some requests to reach Vinyl Cache in the first place. Malformed requests may go unnoticed and not increase the client_req_400 counter. GET or HEAD requests with a body may be blocked altogether.
+.SS acceptor_sleep_decay
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 0.9
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Maximum: 1
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+If we run out of resources, such as file descriptors or worker threads, the acceptor will sleep between accepts.
+This parameter (multiplicatively) reduce the sleep duration for each successful accept. (ie: 0.9 = reduce by 10%)
+.SS acceptor_sleep_incr
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Maximum: 1.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+If we run out of resources, such as file descriptors or worker threads, the acceptor will sleep between accepts.
+This parameter control how much longer we sleep, each time we fail to accept a new connection.
+.SS acceptor_sleep_max
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.050
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Maximum: 10.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+If we run out of resources, such as file descriptors or worker threads, the acceptor will sleep between accepts.
+This parameter limits how long it can sleep between attempts to accept new connections.
+.SS auto_restart
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Automatically restart the child/worker process if it dies.
+.SS backend_idle_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 1.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Timeout before we close unused backend connections.
+.SS backend_local_error_holddown
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 10.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+When connecting to backends, certain error codes (EADDRNOTAVAIL, EACCESS, EPERM) signal a local resource shortage or configuration issue for which retrying connection attempts may worsen the situation due to the complexity of the operations involved in the kernel.
+This parameter prevents repeated connection attempts for the configured duration.
+.SS backend_remote_error_holddown
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.250
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+When connecting to backends, certain error codes (ECONNREFUSED, ENETUNREACH) signal fundamental connection issues such as the backend not accepting connections or routing problems for which repeated connection attempts are considered useless
+This parameter prevents repeated connection attempts for the configured duration.
+.SS backend_wait_limit
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 0
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of transactions that can queue waiting for a backend connection to become available.  This default of 0 (zero) means that there is no transaction queueing. VCL can override this default value for each backend.
+.sp
+Note that this feature must be used with caution, as it can cause threads to pile up and increase response times.
+.SS backend_wait_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout, experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+When a backend has no connections available for a transaction, the transaction can be queued (see backend_wait_limit) to wait for a connection.  This is the default time that the transaction will wait before giving up. VCL can override this default value for each backend.
+.sp
+It is strongly advised to never set this higher than a couple of seconds.
+.SS ban_any_variant
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: checks
+.IP \(bu 2
+Default: 0
+.IP \(bu 2
+Minimum: 0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of possibly non matching variants that we evaluate against the ban list during a lookup.
+Setting this to 0 means that only the matching variants will be evaluated against the current ban list.
+.SS ban_cutoff
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bans
+.IP \(bu 2
+Default: 0
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Expurge long tail content from the cache to keep the number of bans below this value. 0 disables.
+.sp
+When this parameter is set to a non\-zero value, the ban lurker continues to work the ban list as usual top to bottom, but when it reaches the ban_cutoff\-th ban, it treats all objects as if they matched a ban and expunges them from cache. As actively used objects get tested against the ban list at request time and thus are likely to be associated with bans near the top of the ban list, with ban_cutoff, least recently accessed objects (the \(dqlong tail\(dq) are removed.
+.sp
+This parameter is a safety net to avoid bad response times due to bans being tested at lookup time. Setting a cutoff trades response time for cache efficiency. The recommended value is proportional to rate(bans_lurker_tests_tested) / n_objects while the ban lurker is working, which is the number of bans the system can sustain. The additional latency due to request ban testing is in the order of ban_cutoff / rate(bans_lurker_tests_tested). For example, for rate(bans_lurker_tests_tested) = 2M/s and a tolerable latency of 100ms, a good value for ban_cutoff may be 200K.
+.SS ban_dups
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Eliminate older identical bans when a new ban is added.  This saves CPU cycles by not comparing objects to identical bans.
+This is a waste of time if you have many bans which are never identical.
+.SS ban_lurker_age
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 0.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The ban lurker will ignore bans until they are this old.  When a ban is added, the active traffic will be tested against it as part of object lookup.  Because many applications issue bans in bursts, this parameter holds the ban\-lurker off until the rush is over.
+This should be set to the approximate time which a ban\-burst takes.
+.SS ban_lurker_batch
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 1000
+.IP \(bu 2
+Minimum: 1
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The ban lurker sleeps ${ban_lurker_sleep} after examining this many objects.  Use this to pace the ban\-lurker if it eats too many resources.
+.SS ban_lurker_holdoff
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.010
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How long the ban lurker sleeps when giving way to lookup due to lock contention.
+.SS ban_lurker_sleep
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.010
+.IP \(bu 2
+Minimum: 0.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How long the ban lurker sleeps after examining ${ban_lurker_batch} objects.  Use this to pace the ban\-lurker if it eats too many resources.
+A value of zero will disable the ban lurker entirely.
+.SS between_bytes_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+We only wait for this many seconds between bytes received from the backend before giving up the fetch.
+VCL values, per backend or per backend request take precedence.
+This parameter does not apply to pipe\(aqed requests.
+.SS cc_command
+.sp
+NB: The actual default value for this parameter depends on the Vinyl Cache build environment and options.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: exec $CC $CFLAGS %w \-shared \-o %o %s
+.IP \(bu 2
+Flags: must_reload
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The command used for compiling the C source code to a dlopen(3) loadable object. The following expansions can be used:
+.INDENT 0.0
+.IP \(bu 2
+%s: the source file name
+.IP \(bu 2
+%o: the output file name
+.IP \(bu 2
+%w: the cc_warnings parameter
+.IP \(bu 2
+%d: the raw default cc_command
+.IP \(bu 2
+%D: the expanded default cc_command
+.IP \(bu 2
+%n: the working directory (\-n option)
+.IP \(bu 2
+%%: a percent sign
+.UNINDENT
+.sp
+Unknown percent expansion sequences are ignored, and to avoid future incompatibilities percent characters should be escaped with a double percent sequence.
+.sp
+The %d and %D expansions allow passing the parameter\(aqs default value to a wrapper script to perform additional processing.
+.SS cc_warnings
+.sp
+NB: The actual default value for this parameter depends on the Vinyl Cache build environment and options.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: \-Wall \-Werror
+.IP \(bu 2
+Flags: must_reload
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Warnings used when compiling the C source code with the cc_command parameter. By default, VCL is compiled with the same set of warnings as Vinyl Cache itself.
+.SS cli_limit
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 64k
+.IP \(bu 2
+Minimum: 128b
+.IP \(bu 2
+Maximum: 99999999b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum size of CLI response.  If the response exceeds this limit, the response code will be 201 instead of 200 and the last line will indicate the truncation.
+.SS cli_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Timeout for the child\(aqs replies to CLI requests.
+.SS clock_skew
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 10
+.IP \(bu 2
+Minimum: 0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How much clockskew we are willing to accept between the backend and our own clock.
+.SS clock_step
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 1.000
+.IP \(bu 2
+Minimum: 0.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How much observed clock step we are willing to accept before we panic.
+.SS connect_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 3.500
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Default connection timeout for backend connections. We only try to connect to the backend for this many seconds before giving up. VCL can override this default value for each backend and backend request.
+.SS critbit_cooloff
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 180.000
+.IP \(bu 2
+Minimum: 60.000
+.IP \(bu 2
+Maximum: 254.000
+.IP \(bu 2
+Flags: wizard
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How long the critbit hasher keeps deleted objheads on the cooloff list.
+.SS debug
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: none
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Enable/Disable various kinds of debugging.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fInone\fP
+Disable all debugging
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Use +/\- prefix to set/reset individual bits:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIreq_state\fP
+VSL Request state engine
+.TP
+.B \fIworkspace\fP
+VSL Workspace operations
+.TP
+.B \fIwaitinglist\fP
+VSL Waitinglist events
+.TP
+.B \fIsyncvsl\fP
+Make VSL synchronous
+.TP
+.B \fIhashedge\fP
+Edge cases in Hash
+.TP
+.B \fIvclrel\fP
+Rapid VCL release
+.TP
+.B \fIlurker\fP
+VSL Ban lurker
+.TP
+.B \fIesi_chop\fP
+Chop ESI fetch to bits
+.TP
+.B \fIflush_head\fP
+Flush after http1 head
+.TP
+.B \fIvtc_mode\fP
+Vinyltest Mode
+.TP
+.B \fIwitness\fP
+Emit WITNESS lock records
+.TP
+.B \fIvsm_keep\fP
+Keep the VSM file on restart
+.TP
+.B \fIslow_acceptor\fP
+Slow down Acceptor
+.TP
+.B \fIh2_nocheck\fP
+Disable various H2 checks
+.TP
+.B \fIvmod_so_keep\fP
+Keep copied VMOD libraries
+.TP
+.B \fIprocessors\fP
+Fetch/Deliver processors
+.TP
+.B \fIprotocol\fP
+Protocol debugging
+.TP
+.B \fIvcl_keep\fP
+Keep VCL C and so files
+.TP
+.B \fIlck\fP
+Additional lock statistics
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS default_grace
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 10s
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: obj_sticky
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Default grace period.  We will deliver an object this long after it has expired, provided another thread is attempting to get a new copy.
+.SS default_keep
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0s
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: obj_sticky
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Default keep period.  We will keep a useless object around this long, making it available for conditional backend fetches.  That means that the object will be removed from the cache at the end of ttl+grace+keep.
+.SS default_ttl
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 2m
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: obj_sticky
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The TTL assigned to objects if neither the backend nor the VCL code assigns one.
+.SS experimental
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: none
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Enable/Disable experimental features.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fInone\fP
+Disable all experimental features
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Use +/\- prefix to set/reset individual bits:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIdrop_pools\fP
+Drop thread pools
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS feature
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: none,+https_scheme,+validate_headers,+vcl_req_reset
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Enable/Disable various minor features.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIdefault\fP
+Set default value (deprecated: use param.reset)
+.TP
+.B \fInone\fP
+Disable all features.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Use +/\- prefix to enable/disable individual feature:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIhttp2\fP
+Enable HTTP/2 protocol support.
+.TP
+.B \fIshort_panic\fP
+Short panic message.
+.TP
+.B \fIno_coredump\fP
+No coredumps.  Must be set before child process starts.
+.TP
+.B \fIhttps_scheme\fP
+Extract host from full URI in the HTTP/1 request line, if the scheme is https.
+.TP
+.B \fIhttp_date_postel\fP
+Tolerate non compliant timestamp headers like \fIDate\fP, \fILast\-Modified\fP, \fIExpires\fP etc.
+.TP
+.B \fIesi_ignore_https\fP
+Convert \fI<esi:include src\(dqhttps://...\fP to \fIhttp://...\fP
+.TP
+.B \fIesi_disable_xml_check\fP
+Allow ESI processing on non\-XML ESI bodies
+.TP
+.B \fIesi_ignore_other_elements\fP
+Ignore XML syntax errors in ESI bodies.
+.TP
+.B \fIesi_remove_bom\fP
+Ignore UTF\-8 BOM in ESI bodies.
+.TP
+.B \fIesi_include_onerror\fP
+Parse the onerror attribute of <esi:include> tags.
+.TP
+.B \fIwait_silo\fP
+Wait for persistent silos to completely load before serving requests.
+.TP
+.B \fIvalidate_headers\fP
+Validate all header set operations to conform to RFC9110 section 5.5.
+.TP
+.B \fIbusy_stats_rate\fP
+Make busy workers comply with thread_stats_rate.
+.TP
+.B \fItrace\fP
+Enable VCL tracing by default (enable (be)req.trace). Required for tracing vcl_init / vcl_fini
+.TP
+.B \fIvcl_req_reset\fP
+Stop processing client VCL once the client is gone. When this happens MAIN.req_reset is incremented.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS fetch_chunksize
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 16k
+.IP \(bu 2
+Minimum: 4k
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The default chunksize used by fetcher. This should be bigger than the majority of objects with short TTLs.
+Internal limits in the storage_file module makes increases above 128kb a dubious idea.
+.SS fetch_maxchunksize
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 0.25G
+.IP \(bu 2
+Minimum: 64k
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The maximum chunksize we attempt to allocate from storage. Making this too large may cause delays and storage fragmentation.
+.SS first_byte_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Default timeout for receiving first byte from backend. We only wait for this many seconds for the first byte before giving up.
+VCL can override this default value for each backend and backend request.
+This parameter does not apply to pipe\(aqed requests.
+.SS gzip_buffer
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 32k
+.IP \(bu 2
+Minimum: 2k
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Size of malloc buffer used for gzip processing.
+Size of buffer used for gzip processing.
+These buffers are used for in\-transit data, for instance gunzip\(aqed data being sent to a client. Making this space to small results in more overhead, writes to sockets etc, making it too big is probably just a waste of memory.
+Gzip buffers are allocated from Transient storage.
+.SS gzip_level
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 6
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Maximum: 9
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Gzip compression level: 0=debug, 1=fast, 9=best
+.SS gzip_memlevel
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 8
+.IP \(bu 2
+Minimum: 1
+.IP \(bu 2
+Maximum: 9
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Gzip memory level 1=slow/least, 9=fast/most compression.
+Memory impact is 1=1k, 2=2k, ... 9=256k.
+.SS h2_header_table_size
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 4k
+.IP \(bu 2
+Minimum: 0b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 header table size.
+This is the size that will be used for the HPACK dynamic
+decoding table.
+.sp
+The value of this parameter defines SETTINGS_HEADER_TABLE_SIZE in the initial SETTINGS frame sent to the client when a new HTTP2 session is established.
+.SS h2_initial_window_size
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 65535b
+.IP \(bu 2
+Minimum: 65535b
+.IP \(bu 2
+Maximum: 2147483647b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 initial flow control window size.
+.sp
+The value of this parameter defines SETTINGS_INITIAL_WINDOW_SIZE in the initial SETTINGS frame sent to the client when a new HTTP2 session is established.
+.SS h2_max_concurrent_streams
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: streams
+.IP \(bu 2
+Default: 100
+.IP \(bu 2
+Minimum: 0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 Maximum number of concurrent streams.
+This is the number of requests that can be active
+at the same time for a single HTTP2 connection.
+.sp
+The value of this parameter defines SETTINGS_MAX_CONCURRENT_STREAMS in the initial SETTINGS frame sent to the client when a new HTTP2 session is established.
+.SS h2_max_frame_size
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 16k
+.IP \(bu 2
+Minimum: 16k
+.IP \(bu 2
+Maximum: 16777215b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 maximum per frame payload size we are willing to accept.
+.sp
+The value of this parameter defines SETTINGS_MAX_FRAME_SIZE in the initial SETTINGS frame sent to the client when a new HTTP2 session is established.
+.SS h2_max_header_list_size
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 0b
+.IP \(bu 2
+Minimum: 0b
+.IP \(bu 2
+Maximum: 2147483647b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 maximum size of an uncompressed header list. This parameter is not mapped to SETTINGS_MAX_HEADER_LIST_SIZE in the initial SETTINGS frame, the http_req_size parameter is instead.
+.sp
+The http_req_size advises HTTP2 clients of the maximum size for the header list. Exceeding http_req_size results in a reset stream after processing the HPACK block to preserve the connection, but exceeding h2_max_header_list_size results in the HTTP2 connection going away immediately.
+.sp
+If h2_max_header_list_size is lower than http_req_size, it has no effect, except for the special value zero interpreted as 150% of http_req_size.
+.SS h2_rapid_reset
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 1.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: delayed, experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The upper threshold for how soon an http/2 RST_STREAM frame has to be parsed after a HEADERS frame for it to be treated as suspect and subjected to the rate limits specified by h2_rapid_reset_limit and h2_rapid_reset_period.
+Changes to this parameter affect the default for new HTTP2 sessions. vmod_h2(3) can be used to adjust it from VCL.
+.SS h2_rapid_reset_limit
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 100
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: delayed, experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 RST Allowance.
+Specifies the maximum number of allowed stream resets issued by
+a client over a time period before the connection is closed.
+Setting this parameter to 0 disables the limit.
+Changes to this parameter affect the default for new HTTP2 sessions. vmod_h2(3) can be used to adjust it from VCL.
+.SS h2_rapid_reset_period
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 1.000
+.IP \(bu 2
+Flags: delayed, experimental, wizard
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 sliding window duration for h2_rapid_reset_limit.
+Changes to this parameter affect the default for new HTTP2 sessions. vmod_h2(3) can be used to adjust it from VCL.
+.SS h2_rx_window_increment
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 1M
+.IP \(bu 2
+Minimum: 1M
+.IP \(bu 2
+Maximum: 1G
+.IP \(bu 2
+Flags: wizard
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 Receive Window Increments.
+How big credits we send in WINDOW_UPDATE frames
+Only affects incoming request bodies (ie: POST, PUT etc.)
+.SS h2_rx_window_low_water
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 10M
+.IP \(bu 2
+Minimum: 65535b
+.IP \(bu 2
+Maximum: 1G
+.IP \(bu 2
+Flags: wizard
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 Receive Window low water mark.
+We try to keep the window at least this big
+Only affects incoming request bodies (ie: POST, PUT etc.)
+.SS h2_rxbuf_storage
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: Transient
+.IP \(bu 2
+Flags: must_restart
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The name of the storage backend that HTTP/2 receive buffers should be allocated from.
+.SS h2_window_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 5.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout, wizard
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP2 time limit without window credits. How long a stream may wait for the client to credit the window and allow for more DATA frames to be sent.
+.SS http1_iovs
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: struct iovec (=16 bytes)
+.IP \(bu 2
+Default: 64
+.IP \(bu 2
+Minimum: 5
+.IP \(bu 2
+Maximum: 1024
+.IP \(bu 2
+Flags: wizard
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Number of io vectors to allocate for HTTP1 protocol transmission.  A HTTP1 header needs 7 + 2 per HTTP header field.  Allocated from workspace_thread.  This parameter affects only io vectors used for client delivery.  For backend fetches, the maximum number of io vectors (up to IOV_MAX)  is allocated from available workspace_thread memory.
+.SS http_gzip_support
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B Enable gzip support. When enabled Vinyl Cache request compressed objects from the backend and store them compressed. If a client does not support gzip encoding Vinyl Cache will uncompress compressed objects on demand. Vinyl Cache will also rewrite the Accept\-Encoding header of clients indicating support for gzip to:
+Accept\-Encoding: gzip
+.UNINDENT
+.sp
+Clients that do not support gzip will have their Accept\-Encoding header removed. For more information on how gzip is implemented please see the chapter on gzip in the Vinyl Cache reference.
+.sp
+When gzip support is disabled the variables beresp.do_gzip and beresp.do_gunzip have no effect in VCL.
+.SS http_max_hdr
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: header lines
+.IP \(bu 2
+Default: 64
+.IP \(bu 2
+Minimum: 32
+.IP \(bu 2
+Maximum: 65535
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of HTTP header lines we allow in {req|resp|bereq|beresp}.http (obj.http is autosized to the exact number of headers).
+Cheap, ~20 bytes, in terms of workspace memory.
+Note that the first line occupies five header lines.
+.SS http_range_support
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Enable support for HTTP Range headers.
+.SS http_req_hdr_len
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 8k
+.IP \(bu 2
+Minimum: 40b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum length of any HTTP client request header we will allow.  The limit is inclusive its continuation lines.
+.SS http_req_overflow_status
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: HTTP status code or 0 to disable
+.IP \(bu 2
+Default: 0
+.IP \(bu 2
+Minimum: 400
+.IP \(bu 2
+Maximum: 500
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+HTTP status code to be returned if http_req_size is exceeded. The default value of 0 closes the connection silently without sending a HTTP response.
+Note that there is no standard HTTP status which exactly matches the implementation of http_req_size. 414 applies to the URL only, while 413 applies to the request body. 400 is probably the least incorrect alternative value to sending no response at all (0). It can also be seen as an internal error on the Vinyl Cache side due to configured limits, so 500 is also allowed.
+.SS http_req_size
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 32k
+.IP \(bu 2
+Minimum: 0.25k
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of bytes of HTTP client request we will deal with. This is a limit on all bytes up to the double blank line which ends the HTTP request. The memory for the request is allocated from the client workspace (param: workspace_client) and this parameter limits how much of that the request is allowed to take up.
+.sp
+For HTTP2 clients, it is advertised as MAX_HEADER_LIST_SIZE in the initial SETTINGS frame.
+.SS http_resp_hdr_len
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 8k
+.IP \(bu 2
+Minimum: 40b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum length of any HTTP backend response header we will allow.  The limit is inclusive its continuation lines.
+.SS http_resp_size
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 32k
+.IP \(bu 2
+Minimum: 0.25k
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of bytes of HTTP backend response we will deal with.  This is a limit on all bytes up to the double blank line which ends the HTTP response.
+The memory for the response is allocated from the backend workspace (param: workspace_backend) and this parameter limits how much of that the response is allowed to take up.
+.SS idle_send_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Maximum: 3600.000
+.IP \(bu 2
+Flags: timeout, delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Send timeout for individual pieces of data on client connections. May get extended if \(aqsend_timeout\(aq applies.
+.sp
+When this timeout is hit, the session is closed.
+.sp
+See the man page for \fIsetsockopt(2)\fP or \fIsocket(7)\fP under \fBSO_SNDTIMEO\fP for more information.
+.SS listen_depth
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: connections
+.IP \(bu 2
+Default: 1024
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: must_restart
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Listen queue depth.
+.SS lru_interval
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 2.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Grace period before object moves on LRU list.
+Objects are only moved to the front of the LRU list if they have not been moved there already inside this timeout period.  This reduces the amount of lock operations necessary for LRU list access.
+.SS max_esi_depth
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: levels
+.IP \(bu 2
+Default: 5
+.IP \(bu 2
+Minimum: 0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum depth of esi:include processing.
+.SS max_restarts
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: restarts
+.IP \(bu 2
+Default: 4
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Upper limit on how many times a request can restart.
+.SS max_retries
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: retries
+.IP \(bu 2
+Default: 4
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Upper limit on how many times a backend fetch can retry.
+.SS max_vcl
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 100
+.IP \(bu 2
+Minimum: 0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Threshold of loaded VCL programs.  (VCL labels are not counted.)  Parameter max_vcl_handling determines behaviour.
+.SS max_vcl_handling
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 1
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Maximum: 2
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Behaviour when attempting to exceed max_vcl loaded VCL.
+.INDENT 0.0
+.IP \(bu 2
+0 \- Ignore max_vcl parameter.
+.IP \(bu 2
+1 \- Issue warning.
+.IP \(bu 2
+2 \- Refuse loading VCLs.
+.UNINDENT
+.SS nuke_limit
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: allocations
+.IP \(bu 2
+Default: 50
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of objects we attempt to nuke in order to make space for a object body.
+.SS panic_buffer
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 64k
+.IP \(bu 2
+Minimum: 4k
+.IP \(bu 2
+Maximum: 10M
+.IP \(bu 2
+Flags: must_restart
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Size of the panic message buffer.
+The panic buffer is allocated in the working directory as memory shared between the management and worker process, so sufficient working directory space should be accounted for if this value is adjusted. Panic messages are truncated to the configured size.
+.SS pcre2_depth_limit
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 20
+.IP \(bu 2
+Minimum: 1
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The recursion depth\-limit for the internal match logic in a pcre2_match().
+.sp
+(See: pcre2_set_depth_limit() in pcre2 docs.)
+.sp
+This puts an upper limit on the amount of stack used by PCRE2 for certain classes of regular expressions.
+.sp
+We have set the default value low in order to prevent crashes, at the cost of possible regexp matching failures.
+.sp
+Matching failures will show up in the log as VCL_Error messages.
+.SS pcre2_jit_compilation
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Use the pcre2 JIT compiler if available.
+.SS pcre2_match_limit
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 10000
+.IP \(bu 2
+Minimum: 1
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The limit for the number of calls to the internal match logic in pcre2_match().
+.sp
+(See: pcre2_set_match_limit() in pcre2 docs.)
+.sp
+This parameter limits how much CPU time regular expression matching can soak up.
+.SS ping_interval
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 3
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: must_restart
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Interval between pings from parent to child.
+Zero will disable pinging entirely, which makes it possible to attach a debugger to the child.
+.SS pipe_sess_max
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: connections
+.IP \(bu 2
+Default: 0
+.IP \(bu 2
+Minimum: 0
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of sessions dedicated to pipe transactions.
+.SS pipe_task_deadline
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Deadline for PIPE sessions. Regardless of activity in either direction after this many seconds, the session is closed.
+.SS pipe_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Idle timeout for PIPE sessions. If nothing have been received in either direction for this many seconds, the session is closed.
+.SS pool_req
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 10,100,10
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Parameters for per worker pool request memory pool.
+.sp
+The three numbers are:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fImin_pool\fP
+minimum size of free pool.
+.TP
+.B \fImax_pool\fP
+maximum size of free pool.
+.TP
+.B \fImax_age\fP
+max age of free element.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS pool_sess
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 10,100,10
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Parameters for per worker pool session memory pool.
+.sp
+The three numbers are:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fImin_pool\fP
+minimum size of free pool.
+.TP
+.B \fImax_pool\fP
+maximum size of free pool.
+.TP
+.B \fImax_age\fP
+max age of free element.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS pool_vbo
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: 10,100,10
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Parameters for backend object fetch memory pool.
+.sp
+The three numbers are:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fImin_pool\fP
+minimum size of free pool.
+.TP
+.B \fImax_pool\fP
+maximum size of free pool.
+.TP
+.B \fImax_age\fP
+max age of free element.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS prefer_ipv6
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: off
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Prefer IPv6 address when connecting to backends which have both IPv4 and IPv6 addresses.
+.SS rush_exponent
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: requests per request
+.IP \(bu 2
+Default: 3
+.IP \(bu 2
+Minimum: 1
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How many parked request we start for each completed request on the object.
+NB: Even with the implicit delay of delivery, this parameter controls an exponential increase in number of worker threads. A value of 1 will instead serialize requests resumption and is only useful for testing purposes.
+.SS send_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 600.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout, delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Total timeout for ordinary HTTP1 responses. Does not apply to some internally generated errors and pipe mode.
+.sp
+When \(aqidle_send_timeout\(aq is hit while sending an HTTP1 response, the timeout is extended unless the total time already taken for sending the response in its entirety exceeds this many seconds.
+.sp
+When this timeout is hit, the session is closed
+.SS shortlived
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 10.000
+.IP \(bu 2
+Minimum: 0.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Objects created with (ttl+grace+keep) shorter than this are always put in transient storage.
+.SS sigsegv_handler
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on
+.IP \(bu 2
+Flags: must_restart
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Install a signal handler which tries to dump debug information on segmentation faults, bus errors and abort signals.
+.SS startup_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: timeout
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Alternative timeout for the initial worker process startup.
+If cli_timeout is longer than startup_timeout, it is used instead.
+.SS syslog_cli_traffic
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: on
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Log all CLI traffic to syslog(LOG_INFO).
+.SS tcp_fastopen
+.sp
+NB: This parameter depends on a feature which is not available on all platforms.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bool
+.IP \(bu 2
+Default: off
+.IP \(bu 2
+Flags: must_restart
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Enable TCP Fast Open extension.
+.SS tcp_keepalive_intvl
+.sp
+NB: This parameter depends on a feature which is not available on all platforms.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: platform dependent
+.IP \(bu 2
+Minimum: 1.000
+.IP \(bu 2
+Maximum: 100.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The number of seconds between TCP keep\-alive probes. Ignored for Unix domain sockets.
+.SS tcp_keepalive_probes
+.sp
+NB: This parameter depends on a feature which is not available on all platforms.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: probes
+.IP \(bu 2
+Default: platform dependent
+.IP \(bu 2
+Minimum: 1
+.IP \(bu 2
+Maximum: 100
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The maximum number of TCP keep\-alive probes to send before giving up and killing the connection if no response is obtained from the other end. Ignored for Unix domain sockets.
+.SS tcp_keepalive_time
+.sp
+NB: This parameter depends on a feature which is not available on all platforms.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: platform dependent
+.IP \(bu 2
+Minimum: 1.000
+.IP \(bu 2
+Maximum: 7200.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The number of seconds a connection needs to be idle before TCP begins sending out keep\-alive probes. Ignored for Unix domain sockets.
+.SS thread_pool_add_delay
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Wait at least this long after creating a thread.
+.sp
+Some (buggy) systems may need a short (sub\-second) delay between creating threads.
+Set this to a few milliseconds if you see the \(aqthreads_failed\(aq counter grow too much.
+.sp
+Setting this too high results in insufficient worker threads.
+.SS thread_pool_destroy_delay
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 1.000
+.IP \(bu 2
+Minimum: 0.010
+.IP \(bu 2
+Flags: delayed, experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Wait this long after destroying a thread.
+.sp
+This controls the decay of thread pools when idle(\-ish).
+.SS thread_pool_fail_delay
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.200
+.IP \(bu 2
+Minimum: 0.010
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Wait at least this long after a failed thread creation before trying to create another thread.
+.sp
+Failure to create a worker thread is often a sign that  the end is near, because the process is running out of some resource.  This delay tries to not rush the end on needlessly.
+.sp
+If thread creation failures are a problem, check that thread_pool_max is not too high.
+.sp
+It may also help to increase thread_pool_timeout and thread_pool_min, to reduce the rate at which treads are destroyed and later recreated.
+.SS thread_pool_max
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: threads
+.IP \(bu 2
+Default: 5000
+.IP \(bu 2
+Minimum: thread_pool_min
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The maximum number of worker threads in each pool.
+.sp
+Do not set this higher than you have to, since excess worker threads soak up RAM and CPU and generally just get in the way of getting work done.
+.SS thread_pool_min
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: threads
+.IP \(bu 2
+Default: 100
+.IP \(bu 2
+Minimum: 5
+.IP \(bu 2
+Maximum: thread_pool_max
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The minimum number of worker threads in each pool.
+.sp
+Increasing this may help ramp up faster from low load situations or when threads have expired.
+.sp
+Technical minimum is 5 threads, but this parameter is strongly recommended to be at least 10
+.SS thread_pool_reserve
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: threads
+.IP \(bu 2
+Default: 0 (auto\-tune: 5% of thread_pool_min)
+.IP \(bu 2
+Maximum: 95% of thread_pool_min
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The number of worker threads reserved for vital tasks in each pool.
+.sp
+Tasks may require other tasks to complete (for example, client requests may require backend requests, http2 sessions require streams, which require requests). This reserve is to ensure that lower priority tasks do not prevent higher priority tasks from running even under high load.
+.sp
+The effective value is at least 5 (the number of internal priority classes), irrespective of this parameter.
+.SS thread_pool_stack
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 80k
+.IP \(bu 2
+Minimum: sysconf(_SC_THREAD_STACK_MIN)
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Worker thread stack size.
+This will likely be rounded up to a multiple of 4k (or whatever the page_size might be) by the kernel.
+.sp
+The required stack size is primarily driven by the depth of the call\-tree. The most common relevant determining factors in Vinyl Cache core code are GZIP (un)compression, ESI processing and regular expression matches. VMODs may also require significant amounts of additional stack. The nesting depth of VCL subs is another factor, although typically not predominant.
+.sp
+The stack size is per thread, so the maximum total memory required for worker thread stacks is in the order of size = thread_pools x thread_pool_max x thread_pool_stack.
+.sp
+Thus, in particular for setups with many threads, keeping the stack size at a minimum helps reduce the amount of memory required by Vinyl Cache.
+.sp
+On the other hand, thread_pool_stack must be large enough under all circumstances, otherwise Vinyl Cache will crash due to a stack overflow. Usually, a stack overflow manifests itself as a segmentation fault (aka segfault / SIGSEGV) with the faulting address being near the stack pointer (sp).
+.sp
+Unless stack usage can be reduced, thread_pool_stack must be increased when a stack overflow occurs. Setting it in 150%\-200% increments is recommended until stack overflows cease to occur.
+.SS thread_pool_timeout
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 300.000
+.IP \(bu 2
+Minimum: 10.000
+.IP \(bu 2
+Flags: delayed, experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Thread idle threshold.
+.sp
+Threads in excess of thread_pool_min, which have been idle for at least this long, will be destroyed.
+.SS thread_pool_watchdog
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 0.100
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Thread queue stuck watchdog.
+.sp
+If no queued work have been released for this long, the worker process panics itself.
+.SS thread_pools
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: pools
+.IP \(bu 2
+Default: 2
+.IP \(bu 2
+Minimum: 1
+.IP \(bu 2
+Maximum: 32
+.IP \(bu 2
+Flags: delayed, experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Number of worker thread pools.
+.sp
+Increasing the number of worker pools decreases lock contention. Each worker pool also has a thread accepting new connections, so for very high rates of incoming new connections on systems with many cores, increasing the worker pools may be required.
+.sp
+Too many pools waste CPU and RAM resources, and more than one pool for each CPU is most likely detrimental to performance.
+.sp
+Can be increased on the fly, but decreases require a restart to take effect, unless the drop_pools experimental debug flag is set.
+.SS thread_queue_limit
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: requests
+.IP \(bu 2
+Default: 20
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Permitted request queue length per thread\-pool.
+.sp
+This sets the number of requests we will queue, waiting for an available thread.  Above this limit sessions will be dropped instead of queued.
+.SS thread_stats_rate
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: requests
+.IP \(bu 2
+Default: 10
+.IP \(bu 2
+Minimum: 0
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Worker threads accumulate statistics, and dump these into the global stats counters if the lock is free when they finish a job (request/fetch etc.)
+This parameters defines the maximum number of jobs a worker thread may handle, before it is forced to dump its accumulated stats into the global counters.
+.SS timeout_idle
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 5.000
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Maximum: 3600.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Idle timeout for client connections.
+.sp
+A connection is considered idle until we have received the full request headers.
+.sp
+This parameter is particularly relevant for HTTP1 keepalive  connections which are closed unless the next request is received before this timeout is reached.
+.SS timeout_linger
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 0.050
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: experimental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How long the worker thread lingers on an idle session before handing it over to the waiter.
+When sessions are reused, as much as half of all reuses happen within the first 100 msec of the previous request completing.
+Setting this too high results in worker threads not doing anything for their keep, setting it too low just means that more sessions take a detour around the waiter.
+.SS transit_buffer
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 0b
+.IP \(bu 2
+Minimum: 0b
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The number of bytes which Vinyl Cache buffers for uncacheable backend streaming fetches \- in other words, how many bytes Vinyl Cache reads from the backend ahead of what has been sent to the client.
+A zero value means no limit, the object is fetched as fast as possible.
+.sp
+When dealing with slow clients, setting this parameter to non\-zero can prevent large uncacheable objects from being stored in full when the intent is to simply stream them to the client. As a result, a slow client transaction holds onto a backend connection until the end of the delivery.
+.sp
+This parameter is the default to the VCL variable \fBberesp.transit_buffer\fP, which can be used to control the transit buffer per backend request.
+.SS uncacheable_ttl
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 2m
+.IP \(bu 2
+Minimum: 0.000
+.IP \(bu 2
+Flags: obj_sticky
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The TTL assigned to uncacheable objects by the built\-in VCL.
+.SS vary_notice
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: variants
+.IP \(bu 2
+Default: 10
+.IP \(bu 2
+Minimum: 1
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How many variants need to be evaluated to log a Notice that there might be too many variants.
+.SS vcc_allow_inline_c
+.sp
+Deprecated alias for the vcc_feature parameter.
+.SS vcc_err_unref
+.sp
+Deprecated alias for the vcc_feature parameter.
+.SS vcc_feature
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: none,+err_unref,+unsafe_path
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Enable/Disable various VCC behaviors.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIdefault\fP
+Set default value (deprecated: use param.reset)
+.TP
+.B \fInone\fP
+Disable all behaviors.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Use +/\- prefix to enable/disable individual behavior:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIerr_unref\fP
+Unreferenced VCL objects result in error.
+.TP
+.B \fIallow_inline_c\fP
+Allow inline C code in VCL.
+.TP
+.B \fIunsafe_path\fP
+Allow \(aq/\(aq in vmod & include paths. Allow \(aqimport ... from ...\(aq.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS vcc_unsafe_path
+.sp
+Deprecated alias for the vcc_feature parameter.
+.SS vcl_cooldown
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 600.000
+.IP \(bu 2
+Minimum: 1.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How long a VCL is kept warm after being replaced as the active VCL (granularity approximately 30 seconds).
+.SS vcl_path
+.sp
+NB: The actual default value for this parameter depends on the Vinyl Cache build environment and options.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: ${sysconfdir}/vinyl\-cache:${datadir}/vinyl\-cache/vcl
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Directory (or colon separated list of directories) from which relative VCL filenames (vcl.load and include) are to be found.  By default Vinyl Cache searches VCL files in both the system configuration and shared data directories to allow packages to drop their VCL files in a standard location where relative includes would work. Includes using +glob cannot be searched in vcl_path.
+.SS vmod_path
+.sp
+NB: The actual default value for this parameter depends on the Vinyl Cache build environment and options.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: ${libdir}/vinyl\-cache/vmods
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Directory (or colon separated list of directories) where VMODs are to be found.
+.SS vsl_buffer
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 16k
+.IP \(bu 2
+Minimum: vsl_reclen + 12 bytes
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Bytes of (req\-/backend\-)workspace dedicated to buffering VSL records.
+When this parameter is adjusted, most likely workspace_client and workspace_backend will have to be adjusted by the same amount.
+.sp
+Setting this too high costs memory, setting it too low will cause more VSL flushes and likely increase lock\-contention on the VSL mutex.
+.SS vsl_mask
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Default: all,\-Debug,\-ObjProtocol,\-ObjStatus,\-ObjReason,\-ObjHeader,\-ExpKill,\-WorkThread,\-Hash,\-VfpAcct,\-H2RxHdr,\-H2RxBody,\-H2TxHdr,\-H2TxBody,\-VdpAcct,\-ReqTarget
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Mask individual VSL messages from being logged.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIall\fP
+Enable all tags
+.TP
+.B \fIdefault\fP
+Set default value (deprecated: use param.reset)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Use +/\- prefix in front of VSL tag name to unmask/mask individual VSL messages. See vsl(7) for possible values.
+.SS vsl_reclen
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 255b
+.IP \(bu 2
+Minimum: 16b
+.IP \(bu 2
+Maximum: vsl_buffer \- 12 bytes
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Maximum number of bytes in SHM log record.
+.SS vsl_space
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 80M
+.IP \(bu 2
+Minimum: 1M
+.IP \(bu 2
+Maximum: 4G
+.IP \(bu 2
+Flags: must_restart
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The amount of space to allocate for the VSL fifo buffer in the VSM memory segment.  If you make this too small, vinyl{ncsa|log} etc will not be able to keep up.  Making it too large just costs memory resources.
+.SS vsm_free_cooldown
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: seconds
+.IP \(bu 2
+Default: 60.000
+.IP \(bu 2
+Minimum: 10.000
+.IP \(bu 2
+Maximum: 600.000
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+How long VSM memory is kept warm after a deallocation (granularity approximately 2 seconds).
+.SS workspace_backend
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 96k
+.IP \(bu 2
+Minimum: 1k
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Bytes of HTTP protocol workspace for backend HTTP req/resp.  If larger than 4k, use a multiple of 4k for VM efficiency.
+.SS workspace_client
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 96k
+.IP \(bu 2
+Minimum: 9k
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Bytes of HTTP protocol workspace for clients HTTP req/resp.  Use a multiple of 4k for VM efficiency.
+For HTTP/2 compliance this must be at least 20k, in order to receive fullsize (=16k) frames from the client.   That usually happens only in POST/PUT bodies.  For other traffic\-patterns smaller values work just fine.
+.SS workspace_session
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 0.75k
+.IP \(bu 2
+Minimum: 384b
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Allocation size for session structure and workspace.    The workspace is primarily used for TCP connection addresses.  If larger than 4k, use a multiple of 4k for VM efficiency.
+.SS workspace_thread
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+Units: bytes
+.IP \(bu 2
+Default: 2k
+.IP \(bu 2
+Minimum: 0.25k
+.IP \(bu 2
+Maximum: 8k
+.IP \(bu 2
+Flags: delayed
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Bytes of auxiliary workspace per thread.
+This workspace is used for certain temporary data structures during the operation of a worker thread.
+One use is for the IO\-vectors used during delivery. Setting this parameter too low may increase the number of writev() syscalls, setting it too high just wastes space.  ~0.1k + UIO_MAXIOV * sizeof(struct iovec) (typically = ~16k for 64bit) is considered the maximum sensible value under any known circumstances (excluding exotic vmod use).
+.SH EXIT CODES
+.sp
+Vinyl Cache and bundled tools will, in most cases, exit with one of the
+following codes
+.INDENT 0.0
+.IP \(bu 2
+\fI0\fP OK
+.IP \(bu 2
+\fI1\fP Some error which could be system\-dependent and/or transient
+.IP \(bu 2
+\fI2\fP Serious configuration / parameter error \- retrying with the same
+configuration / parameters is most likely useless
+.UNINDENT
+.sp
+The \fIvinyld\fP master process may also OR its exit code
+.INDENT 0.0
+.IP \(bu 2
+with \fI0x20\fP when the \fIvinyld\fP child process died,
+.IP \(bu 2
+with \fI0x40\fP when the \fIvinyld\fP child process was terminated by a
+signal and
+.IP \(bu 2
+with \fI0x80\fP when a core was dumped.
+.UNINDENT
+.SH "همچنین ببینید (SEE ALSO)"
+.INDENT 0.0
+.IP \(bu 2
+\fIvinyllog(1)\fP
+.IP \(bu 2
+\fIvinylhist(1)\fP
+.IP \(bu 2
+\fIvinylncsa(1)\fP
+.IP \(bu 2
+\fIvinylstat(1)\fP
+.IP \(bu 2
+\fIvinyltop(1)\fP
+.IP \(bu 2
+\fIvinyl\-cli(7)\fP
+.IP \(bu 2
+\fIvcl(7)\fP
+.UNINDENT
+.SH "تاریخچه (HISTORY)"
+.sp
+The \fIvinyld\fP daemon was developed by Poul\-Henning Kamp in cooperation
+with Verdens Gang AS and Redpill\-Linpro
+.sp
+This manual page was written by Dag\-Erling Smørgrav with updates by
+Stig Sandbeck Mathisen <\%<ssm@\:debian\:.org>>, Nils Goroll and others.
+.SH "حق نشر (COPYRIGHT)"
+.sp
+This document is licensed under the same licence as Vinyl Cache
+itself. See LICENCE for details.
+.INDENT 0.0
+.IP \(bu 2
+Copyright (c) 2007\-2015 Varnish Software AS
+.UNINDENT
+.\" End of generated man page.

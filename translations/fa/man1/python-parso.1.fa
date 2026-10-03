@@ -1,0 +1,1575 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "PARSO" "1" "Aug 30, 2026" "0.8" "parso"
+.SH "نام (NAME)"
+parso \- parso Documentation
+.sp
+Release v0.8.7\&. (Installation \%<>)
+.sp
+Parso is a Python parser that supports error recovery and round\-trip parsing
+for different Python versions (in multiple Python versions). Parso is also able
+to list multiple syntax errors in your python file.
+.sp
+Parso has been battle\-tested by jedi \%<https://\:github\:.com/\:davidhalter/\:jedi>\&. It was pulled out of jedi to be useful
+for other projects as well.
+.sp
+Parso consists of a small API to parse Python and analyse the syntax tree.
+.sp
+A simple example:
+.sp
+.EX
+>>> import parso
+>>> module = parso.parse(\(aqhello + 1\(aq, version=\(dq3.9\(dq)
+>>> expr = module.children[0]
+>>> expr
+PythonNode(arith_expr, [<Name: hello@1,0>, <Operator: +>, <Number: 1>])
+>>> print(expr.get_code())
+hello + 1
+>>> name = expr.children[0]
+>>> name
+<Name: hello@1,0>
+>>> name.end_pos
+(1, 5)
+>>> expr.end_pos
+(1, 9)
+.EE
+.sp
+To list multiple issues:
+.sp
+.EX
+>>> grammar = parso.load_grammar()
+>>> module = grammar.parse(\(aqfoo +\enbar\encontinue\(aq)
+>>> error1, error2 = grammar.iter_errors(module)
+>>> error1.message
+\(aqSyntaxError: invalid syntax\(aq
+>>> error2.message
+\(dqSyntaxError: \(aqcontinue\(aq not properly in loop\(dq
+.EE
+.SH DOCS
+.SS Installation and Configuration
+.SS The preferred way (pip)
+.sp
+On any system you can install \fIparso\fP directly from the Python package index
+using pip:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sudo pip install parso
+.EE
+.UNINDENT
+.UNINDENT
+.SS From git
+.sp
+If you want to install the current development version (master branch):
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sudo pip install \-e git+https://github.com/davidhalter/parso.git#egg=parso
+.EE
+.UNINDENT
+.UNINDENT
+.SS Manual installation from a downloaded package (not recommended)
+.sp
+If you prefer not to use an automated package installer, you can download \%<https://\:github\:.com/\:davidhalter/\:parso/\:archive/\:master\:.zip> a current copy of
+\fIparso\fP and install it manually.
+.sp
+To install it, navigate to the directory containing \fIsetup.py\fP on your console
+and type:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+sudo python setup.py install
+.EE
+.UNINDENT
+.UNINDENT
+.SS Usage
+.sp
+\fIparso\fP works around grammars. You can simply create Python grammars by calling
+\fBparso.load_grammar()\fP\&. Grammars (with a custom tokenizer and custom parser trees)
+can also be created by directly instantiating \fBparso.Grammar()\fP\&. More information
+about the resulting objects can be found in the parser tree documentation \%<#\:parser-tree>\&.
+.sp
+The simplest way of using parso is without even loading a grammar
+(\fBparso.parse()\fP):
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> import parso
+>>> parso.parse(\(aqfoo + bar\(aq)
+<Module: @1\-1>
+.EE
+.UNINDENT
+.UNINDENT
+.SS Loading a Grammar
+.sp
+Typically if you want to work with one specific Python version, use:
+.INDENT 0.0
+.TP
+.B parso.load_grammar(*, version: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = None, path: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = None)
+Loads a \fBparso.Grammar\fP\&. The default version is the current Python
+version.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBversion\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) \-\- A python version string, e.g. \fBversion=\(aq3.8\(aq\fP\&.
+.IP \(bu 2
+\fBpath\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) \-\- A path to a grammar file
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Grammar methods
+.sp
+You will get back a grammar object that you can use to parse code and find
+issues in it:
+.INDENT 0.0
+.TP
+.B class parso.Grammar(text: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, *, tokenizer, parser=<class \(aqparso.parser.BaseParser\(aq>, diff_parser=None)
+\fBparso.load_grammar()\fP returns instances of this class.
+.sp
+Creating custom none\-python grammars by calling this is not supported, yet.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBtext\fP \-\- A BNF representation of your grammar.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B parse(code: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | bytes \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:bytes> = None, *, error_recovery=True, path: PathLike \%<https://\:docs\:.python\:.org/\:3/\:library/\:os\:.html#\:os\:.PathLike> | str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = None, start_symbol: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = None, cache=False, diff_cache=False, cache_path: PathLike \%<https://\:docs\:.python\:.org/\:3/\:library/\:os\:.html#\:os\:.PathLike> | str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = None, file_io: FileIO = None) -> _NodeT
+If you want to parse a Python file you want to start here, most likely.
+.sp
+If you need finer grained control over the parsed instance, there will be
+other ways to access it.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBcode\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) \-\- A unicode or bytes string. When it\(aqs not possible to
+decode bytes to a string, returns a
+\fBUnicodeDecodeError\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:exceptions\:.html#\:UnicodeDecodeError>\&.
+.IP \(bu 2
+\fBerror_recovery\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- If enabled, any code will be returned. If
+it is invalid, it will be returned as an error node. If disabled,
+you will get a ParseError when encountering syntax errors in your
+code.
+.IP \(bu 2
+\fBstart_symbol\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) \-\- The grammar rule (nonterminal) that you want
+to parse. Only allowed to be used when error_recovery is False.
+.IP \(bu 2
+\fBpath\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) \-\- The path to the file you want to open. Only needed for caching.
+.IP \(bu 2
+\fBcache\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Keeps a copy of the parser tree in RAM and on disk
+if a path is given. Returns the cached trees if the corresponding
+files on disk have not changed. Note that this stores pickle files
+on your file system (e.g. for Linux in \fB~/.cache/parso/\fP).
+.IP \(bu 2
+\fBdiff_cache\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Diffs the cached python module against the new
+code and tries to parse only the parts that have changed. Returns
+the same (changed) module that is found in cache. Using this option
+requires you to not do anything anymore with the cached modules
+under that path, because the contents of it might change. This
+option is still somewhat experimental. If you want stability,
+please don\(aqt use it.
+.IP \(bu 2
+\fBcache_path\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- If given saves the parso cache in this
+directory. If not given, defaults to the default cache places on
+each platform.
+.UNINDENT
+.TP
+.B Returns
+A subclass of \fBparso.tree.NodeOrLeaf\fP \%<#\:parso\:.tree\:.NodeOrLeaf>\&. Typically a
+\fBparso.python.tree.Module\fP \%<#\:parso\:.python\:.tree\:.Module>\&.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B iter_errors(node)
+Given a \fBparso.tree.NodeOrLeaf\fP \%<#\:parso\:.tree\:.NodeOrLeaf> returns a generator of
+\fBparso.normalizer.Issue\fP objects. For Python this is
+a list of syntax/indentation errors.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B refactor(base_node, node_to_str_map)
+.UNINDENT
+.UNINDENT
+.SS Error Retrieval
+.sp
+\fIparso\fP is able to find multiple errors in your source code. Iterating through
+those errors yields the following instances:
+.INDENT 0.0
+.TP
+.B class parso.normalizer.Issue(node, code, message)
+.INDENT 7.0
+.TP
+.B code
+An integer code that stands for the type of error.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B message
+A message (string) for the issue.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B start_pos
+The start position position of the error as a tuple (line, column). As
+always in \fIparso\fP the first line is 1 and the first column 0.
+.UNINDENT
+.UNINDENT
+.SS Utility
+.sp
+\fIparso\fP also offers some utility functions that can be really useful:
+.INDENT 0.0
+.TP
+.B parso.parse(code=None, **kwargs)
+A utility function to avoid loading grammars.
+Params are documented in \fBparso.Grammar.parse()\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBversion\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) \-\- The version used by \fBparso.load_grammar()\fP\&.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B parso.split_lines(string: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, keepends: bool \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool> = False) -> list \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>[str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>]
+Intended for Python code. In contrast to Python\(aqs \fBstr.splitlines()\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str\:.splitlines>,
+looks at form feeds and other special characters as normal text. Just
+splits \fB\en\fP and \fB\er\en\fP\&.
+Also different: Returns \fB[\(dq\(dq]\fP for an empty string input.
+.sp
+In Python 2.7 form feeds are used as normal characters when using
+str.splitlines. However in Python 3 somewhere there was a decision to split
+also on form feeds.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B parso.python_bytes_to_unicode(source: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | bytes \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:bytes>, encoding: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqutf\-8\(aq, errors: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqstrict\(aq) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Checks for unicode BOMs and PEP 263 encoding declarations. Then returns a
+unicode object like in \fBbytes.decode()\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:bytes\:.decode>\&.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBencoding\fP \-\- See \fBbytes.decode()\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:bytes\:.decode> documentation.
+.IP \(bu 2
+\fBerrors\fP \-\- See \fBbytes.decode()\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:bytes\:.decode> documentation. \fBerrors\fP can be
+\fB\(aqstrict\(aq\fP, \fB\(aqreplace\(aq\fP or \fB\(aqignore\(aq\fP\&.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Used By
+.INDENT 0.0
+.IP \(bu 2
+jedi \%<https://\:github\:.com/\:davidhalter/\:jedi> (which is used by IPython and a lot of editor plugins).
+.IP \(bu 2
+mutmut \%<https://\:github\:.com/\:boxed/\:mutmut> (mutation tester)
+.UNINDENT
+.SS Parser Tree
+.sp
+The parser tree is returned by calling \fBparso.Grammar.parse()\fP \%<#\:parso\:.Grammar\:.parse>\&.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+Note that parso positions are always 1 based for lines and zero
+based for columns. This means the first position in a file is (1, 0).
+.UNINDENT
+.UNINDENT
+.SS Parser Tree Base Classes
+.sp
+Generally there are two types of classes you will deal with:
+\fBparso.tree.Leaf\fP and \fBparso.tree.BaseNode\fP\&.
+.INDENT 0.0
+.TP
+.B class parso.tree.BaseNode(children)
+Bases: \fBNodeOrLeaf\fP
+.sp
+The super class for all nodes.
+A node has children, a type and possibly a parent node.
+.INDENT 7.0
+.TP
+.B children
+A list of \fBNodeOrLeaf\fP child nodes.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>]
+Returns the starting position of the prefix as a tuple, e.g. \fI(3, 4)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_start_pos_of_prefix()
+Returns the start_pos of the prefix. This means basically it returns
+the end_pos of the last prefix. The \fIget_start_pos_of_prefix()\fP of the
+prefix \fI+\fP in \fI2 + 1\fP would be \fI(1, 1)\fP, while the start_pos is
+\fI(1, 2)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property end_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>]
+Returns the end position of the prefix as a tuple, e.g. \fI(3, 4)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_code(include_prefix=True)
+Returns the code that was the input for the parser for this node.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBinclude_prefix\fP \-\- Removes the prefix (whitespace and comments) of
+e.g. a statement.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_leaf_for_position(position, include_prefixes=False)
+Get the \fBparso.tree.Leaf\fP at \fBposition\fP
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBposition\fP (\fItuple\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:tuple>) \-\- A position tuple, row, column. Rows start from 1
+.IP \(bu 2
+\fBinclude_prefixes\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- If \fBFalse\fP, \fBNone\fP will be returned if \fBposition\fP falls
+on whitespace or comments before a leaf
+.UNINDENT
+.TP
+.B Returns
+\fBparso.tree.Leaf\fP at \fBposition\fP, or \fBNone\fP
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_first_leaf()
+Returns the first leaf of a node or itself if this is a leaf.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_last_leaf()
+Returns the last leaf of a node or itself if this is a leaf.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.tree.Leaf(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBNodeOrLeaf\fP
+.sp
+Leafs are basically tokens with a better API. Leafs exactly know where they
+were defined and what text preceeds them.
+.INDENT 7.0
+.TP
+.B value
+\fBstr()\fP The value of the current token.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+\fBstr()\fP Typically a mixture of whitespace and comments. Stuff
+that is syntactically irrelevant for the syntax tree.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>]
+Returns the starting position of the prefix as a tuple, e.g. \fI(3, 4)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_start_pos_of_prefix()
+Returns the start_pos of the prefix. This means basically it returns
+the end_pos of the last prefix. The \fIget_start_pos_of_prefix()\fP of the
+prefix \fI+\fP in \fI2 + 1\fP would be \fI(1, 1)\fP, while the start_pos is
+\fI(1, 2)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_first_leaf()
+Returns the first leaf of a node or itself if this is a leaf.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_last_leaf()
+Returns the last leaf of a node or itself if this is a leaf.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_code(include_prefix=True)
+Returns the code that was the input for the parser for this node.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBinclude_prefix\fP \-\- Removes the prefix (whitespace and comments) of
+e.g. a statement.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property end_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>]
+Returns the end position of the prefix as a tuple, e.g. \fI(3, 4)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+All nodes and leaves have these methods/properties:
+.INDENT 0.0
+.TP
+.B class parso.tree.NodeOrLeaf
+Bases: \fBobject\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:object>
+.sp
+The base class for nodes and leaves.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B parent: BaseNode \%<#\:parso\:.tree\:.BaseNode> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>
+The parent \fBBaseNode\fP of this node or leaf.
+None if this is the root node.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_root_node()
+Returns the root node of a parser tree. The returned node doesn\(aqt have
+a parent node like all the other nodes/leaves.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_next_sibling()
+Returns the node immediately following this node in this parent\(aqs
+children list. If this node does not have a next sibling, it is None
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_previous_sibling()
+Returns the node immediately preceding this node in this parent\(aqs
+children list. If this node does not have a previous sibling, it is
+None.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_previous_leaf()
+Returns the previous leaf in the parser tree.
+Returns \fINone\fP if this is the first element in the parser tree.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_next_leaf()
+Returns the next leaf in the parser tree.
+Returns None if this is the last element in the parser tree.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B abstract property start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>]
+Returns the starting position of the prefix as a tuple, e.g. \fI(3, 4)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B abstract property end_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>]
+Returns the end position of the prefix as a tuple, e.g. \fI(3, 4)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B abstractmethod get_start_pos_of_prefix()
+Returns the start_pos of the prefix. This means basically it returns
+the end_pos of the last prefix. The \fIget_start_pos_of_prefix()\fP of the
+prefix \fI+\fP in \fI2 + 1\fP would be \fI(1, 1)\fP, while the start_pos is
+\fI(1, 2)\fP\&.
+.INDENT 7.0
+.TP
+.B Return tuple of int
+(line, column)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B abstractmethod get_first_leaf()
+Returns the first leaf of a node or itself if this is a leaf.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B abstractmethod get_last_leaf()
+Returns the last leaf of a node or itself if this is a leaf.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B abstractmethod get_code(include_prefix=True)
+Returns the code that was the input for the parser for this node.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBinclude_prefix\fP \-\- Removes the prefix (whitespace and comments) of
+e.g. a statement.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B search_ancestor(*node_types: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) -> BaseNode \%<#\:parso\:.tree\:.BaseNode> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>
+Recursively looks at the parents of this node or leaf and returns the
+first found node that matches \fBnode_types\fP\&. Returns \fBNone\fP if no
+matching node is found.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBnode_types\fP \-\- type names that are searched for.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B dump(*, indent: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None> = 4) -> str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+Returns a formatted dump of the parser tree rooted at this node or leaf. This is
+mainly useful for debugging purposes.
+.sp
+The \fBindent\fP parameter is interpreted in a similar way as \fBast.dump()\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:ast\:.html#\:ast\:.dump>\&.
+If \fBindent\fP is a non\-negative integer or string, then the tree will be
+pretty\-printed with that indent level. An indent level of 0, negative, or \fB\(dq\(dq\fP
+will only insert newlines. \fBNone\fP selects the single line representation.
+Using a positive integer indent indents that many spaces per level. If
+\fBindent\fP is a string (such as \fB\(dq\et\(dq\fP), that string is used to indent each
+level.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBindent\fP \-\- Indentation style as described above. The default indentation is
+4 spaces, which yields a pretty\-printed dump.
+.UNINDENT
+.sp
+.EX
+>>> import parso
+>>> print(parso.parse(\(dqlambda x, y: x + y\(dq).dump())
+Module([
+    Lambda([
+        Keyword(\(aqlambda\(aq, (1, 0)),
+        Param([
+            Name(\(aqx\(aq, (1, 7), prefix=\(aq \(aq),
+            Operator(\(aq,\(aq, (1, 8)),
+        ]),
+        Param([
+            Name(\(aqy\(aq, (1, 10), prefix=\(aq \(aq),
+        ]),
+        Operator(\(aq:\(aq, (1, 11)),
+        PythonNode(\(aqarith_expr\(aq, [
+            Name(\(aqx\(aq, (1, 13), prefix=\(aq \(aq),
+            Operator(\(aq+\(aq, (1, 15), prefix=\(aq \(aq),
+            Name(\(aqy\(aq, (1, 17), prefix=\(aq \(aq),
+        ]),
+    ]),
+    EndMarker(\(aq\(aq, (1, 18)),
+])
+.EE
+.UNINDENT
+.UNINDENT
+.SS Python Parser Tree
+.sp
+This is the syntax tree for Python 3 syntaxes. The classes represent
+syntax elements like functions and imports.
+.sp
+All of the nodes can be traced back to the Python grammar file \%<https://\:docs\:.python\:.org/\:3/\:reference/\:grammar\:.html>\&. If you want to know how
+a tree is structured, just analyse that file (for each Python version it\(aqs a
+bit different).
+.sp
+There\(aqs a lot of logic here that makes it easier for Jedi (and other libraries)
+to deal with a Python syntax tree.
+.sp
+By using \fBparso.tree.NodeOrLeaf.get_code()\fP on a module, you can get
+back the 1\-to\-1 representation of the input given to the parser. This is
+important if you want to refactor a parser tree.
+.sp
+.EX
+>>> from parso import parse
+>>> parser = parse(\(aqimport os\(aq)
+>>> module = parser.get_root_node()
+>>> module
+<Module: @1\-1>
+.EE
+.sp
+Any subclasses of \fBScope\fP, including \fBModule\fP has an attribute
+\fBiter_imports\fP:
+.sp
+.EX
+>>> list(module.iter_imports())
+[<ImportName: import os@1,0>]
+.EE
+.SS Changes to the Python Grammar
+.sp
+A few things have changed when looking at Python grammar files:
+.INDENT 0.0
+.IP \(bu 2
+\fBParam\fP does not exist in Python grammar files. It is essentially a
+part of a \fBparameters\fP node.  \fIparso\fP splits it up to make it easier to
+analyse parameters. However this just makes it easier to deal with the syntax
+tree, it doesn\(aqt actually change the valid syntax.
+.IP \(bu 2
+A few nodes like \fIlambdef\fP and \fIlambdef_nocond\fP have been merged in the
+syntax tree to make it easier to do deal with them.
+.UNINDENT
+.SS Parser Tree Classes
+.INDENT 0.0
+.TP
+.B class parso.python.tree.DocstringMixin
+Bases: \fBobject\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:object>
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>
+.UNINDENT
+.INDENT 7.0
+.TP
+.B children: list \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>[Any \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>]
+.UNINDENT
+.INDENT 7.0
+.TP
+.B parent: Any \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_doc_node()
+Returns the string leaf of a docstring. e.g. \fBr\(aq\(aq\(aqfoo\(aq\(aq\(aq\fP\&.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.PythonMixin
+Bases: \fBobject\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:object>
+.sp
+Some Python specific utilities.
+.INDENT 7.0
+.TP
+.B children: list \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>[Any \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>]
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_name_of_position(position)
+Given a (line, column) tuple, returns a \fBName\fP or \fBNone\fP if
+there is no name at that position.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.PythonLeaf(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBPythonMixin\fP, \fBLeaf\fP
+.INDENT 7.0
+.TP
+.B get_start_pos_of_prefix()
+Basically calls \fBparso.tree.NodeOrLeaf.get_start_pos_of_prefix()\fP\&.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.PythonBaseNode(children)
+Bases: \fBPythonMixin\fP, \fBBaseNode\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.PythonNode(type, children)
+Bases: \fBPythonMixin\fP, \fBNode\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.PythonErrorNode(children)
+Bases: \fBPythonMixin\fP, \fBErrorNode\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.PythonErrorLeaf(token_type, value, start_pos, prefix=\(aq\(aq)
+Bases: \fBErrorLeaf\fP, \fBPythonLeaf\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.EndMarker(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fB_LeafWithoutNewlines\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqendmarker\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Newline(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBPythonLeaf\fP
+.sp
+Contains NEWLINE and ENDMARKER tokens.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqnewline\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Name(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fB_LeafWithoutNewlines\fP
+.sp
+A string. Sometimes it is important to know if the string belongs to a name
+or not.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqname\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B is_definition(include_setitem=False)
+Returns True if the name is being defined.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_definition(import_name_always=False, include_setitem=False)
+Returns None if there\(aqs no definition for a name.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBimport_name_always\fP \-\- Specifies if an import name is always a
+definition. Normally foo in \fIfrom foo import bar\fP is not a
+definition.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Literal(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBPythonLeaf\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Number(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBLiteral\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqnumber\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.String(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBLiteral\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqstring\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property string_prefix
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.FStringString(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBPythonLeaf\fP
+.sp
+f\-strings contain f\-string expressions and normal python strings. These are
+the string parts of f\-strings.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqfstring_string\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.FStringStart(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBPythonLeaf\fP
+.sp
+f\-strings contain f\-string expressions and normal python strings. These are
+the string parts of f\-strings.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqfstring_start\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.FStringEnd(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fBPythonLeaf\fP
+.sp
+f\-strings contain f\-string expressions and normal python strings. These are
+the string parts of f\-strings.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqfstring_end\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Operator(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fB_LeafWithoutNewlines\fP, \fB_StringComparisonMixin\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqoperator\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Keyword(value: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>, start_pos: Tuple \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Tuple>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>, int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>], prefix: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aq\(aq)
+Bases: \fB_LeafWithoutNewlines\fP, \fB_StringComparisonMixin\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqkeyword\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Scope(children)
+Bases: \fBPythonBaseNode\fP, \fBDocstringMixin\fP
+.sp
+Super class for the parser tree, which represents the state of a python
+text file.
+A Scope is either a function, class or lambda.
+.INDENT 7.0
+.TP
+.B iter_funcdefs()
+Returns a generator of \fIfuncdef\fP nodes.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B iter_classdefs()
+Returns a generator of \fIclassdef\fP nodes.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B iter_imports()
+Returns a generator of \fIimport_name\fP and \fIimport_from\fP nodes.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_suite()
+Returns the part that is executed by the function.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Module(children)
+Bases: \fBScope\fP
+.sp
+The top scope, which is always a module.
+Depending on the underlying parser this may be a full module or just a part
+of a module.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqfile_input\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_used_names()
+Returns all the \fBName\fP leafs that exist in this module. This
+includes both definitions and references of names.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Decorator(children)
+Bases: \fBPythonBaseNode\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqdecorator\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.ClassOrFunc(children)
+Bases: \fBScope\fP
+.INDENT 7.0
+.TP
+.B property name
+Returns the \fIName\fP leaf that defines the function or class name.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_decorators()
+.INDENT 7.0
+.TP
+.B Return type
+list of \fBDecorator\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Class(children)
+Bases: \fBClassOrFunc\fP
+.sp
+Used to store the parsed contents of a python class.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqclassdef\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_super_arglist()
+Returns the \fIarglist\fP node that defines the super classes. It returns
+None if there are no arguments.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Function(children)
+Bases: \fBClassOrFunc\fP
+.sp
+Used to store the parsed contents of a python function.
+.sp
+Children:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+0. <Keyword: def>
+1. <Name>
+2. parameter list (including open\-paren and close\-paren <Operator>s)
+3. or 5. <Operator: :>
+4. or 6. Node() representing function body
+3. \-> (if annotation is also present)
+4. annotation (if present)
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqfuncdef\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_params()
+Returns a list of \fIParam()\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property name
+Returns the \fIName\fP leaf that defines the function or class name.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B iter_yield_exprs()
+Returns a generator of \fIyield_expr\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B iter_return_stmts()
+Returns a generator of \fIreturn_stmt\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B iter_raise_stmts()
+Returns a generator of \fIraise_stmt\fP\&. Includes raise statements inside try\-except blocks
+.UNINDENT
+.INDENT 7.0
+.TP
+.B is_generator()
+.INDENT 7.0
+.TP
+.B Return bool
+Checks if a function is a generator or not.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property annotation
+Returns the test node after \fI\->\fP or \fINone\fP if there is no annotation.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Lambda(children)
+Bases: \fBFunction\fP
+.sp
+Lambdas are basically trimmed functions, so give it the same interface.
+.sp
+Children:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+ 0. <Keyword: lambda>
+ *. <Param x> for each argument x
+\-2. <Operator: :>
+\-1. Node() representing body
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqlambdef\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property name
+Raises an AttributeError. Lambdas don\(aqt have a defined name.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property annotation
+Returns \fINone\fP, lambdas don\(aqt have annotations.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Flow(children)
+Bases: \fBPythonBaseNode\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.IfStmt(children)
+Bases: \fBFlow\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqif_stmt\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_test_nodes()
+E.g. returns all the \fItest\fP nodes that are named as x, below:
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B if x:
+pass
+.TP
+.B elif x:
+pass
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_corresponding_test_node(node)
+Searches for the branch in which the node is and returns the
+corresponding test node (see function above). However if the node is in
+the test node itself and not in the suite return None.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B is_node_after_else(node)
+Checks if a node is defined after \fIelse\fP\&.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.WhileStmt(children)
+Bases: \fBFlow\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqwhile_stmt\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.ForStmt(children)
+Bases: \fBFlow\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqfor_stmt\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_testlist()
+Returns the input node \fBy\fP from: \fBfor x in y:\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.TryStmt(children)
+Bases: \fBFlow\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqtry_stmt\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_except_clause_tests()
+Returns the \fBtest\fP nodes found in \fBexcept_clause\fP nodes.
+Returns \fB[None]\fP for except clauses without an exception given.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.WithStmt(children)
+Bases: \fBFlow\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqwith_stmt\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+Returns the a list of \fIName\fP that the with statement defines. The
+defined names are set after \fIas\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_test_node_from_name(name)
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Import(children)
+Bases: \fBPythonBaseNode\fP
+.INDENT 7.0
+.TP
+.B get_paths: Any \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_path_for_name(name)
+The path is the list of names that leads to the searched name.
+.INDENT 7.0
+.TP
+.B Return list of Name
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B is_nested()
+.UNINDENT
+.INDENT 7.0
+.TP
+.B is_star_import()
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names()
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.ImportFrom(children)
+Bases: \fBImport\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqimport_from\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+Returns the a list of \fIName\fP that the import defines. The
+defined names are set after \fIimport\fP or in case an alias \- \fIas\fP \- is
+present that name is returned.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_from_names()
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property level
+The level parameter of \fB__import__\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_paths()
+The import paths defined in an import statement. Typically an array
+like this: \fB[<Name: datetime>, <Name: date>]\fP\&.
+.INDENT 7.0
+.TP
+.B Return list of list of Name
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.ImportName(children)
+Bases: \fBImport\fP
+.sp
+For \fBimport_name\fP nodes. Covers normal imports without \fBfrom\fP\&.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqimport_name\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+Returns the a list of \fIName\fP that the import defines. The defined names
+is always the first name after \fIimport\fP or in case an alias \- \fIas\fP \- is
+present that name is returned.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property level
+The level parameter of \fB__import__\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_paths()
+.UNINDENT
+.INDENT 7.0
+.TP
+.B is_nested()
+This checks for the special case of nested imports, without aliases and
+from statement:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+import foo.bar
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.KeywordStatement(children)
+Bases: \fBPythonBaseNode\fP
+.sp
+For the following statements: \fIassert\fP, \fIdel\fP, \fIglobal\fP, \fInonlocal\fP,
+\fIraise\fP, \fIreturn\fP, \fIyield\fP\&.
+.sp
+\fIpass\fP, \fIcontinue\fP and \fIbreak\fP are not in there, because they are just
+simple keywords and the parser reduces it to a keyword.
+.INDENT 7.0
+.TP
+.B property type
+Keyword statements start with the keyword and end with \fI_stmt\fP\&. You can
+crosscheck this with the Python grammar.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property keyword
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.AssertStmt(children)
+Bases: \fBKeywordStatement\fP
+.INDENT 7.0
+.TP
+.B property assertion
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.GlobalStmt(children)
+Bases: \fBKeywordStatement\fP
+.INDENT 7.0
+.TP
+.B get_global_names()
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.ReturnStmt(children)
+Bases: \fBKeywordStatement\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.YieldExpr(children)
+Bases: \fBPythonBaseNode\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqyield_expr\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.ExprStmt(children)
+Bases: \fBPythonBaseNode\fP, \fBDocstringMixin\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqexpr_stmt\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+Returns a list of \fIName\fP defined before the \fI=\fP sign.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_rhs()
+Returns the right\-hand\-side of the equals.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B yield_operators()
+Returns a generator of \fI+=\fP, \fI=\fP, etc. or None if there is no operation.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.NamedExpr(children)
+Bases: \fBPythonBaseNode\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqnamedexpr_test\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.Param(children, parent=None)
+Bases: \fBPythonBaseNode\fP
+.sp
+It\(aqs a helper class that makes business logic with params much easier. The
+Python grammar defines no \fBparam\fP node. It defines it in a different way
+that is not really suited to working with parameters.
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqparam\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property star_count
+Is \fI0\fP in case of \fIfoo\fP, \fI1\fP in case of \fI*foo\fP or \fI2\fP in case of
+\fI**foo\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property default
+The default is the test node that appears after the \fI=\fP\&. Is \fINone\fP in
+case no default is present.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property annotation
+The default is the test node that appears after \fI:\fP\&. Is \fINone\fP in case
+no annotation is present.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property name
+The \fIName\fP leaf of the param.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property position_index
+Property for the positional index of a paramter.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_parent_function()
+Returns the function/lambda of a parameter.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_code(include_prefix=True, include_comma=True)
+Like all the other get_code functions, but includes the param
+\fIinclude_comma\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBbool\fP (\fIinclude_comma\fP) \-\- If enabled includes the comma in the string output.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.SyncCompFor(children)
+Bases: \fBPythonBaseNode\fP
+.INDENT 7.0
+.TP
+.B type: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> = \(aqsync_comp_for\(aq
+The type is a string that typically matches the types of the grammar file.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_defined_names(include_setitem=False)
+Returns the a list of \fIName\fP that the comprehension defines.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B parso.python.tree.CompFor
+alias of \fBSyncCompFor\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class parso.python.tree.UsedNamesMapping(dct)
+Bases: \fBMapping\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:collections\:.abc\:.html#\:collections\:.abc\:.Mapping>
+.sp
+This class exists for the sole purpose of creating an immutable dict.
+.UNINDENT
+.SS Utility
+.INDENT 0.0
+.TP
+.B parso.tree.search_ancestor(node: NodeOrLeaf \%<#\:parso\:.tree\:.NodeOrLeaf>, *node_types: str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>) -> BaseNode \%<#\:parso\:.tree\:.BaseNode> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>
+Recursively looks at the parents of a node and returns the first found node
+that matches \fBnode_types\fP\&. Returns \fBNone\fP if no matching node is found.
+.sp
+This function is deprecated, use \fBNodeOrLeaf.search_ancestor()\fP instead.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBnode\fP \-\- The ancestors of this node will be checked.
+.IP \(bu 2
+\fBnode_types\fP \-\- type names that are searched for.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Development
+.sp
+If you want to contribute anything to \fIparso\fP, just open an issue or pull
+request to discuss it. We welcome changes! Please check the \fBCONTRIBUTING.md\fP
+file in the repository, first.
+.SS Deprecations Process
+.sp
+The deprecation process is as follows:
+.INDENT 0.0
+.IP 1. 3
+A deprecation is announced in the next major/minor release.
+.IP 2. 3
+We wait either at least a year & at least two minor releases until we remove
+the deprecated functionality.
+.UNINDENT
+.SS Testing
+.sp
+The test suite depends on \fBpytest\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install pytest
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To run the tests use the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pytest
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you want to test only a specific Python version (e.g. Python 3.9), it\(aqs as
+easy as:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+python3.9 \-m pytest
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Tests are also run automatically on GitHub Actions \%<https://\:github\:.com/\:davidhalter/\:parso/\:actions>\&.
+.SH RESOURCES
+.INDENT 0.0
+.IP \(bu 2
+Source Code on Github \%<https://\:github\:.com/\:davidhalter/\:parso>
+.IP \(bu 2
+GitHub Actions Testing \%<https://\:github\:.com/\:davidhalter/\:parso/\:actions>
+.IP \(bu 2
+Python Package Index \%<http://\:pypi\:.python\:.org/\:pypi/\:parso>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+parso contributors
+.SH "حق نشر (COPYRIGHT)"
+parso contributors
+.\" End of generated man page.

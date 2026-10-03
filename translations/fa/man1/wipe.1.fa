@@ -1,0 +1,230 @@
+.TH WIPE 1
+
+.SH "نام (NAME)"
+wipe \- secure file deletion utility
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.B wipe
+
+[\-ucwsiIhfFdDnNvVzZrRtTkKaAeE] [\-B(count)] [\-S(size)] [\-C(size)]
+[\-o[size] \-O] [\-l[0\-2]] [\-x[1\-32] \-X] [\-p(1\-32)] [\-b(0\-255)] [files]
+
+.SH DEFAULT
+.B wipe
+\-ZdNTVEAkO \-S512 \-C4096 \-l1 \-x1 \-p1
+
+.SH "توضیحات (DESCRIPTION)"
+Wipe is a secure file wiping utility. There are some low level issues
+that must be taken into consideration. One of these is that there must
+be some sort of write barrier between passes. Wipe uses fdatasync(2)
+(or fsync(2)) as a write barrier, or if fsync(2) isn't available, the
+file is opened with the O_DSYNC or O_SYNC flag. For wipe to be
+effective, each pass must be completely written. To ensure this, the
+drive must support some form of a write barrier, write cache flush, or
+write cache disabling. SCSI supports ordered command tags, has a force
+media access bit for commands, and write cache can be disable on mode
+page 8. IDE/ATA drives support write cache flushes and write cache
+disabling. Unfortunetly, not all drives actually disable write cache
+when asked to. Those drives are broken. Write caching should always be
+disabled, unless your system is battery backed and always powers down
+cleanly.
+.PP
+Under linux, the mount option "mand" must be used (see
+linux/Documentation/mandatory.txt) for mandatory file locks to be
+enabled. Wipe should make it extremely difficult for all but the most
+determined person(s) to recover the original plaintext data. Utilities
+such as PGP and the GNU Privacy Guard provide strong encryption, but
+encryption is useless if the original plaintext can be recovered. When
+using PGP and GPG, temporary files that are disk-backed should be
+stored on an encrypted file system. That way, the plaintext never hits
+the platters. Wipe is designed for situations where an encrypted file
+system isn't practical.
+.PP
+Wipe uses /dev/urandom, or if unavailable, /dev/random, as a source
+for entropy. The Mersenne Twister PRNG is used for speed. The MT site
+is at:
+.PP
+\fIhttp://www.math.keio.ac.jp/~matumoto/emt.html\fP
+.PP
+For more information on the secure deletion of magnetic media and
+solid state storage devices (such as DRAM) see the USENIX article by
+Peter Gutmann at:
+.PP
+\fIhttp://www.cs.auckland.ac.nz/~pgut001/secure_del.html\fP
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B \-h
+Display help screen. Shows options and what they do.
+.TP
+.B \-u
+usage \- shows options
+.TP
+.B \-c
+shows copywrite information
+.TP
+.B \-w
+shows warranty
+.TP
+.B \-i
+interactive \- prompt whether to remove each file
+explicitly checks file permissions
+.TP
+.B \-I
+disables interaction
+.TP
+.B \-f
+forces file wiping and suppresses permission warnings
+.TP
+.B \-r or \-R
+recursion \- traverse subdirectories
+.TP
+.B \-s
+silent \- disable percent reporting and some warnings
+.TP
+.B \-V
+verbose \- shows percentage if file size is above a certain limit (see
+wipe -h)
+.TP
+.B \-v
+force verbose \- always show percentage
+.TP
+.B \-e and \-E
+on (-e) makes the percentage (only if shown) more accurate by calling
+fdatasync() before each update
+off (-E) will be slightly less accurate, but wipe will only call
+fdatasync() between passes
+.TP
+.B \-d and \-D
+delete (\-d) or keep (\-D) after wiping
+.TP
+.B \-n and \-N
+delete (\-n) or skip (\-N) fifos, sockets, sym links, and char devices
+.TP
+.B \-k and \-K
+lock (\-k) or don't lock (\-K) files during wiping
+.TP
+.B \-z
+zero-out file \- performs a single pass of zeros
+.TP
+.B \-Z
+perform normal passes \- overrides \-z
+.TP
+.B \-t and \-T
+enable (\-t) or disable (\-T) static passes
+.TP
+.B \-a and \-A
+write until out of space (\-a) or don't (\-A)
+.TP
+.B \-o and \-O
+write [size] to stdout (\-o) or use files (\-O)
+
+Since wipe does not have specific support for char devs, like it does
+for block devs, this is the preferred method of wiping them, such as
+tape drives; eg, wipe \-za -o | buffer > /dev/nst0
+It can also be used for block devs; eg wipe \-To | dd count=size of=blkdev
+
+You can also use this to create files containing pseudo-random output
+from the MT PRNG; eg, wipe \-To10240 -x1 > prand
+
+For static passes, you must specify a stdout length.
+.TP
+.B \-B
+override block device sector count
+.TP
+.B \-S
+override block device sector size
+.TP
+.B \-C
+chunk size - the maximum file buffer size
+.TP
+.B \-l
+sets generic security level
+
+level 0, the PRNG is only seeded once
+
+level 1, the PRNG is seeded once per file
+
+level 2, the PRNG is seeded once per random pass
+.TP
+.B \-x
+enables random passes and optionally, how many random passes to
+perform \- note that this option now sets the number of random passes
+per wipe loop \- in other words, the total number of random passes
+will be random passes * wipe loops (\-p)
+.TP
+.B \-X
+disable random passes
+.TP
+.B \-p
+loop passes \- perform wipe sequence x times, including random passes
+.TP
+.B \-b
+custom byte \- overwrite once with a specific byte
+
+.SH "فایل‌ها (FILES)"
+.TP
+.B /dev/urandom
+Wipe uses this character device for a source of entropy
+.TP
+.B /dev/random
+Wipe falls back to using this if /dev/urandom is not available
+
+.SH "عیب‌یابی (DIAGNOSTICS)"
+If an error occurs, the exit code will be the errno value. An exit
+code of 2 indicates bad usage.
+
+.SH "اشکالات (BUGS)"
+Wipe does not work on log structured file systems, or any other type
+of file system or block device that reallocates sectors on write.
+
+Some programs are vulnerable to symlink races. To avoid this problem
+with wipe, only wipe files in directories that are not writable by
+untrusted users.
+
+.SH "نکات (NOTES)"
+.B Tapes and other sequential access devices
+
+Choose an appropriate buffer size to match the logic or physical block
+size of the device. When using the pattern passes, you should disable
+compression on the drive, and it's generally best to so for other
+passes as well.
+
+For VXA drives, I used mt-st under linux to set the block size to 0
+(variable) and turn off compression, and I run wipe with a 64k block
+size, to match the on-tape format''s native block size.
+
+.B Example:
+
+mt-st setblk 0
+
+mt-st compression 0
+
+wipe -C64 /dev/st0
+
+.SH ALTERNATIVES
+.P
+
+.B Other file wiping utilities:
+
+Another "wipe" by Berke Durak <\fIdurakb@crit2.univ-montp2.fr\fP>
+
+Colin Plumb's <\fIcolin@nyx.net\fP> sterilize.
+
+Todd Burgess's <\fItburgess@eddie.cis.uoguelph.ca\fP> srm is available on sunsite/metalab in
+
+\fIftp://metalab.unc.edu/pub/Linux/system/filesystems/\fP
+
+.SH "همچنین ببینید (SEE ALSO)"
+/usr/doc/wipe/README
+
+.SH "نویسندگان (AUTHORS)"
+.P
+Wipe
+.br
+Copyright (C) 1998-2009 Thomas M. Vier, Jr. <\fInester@users.sf.net\fP>
+
+Mersenne Twister PRNG module
+.br
+Copyright (C) 1997 Makoto Matsumoto and Takuji Nishimura
+

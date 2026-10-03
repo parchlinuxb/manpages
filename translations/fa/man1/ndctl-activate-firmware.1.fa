@@ -1,0 +1,187 @@
+'\" t
+.\"     Title: ndctl-activate-firmware
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-06-30
+.\"    Manual: ndctl Manual
+.\"    Source: ndctl
+.\"  Language: English
+.\"
+.TH "NDCTL\-ACTIVATE\-FIRMWARE" "1" "2026-06-30" "ndctl" "ndctl Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+ndctl-activate-firmware \- activate staged firmware on memory devices
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.nf
+\fIndctl activate\-firmware\fP [<bus\-id> <bus\-id2> .\|.\|. <bus\-idN>] [<options>]
+.fi
+.br
+.sp
+Some persistent memory devices run a firmware locally on the device /
+"DIMM" to perform tasks like media management, capacity provisioning,
+and health monitoring. The process of updating that firmware typically
+involves a reboot because it has implications for in\-flight memory
+transactions. However, reboots can be costly for systems that can not
+tolerate extended downtime.
+.sp
+The kernel detects platforms that expose support for
+runtime\-firmware\-activation (FWA). The \fIndctl update\-firmware\fP stages
+new firmware binaries, but if the platform supports FWA it will
+additionally arm the devices for activation. Then \fIndctl
+activate\-firmware\fP may attempt to activate the firmware live. However,
+if the platform indicates that the memory controller will be taken
+off\-line for the duration of the update "activate_method == suspend"
+then the default policy for firmware activation is to inject a truncated
+hibernate cycle to freeze devices and applications before the hard
+quiesce is injected by the platform, and then resume the system.
+.sp
+\fBDANGER\fP the activate\-firmware command includes a \-\-force option to tell
+the driver bypass the hibernation cycle and perform the update "live".
+I.e. it arranges for applications and devices to race the platform
+injected quiesce period. This option should only be used explicit
+knowledge that the platform quiesce time will not trigger completion
+timeout violations for any devices in the system.
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Check for any buses that support activation without triggering an
+activation:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# ndctl activate\-firmware all \-\-dry\-run
+ACPI.NFIT: ndbus1: has no devices that support firmware update.
+nfit_test.1: ndbus3: has no devices that support firmware update.
+e820: ndbus0: has no devices that support firmware update.
+[
+  {
+    "provider":"nfit_test.0",
+    "dev":"ndbus1",
+    "scrub_state":"idle",
+    "firmware":{
+      "activate_method":"suspend",
+      "activate_state":"idle"
+    },
+    "dimms":[
+      {
+\&...
+.fam
+.fi
+.if n .RE
+.sp
+Check that a specific bus supports activation without performing an activation:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# ndctl activate\-firmware nfit_test.0 \-\-dry\-run \-\-force
+[
+  {
+    "provider":"nfit_test.0",
+    "dev":"ndbus2",
+    "scrub_state":"idle",
+    "firmware":{
+      "activate_method":"suspend",
+      "activate_state":"idle"
+    },
+    "dimms":[
+\&...
+]
+.fam
+.fi
+.if n .RE
+.sp
+The result is equivalent to \fIndctl list \-BFDu\fP upon successful
+activation.
+.sp
+The \fIndctl list\fP command can also enumerate the default activation
+method:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# ndctl list \-b nfit_test.0 \-BF
+[
+  {
+    "provider":"nfit_test.0",
+    "dev":"ndbus2",
+    "scrub_state":"idle",
+    "firmware":{
+      "activate_method":"suspend",
+      "activate_state":"idle"
+    }
+  }
+]
+.fam
+.fi
+.if n .RE
+.SH "گزینه‌ها (OPTIONS)"
+.sp
+\-n, \-\-dry\-run
+.RS 4
+Perform all actions related to activation including honoring
+\-\-idle and \-\-force, but skip the final execution of the
+activation. The overrides are undone before the command
+completes. Any failed overrides will be reported as error
+messages.
+.RE
+.sp
+\-I, \-\-idle
+.RS 4
+Implied by default, this option controls whether the platform
+will attempt to increase the completion timeout of all devices
+in the system and validate that the max completion timeout
+satisfies the time needed to perform the activation. This
+validation step can be overridden by specifying \-\-no\-idle.
+.RE
+.sp
+\-f, \-\-force
+.RS 4
+The activation method defaults to the reported
+"bus.firmware.activate_method" property. When the method is
+"live" then this \-\-force option is ignored. When the method is
+"reset" no runtime activation is attempted. When the method is
+"suspend" this option indicates to the driver to bypass the
+hibernate cycle to activate firmware.  in the bus When the
+reported "activate_method" is "suspend" the kernel driver may
+support overriding the suspend requirement and instead issue the
+firmware\-activation live. \fBCAUTION\fP this may lead to undefined
+system behavior if device completion timeouts are violated for
+in\-flight memory operations.
+.RE
+.sp
+\-v, \-\-verbose
+.RS 4
+Emit debug messages for the firmware activation procedure
+.RE
+.SH "حق نشر (COPYRIGHT)"
+.sp
+Copyright \(co 2016 \- 2022, Intel Corporation. License GPLv2: GNU GPL
+version 2 \c
+.URL "http://gnu.org/licenses/gpl.html" "" "."
+This is free software:
+you are free to change and redistribute it.  There is NO WARRANTY, to
+the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+ndctl\-update\-firmware(1),
+.URL "https://pmem.io/documents/IntelOptanePMem_DSM_Interface\-V2.0.pdf" "Intel Optane PMem DSM Interface" ""

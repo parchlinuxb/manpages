@@ -1,0 +1,913 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "TASKLIB" "1" "Dec 14, 2025" "2.5.1" "tasklib"
+.SH "نام (NAME)"
+tasklib \- tasklib Documentation
+.sp
+tasklib is a Python library for interacting with taskwarrior \%<http://\:taskwarrior\:.org> databases, using
+a queryset API similar to that of Django\(aqs ORM.
+.sp
+Supports Python 3.5 and above, with taskwarrior 2.4.x and above.
+Older versions of taskwarrior are untested and may not work.
+.SH REQUIREMENTS
+.INDENT 0.0
+.IP \(bu 2
+taskwarrior \%<http://\:taskwarrior\:.org> v2.4.x or above, although newest minor release is recommended.
+.UNINDENT
+.SH INSTALLATION
+.sp
+Install via pip (recommended):
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install tasklib
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Or clone from github:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+git clone https://github.com/robgolding/tasklib.git
+cd tasklib
+python setup.py install
+.EE
+.UNINDENT
+.UNINDENT
+.SH INITIALIZATION
+.sp
+Optionally initialize the \fBTaskWarrior\fP instance with \fBdata_location\fP (the
+database directory). If it doesn\(aqt already exist, this will be created
+automatically unless \fBcreate=False\fP\&.
+.sp
+The default location is the same as taskwarrior\(aqs:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw = TaskWarrior(data_location=\(aq~/.task\(aq, create=True)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBTaskWarrior\fP instance will also use your .taskrc configuration (so that
+it recognizes the same UDAs as your task binary, uses the same configuration,
+etc.). To override the location of the .taskrc, use
+\fBtaskrc_location=~/some/different/path\fP\&.
+.SH CREATING TASKS
+.sp
+To create a task, simply create a new \fBTask\fP object:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> new_task = Task(tw, description=\(dqthrow out the trash\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This task is not yet saved to TaskWarrior (same as in Django), not until
+you call \fB\&.save()\fP method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> new_task.save()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You can set any attribute as a keyword argument to the Task object:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> complex_task = Task(tw, description=\(dqfinally fix the shower\(dq, due=datetime(2015,2,14,8,0,0), priority=\(aqH\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+or by setting the attributes one by one:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> complex_task = Task(tw)
+>>> complex_task[\(aqdescription\(aq] = \(dqfinally fix the shower\(dq
+>>> complex_task[\(aqdue\(aq] = datetime(2015,2,14,8,0,0)
+>>> complex_task[\(aqpriority\(aq] = \(aqH\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.SH MODIFYING TASK
+.sp
+To modify a created or retrieved \fBTask\fP object, use dictionary\-like access:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> homework = tw.tasks.get(tags=[\(aqchores\(aq])
+>>> homework[\(aqproject\(aq] = \(aqHome\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The change is not propagated to the TaskWarrior until you run the \fBsave()\fP method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> homework.save()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Attributes, which map to native Python objects are converted. See Task Attributes section.
+.SH TASK ATTRIBUTES
+.sp
+Attributes of task objects are accessible through indices, like so:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task = tw.tasks.pending().get(tags__contain=\(aqwork\(aq)  # There is only one pending task with \(aqwork\(aq tag
+>>> task[\(aqdescription\(aq]
+\(aqUpgrade Ubuntu Server\(aq
+>>> task[\(aqid\(aq]
+15
+>>> task[\(aqdue\(aq]
+datetime.datetime(2015, 2, 5, 0, 0, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CET+1:00:00 STD>)
+>>> task[\(aqtags\(aq]
+[\(aqwork\(aq, \(aqservers\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The following fields are deserialized into Python objects:
+.INDENT 0.0
+.IP \(bu 2
+\fBdue\fP, \fBwait\fP, \fBscheduled\fP, \fBuntil\fP, \fBentry\fP: deserialized to a \fBdatetime\fP object
+.IP \(bu 2
+\fBannotations\fP: deserialized to a list of \fBTaskAnnotation\fP objects
+.IP \(bu 2
+\fBtags\fP: deserialized to a list of strings
+.IP \(bu 2
+\fBdepends\fP: deserialized to a set of \fBTask\fP objects
+.UNINDENT
+.sp
+Attributes should be set using the correct Python representation, which will be
+serialized into the correct format when the task is saved.
+.SH TASK PROPERTIES
+.sp
+Tasklib defines several properties upon \fBTask\fP object, for convenience:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> t.save()
+>>> t.saved
+True
+>>> t.pending
+True
+>>> t.active
+False
+>>> t.start()
+>>> t.active
+True
+>>> t.done()
+>>> t.completed
+True
+>>> t.pending
+False
+>>> t.delete()
+>>> t.deleted
+True
+.EE
+.UNINDENT
+.UNINDENT
+.SH OPERATIONS ON TASKS
+.sp
+After modifying one or more attributes, simple call \fBsave()\fP to write those
+changes to the database:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task = tw.tasks.pending().get(tags__contain=\(aqwork\(aq)
+>>> task[\(aqdue\(aq] = datetime(year=2014, month=1, day=5)
+>>> task.save()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To mark a task as complete, use \fBdone()\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task = tw.tasks.pending().get(tags__contain=\(aqwork\(aq)
+>>> task.done()
+>>> len(tw.tasks.pending().filter(tags__contain=\(aqwork\(aq))
+0
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To delete a task, use \fBdelete()\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task = tw.tasks.get(description=\(dqtask added by mistake\(dq)
+>>> task.delete()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To update a task object with values from TaskWarrior database, use \fBrefresh()\fP\&. Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task = Task(tw, description=\(dqlearn to cook\(dq)
+>>> task.save()
+>>> task[\(aqid\(aq]
+5
+>>> task[\(aqtags\(aq]
+[]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Now, suppose the we modify the task using the TaskWarrior interface in another terminal:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ task 5 modify +someday
+Task 5 modified.
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Switching back to the open python process:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task[\(aqtags\(aq]
+[]
+>>> task.refresh()
+>>> task[\(aqtags\(aq]
+[\(aqsomeday\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Tasks can also be started and stopped. Use \fBstart()\fP and \fBstop()\fP
+respectively:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task.start()
+>>> task[\(aqstart\(aq]
+datetime.datetime(2015, 7, 16, 18, 48, 28, tzinfo=<DstTzInfo \(aqEurope/Prague\(aq CEST+2:00:00 DST>)
+>>> task.stop()
+>>> task[\(aqstart\(aq]
+>>> task.done()
+>>> task[\(aqend\(aq]
+datetime.datetime(2015, 7, 16, 18, 49, 2, tzinfo=<DstTzInfo \(aqEurope/Prague\(aq CEST+2:00:00 DST>)
+.EE
+.UNINDENT
+.UNINDENT
+.SH RETRIEVING TASKS
+.sp
+\fBtw.tasks\fP is a \fBTaskQuerySet\fP object which emulates the Django QuerySet
+API. To get all tasks (including completed ones):
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.all()
+[\(aqFirst task\(aq, \(aqCompleted task\(aq, \(aqDeleted task\(aq, ...]
+.EE
+.UNINDENT
+.UNINDENT
+.SH FILTERING
+.sp
+Filter tasks using the same familiar syntax:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.filter(status=\(aqpending\(aq, tags__contains=[\(aqwork\(aq])
+[\(aqUpgrade Ubuntu Server\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Filter arguments are passed to the \fBtask\fP command (\fB__\fP is replaced by
+a period) so the above example is equivalent to the following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ task status:pending tags.contain=work
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Tasks can also be filtered using raw commands, like so:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.filter(\(aqstatus:pending +work\(aq)
+[\(aqUpgrade Ubuntu Server\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Although this practice is discouraged, as by using raw commands you may lose
+some of the portability of your commands over different TaskWarrior versions.
+.sp
+However, you can mix raw commands with keyword filters, as in the given example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.filter(\(aq+BLOCKING\(aq, project=\(aqHome\(aq)  # Gets all blocking tasks in project Home
+[\(aqFix the toilette\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This can be a neat way how to use syntax not yet supported by tasklib. The above
+is excellent example, since virtual tags do not work the same way as the ordinary ones, that is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.filter(tags=[\(aqBLOCKING\(aq])
+>>> []
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+will not work.
+.sp
+There are built\-in functions for retrieving pending & completed tasks:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.pending().filter(tags__contain=\(aqwork\(aq)
+[\(aqUpgrade Ubuntu Server\(aq]
+>>> len(tw.tasks.completed())
+227
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \fBget()\fP to return the only task in a \fBTaskQuerySet\fP, or raise an
+exception:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.get(tags__contain=\(aqwork\(aq)[\(aqstatus\(aq]
+\(aqpending\(aq
+>>> tw.tasks.get(status=\(aqcompleted\(aq, tags__contains=\(aqwork\(aq)  # Status of only task with the work tag is pending, so this should fail
+Traceback (most recent call last):
+  File \(dq<stdin>\(dq, line 1, in <module>
+  File \(dqtasklib/task.py\(dq, line 224, in get
+    \(aqLookup parameters were {0}\(aq.format(kwargs))
+tasklib.task.DoesNotExist: Task matching query does not exist. Lookup parameters were {\(aqstatus\(aq: \(aqcompleted\(aq, \(aqtags__contains\(aq: [\(aqwork\(aq]}
+>>> tw.tasks.get(status=\(aqpending\(aq)
+Traceback (most recent call last):
+  File \(dq<stdin>\(dq, line 1, in <module>
+  File \(dqtasklib/task.py\(dq, line 227, in get
+    \(aqLookup parameters were {1}\(aq.format(num, kwargs))
+ValueError: get() returned more than one Task \-\- it returned 23! Lookup parameters were {\(aqstatus\(aq: \(aqpending\(aq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Additionally, since filters return \fBTaskQuerySets\fP you can stack filters on top of each other:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> home_tasks = tw.tasks.filter(project=\(aqWife\(aq)
+>>> home_tasks.filter(due__before=datetime(2015,2,14,14,14,14))  # What I have to do until Valentine\(aqs day
+[\(aqPrepare surprise birthday party\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.SH EQUALITY OF TASK OBJECTS
+.sp
+Two Tasks are considered equal if they have the same UUIDs:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task1 = Task(tw, description=\(dqPet the dog\(dq)
+>>> task1.save()
+>>> task2 = tw.tasks.get(description=\(dqPet the dog\(dq)
+>>> task1 == task2
+True
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you compare the two unsaved tasks, they are considered equal only if it\(aqs the
+same Python object:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task1 = Task(tw, description=\(dqPet the cat\(dq)
+>>> task2 = Task(tw, description=\(dqPet the cat\(dq)
+>>> task1 == task2
+False
+>>> task3 = task1
+>>> task3 == task1
+True
+.EE
+.UNINDENT
+.UNINDENT
+.SH ACCESSING ORIGINAL VALUES
+.sp
+To access the saved state of the Task, use dict\-like access using the
+\fBoriginal\fP attribute:
+.sp
+.EX
+>>> t = Task(tw, description=\(dqtidy up\(dq)
+>>> t.save()
+>>> t[\(aqdescription\(aq] = \(dqtidy up the kitchen and bathroom\(dq
+>>> t[\(aqdescription\(aq]
+\(dqtidy up the kitchen and bathroom\(dq
+>>> t.original[\(aqdescription\(aq]
+\(dqtidy up\(dq
+.EE
+.sp
+When you save the task, original values are refreshed to reflect the
+saved state of the task:
+.sp
+.EX
+>>> t.save()
+>>> t.original[\(aqdescription\(aq]
+\(dqtidy up the kitchen and bathroom\(dq
+.EE
+.SH DEALING WITH DATES AND TIME
+.sp
+Any timestamp\-like attributes of the tasks are converted to timezone\-aware
+datetime objects. To achieve this, Tasklib leverages \fBzoneinfo\fP Python module,
+which brings the Olsen timezone database to Python.
+.sp
+This shields you from annoying details of Daylight Saving Time shifts
+or conversion between different timezones. For example, to list all the
+tasks which are due midnight if you\(aqre currently in Berlin:
+.sp
+.EX
+>>> myzone = zoneinfo.ZoneInfo(\(aqEurope/Berlin\(aq)
+>>> midnight = datetime(2015,2,2,0,0,0,tzinfo=myzone)
+>>> tw.tasks.filter(due__before=midnight)
+.EE
+.sp
+However, this is still a little bit tedious. That\(aqs why TaskWarrior object
+is capable of automatic timezone detection, using the \fBtzlocal\fP Python
+module. If your system timezone is set to \(aqEurope/Berlin\(aq, following example
+will work the same way as the previous one:
+.sp
+.EX
+>>> tw.tasks.filter(due__before=datetime(2015,2,2,0,0,0))
+.EE
+.sp
+You can also use simple dates when filtering:
+.sp
+.EX
+>>> tw.tasks.filter(due__before=date(2015,2,2))
+.EE
+.sp
+In such case, a 00:00:00 is used as the time component.
+.sp
+Of course, you can use datetime naive objects when initializing Task object
+or assigning values to datetime attributes:
+.sp
+.EX
+>>> t = Task(tw, description=\(dqBuy new shoes\(dq, due=date(2015,2,5))
+>>> t[\(aqdue\(aq]
+datetime.datetime(2015, 2, 5, 0, 0, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CET+1:00:00 STD>)
+>>> t[\(aqdue\(aq] = date(2015,2,6,15,15,15)
+>>> t[\(aqdue\(aq]
+datetime.datetime(2015, 2, 6, 15, 15, 15, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CET+1:00:00 STD>)
+.EE
+.sp
+However, since timezone\-aware and timezone\-naive datetimes are not comparable
+in Python, this can cause some unexpected behaviour:
+.sp
+.EX
+>>> from datetime import datetime
+>>> now = datetime.now()
+>>> t = Task(tw, description=\(dqtake out the trash now\(dq)
+>>> t[\(aqdue\(aq] = now
+>>> now
+datetime.datetime(2015, 2, 1, 19, 44, 4, 770001)
+>>> t[\(aqdue\(aq]
+datetime.datetime(2015, 2, 1, 19, 44, 4, 770001, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CET+1:00:00 STD>)
+>>> t[\(aqdue\(aq] == now
+Traceback (most recent call last):
+  File \(dq<stdin>\(dq, line 1, in <module>
+  TypeError: can\(aqt compare offset\-naive and offset\-aware datetimes
+.EE
+.sp
+If you want to compare datetime aware value with datetime naive value, you need
+to localize the naive value first:
+.sp
+.EX
+>>> from datetime import datetime
+>>> now = datetime.now().astimezone()
+>>> t[\(aqdue\(aq] = now
+>>> now
+datetime.datetime(2015, 2, 1, 19, 44, 4, 770001, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CET+1:00:00 STD>)
+>>> t[\(aqdue\(aq] == now
+True
+.EE
+.sp
+Also, note that it does not matter whether the timezone aware datetime objects
+are set in the same timezone:
+.sp
+.EX
+>>> import zoneinfo
+>>> t[\(aqdue\(aq]
+datetime.datetime(2015, 2, 1, 19, 44, 4, 770001, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CET+1:00:00 STD>)
+>>> now.astimezone(zoneinfo.ZoneInfo(\(aqUTC\(aq))
+datetime.datetime(2015, 2, 1, 18, 44, 4, 770001, tzinfo=<UTC>)
+>>> t[\(aqdue\(aq] == now.astimezone(zoneinfo.ZoneInfo(\(aqUTC\(aq))
+True
+.EE
+.sp
+\fINote\fP: Following behaviour is available only for TaskWarrior >= 2.4.0.
+.sp
+There is a third approach to setting up date time values, which leverages
+the \(aqtask calc\(aq command. You can simply set any datetime attribute to
+any string that contains an acceptable TaskWarrior\-formatted time expression:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ task calc now + 1d
+2015\-07\-17T21:17:54
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This syntax can be leveraged in the python interpreter as follows:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> t[\(aqdue\(aq] = \(dqnow + 1d\(dq
+>>> t[\(aqdue\(aq]
+datetime.datetime(2015, 7, 17, 21, 19, 31, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CEST+2:00:00 DST>)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+It can be easily seen that the string with TaskWarrior\-formatted time expression
+is automatically converted to native datetime in the local time zone.
+.sp
+For the list of acceptable formats and keywords, please consult:
+.INDENT 0.0
+.IP \(bu 2
+\%<http://\:taskwarrior\:.org/\:docs/\:dates\:.html>
+.IP \(bu 2
+\%<http://\:taskwarrior\:.org/\:docs/\:named_dates\:.html>
+.UNINDENT
+.sp
+However, as each such assignment involves call to \(aqtask calc\(aq for conversion,
+it might cause some performance issues when assigning strings to datetime
+attributes repeatedly, in a automated manner.
+.SH WORKING WITH ANNOTATIONS
+.sp
+Annotations of the tasks are represented in tasklib by \fBTaskAnnotation\fP objects. These
+are much like \fBTask\fP objects, albeit very simplified.
+.sp
+.EX
+>>> annotated_task = tw.tasks.get(description=\(aqAnnotated task\(aq)
+>>> annotated_task[\(aqannotations\(aq]
+[Yeah, I am annotated!]
+.EE
+.sp
+Annotations have only defined \fBentry\fP and \fBdescription\fP values:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> annotation = annotated_task[\(aqannotations\(aq][0]
+>>> annotation[\(aqentry\(aq]
+datetime.datetime(2015, 1, 3, 21, 13, 55, tzinfo=<DstTzInfo \(aqEurope/Berlin\(aq CET+1:00:00 STD>)
+>>> annotation[\(aqdescription\(aq]
+u\(aqYeah, I am annotated!\(aq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To add a annotation to a Task, use \fBadd_annotation()\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task = Task(tw, description=\(dqnew task\(dq)
+>>> task.add_annotation(\(dqwe can annotate any task\(dq)
+Traceback (most recent call last):
+  File \(dq<stdin>\(dq, line 1, in <module>
+    File \(dqbuild/bdist.linux\-x86_64/egg/tasklib/task.py\(dq, line 355, in add_annotation
+tasklib.task.NotSaved: Task needs to be saved to add annotation
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+However, Task needs to be saved before you can add a annotation to it:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task.save()
+>>> task.add_annotation(\(dqwe can annotate saved tasks\(dq)
+>>> task[\(aqannotations\(aq]
+[we can annotate saved tasks]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To remove the annotation, pass its description to \fBremove_annotation()\fP method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task.remove_annotation(\(dqwe can annotate saved tasks\(dq)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Alternatively, you can pass the \fBTaskAnnotation\fP object itself:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> task.remove_annotation(task[\(aqannotations\(aq][0])
+.EE
+.UNINDENT
+.UNINDENT
+.SH RUNNING CUSTOM COMMANDS
+.sp
+To run a custom commands, use \fBexecute_command()\fP method of \fBTaskWarrior\fP object:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw = TaskWarrior()
+>>> tw.execute_command([\(aqlog\(aq, \(aqFinish high school.\(aq])
+[u\(aqLogged task.\(aq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You can use \fBconfig_override\fP keyword argument to specify a dictionary of configuration overrides:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.execute_command([\(aq3\(aq, \(aqdone\(aq], config_override={\(aqgc\(aq: \(aqoff\(aq}) # Will mark 3 as completed and it will retain its ID
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Additionally, you can use \fBreturn_all=True\fP flag, which returns
+\fB(stdout, sterr, return_code)\fP triplet, and \fBallow_failure=False\fP, which will
+prevent tasklib from raising an exception if the task binary returned non\-zero
+return code:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.execute_command([\(aqinvalidcommand\(aq], allow_failure=False, return_all=True)
+([u\(aq\(aq],
+ [u\(aqUsing alternate .taskrc file /home/tbabej/.taskrc\(aq,
+  u\(dq[task next rc:/home/tbabej/.taskrc rc.recurrence.confirmation=no rc.json.array=off rc.confirmation=no rc.bulk=0 rc.dependency.confirmation=no description ~ \(aqinvalidcommand\(aq]\(dq,
+  u\(aqConfiguration override rc.recurrence.confirmation:no\(aq,
+  u\(aqConfiguration override rc.json.array:off\(aq,
+  u\(aqConfiguration override rc.confirmation:no\(aq,
+  u\(aqConfiguration override rc.bulk:0\(aq,
+  u\(aqConfiguration override rc.dependency.confirmation:no\(aq,
+  u\(aqNo matches.\(aq,
+  u\(aqThere are local changes.  Sync required.\(aq],
+ 1)
+.EE
+.UNINDENT
+.UNINDENT
+.SH SETTING CUSTOM CONFIGURATION VALUES
+.sp
+By default, TaskWarrior uses configuration values stored in your .taskrc.
+To see what configuration value overrides are passed to each executed
+task command, have a peek into \fBoverrides\fP attribute of \fBTaskWarrior\fP object:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.overrides
+{\(aqconfirmation\(aq: \(aqno\(aq, \(aqdata.location\(aq: \(aq/home/tbabej/.task\(aq}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To pass your own configuration overrides, you just need to update this dictionary:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.overrides.update({\(aqhooks\(aq: \(aqoff\(aq})  # tasklib will not trigger hooks
+.EE
+.UNINDENT
+.UNINDENT
+.SH CREATING HOOK SCRIPTS
+.sp
+From version 2.4.0, TaskWarrior has support for hook scripts. Tasklib provides
+some very useful helpers to write those. With tasklib, writing these becomes
+a breeze:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+#!/usr/bin/python
+
+from tasklib.task import Task
+task = Task.from_input()
+# ... <custom logic>
+print task.export_data()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For example, plugin which would assign the priority \(dqH\(dq to any task containing
+three exclamation marks in the description, would go like this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+#!/usr/bin/python
+
+from tasklib.task import Task
+task = Task.from_input()
+
+if \(dq!!!\(dq in task[\(aqdescription\(aq]:
+    task[\(aqpriority\(aq] = \(dqH\(dq
+
+print task.export_data()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Tasklib can automatically detect whether it\(aqs running in the \fBon\-modify\fP event,
+which provides more input than \fBon\-add\fP event and reads the data accordingly.
+.sp
+This means the example above works both for \fBon\-add\fP and \fBon\-modify\fP events!
+.sp
+Consenquently, you can create just one hook file for both \fBon\-add\fP and
+\fBon\-modify\fP events, and you just need to create a symlink for the other one.
+This removes the need for maintaining two copies of the same code base and/or
+boilerplate code.
+.sp
+In \fBon\-modify\fP events, tasklib loads both the original version and the modified
+version of the task to the returned \fBTask\fP object. To access the original data
+(in read\-only manner), use \fBoriginal\fP dict\-like attribute:
+.sp
+.EX
+>>> t = Task.from_input()
+>>> t[\(aqdescription\(aq]
+\(dqModified description\(dq
+>>> t.original[\(aqdescription\(aq]
+\(dqOriginal description\(dq
+.EE
+.SH WORKING WITH UDAS
+.sp
+Since TaskWarrior does read your .taskrc, you need not to define any UDAs
+in the TaskWarrior\(aqs config dictionary, as described above. Suppose we have
+a estimate UDA in the .taskrc:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+uda.estimate.type = numeric
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+We can simply filter and create tasks using the estimate UDA out of the box:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw = TaskWarrior()
+>>> task = Task(tw, description=\(dqLong task\(dq, estimate=1000)
+>>> task.save()
+>>> task[\(aqid\(aq]
+1
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This is saved as UDA in the TaskWarrior:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ task 1 export
+{\(dqid\(dq:1,\(dqdescription\(dq:\(dqLong task\(dq,\(dqestimate\(dq:1000, ...}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+We can also speficy UDAs as arguments in the TaskFilter:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw.tasks.filter(estimate=1000)
+Long task
+.EE
+.UNINDENT
+.UNINDENT
+.SH SYNCING
+.sp
+If you have configured the required configuration variables in your .taskrc,
+syncing is as easy as:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw = TaskWarrior()
+>>> tw.execute_command([\(aqsync\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you want to use non\-standard server/credentials, you\(aqll need to provide configuration
+overrides to the \fBTaskWarrior\fP instance. Update the \fBconfig\fP dictionary with the
+values you desire to override, and then we can run the sync command using
+the \fBexecute_command()\fP method:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+>>> tw = TaskWarrior()
+>>> sync_config = {
+\&...     \(aqtaskd.certificate\(aq: \(aq/home/tbabej/.task/tbabej.cert.pem\(aq,
+\&...     \(aqtaskd.credentials\(aq: \(aqPublic/tbabej/34af54de\-3cb2\-4d3d\-82be\-33ddb8fd3e66\(aq,
+\&...     \(aqtaskd.server\(aq: \(aqtask.server.com:53589\(aq,
+\&...     \(aqtaskd.ca\(aq: \(aq/home/tbabej/.task/ca.cert.pem\(aq,
+\&...     \(aqtaskd.trust\(aq: \(aqignore hostname\(aq}
+>>> tw.config.update(sync_config)
+>>> tw.execute_command([\(aqsync\(aq])
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Rob Golding
+.SH "حق نشر (COPYRIGHT)"
+2014 - 2021, Rob Golding & Gothenburg Bit Factory
+.\" End of generated man page.

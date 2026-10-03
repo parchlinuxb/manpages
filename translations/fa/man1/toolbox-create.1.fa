@@ -1,0 +1,150 @@
+.nh
+.TH toolbox-create 1
+.SH "نام (NAME)"
+toolbox-create \- Create a new Toolbx container
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBtoolbox create\fP [\fI--authfile FILE\fP]
+               [\fI--distro DISTRO\fP | \fI-d DISTRO\fP]
+               [\fI--image NAME\fP | \fI-i NAME\fP]
+               [\fI--release RELEASE\fP | \fI-r RELEASE\fP]
+               [\fICONTAINER\fP]
+
+.SH "توضیحات (DESCRIPTION)"
+Creates a new Toolbx container. You can then use the \fBtoolbox enter\fR command
+to interact with the container at any point.
+
+.PP
+A Toolbx container is an OCI container created from an OCI image. On Fedora,
+the default image is known as \fBfedora-toolbox:N\fR, where N is the release of
+the host. If the image is not present locally, then it is pulled from a
+well-known registry like \fBregistry.fedoraproject.org\fR\&. Other images may be
+used on other host operating systems. If the host is not recognized, then the
+Fedora image will be used.
+
+.PP
+The container is created with \fBpodman create\fR, and its entry point is set to
+\fBtoolbox init-container\fR\&.
+
+.PP
+By default, a Toolbx container is named after its corresponding image. If the
+image had a tag, then the tag is included in the name of the container, but
+it's separated by a hyphen, not a colon. A different name can be assigned by
+using the CONTAINER argument.
+
+.SS Container Configuration
+A Toolbx container seamlessly integrates with the rest of the operating
+system by providing access to the user's home directory, the Wayland and X11
+sockets, networking (including Avahi), removable devices (like USB sticks),
+systemd journal, SSH agent, D-Bus, ulimits, /dev and the udev database, etc..
+
+.PP
+The user ID and account details from the host is propagated into the Toolbx
+container, SELinux label separation is disabled, and the host file system can
+be accessed by the container at /run/host. The container has access to the
+host's Kerberos credentials cache if it's configured to use KCM caches.
+
+.PP
+A Toolbx container can be identified by the \fBcom.github.containers.toolbox\fR
+label or the \fB/run/.toolboxenv\fR file.
+
+.PP
+The entry point of a Toolbx container is the \fBtoolbox init-container\fR command
+which plays a role in setting up the container, along with the options passed
+to \fBpodman create\fR\&.
+
+.SS Entry Point
+A key feature of Toolbx containers is their entry point, the \fBtoolbox
+init-container\fR command.
+
+.PP
+OCI containers are inherently immutable. Configuration options passed through
+\fBpodman create\fR are baked into the definition of the OCI container, and can't
+be changed later. This means that changes and improvements made in newer
+versions of Toolbx can't be applied to pre-existing Toolbx containers
+created by older versions of Toolbx. This is avoided by using the entry point
+to configure the container at runtime.
+
+.PP
+The entry point of a Toolbx container customizes the container to fit the
+current user by ensuring that it has a user that matches the one on the host,
+and grants it \fBsudo\fR and \fBroot\fR access.
+
+.PP
+Crucial configuration files, such as \fB/etc/host.conf\fR, \fB/etc/hosts\fR,
+\fB/etc/localtime\fR, \fB/etc/resolv.conf\fR and \fB/etc/timezone\fR, inside the container
+are kept synchronized with the host. The entry point also bind mounts various
+subsets of the host's file system hierarchy to their corresponding locations
+inside the container to provide seamless integration with the host. This
+includes \fB/run/libvirt\fR, \fB/run/systemd/journal\fR, \fB/run/udev/data\fR,
+\fB/var/lib/libvirt\fR, \fB/var/lib/systemd/coredump\fR, \fB/var/log/journal\fR and others.
+
+.PP
+On some host operating systems, important paths like \fB/home\fR, \fB/media\fR or
+\fB/mnt\fR are symbolic links to other locations. The entry point ensures that
+paths inside the container match those on the host, to avoid needless
+confusion.
+
+.SH "گزینه‌ها (OPTIONS)"
+\fB--authfile\fP FILE
+
+.PP
+Path to a FILE with credentials for authenticating to the registry for private
+images. The FILE is usually set using \fBpodman login\fR, and will be used by
+\fBpodman pull\fR to get the image.
+
+.PP
+The default location for FILE is \fB$XDG_RUNTIME_DIR/containers/auth.json\fR and
+its format is specified in \fBcontainers-auth.json(5)\fR\&.
+
+.PP
+\fB--distro\fP DISTRO, \fB-d\fP DISTRO
+
+.PP
+Create a Toolbx container for a different operating system DISTRO than the
+host. Cannot be used with \fB--image\fR\&. Has to be coupled with \fB--release\fR unless
+the selected DISTRO matches the host.
+
+.PP
+\fB--image\fP NAME, \fB-i\fP NAME
+
+.PP
+Change the NAME of the image used to create the Toolbx container. This is
+useful for creating containers from custom-built images. Cannot be used with
+\fB--distro\fR and \fB--release\fR\&.
+
+.PP
+If NAME does not contain a registry, the local image storage will be
+consulted, and if it's not present there then it will be pulled from a suitable
+remote registry.
+
+.PP
+\fB--release\fP RELEASE, \fB-r\fP RELEASE
+
+.PP
+Create a Toolbx container for a different operating system RELEASE than the
+host. Cannot be used with \fB--image\fR\&.
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS Create the default Toolbx container matching the host OS
+.EX
+$ toolbox create
+.EE
+
+.SS Create the default Toolbx container for Fedora 36
+.EX
+$ toolbox create --distro fedora --release f36
+.EE
+
+.SS Create a custom Toolbx container from a custom image
+.EX
+$ toolbox create --image bar foo
+.EE
+
+.SS Create a custom Toolbx container from a custom image that's private
+.EX
+$ toolbox create --authfile ~/auth.json --image registry.example.com/bar
+.EE
+
+.SH "همچنین ببینید (SEE ALSO)"
+\fBtoolbox(1)\fR, \fBtoolbox-init-container(1)\fR, \fBpodman(1)\fR, \fBpodman-create(1)\fR, \fBpodman-login(1)\fR, \fBpodman-pull(1)\fR, \fBcontainers-auth.json(5)\fR

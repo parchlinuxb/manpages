@@ -1,0 +1,226 @@
+.de URL
+\\$2 \(laURL: \\$1 \(ra\\$3
+..
+.if \n[.g] .mso www.tmac
+.TH REDO 1
+.SH "نام (NAME)"
+redo \- rebuild target files when source files have changed
+.SH "خلاصه دستور (SYNOPSIS)"
+.B redo
+.RB [ option ]
+.RI [ target ]...
+.SH "توضیحات (DESCRIPTION)"
+.I redo
+is a tool for building files and for rebuilding them if any of their dependencies have changed. The build rules are contained in files with the extension .do that are called dofiles. Usually, dofiles are shell scripts executed by
+.IR sh(1) .
+.PP
+.I redo
+uses a simple algorithm to find dofiles: First it looks for the filename of the target with the suffix
+.IR .do ,
+then it looks for filenames consisting of
+.I default
+plus the target's filename extension plus
+.IR .do ,
+recursively removing the last component of the target's filename extension.
+.PP
+For example, if
+.I redo
+is asked to build a file called
+.B
+.IR example.x.y.z ,
+it will look for dofiles with the following filenames to build the file:
+.RS
+.PP
+example.x.y.z.do
+.PP
+default.x.y.z.do
+.PP
+default.y.z.do
+.PP
+default.z.do
+.PP
+default.do
+.RE
+.PP
+.I redo
+considers the first existing file found this way the dofile for the target and executes it. If
+.I redo
+is not given a target, it builds a target named
+.IR all .
+If
+.I redo
+can not find a dofile for a target, it exits with a status code indicating failure.
+.PP
+.I redo
+passes three arguments to a dofile that is executed:
+.TP
+.B $1
+is the name of the target.
+.TP
+.B $2
+is the basename of the target, i.e. the name of the target minus leading directory components and extensions. Note that the extension is determined from the dofile: A file
+.I
+example.a.b.c
+that is built with a dofile
+.I default.b.c.do
+will be considered to have the extension
+.IR b.c ,
+so
+.B $2
+will be set to
+.IR example.a .
+.TP
+.B $3
+is the name of a temporary file which replaces the target atomically after the dofile has exited successfully. Instead of writing to
+.BR $3 ,
+a dofile can also write to standard output.
+.PP
+If the current target should be rebuilt if other files change, this can be declared with
+.IR redo-ifchange(1) :
+When
+.IR redo-ifchange(1)
+is executed from a dofile,
+.I redo
+builds the targets given to
+.IR redo-ifchange(1)
+and will rebuild the current target on the next invocation of
+.I redo
+if any of the targets given to
+.IR redo-ifchange(1)
+have changed since the last build.
+.PP
+If the current target should be rebuilt if a file that does not exist at the time of the build exists, this can be declared with
+.IR redo-ifcreate(1) :
+When
+.IR redo-ifcreate(1)
+is executed from a dofile,
+.I redo
+will rebuild the current target on the next invocation of
+.I redo
+if any of the targets given to
+.IR redo-ifcreate(1)
+exist.
+.PP
+If the current target should be rebuilt if the output of a command changes, this can be declared with
+.IR redo-stamp(1) :
+When
+.IR redo-stamp(1)
+is executed from a dofile and given data on standard input,
+.I redo
+will rebuild the current target on the next invocation of
+.I redo
+if the the output of the command that piped data to it changes.
+.PP
+If the current target should always be rebuilt, this can be declared with
+.IR redo-always(1) :
+When
+.IR redo-always(1)
+is executed from a dofile,
+.I redo
+will rebuild the current target on the next invocation of
+.IR redo .
+.SH "گزینه‌ها (OPTIONS)"
+If the
+.B -d
+or
+.B --debug
+option is given,
+.I redo
+prints information about all dependency checks.
+.PP
+If the
+.B -h
+or
+.B --help
+option is given,
+.I redo
+prints a short notice about its command line options.
+.PP
+If the
+.B -j
+or
+.B --jobs
+option is given followed by an integer, an invocation of
+.I redo(1)
+or
+.I redo-ifchange(1)
+with multiple arguments builds targets in parallel. The integer argument specifies the maximum number of targets allowed to be built in parallel. Targets are locked, so if targets built in parallel share a dependency,
+.I redo(1)
+only builds it once, unless the dependency dofile uses
+.I redo-always(1)
+to rebuild every time,
+or the dependency becomes out of date during a build in some other way.
+.PP
+If the
+.B --version
+option is given,
+.I redo
+prints version information and exits.
+.PP
+If the
+.B -x
+or
+.B --xtrace
+option is given,
+.I redo
+prints commands inside dofiles as they are executed.
+.SH "مثال‌ها (EXAMPLES)"
+.TP
+.B redo
+makes
+.I redo
+search for a dofile called
+.BR all.do ,
+which it executes to build the target
+.BR all .
+Usually, executing
+.B all.do
+will yield no output on standard output and
+.I redo
+will not create a file called
+.BR all .
+.TP
+.B redo example.x.y.z
+makes
+.I redo
+search for dofiles called
+.BR example.x.y.z.do ,
+.BR default.x.y.z.do ,
+.BR default.y.z.do ,
+.BR default.z.do ,
+.BR default.do .
+.I redo
+executes the first file that exists to build
+.BR example.x.y.z .
+.SH "تاریخچه (HISTORY)"
+.I redo
+was designed by D. J. Bernstein and implemented multiple times by Alan Grosskurth, Avery Pennarun, Jonathan de Boyne Pollard and Ælla Chiana Moskopp.
+.TP
+.URL http://cr.yp.to/redo.html "Rebuilding target files when source files have changed" " by D. J. Bernstein"
+.TP
+.URL http://grosskurth.ca/papers/mmath-thesis.pdf "Purely top-down software rebuilding" " by Alan Grosskurth"
+.TP
+.URL https://github.com/apenwarr/redo#readme "redo: a top-down software build system" " by Avery Pennarun"
+.TP
+.URL http://homepage.ntlworld.com/jonathan.deboynepollard/FGA/introduction-to-redo.html "Introduction to redo" " by Jonathan de Boyne Pollard"
+.TP
+.URL http://news.dieweltistgarnichtso.net/bin/redo-sh.html "Redo implementation in Bourne Shell" " by Ælla Chiana Moskopp"
+.SH "نویسنده (AUTHOR)"
+.I redo
+and this man page were written by Ælla Chiana Moskopp.
+.SH "حق نشر (COPYRIGHT)"
+Copyright © 2014-2016 Ælla Chiana Moskopp.
+License AGPLv3+: GNU Affero GPL version 3 or later <http://www.gnu.org/licenses/agpl-3.0.html>.
+This is free software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.IR redo-always(1) ,
+.IR redo-ifchange(1) ,
+.IR redo-ifcreate(1) ,
+.IR redo-ood(1) ,
+.IR redo-sources(1) ,
+.IR redo-stamp(1) ,
+.IR redo-targets(1)
+.SH "اشکالات (BUGS)"
+This implementation of
+.I redo
+may break if the target filename contains a tab or newline.

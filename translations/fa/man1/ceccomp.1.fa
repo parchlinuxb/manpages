@@ -1,0 +1,919 @@
+'\" t
+.\"     Title: ceccomp
+.\"    Author: dbgbgtf, RocketDev
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-06-15
+.\"    Manual: Ceccomp Manual
+.\"    Source: ceccomp 4.2.2
+.\"  Language: English
+.\"
+.TH "CECCOMP" "1" "2026-06-15" "ceccomp 4.2.2" "Ceccomp Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+ceccomp \- A tool to analyze seccomp filters
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.if n .RS 4
+.nf
+.fam C
+usage: ceccomp <asm|disasm|emu|trace|probe|version|help> [FILE] [\-q|\-\-quiet]
+               [\-f|\-\-format FMT] [\-a|\-\-arch ARCH] [\-p|\-\-pid PID] [\-s|\-\-seize]
+               [\-o|\-\-output FILE] [\-c|\-\-color WHEN] ...
+.fam
+.fi
+.if n .RE
+.SH "CONCEPT"
+.sp
+Kernel use BPF filters to limit syscall rules, applied via \f(CRseccomp\fP or \f(CRprctl\fP
+syscall. For example, down below is a simple filter to block \f(CRexecve\fP syscall in
+hex format:
+.sp
+.if n .RS 4
+.nf
+.fam C
+1: 20 00 00 00 00 00 00 00\&     $A = $syscall_nr
+2: 15 00 00 01 3b 00 00 00\&     if ($A != execve) goto 4
+3: 06 00 00 00 00 00 00 00\&     return KILL
+4: 06 00 00 00 00 00 ff 7f\&     return ALLOW
+.fam
+.fi
+.if n .RE
+.sp
+The part presented in hex is what kernel received, and \f(CRceccomp\fP take it to
+disassemble back to human readable text. For instance the \fBlineno\fP in the left
+and \fBstatement\fP in the right.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Important
+.ps -1
+.br
+.sp
+Later I\(cqll use \fITEXT\fP in short for BPF human readable text, and use
+\fIRAW\fP in short for BPF raw format, please keep that in mind.
+.sp .5v
+.RE
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\f(CRceccomp\fP have 5 main functions, basically it\(cqs a C version of \f(CRseccomp\-tools\fP,
+however, there are some breaking changes you need to know, which will be
+highlighted in each subcommand section.
+.SS "asm \- ASSEMBLE"
+.sp
+.if n .RS 4
+.nf
+.fam C
+ceccomp asm [\-c WHEN] [\-a ARCH] [\-f FMT] [TEXT]
+.fam
+.fi
+.if n .RE
+.sp
+Assemble \fITEXT\fP to \fIRAW\fP. Use it to embed hand written filter rules into C code
+or to see the original code of some \fITEXT\fP.
+.sp
+WHEN
+.RS 4
+Determines when to display warnings and errors in color. If the value is \fIauto\fP,
+ceccomp will display color when the output target is a "tty". Can be \fIauto\fP, \fInever\fP or
+\fIalways\fP. The default value is \fIauto\fP.
+.RE
+.sp
+ARCH
+.RS 4
+Set to any architecture libseccomp supports. Will be used to determine
+the actual syscall number behind the name (for example, on x86_64, you could write
+\f(CR"execve"\fP instead of \f(CR59\fP like the basic example above). Your system arch will be
+taken if not set via \f(CRuname\fP. The default value on your system is x86_64.
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+Since \fIversion 4.0\fP, endianness is considered. If target endianness \fBARCH\fP is
+different from machine endianness, the filters will be reversed (CODE and K) before
+outputting.
+.sp .5v
+.RE
+.sp
+FMT
+.RS 4
+Determines how \f(CRceccomp\fP produces binary\-format bpf code. Can be \fIhexfmt\fP,
+\fIhexline\fP or \fIraw\fP. You could find sample output in EXAMPLES section.
+The default value is \fIhexline\fP.
+.RE
+.sp
+TEXT
+.RS 4
+Take a optional filename to determine which file containing \fITEXT\fP will
+be assembled. Will read from \fIstdin\fP if not set. \f(CR\-\fP is treated as \fIstdin\fP.
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Important
+.ps -1
+.br
+.sp
+The assembly syntax was changed greatly since \fIversion 4.0\fP,
+please checkout grammar reference below!
+.sp .5v
+.RE
+.sp
+Please check out TEXT GRAMMAR REFERENCE section to see how to write a rule by
+hand. Some examples will be displayed in EXAMPLES section.
+.TS
+allbox tab(:);
+ltB ltB.
+T{
+.sp
+Command
+T}:T{
+.sp
+Difference
+T}
+.T&
+lt lt.
+T{
+.sp
+\f(CRseccomp\-tools asm\fP
+T}:T{
+.sp
+Use its own grammar to assemble, a bit script like; can assemble invalid \fITEXT\fP
+which will be rejected by kernel
+T}
+T{
+.sp
+\f(CRceccomp asm\fP
+T}:T{
+.sp
+You can just take \f(CRdisasm\fP output to \f(CRasm\fP, no new grammar is needed to learn;
+take \f(CRstdin\fP as input by default
+T}
+.TE
+.sp
+.SS "disasm \- DISASSEMBLE"
+.sp
+.if n .RS 4
+.nf
+.fam C
+ceccomp disasm [\-c WHEN] [\-a ARCH] [RAW]
+.fam
+.fi
+.if n .RE
+.sp
+Disassemble \fIRAW\fP to \fITEXT\fP. Use it to see what does a filter do if you could not
+access filter via \f(CRtrace\fP and have to manually extract the filter out.
+.sp
+WHEN
+.RS 4
+Argument description can be found in asm \- ASSEMBLE section. \f(CRdisasm\fP may print
+more text in color including syntax highlighting for \fITEXT\fP.
+.RE
+.sp
+ARCH
+.RS 4
+Set to any architecture libseccomp supports. Will be used to determine
+how filtered syscall number in \fIRAW\fP filter is translated to syscall name (for example,
+on x86_64, the number \f(CR0x3b\fP is translated to \f(CRexecve\fP if is comparing syscall_nr, see
+the basic example above). The default value on your system is x86_64.
+.RE
+.sp
+RAW
+.RS 4
+A binary file with raw BPF codes. Takes \fIstdin\fP as input if not set. Treat \f(CR\-\fP as \fIstdin\fP.
+The file is arch\-revelent, so it may not be portable on different archs.
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+Since \fIversion 4.0\fP, endianness is considered. If target endianness \fBARCH\fP is
+different from machine endianness, the filters will be reversed (CODE and K) before
+decoding.
+.sp .5v
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+ceccomp will try to resolve syscall number under an arch ONLY IF that at that line,
+arch can be determined. On foreign arch (not equal to the arch you set), the foreign arch
+will be prepended to syscall name. You may notice that in some cases, seccomp\-tools is able
+to resolve the name while ceccomp is not, that may be intended as the arch is not determined.
+.sp .5v
+.RE
+.TS
+allbox tab(:);
+ltB ltB.
+T{
+.sp
+Command
+T}:T{
+.sp
+Difference
+T}
+.T&
+lt lt.
+T{
+.sp
+\f(CRseccomp\-tools disasm\fP
+T}:T{
+.sp
+Disassembles in its format; never check if the filter is valid
+T}
+T{
+.sp
+\f(CRceccomp disasm\fP
+T}:T{
+.sp
+Disassembles in ceccomp format, and takes \f(CRstdin\fP as input by default; check arch strictly
+and always display foreign arch name
+T}
+.TE
+.sp
+.SS "emu \- EMULATE"
+.sp
+.if n .RS 4
+.nf
+.fam C
+ceccomp emu [\-c WHEN] [\-a ARCH] [\-q] TEXT SYSCALL_NAME/SYSCALL_NR [ARGS[0] ARGS[1] ... ARGS[5] PC]
+.fam
+.fi
+.if n .RE
+.sp
+Emulate what will happen if \f(CRsyscall(SYSCALL_NR, ARGS[0], ARGS[1], .\|.\|., ARGS[5])\fP
+from \f(CRPC\fP is called following rules described in \fITEXT\fP. Use it to see the result
+without actually running it in program or you don\(cqt want to examine the filter rule
+manually. This subcommand can be used to automatically examining a filter.
+.sp
+WHEN
+.RS 4
+Argument description can be found in asm \- ASSEMBLE section. \f(CRemu\fP may print
+more text in color including syntax highlighting for \fITEXT\fP and skipped statements.
+.RE
+.sp
+SYSCALL_NAME/SYSCALL_NR
+.RS 4
+If you set \fBSYSCALL_NAME\fP (like \f(CRexecve\fP), it will be translated to \fBSYSCALL_NR\fP
+under \fBARCH\fP first. Or else set \fBSYSCALL_NR\fP directly (like \f(CR59\fP). Then the nr
+will be tested against the bpf filter to see the result of that syscall. This
+argument is NOT optional.
+.RE
+.sp
+ARGS[0\-5] and PC
+.RS 4
+Register values when calling syscall. For example,
+on x86_64, these are equivalent to \f(CRrdi\fP, \f(CRrsi\fP, \f(CRrdx\fP, \f(CRr10\fP, \f(CRr8\fP, \f(CRr9\fP and
+\f(CRrip\fP. Their default value is 0.
+.RE
+.sp
+ARCH
+.RS 4
+Argument description can be found in asm \- ASSEMBLE section.
+.RE
+.sp
+TEXT
+.RS 4
+Take a filename to determine which file containing \fITEXT\fP rule will be tested.
+Note that filename CAN NOT be ignored as ceccomp can not determine if a
+positional argument is syscall or filename. Use \f(CR\-\fP to refer to \fIstdin\fP.
+.RE
+.sp
+\-q, \-\-quiet
+.RS 4
+Only print the eval result of the filter. For example, if last statement emulated
+is \f(CRreturn KILL\fP, then \f(CRKILL\fP is printed.
+.RE
+.TS
+allbox tab(:);
+ltB ltB.
+T{
+.sp
+Command
+T}:T{
+.sp
+Difference
+T}
+.T&
+lt lt.
+T{
+.sp
+\f(CRseccomp\-tools emu\fP
+T}:T{
+.sp
+Take a \fIRAW\fP as input
+T}
+T{
+.sp
+\f(CRceccomp emu\fP
+T}:T{
+.sp
+Take a \fITEXT\fP as input and take \f(CRstdin\fP as input by default; set \fBPC\fP is
+possible
+T}
+.TE
+.sp
+.SS "trace \- TRACE FILTER IN RUNTIME"
+.sp
+.if n .RS 4
+.nf
+.fam C
+ceccomp trace [\-c WHEN] [\-q] [\-o FILE] PROGRAM [program\-args]
+              [\-c WHEN] [\-q] \-p PID [\-s]
+.fam
+.fi
+.if n .RE
+.sp
+The first line captures filters \fBPROGRAM\fP loads in runtime by tracing it;
+the second line extract seccomp filters from \fBPID\fP, or trace \fBPID\fP to capture
+subsequent seccomp filters; once fetched filters, print them in \fITEXT\fP.
+You can only choose one of the two formats above. Use this if running the
+program is the simplest way to fetch bpf filters or a program with seccomp
+filters installed is waiting for input.
+.sp
+WHEN
+.RS 4
+Argument description can be found in asm \- ASSEMBLE section. \f(CRtrace\fP may print
+more text in color including syntax highlighting for \fITEXT\fP.
+.RE
+.sp
+FILE
+.RS 4
+May be useful when \fBPROGRAM\fP produces quite a lot output in \fIstderr\fP.
+\f(CRceccomp\fP allow user to close \fIstdin\fP and \fIstdout\fP to limit \fBPROGRAM\fP
+input and output, so \f(CRceccomp\fP use \fIstderr\fP to print messages when running \fBPROGRAM\fP,
+set \fBFILE\fP if you want to see \fITEXT\fP in some other file. Treat \f(CR\-\fP as \fIstdout\fP.
+.RE
+.sp
+PROGRAM
+.RS 4
+Set to the program you want to run, and \fBprogram\-args\fP are its
+arguments just like running shell command \f(CRexec PROGRAM program\-args\fP.
+.RE
+.sp
+PID
+.RS 4
+Set to the pid you want to inspect. \fBPID\fP is conflict with \fBPROGRAM\fP;
+you could either run a program dynamically or examine a pid in one command.
+Without \f(CR\-s\fP flag, trace pid will try to extract seccomp filter in \fBPID\fP via
+\f(CRptrace(PTRACE_SECCOMP_GET_FILTER)\fP, which may not be available in some systems.
+.RE
+.sp
+\-s, \-\-seize
+.RS 4
+\fBONLY AVAILABLE FOR TRACE PID MODE.\fP Set this flag will override trace pid
+behavior to attach to \fBPID\fP and keep tracing for seccomp filter loading like
+trace prog mode. \fIThis flag was introduced in version 4.0.\fP
+.RE
+.sp
+\-q, \-\-quiet
+.RS 4
+Set to suppress the extra \fB[INFO]\fP prints when detect process forking, exiting or
+seccomp filter loading. \fIThis flag was introduced in version 4.0.\fP
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+To extract filters from \fBPID\fP, \f(CRCAP_SYS_ADMIN\fP is needed (without \f(CR\-s\fP flag)
+and \f(CRCAP_SYS_PTRACE\fP may also be needed, the easiest way to acquire
+them is calling \f(CRceccomp\fP with \f(CRsudo\fP.
+.sp .5v
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+Since \fIversion 3.1\fP, multiple process tracing is introduced, and when tracee
+forking/resolving/exiting, an extra INFO message is printed. You can discard
+it by running command like \f(CRceccomp trace \-q PROG 2>/dev/null\fP.
+.sp .5v
+.RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+Since \fIversion 4.2\fP, \f(CRdump\fP sub command is added as an alias of \f(CRtrace\fP,
+to keep compatibility with \f(CRseccomp\-tools\fP.
+.sp .5v
+.RE
+.TS
+allbox tab(:);
+ltB ltB.
+T{
+.sp
+Command
+T}:T{
+.sp
+Difference
+T}
+.T&
+lt lt.
+T{
+.sp
+\f(CRseccomp\-tools dump\fP
+T}:T{
+.sp
+Setting output format is possible; each filter can be output to a different
+file; killing \fBPROGRAM\fP once \fBLIMIT\fP times of filters loaded; wrapping \fBPROGRAM\fP
+in \f(CRsh \-c\fP
+T}
+T{
+.sp
+\f(CRceccomp trace\fP or \f(CRceccomp dump\fP
+T}:T{
+.sp
+All filters are output to a single file; never kill \fBPROGRAM\fP; \fBPROGRAM\fP is
+launched directly, so \f(CR./\fP is not needed; explicitly print when forking;
+able to attach to pid for dynamic seccomp filter capturing
+T}
+.TE
+.sp
+.SS "probe \- TEST COMMON SYSCALLS INSTANTLY"
+.sp
+.if n .RS 4
+.nf
+.fam C
+ceccomp probe [\-c WHEN] [\-o FILE] [\-q] PROGRAM [program\-args]
+.fam
+.fi
+.if n .RE
+.sp
+Run \fBPROGRAM\fP with \fBprogram\-args\fP to captures \fBFIRST\fP seccomp filter, and then
+kill all children. Use it when a quick check against a program is needed,
+and detect potential seccomp rule issues.
+.sp
+All argument descriptions can be found in trace \- TRACE FILTER IN RUNTIME section.
+.sp
+The output for this subcommand is the emulating result of common syscalls
+like \f(CRexecve\fP, \f(CRopen\fP and so on. If the filter itself is not capable of
+blocking syscalls, you could know that with a glance.
+.sp
+Typical output for this subcommand is described below, more detailed example
+could be found in EXAMPLES section.
+.sp
+.if n .RS 4
+.nf
+.fam C
+open\&      \-> ALLOW
+read\&      \-> ALLOW
+write\&     \-> ALLOW
+execve\&    \-> KILL
+execveat\&  \-> KILL
+mmap\&      \-> ALLOW
+mprotect\&  \-> ALLOW
+openat\&    \-> ALLOW
+sendfile\&  \-> ALLOW
+ptrace\&    \-> ERRNO(1)
+fork\&      \-> ALLOW
+.fam
+.fi
+.if n .RE
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+\f(CRseccomp\-tools\fP don\(cqt have this subcommand.
+.sp .5v
+.RE
+.SH "TEXT GRAMMAR REFERENCE"
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Important
+.ps -1
+.br
+.sp
+The grammar changed greatly since \fIversion 4.0\fP as we
+refactored lexer for better human readability. The wrapper now prefixed by
+\f(CR#\fP as it\(cqs a comment now. And \fIline\fP is replaced by \fIlabel\fP, so now lexer
+depends on label declaration to decide where to jump, instead of lineno in
+\fITEXT\fP file.
+.sp .5v
+.RE
+.sp
+A valid \fITEXT\fP format is described in EBNF\-like declaration here:
+.URL "https://github.com/dbgbgtf1/Ceccomp/issues/17#issuecomment\-3610531705" "" "."
+If you have no interest to know what EBNF is, please keep reading for
+examples.
+.sp
+BPF ops which are not described below are banned by kernel.
+.SS "Comment and Label"
+.sp
+\f(CRceccomp disasm\fP displays a lot of things, but some of them are optional
+for asm.
+.sp
+.if n .RS 4
+.nf
+.fam C
+#Label\&  CODE\&  JT\&   JF\&      K
+#\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+ L0001: 0x06 0x00 0x00 0x7fff0000 return ALLOW
+#\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
+.fam
+.fi
+.if n .RE
+.sp
+Any text after \f(CR#\fP will be discarded by asm like some script languages.
+.sp
+Empty lines are accepted.
+.sp
+Label declaration is an identifier at the beginning of line and suffixed
+by \f(CR:\fP like \f(CRL0001\fP. An identifier is a string starts with alpha and contains with
+only alphanumeric characters and underscore \f(CR_\fP. Label is only necessary if
+it\(cqs the destination of \f(CRgoto\fP, these redundant labels added by disasm are for
+readability. E.g. in \f(CRif ($A == 0) goto somewhere\fP, \f(CRsomewhere\fP is a label and
+must be declared after the statement. Label declaration can take a line separately,
+or be put in front of statement.
+.sp
+The \f(CRCODE\fP, \f(CRJT\fP, \f(CRJF\fP and \f(CRK\fP value generated by disasm will be discarded by asm,
+asm only parse the effective statement after \f(CRK\fP.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+There are some slight difference between \f(CRceccomp disasm\fP and
+\f(CRseccomp\-tools disasm\fP, down below is a general example. And some
+statements are different, so don\(cqt pipe seccomp\-tools output to ceccomp
+blindly.
+.sp .5v
+.RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+line\&  CODE\&  JT\&   JF\&      K
+=================================
+0000: 0x06 0x00 0x00 0x7fff0000\&  return ALLOW
+.fam
+.fi
+.if n .RE
+.SS "Assignment"
+.sp
+\f(CRA\fP can be set to seccomp attributes directly. But \f(CRX\fP can not be assigned with
+seccomp attributes directly due to kernel limit.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A = $arch
+$A = $syscall_nr
+.fam
+.fi
+.if n .RE
+.sp
+To assign \f(CRA\fP with those 64\-bit long fields, \f(CRlow_\fP or \f(CRhigh_\fP prefix is needed.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A = $low_pc
+$A = $high_pc
+$A = $low_args[0]
+$A = $high_args[0]
+\&...
+$A = $low_args[5]
+$A = $high_args[5]
+.fam
+.fi
+.if n .RE
+.sp
+A special attribute is \f(CRsizeof(struct seccomp_data)\fP, that can be assigned to
+\f(CRA\fP or \f(CRX\fP directly.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A = $scmp_data_len
+$X = $scmp_data_len
+.fam
+.fi
+.if n .RE
+.sp
+Temporary memory is 32\-bit, to access them, you could use hex or dec as index.
+Both \f(CRA\fP and \f(CRX\fP is assignable. Assigning immediate values to \f(CRA\fP or \f(CRX\fP accepts
+any format of number if you imply the correct base by "0x" or "0b".
+.sp
+.if n .RS 4
+.nf
+.fam C
+$X = $mem[0]
+$A = $mem[0xf]
+$A = $mem[15] # both hex and dec index are OK
+$A = 0
+$X = 0x3b
+$A = 0b1111
+$A = 0333
+.fam
+.fi
+.if n .RE
+.sp
+You could also assign \f(CRX\fP to \f(CRA\fP or in the reverse order. Assign \f(CRX\fP or \f(CRA\fP to
+temporary memory is definitely okay.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A = $X
+$X = $A
+$mem[3] = $X
+$mem[0x4] = $A
+.fam
+.fi
+.if n .RE
+.SS "Arithmetic Operations"
+.sp
+Various operations can be applied to \f(CRA\fP.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A += 30
+$A \-= 4
+$A *= 9
+$A /= 1
+$A &= 7
+$A >>= 6
+.fam
+.fi
+.if n .RE
+.sp
+The right value can be \f(CRX\fP.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A &= $X
+$A |= $X
+$A ^= $X
+$A <<= $X
+.fam
+.fi
+.if n .RE
+.sp
+And there is a way to negativate \f(CRA\fP.
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A = \-$A
+.fam
+.fi
+.if n .RE
+.SS "Jump Downwards If .\|.\|."
+.sp
+Unconditional jump:
+.sp
+.if n .RS 4
+.nf
+.fam C
+goto L3
+.fam
+.fi
+.if n .RE
+.sp
+Jump if:
+.sp
+.if n .RS 4
+.nf
+.fam C
+if ($A == execve) goto L3
+if ($A != 1234) goto L4
+if ($A & $X) goto L5
+if !($A & 7) goto L6
+if ($A <= $X) goto L7
+.fam
+.fi
+.if n .RE
+.sp
+If true jump to .\|.\|. if false jump to.\|.\|.:
+.sp
+.if n .RS 4
+.nf
+.fam C
+if ($A > $X) goto L3, else goto L4
+if ($A >= 4567) goto L5, else goto L6
+.fam
+.fi
+.if n .RE
+.sp
+ONLY in conditions, you CAN replace number with syscall name or arch name.
+In example above, \f(CR0x3b\fP is replaced by \f(CRexecve\fP. All the syscall name will be
+resolved to syscall number under your selected arch. If you want to resolve
+a syscall name in foreign arch (not equal to your selected arch), please
+prepend a arch and dot. For example, your arch is x86_64, and you are writing
+\fIaarch64\fP rules, then please write like:
+.sp
+.if n .RS 4
+.nf
+.fam C
+if ($A == aarch64.read) goto 5
+.fam
+.fi
+.if n .RE
+.sp
+Note that if you manually set arch to \fIaarch64\fP with \f(CR\-a aarch64\fP,
+you can omit \f(CRaarch64.\fP in statement.
+.SS "Return Code"
+.sp
+Return value of register \f(CRA\fP:
+.sp
+.if n .RS 4
+.nf
+.fam C
+return $A
+.fam
+.fi
+.if n .RE
+.sp
+Or return a immediate value, with extra field in \f(CR()\fP. Actions including
+\f(CRTRACE\fP, \f(CRTRAP\fP and \f(CRERRNO\fP accept an extra field, without \f(CR()\fP, they are
+treated as \f(CRaction(0)\fP.
+.sp
+.if n .RS 4
+.nf
+.fam C
+return 0x13371337
+return KILL
+return KILL_PROCESS
+return TRAP(123)
+return ERRNO(0)
+return TRACE
+return TRACE(3)
+return LOG
+return NOTIFY
+.fam
+.fi
+.if n .RE
+.SS "Short Example"
+.sp
+The following \fITEXT\fP is valid for asm, which blocks \f(CRexecve\fP and \f(CRexecveat\fP
+for amd64 syscalls:
+.sp
+.if n .RS 4
+.nf
+.fam C
+$A = $syscall_nr
+if ($A == execve) goto forbid
+if ($A == execveat) goto forbid
+return ALLOW
+forbid: return KILL
+.fam
+.fi
+.if n .RE
+.SH "RESTRICTIONS"
+.sp
+Ceccomp asm put some restrictions on \fITEXT\fP for better performance.
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 1." 4.2
+.\}
+\f(CR\*(Aq\(rs0\*(Aq\fP must not be found in \fITEXT\fP since it\(cqs a text file.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 2." 4.2
+.\}
+A line must be shorter than 384 \fBbytes\fP.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 3." 4.2
+.\}
+A \fITEXT\fP file must have less than 16384 lines.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.  sp -1
+.  IP " 4." 4.2
+.\}
+A \fITEXT\fP file must be smaller than 4 MiB.
+.RE
+.sp
+And for both asm and disasm, effective statements (that can be encoded or decoded
+into BPF) must be less or equal than 4096, this is enforced by kernel.
+.sp
+A fun fact about ceccomp asm: any basic ANSI color in \fITEXT\fP file,
+e.g., \f(CR\(rsx1b[31m\fP, will be discarded when processing.
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Manpage can not display images, so please check out html version of
+this page to see examples.
+.SH "REPO"
+.sp
+Visit \c
+.URL "https://github.com/dbgbgtf1/Ceccomp" "" ""
+to find the code.
+Pull Requests and Issues are welcome!
+.sp
+Copyright \(co 2025\-present, distributed under GPLv3 or later.
+.SH "نویسندگان (AUTHORS)"
+.sp
+dbgbgtf
+.sp
+RocketDev

@@ -1,0 +1,148 @@
+.TH "stretch" "1" "March 25, 2004" "" "Sound Data Time Stretching"
+.PP
+
+.SH "نام (NAME)"
+stretch \- time stretching tool for sound data
+.PP
+
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBstretch [\fIoptions\fP] [\fIinput\fP [\fIoutput\fP]]
+.PP
+
+.SH "توضیحات (DESCRIPTION)"
+.PP
+The stretch utility allows you to lengthen or shorten the duration
+of an audio data stream without affecting the pitch of the sampled
+data. It employs phase-vocoding to achieve the effect,
+usually leading to better results than time-domain techniques.
+Input audio data can be composed of multiple channels, in
+which case output also is.
+.PP
+Both \fIoutput\fP and \fIinput\fP can be '-', indicating that signal
+data is to be read from \fIstdin\fP or written to \fIstdout\fP 
+respectively (You can also omit the file names for the same effect,
+starting with \fIoutput\fP). In either case, the sample format is signed
+16-bit little-endian (aka CD format).
+.PP
+For physical file access, the utility makes use of the \fIsndfile\fP
+library. The tool tries to guess the intended output file format from
+the filename extension; in addition, you can specify the output bit depth
+(quantization) with the \fB-b\fP (\fB--bits\fP) parameter.
+.PP
+The tool
+is not capable of directly replacing the contents of the input file.
+
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+The simplest invocation of the tool is:
+.P
+.br
+	stretch -t 1.5 infile.wav outfile.wav
+.br
+.P
+This example stretches \fIinfile.wav\fP to
+150 % duration and writes the result to \fIoutfile.wav\fP.
+
+.SS "Most useful options:"
+.TP
+\fI-t, --times\fP <stretch factor>
+sets the ratio by which the duration of the sound signal is scaled.
+Extreme values can cause audible artefacts in the output signal,
+usually perceived as cyclic amplitude modulation. To achieve an
+exact time expansion/compression ratio, the product of this 
+and the \fB-o\fP (\fB--overlap\fP) parameter needs to be an integer
+value.
+.TP
+\fI-a, --amplify\fP <factor>
+sets the linear amplification factor for the output signal.
+The default value is 1.0 .
+.TP
+\fI-q, --quiet\fP
+makes the utility be silent about what it does.
+
+.SS "Processing control options:"
+.TP
+\fI-f, --fft\fP <DFT length>
+sets the length of the DFT (discrete Fourier transform), which should
+be a power of two for best results. Odd values may cause the utility
+to throw up. Larger DFT sizes imply better frequency resolution at the
+cost of increased computational demand. The default value is 1024 samples.
+.TP
+\fI-o, --overlap\fP <overlap>
+controls the interval at which recomposition of the signal takes
+place. Smaller values imply a smoother
+result in exchange for increased computational demand.
+The default value is 128 samples.
+
+.SS "Piped input signal options:"
+.P
+If signal input is from \fIstdin\fP, the default assumption about the
+data format (other than the aforementioned 16-bit signed little-endian
+convention) is two-channel audio at 44.1 kHz sample rate. The following
+options override these:
+.TP
+\fI-c, --channels\fP <channel count>
+no surprises: 1 is mono, 2 stereo etc.
+.TP
+\fI-r, --rate\fP <sample rate>
+sets the sample rate.
+
+.SS "Output bit depth:"
+.TP
+\fI-b, --bits\fP <quantization>
+sets the output bit depth (only for physical file output).
+8, 16 or 24 for signed integers, 32 or 64 for floating point.
+The default is 16-bit. (Internal precision is 32 bit floating-point.)
+.TP
+\fI-l, --limit\fP
+this option causes the utility to clip the output signal to stay
+within the output quantization
+or the [-1,+1] range if output is in floating-point format.
+The use of this flag is highly recommended when output is in integer
+sample format (\fB--bits\fP less than 32 or \fIstdout\fP output).
+
+.SS "Information options:"
+.TP
+\fI-h, --help\fP
+prints version information and a list of supported file formats/extensions,
+then quits.
+.TP
+\fI-v, --version\fP
+prints version information, then quits.
+
+.SH "مثال‌ها (EXAMPLES)"
+A few example invocations of the utility, all assuming source data
+is in CD format (signed 16-bit samples, stereo, 44.1 kHz):
+.TP
+	stretch -o 100 -t 1.2 cdda.wav | aplay -fcd
+.P
+stretches \fIcdda.wav\fP to exactly 120 %, piping the output to the 
+\fIaplay\fP program for immediate playback.
+.TP
+	cat file.ogg | oggdec - | stretch -t.8 | aplay -fcd
+.P
+plays back an \fIogg\fP stream, accelerated to 80 % duration.  If
+you prefer \fImp3\fP, an equivalent incantation is:
+.TP
+	madplay -o raw:- file.mp3 | stretch -t.8 | aplay -f cd
+.P
+
+.SH "اشکالات (BUGS)"
+Lousy command line parsing and error feedback. 
+Lots of combinations of output file formats 
+and quantization untested,
+as is the operation on big-endian systems.
+Phase vocoding chews a lot of CPU cycles. 
+
+.SH "نویسندگان (AUTHORS)"
+The original
+phase vocoder implementation was done by Mark Dolson at UCSD, part
+of the CARL suite, skillfully converted to streaming operation
+by Richard Dobson.
+.P
+The stretch tool and this manual page were written by Tim Goetze 
+<tim@quitte.de>.
+
+.SH "HOMEPAGE"
+The latest version of this tool can be obtained from
+\fIhttp://quitte.de/dsp/pvoc.html\fP .

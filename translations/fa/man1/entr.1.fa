@@ -1,0 +1,209 @@
+.\"
+.\" Copyright (c) 2012 Eric Radman <ericshane@eradman.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd March 2, 2026
+.Dt ENTR 1
+.Os
+.Sh "نام (NAME)"
+.Nm entr
+.Nd run arbitrary commands when files change
+.Sh "خلاصه دستور (SYNOPSIS)"
+.Nm
+.Op Fl acdnprsxz
+.Ar utility
+.Op Ar argument /_ ...
+.Sh "توضیحات (DESCRIPTION)"
+A list of files provided on standard input, and the
+.Ar utility
+is executed using the supplied arguments if any of them change.
+.Nm
+waits for the child process to finish before responding to subsequent file
+system events.
+A TTY is also opened before entering the watch loop in order to support
+interactive utilities.
+.Pp
+The arguments are as follows:
+.Bl -tag -width Ds
+.It Fl a
+Respond to all events which occur while the
+.Ar utility
+is running.
+Without this option,
+.Nm
+consolidates events in order to avoid looping.
+This option has no effect in conjunction with the
+.Fl r
+flag.
+.It Fl c
+Clear the screen before invoking the
+.Ar utility
+specified on the command line.
+Specify twice to erase the scrollback buffer.
+.It Fl d
+Track the parent directory of regular files provided as input.
+If specified twice, all new entries to a directory are recognized, otherwise
+files with names beginning with
+.Ql \&.
+are ignored.
+.It Fl n
+Run in non-interactive mode.
+In this mode
+.Nm entr
+does not attempt to read from the TTY or change its properties.
+.It Fl p
+Postpone the first execution of the
+.Ar utility
+until a file is modified.
+.It Fl r
+Reload a persistent child process.
+As with the standard mode of operation, a
+.Ar utility
+which terminates is not executed again until a file system or keyboard event is
+processed.
+A process group is created to prevent shell scripts from masking signals.
+.Nm
+waits for the
+.Ar utility
+to exit to ensure that resources such as sockets have been closed.
+Control of the TTY is not transferred to the child process.
+.It Fl s
+Evaluate the first argument using the interpreter specified by the
+.Ev SHELL
+environment variable.
+.It Fl x
+Format custom exit status messages using a persistent
+.Xr awk 1
+process.
+The path to the status script is defined by the environment variable
+.Ev ENTR_STATUS_SCRIPT .
+If the status script does not exist,
+.Nm
+will create an example.
+Shell commands and file redirection is not permitted by default, but may be
+enabled by specifying
+.Fl x
+twice.
+.It Fl z
+Exit after the
+.Ar utility
+completes.
+When combined with
+.Fl r
+the
+.Ar utility
+will be restarted again only in response to commands or file system
+events.
+.El
+.Pp
+The first argument named
+.Ar /_
+is replaced with the absolute path of the first file to trigger an event.
+The first file under watch is used as the default.
+If the
+.Fl s
+option is used, the name of the first file to trigger an event can be read from
+.Va $0 .
+.Sh COMMANDS
+.Nm
+listens for keyboard input and responds to the following commands:
+.Bl -tag -width <space>
+.It Aq Cm space
+Execute the utility immediately.
+If the
+.Fl Cm r
+option is set this will terminate and restart the child process as if a file
+change event had occurred.
+.It Cm q
+Quit; equivalent pressing
+.Aq Cm control-C .
+.El
+.Sh "محیط (ENVIRONMENT)"
+.Bl -tag -width "ENTR_ENVIRON"
+.It Ev ENTR_STATUS_SCRIPT
+The path to the exit status script enabled by the
+.Fl x
+option.
+By default
+.Pa $HOME/.entr/status.awk
+is evaluated.
+.It Ev ENTR_RESTART_SIGNAL
+Signal used to terminate the
+.Ar utility .
+Supported signal names are
+.Dv HUP ,
+.Dv INT ,
+.Dv QUIT ,
+.Dv TERM ,
+.Dv USR1
+and
+.Dv USR2 .
+The default is
+.Dv SIGTERM .
+.It Ev EV_TRACE
+Print file system event messages.
+.It Ev PAGER
+Set to
+.Pa /bin/cat
+by default
+to prevent interactive utilities from waiting for keyboard input if output does
+not fit on the screen.
+.It Ev SHELL
+Specify the shell to use with the
+.Fl s
+flag.
+The default is
+.Pa /bin/sh .
+.El
+.Sh "وضعیت خروج (EXIT STATUS)"
+If the
+.Fl z
+flag is set and the
+.Ar utility
+is successfully executed, the status of the child process is returned.
+If the child process was terminated by a signal, the exit status is the signal
+number plus 128.
+.Pp
+.Nm
+normally returns one of the following values:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It 0
+Normal termination after receiving
+.Dv SIGINT
+.It 1
+No regular files were provided as input or an error occurred
+.It 2
+Files were added or removed from a directory
+.El
+.Sh "مثال‌ها (EXAMPLES)"
+Rebuild a project if source files change, limiting output to the first 20 lines:
+.Pp
+.Dl $ find src/ | entr -s 'make | head -n 20'
+.Pp
+Launch and auto-reload a node.js server:
+.Pp
+.Dl $ ls *.js | entr -r node app.js
+.Pp
+Clear the screen and run a query after the SQL script is updated:
+.Pp
+.Dl $ echo my.sql | entr -cp psql -f /_
+.Pp
+Rebuild project if a source file is modified or added to the src/ directory:
+.Pp
+.Dl $ while sleep 0.1; do ls -d src src/*.rb | entr make; done
+.Pp
+Auto-reload a web server, or terminate if the server exits
+.Pp
+.Dl $ ls * | entr -rz ./httpd

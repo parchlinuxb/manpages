@@ -1,0 +1,162 @@
+.de URL
+\\$2 \(laURL: \\$1 \(ra\\$3
+..
+.if \n[.g] .mso www.tmac
+.TH REDO-IFCHANGE 1
+.SH "نام (NAME)"
+redo-ifchange \- rebuild target files when source files have changed
+.SH "خلاصه دستور (SYNOPSIS)"
+.B redo-ifchange
+.I target
+.RI [ target ]...
+.SH "توضیحات (DESCRIPTION)"
+.IR redo(1)
+is a tool for building files and for rebuilding them if any of their dependencies have changed.
+.IR redo-ifchange ,
+when invoked from a dofile, adds dependencies of the current
+.IR redo(1)
+target on all files given as  arguments, (re)builds those files if necessary and rebuilds the current target if the files given as arguments have changed since the last build.
+.PP
+Internally
+.I redo-ifchange
+uses
+.IR stat(1)
+and
+.IR md5sum(1)
+or
+.IR openssl(1)
+or
+.IR md5(1)
+to determine if a file is out of date. If the ctime of a file did not change since the last build,
+.I redo-ifchange
+considers the file up to date. If the checksum of a file did not change,
+.I redo-ifchange
+updates the stored ctime and considers the file up to date. Otherwise,
+.I redo-ifchange
+considers the file out of date.
+.PP
+When
+.I redo(1)
+is invoked with the
+.B -j
+or
+.B --jobs
+option and an integer argument greater than 1,
+.I redo-ifchange(1)
+can build multiple targets in parallel. The integer argument specifies the maximum number of targets that
+.I redo-ifchange(1)
+is allowed to build in parallel.
+.PP
+.I redo-ifchange(1)
+processes started as a result of the same
+.I redo(1)
+invocation share knowledge of a temporary “canary” path.
+If any
+.I redo-ifchange(1)
+process exits with a status code indicating error or receives a
+.B SIGINT
+signal (interrupt from keyboard), it creates a file at the “canary” path. When
+.I redo-ifchange(1)
+notices such a “canary” file, it exits as soon as possible with a status code indicating error.
+.PP
+.I redo-ifchange(1)
+will warn if a non-top-level build rule does not write anything to a target. Depending on “build rules” that consist entirely of side effects is usually a mistake.
+.SH "مثال‌ها (EXAMPLES)"
+.PP
+Consider the following four files
+.IR all.do ,
+.IR b.do ,
+.IR c
+and
+.IR d :
+.TP
+.I all.do
+.br
+#!/bin/sh
+.br
+redo-ifchange b
+.TP
+.I b.do
+.br
+#!/bin/sh
+.br
+redo-ifchange c d
+.br
+date +%s
+.TP
+.I c
+.br
+foo
+.TP
+.I d
+.br
+bar
+.PP
+Invoking
+.IR redo(1)
+in a directory with these files will build a file named
+.I b
+containing a timestamp. The next time
+.IR redo(1)
+is invoked, it will only rebuild
+.I b
+if the contents of
+.IR b ,
+.IR c
+or
+.IR d
+have changed since the last build. This can be verified by invoking 
+.IR redo(1) ,
+repeatedly and examining the timestamp in
+.IR b ,
+after each invocation, then changing the contents of
+.IR b ,
+.IR c
+or
+.IR d
+and invoking
+.IR redo(1)
+again.
+.SH "تاریخچه (HISTORY)"
+.I redo-ifchange
+was designed by D. J. Bernstein and implemented by Ælla Chiana Moskopp.
+.TP
+.URL https://cr.yp.to/redo/atomic.html "Rebuilding target files atomically" " by D. J. Bernstein"
+.SH "نویسنده (AUTHOR)"
+.I redo-ifchange
+and this man page were written by Ælla Chiana Moskopp.
+.SH "حق نشر (COPYRIGHT)"
+Copyright © 2014-2016 Ælla Chiana Moskopp.
+License AGPLv3+: GNU Affero GPL version 3 or later <http://www.gnu.org/licenses/agpl-3.0.html>.
+This is free software: you are free to change and redistribute it. There is NO WARRANTY, to the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.IR redo(1) ,
+.IR redo-always(1) ,
+.IR redo-dot(1) ,
+.IR redo-ifcreate(1) ,
+.IR redo-ood(1) ,
+.IR redo-sources(1) ,
+.IR redo-stamp(1) ,
+.IR redo-targets(1) ,
+.IR signal(7)
+.SH "اشکالات (BUGS)"
+.I redo-ifchange
+erroneously considers target files always out of date if their name contains a tab or a newline character.
+.PP
+On a computer with a
+.IR stat(1)
+implementation that does not accept the
+.B -c%Y
+option,
+.I redo-ifchange
+considers target files to be always out of date.
+.PP
+When building in parallel and sending a
+.B SIGINT
+signal (interrupt from keyboard) to a
+.I redo-ifchange(1)
+process, other
+.I redo-ifchange(1)
+processes started from the same
+.I redo(1)
+invocation might not immediately notice the existence of the “canary“ file and linger for a short time.

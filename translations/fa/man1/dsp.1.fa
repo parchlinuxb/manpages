@@ -1,0 +1,659 @@
+.TH DSP 1 dsp\-2.0
+.SH "نام (NAME)"
+dsp \- an audio processing program with an interactive mode
+.SH "خلاصه دستور (SYNOPSIS)"
+.B dsp
+[\fIoptions\fR] \fIpath\fR ... [\fIeffect\fR [\fIargs\fR]] ...
+.SH "توضیحات (DESCRIPTION)"
+.B dsp
+is an audio processing program with an interactive mode.
+.SH "گزینه‌ها (OPTIONS)"
+.SS Global options
+.TP
+\fB\-h\fR
+Show help text.
+.TP
+\fB\-b\fR \fIframes\fR
+Block size (must be given before the first input).
+.TP
+\fB\-i\fR
+Force interactive mode.
+.TP
+\fB\-I\fR
+Disable interactive mode.
+.TP
+\fB\-q\fR
+Disable progress display.
+.TP
+\fB\-s\fR
+Silent mode.
+.TP
+\fB\-v\fR
+Verbose mode.
+.TP
+\fB\-d\fR
+Force dithering.
+.TP
+\fB\-D\fR
+Disable dithering.
+.TP
+\fB\-E\fR
+Don't drain effects chain before rebuilding.
+.TP
+\fB\-p\fR
+Plot effects chain magnitude response instead of processing audio.
+.TP
+\fB\-P\fR
+Same as \fB\-p\fR, but also plot phase response.
+.TP
+\fB\-V\fR
+Verbose progress display.
+.TP
+\fB\-S\fR
+Use `sequence' input combining mode.
+.SS Input/output options
+.TP
+\fB\-o\fR
+Output.
+.TP
+\fB\-t\fR \fItype\fR
+Type.
+.TP
+\fB\-e\fR \fIencoding\fR
+Encoding.
+.TP
+\fB\-B\fR/\fBL\fR/\fBN\fR
+Big/little/native endian.
+.TP
+\fB\-r\fR \fIfrequency\fR[\fBk\fR]
+Sample rate.
+.TP
+\fB\-c\fR \fIchannels\fR
+Number of channels.
+.TP
+\fB\-R\fR \fIratio\fR
+Buffer ratio.
+.TP
+\fB\-n\fR
+Equivalent to
+.EX
+	-t null null.
+.EE
+.SH INPUTS AND OUTPUTS
+For a complete list of supported input/output types, run
+.EX
+	$ dsp -h
+.EE
+.SS Input combining modes
+In concatenate mode (the default), the inputs are concatenated in the order
+given and sent to the output. All inputs must have the same sample rate and
+number of channels.
+.PP
+In sequence mode, the inputs are sent serially to the output like concatenate
+mode, but the inputs do not need to have the same sample rate or number of
+channels. The effects chain and/or output will be rebuilt/reopened when
+required. Note that if the output is a file, the file will be truncated if it
+is reopened. This mode is most useful when the output is an audio device, but
+can also be used to concatenate inputs with different sample rates and/or
+numbers of channels into a single output file when used with the \fBresample\fR
+and/or \fBremix\fR effects.
+.SS Signal generator
+The \fBsgen\fR input type is a basic (for now, at least) signal generator that can
+generate impulses and exponential sine sweeps. The syntax for the \fIpath\fR
+argument is as follows:
+.PP
+.RS
+[\fItype\fR[@\fIchannel_selector\fR][:\fIarg\fR[=\fIvalue\fR]...]][/\fItype\fR...][+\fIlen\fR[\fBs\fR|\fBm\fR|\fBS\fR]]
+.RE
+.PP
+\fItype\fR may be `sine' for sine sweeps or tones, or `delta' for a delta function
+(impulse). `sine' accepts the following arguments:
+.TP
+\fBfreq\fR=\fIf0\fR[\fBk\fR][\-\fIf1\fR[\fBk\fR]]
+Frequency. If \fIlen\fR is set and \fIf1\fR is given, an exponential sine sweep
+is generated.
+.PP
+The arguments for `delta' are:
+.TP
+\fBoffset\fR=\fItime\fR[\fBs\fR|\fBm\fR|\fBS\fR]
+Offset in seconds, miliseconds or samples.
+.PP
+Example:
+.EX
+	$ dsp -t sgen -c 2 sine@0:freq=500-1k/sine@1:freq=300-800+2 gain -10
+.EE
+.SH EFFECTS
+.SS Complete effects list
+.TP
+\fBlowpass_1\fR \fIf0\fR[\fBk\fR]
+First-order lowpass filter.
+.TP
+\fBhighpass_1\fR \fIf0\fR[\fBk\fR]
+First-order highpass filter.
+.TP
+\fBallpass_1\fR \fIf0\fR[\fBk\fR]
+First-order allpass filter.
+.TP
+\fBlowshelf_1\fR \fIf0\fR[\fBk\fR] \fIgain\fR
+First-order lowshelf filter.
+.TP
+\fBhighshelf_1\fR \fIf0\fR[\fBk\fR] \fIgain\fR
+First-order highshelf filter.
+.TP
+\fBlowpass_1p\fR \fIf0\fR[\fBk\fR]
+Single pole lowpass (EWMA) filter.
+.TP
+\fBlowpass\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBo\fR|\fBh\fR|\fBk\fR]
+Second-order lowpass filter.
+.TP
+\fBhighpass\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBo\fR|\fBh\fR|\fBk\fR]
+Second-order highpass filter.
+.TP
+\fBbandpass_skirt\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBo\fR|\fBh\fR|\fBk\fR]
+Second-order bandpass filter with constant skirt gain.
+.TP
+\fBbandpass_peak\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBo\fR|\fBh\fR|\fBk\fR]
+Second-order bandpass filter with constant peak gain.
+.TP
+\fBnotch\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBo\fR|\fBh\fR|\fBk\fR]
+Second-order notch filter.
+.TP
+\fBallpass\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBo\fR|\fBh\fR|\fBk\fR]
+Second-order allpass filter.
+.TP
+\fBeq\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBo\fR|\fBh\fR|\fBk\fR] \fIgain\fR
+Second-order peaking filter.
+.TP
+\fBlowshelf\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBs\fR|\fBd\fR|\fBo\fR|\fBh\fR|\fBk\fR] \fIgain\fR
+Second-order lowshelf filter.
+.TP
+\fBhighshelf\fR \fIf0\fR[\fBk\fR] \fIwidth\fR[\fBq\fR|\fBs\fR|\fBd\fR|\fBo\fR|\fBh\fR|\fBk\fR] \fIgain\fR
+Second-order highshelf filter.
+.TP
+\fBlowpass_transform\fR \fIfz\fR[\fBk\fR] \fIwidth_z\fR[\fBq\fR] \fIfp\fR[\fBk\fR] \fIwidth_p\fR[\fBq\fR]
+Second-order lowpass transformation filter. Cancels the poles defined by
+\fIfz\fR and \fIwidth_z\fR and replaces them with new poles defined by \fIfp\fR and
+\fIwidth_p\fR. Gain is unity at DC.
+.TP
+\fBhighpass_transform\fR \fIfz\fR[\fBk\fR] \fIwidth_z\fR[\fBq\fR] \fIfp\fR[\fBk\fR] \fIwidth_p\fR[\fBq\fR]
+Second-order highpass transformation filter. Also known as a Linkwitz
+transform (see http://www.linkwitzlab.com/filters.htm#9). Same as
+\fBlowpass_transform\fR except the gain is unity at Fs/2.
+.TP
+\fBlinkwitz_transform\fR \fIfz\fR[\fBk\fR] \fIwidth_z\fR[\fBq\fR] \fIfp\fR[\fBk\fR] \fIwidth_p\fR[\fBq\fR]
+Alias for \fBhighpass_transform\fR.
+.TP
+\fBdeemph\fR
+Compact Disc de-emphasis filter.
+.TP
+\fBbiquad\fR \fIb0\fR \fIb1\fR \fIb2\fR \fIa0\fR \fIa1\fR \fIa2\fR
+Biquad filter.
+.TP
+\fBgain\fR \fIgain_dB\fR
+Gain adjustment in decibels.
+.TP
+\fBmult\fR \fImultiplier\fR
+Multiplies each sample by \fImultiplier\fR.
+.TP
+\fBadd\fR \fIvalue\fR
+Applies a DC shift.
+.TP
+\fBcrossfeed\fR \fIf0\fR[\fBk\fR] \fIseparation\fR
+Simple crossfeed for headphones. Very similar to Linkwitz/Meier/CMoy/bs2b
+crossfeed.
+.TP
+\fBmatrix4\fR [\fIoptions\fR] [\fIsurround_level\fR]
+2-to-4 channel (2 front and 2 surround) active matrix upmixer designed for
+plain (i.e. unencoded) stereo material.
+.sp 0.5
+The intended speaker configuration is fronts at ±30° and surrounds between
+±60° and ±120°. The surround speakers must be calibrated correctly in
+level and frequency response for best results. The surrounds should be
+delayed by about 10\-25ms (acoustically) relative to the fronts. No
+frequency contouring is done internally, so applying low pass and/or
+shelving filters to the surround outputs is recommended:
+.EX
+	matrix4 surround_delay=15m -6 :2,3 lowpass_1 10k :
+.EE
+The settings shown above (\-6dB surround level, 15ms delay, and 10kHz
+rolloff) are a good starting point, but may be adjusted to taste. The
+default \fIsurround_level\fR is \-6dB. Applying the \fBdecorrelate\fR effect to the
+surround outputs (optionally with the \fB\-m\fR flag) seems to further improve
+the spatial impression (note: adjust `surround_delay' to compensate for
+the \fBdecorrelate\fR effect's group delay).
+.sp 0.5
+The front outputs replace the original input channels and the surround
+outputs are appended to the end of the channel list.
+.sp 0.5
+Options are given as a comma-separated list. Recognized options are:
+.RS
+.TP
+no_dir_boost
+Disable directional boost of front channels.
+.TP
+show_status
+Show a status line (slightly broken currently, but still useful for
+debugging).
+.TP
+signal
+Toggle the effect when `effect.signal()' is called.
+.TP
+linear_phase (\fBmatrix4_mb\fR only)
+Apply an FIR filter to correct the phase distortion caused by the IIR
+filter bank. Has no effect with \fBmatrix4\fR. Requires the \fBfir\fR effect.
+.TP
+surround_delay=\fIdelay\fR[\fBs\fR|\fBm\fR|\fBS\fR]
+Surround output delay. Default is zero.
+.TP
+filter_type=\fIfilter\fR[:\fIstop_dB\fR[:\fIstop_dB\fR]] (\fBmatrix4_mb\fR only)
+Type of filter used for low pass sections of the filter bank. \fIfilter\fR
+may be \fIbutterworth\fR, \fIchebyshev1\fR, \fIchebyshev2\fR, or \fIelliptic\fR
+(default).
+.sp 0.5
+The optional \fIstop_dB\fR parameter(s) set the stopband attenuation in
+decibels for the Chebyshev and elliptic filters. Only the first
+parameter is used for \fIchebyshev1\fR and \fIchebyshev2\fR. For \fIelliptic\fR,
+the first parameter applies to the lowpass and the second to the
+highpass. If only one parameter is given, it applies to both stopbands.
+Default values are 25 for \fIchebyshev1\fR and \fIchebyshev2\fR, and 35:50 for
+\fIelliptic\fR.
+.RE
+.TP
+\fBmatrix4_mb\fR [\fIoptions\fR] [\fIsurround_level\fR]
+Like the \fBmatrix4\fR effect, but divides the input into eleven individually
+steered bands in order to improve separation of concurrent sound sources.
+See the \fBmatrix4\fR effect description for more information.
+.TP
+\fBremix\fR \fIselector\fR|. ...
+Select and mix input channels into output channels. Each selector argument
+specifies the input channels to be mixed to produce an output channel. `.'
+selects no input channels. For example,
+.EX
+	remix 0,1 2,3
+.EE
+mixes input channels 0 and 1 into output channel 0, and input channels 2
+and 3 into output channel 1.
+.EX
+	remix -
+.EE
+mixes all input channels into a single output channel. The active channel
+selector is used as an input channel mask for the selector arguments.
+.TP
+\fBst2ms\fR
+Convert stereo to mid/side.
+.TP
+\fBms2st\fR
+Convert mid/side to stereo.
+.TP
+\fBdelay\fR [\fB\-f\fR [\fIorder\fR]] \fIdelay\fR[\fBs\fR|\fBm\fR|\fBS\fR]
+Delay line. The unit for the \fIdelay\fR argument depends on the suffix used:
+`\fBs\fR' is seconds (the default), `\fBm\fR' is milliseconds, and `\fBS\fR' is samples. If
+\fIdelay\fR is negative, a positive delay is applied to all channels which are
+\fBnot\fR selected (except when plotting\(eman actual negative delay is
+possible in that case).
+.sp 0.5
+By default, the delay is rounded to whole samples. The \fB\-f\fR option enables
+fractional delay using Thiran allpass interpolation. The \fIorder\fR argument
+sets the allpass filter order and may be any integer from 1 through 50. The
+default value is 5.
+.TP
+\fBresample\fR [\fIbandwidth\fR] \fIfs\fR[\fBk\fR]
+Sinc resampler. Ignores the channel selector.
+.TP
+\fBfir\fR [\fIinput_options\fR] [file:][~/]\fIfilter_path\fR|coefs:\fIlist\fR[/\fIlist\fR...]
+Non-partitioned 64-bit direct or FFT convolution. Latency is zero for
+filters up to 16 taps. For longer filters, the latency is equal to the
+\fIfft_len\fR reported in verbose mode. Each \fIlist\fR is a comma-separated list
+of coefficients for one filter channel. Missing values are filled with
+zeros.
+.sp 0.5
+The \fIinput_options\fR are useful mostly when loading raw (headerless) input
+files and are as follows:
+.RS
+.TP
+\fB\-t\fR \fItype\fR
+Type.
+.TP
+\fB\-e\fR \fIencoding\fR
+Encoding.
+.TP
+\fB\-B\fR/\fBL\fR/\fBN\fR
+Big/little/native endian.
+.TP
+\fB\-r\fR \fIfrequency\fR[\fBk\fR]
+Sample rate.
+.TP
+\fB\-c\fR \fIchannels\fR
+Number of channels.
+.RE
+.TP
+\ 
+By default, the sample rate of the filter must match that of the effect.
+Mismatches may be ignored by setting the sample rate to ``any''.
+.TP
+\fBfir_p\fR [\fIinput_options\fR] [\fImax_part_len\fR] [file:][~/]\fIfilter_path\fR|coefs:\fIlist\fR[/\fIlist\fR...]
+Zero-latency non-uniform partitioned 64-bit direct/FFT convolution. Usually
+a bit slower than the \fBzita_convolver\fR effect except for very long filters
+on some hardware. \fImax_part_len\fR must be a power of 2 and has a default
+value of 16384. Each \fIlist\fR is a comma-separated list of coefficients for
+one filter channel. Missing values are filled with zeros.
+.sp 0.5
+See the \fBfir\fR effect description for an explanation of the \fIinput_options\fR.
+.TP
+\fBzita_convolver\fR [\fIinput_options\fR] [\fImin_part_len\fR [\fImax_part_len\fR]] [file:][~/]\fIfilter_path\fR|coefs:\fIlist\fR[/\fIlist\fR...]
+Partitioned 32-bit FFT convolution using the zita-convolver library.
+Latency is equal to \fImin_part_len\fR (64 samples by default).
+\fI{min,max}_part_len\fR must be powers of 2 between 64 and 8192. Each \fIlist\fR
+is a comma-separated list of coefficients for one filter channel. Missing
+values are filled with zeros.
+.sp 0.5
+See the \fBfir\fR effect description for an explanation of the \fIinput_options\fR.
+.TP
+\fBhilbert\fR [\fB\-pz\fR] [\fB\-a\fR \fIangle\fR] \fItaps\fR
+Simple FIR approximation of a Hilbert transform. The number of taps must be
+odd. Bandwidth is controlled by the number of taps. If \fB\-p\fR is given, the
+\fBfir_p\fR convolution engine is used instead of the default \fBfir\fR engine.
+Similarly, if \fB\-z\fR is given, \fBzita_convolver\fR is used (if available).
+The \fB\-a\fR option sets the phase shift in degrees. The default is -90°.
+.TP
+\fBdecorrelate\fR [\fB\-m\fR] [\fB\-s\fR \fIseed\fR] [\fIstages\fR]
+Allpass decorrelator as described in ``Frequency-Dependent Schroeder
+Allpass Filters'' by Sebastian J. Schlecht (doi:10.3390/app10010187).
+If \fB\-m\fR is given, the same filter parameters are used for all input
+channels. The default number of stages is 5, which results in an
+average group delay of about 9.5ms at high frequencies. The \fB\-s\fR option
+sets the random seed for filter parameter generation.
+.TP
+\fBnoise\fR \fIlevel\fR[\fBb\fR]
+Add TPDF noise. The \fIlevel\fR argument specifies the peak level of the noise
+in dBFS if no suffix is given, or the effective precision in bits if the
+`\fBb\fR' suffix is given.
+.TP
+\fBdither\fR [\fIshape\fR] [[\fIquantize_bits\fR] \fIbits\fR]
+Apply dither with optional noise shaping. The \fIshape\fR argument determines
+the type of dither and the noise shaping filter (if any):
+
+.TS
+tab (|);
+lB lB
+lI l.
+Name|Description
+_
+flat|Flat TPDF with no feedback (default).
+sloped|Flat TPDF with feedback. First-order highpass response.
+sloped2|Sloped TPDF with feedback. Stronger HF emphasis than \fIsloped\fR.
+lipshitz|5-tap E-weighted curve from [1]. Notches around 4k and 12k.
+wan3|3-tap F-weighted curve from [2]. Notch around 4k.
+wan9|9-tap F-weighted curve from [2]. Notches around 3.5k and 12k.
+.TE
+
+The \fIbits\fR argument sets the dither level in bits. The \fIquantize_bits\fR
+argument sets the number of levels to quantize to. The default setting for
+both is `auto'. If \fIbits\fR is not `auto', dither is applied at the specified
+bit depth regardless of the output sample format. \fIbits\fR may be any number.
+\fIquantize_bits\fR must be an integer between 2 and 32. If \fIquantize_bits\fR is
+not given, it is set to the same value as \fIbits\fR (rounded to the nearest
+integer).
+.sp 0.5
+Note: Currently, setting \fIbits\fR to \fIauto\fR disables dither if the effect
+is loaded via \fBwatch\fR or used in \fBladspa_dsp\fR.
+.sp 0.5
+.RS
+.IP [1] 4
+S. P. Lipshitz, J. Vanderkooy, and R. A. Wannamaker,
+``Minimally Audible Noise Shaping,'' J. AES, vol. 39, no. 11,
+November 1991
+.IP [2] 4
+R. A. Wannamaker, "Psychoacoustically Optimal Noise Shaping,"
+J. AES, vol. 40, no. 7/8, July 1992
+.RE
+.TP
+\fBladspa_host\fR [~/]\fImodule_path\fR \fIplugin_label\fR [\fIcontrol\fR ...]
+Apply a LADSPA plugin. Supports any number of input/output ports (with
+the exception of zero output ports). If a plugin has one or zero input
+ports, it will be instantiated multiple times to handle multi-channel
+input.
+.sp 0.5
+Controls which are not explicitly set or are set to `-' will use default
+values (if available).
+.sp 0.5
+The `LADSPA_PATH' environment variable can be used to set the search path
+for plugins.
+.TP
+\fBstats\fR [\fIref_level\fR]
+Display the DC offset, minimum, maximum, peak level (dBFS), RMS level
+(dBFS), crest factor (dB), peak count, peak sample, number of samples, and
+length (s) for each channel. If \fIref_level\fR is given, peak and RMS levels
+relative to \fIref_level\fR will be shown as well (dBr).
+.TP
+\fBwatch\fR [\fB\-e\fR] [~/]\fIpath\fR
+Load effects from a file into a sub-chain and reload if the file is
+modified. Other than the automatic reload, the behavior is similar to
+sourcing a file using the `@' directive (see ``Effects Files''). Some
+restrictions apply to automatic reload:
+.RS
+.IP \(bu 3
+The new sub-chain must have the same output sample rate and number of
+channels as the previous sub-chain.
+.IP \(bu 3
+The new sub-chain must not require larger buffers than the previous
+sub-chain.
+.RE
+.TP
+\ 
+If these conditions are not met, the new sub-chain will not be applied and
+an error message will be printed.
+.sp 0.5
+Currently, this effect polls for file modifications once per second.
+Support `inotify` events my be added in the future. Ideally, file
+modifications should be atomic (i.e. by writing to a temporary file, then
+\fIrename\fR(3)-ing it over top of the original file). If this is not possible,
+the \fB\-e\fR flag may be given, which enforces an end-of-file marker in order
+to detect partially-written files. This marker, `#EOF#', must be placed at
+the beginning of a line and may only be followed by whitespace characters.
+.SS Selector syntax
+.TS
+tab (|);
+lB lB
+lB l.
+Example|Description
+_
+<empty>|all
+\-|all
+2\-|2 to n
+\-4|0 through 4
+1,3|1 and 3
+1\-4,7,9\-|1 through 4, 7, and 9 to n
+.TE
+.PP
+Note: There is no difference between `1,3' and `3,1'. Order is not
+preserved.
+.SS Filter width
+The following suffixes are supported:
+
+.TS
+tab (|);
+lB lB
+lB l.
+Suffix|Description
+_
+q|Q-factor (default).
+s|Slope (shelving filters only).
+d|Slope in dB/octave (shelving filters only).
+o|Bandwidth in octaves.
+h|Bandwidth in Hz.
+k|Bandwidth in kHz.
+.TE
+.PP
+Note: The `\fBd\fR' width suffix also changes the definition of \fIf0\fR from center
+frequency to corner frequency (like Room EQ Wizard and the Behringer DCX2496).
+.PP
+Additionally, a macro is provided for constructing arbitrary-order Butterworth
+filters from cascaded second-order sections: `bw<\fIorder\fR>[.\fIn\fR]', where `<\fIorder\fR>' is
+the filter order and `\fIn\fR' is an index corresponding to a particular pair of
+poles. The Q-factors are always in ascending order. For example,
+.EX
+	lowpass 1k bw6.0 lowpass 1k bw6.1 lowpass 1k bw6.2
+.EE
+creates a 6th-order Butterworth lowpass filter. Odd-order filters require an
+additional first-order section:
+.EX
+	lowpass_1 1k lowpass 1k bw5.0 lowpass 1k bw5.1
+.EE
+.SS File paths
+On the command line, relative paths are relative to `$PWD'. Within an effects
+file, relative paths are relative to the directory containing said effects
+file. A `~/' prefix will be expanded to the contents of `$HOME'. The following
+substitutions are supported anywhere within a file path:
+
+.TS
+tab (|);
+lB lB
+l l.
+Sequence|Substitution
+_
+%r|Sample rate in Hz
+%k|Sample rate in kHz
+%c|Number of channels
+%%|Literal `%'
+.TE
+.SS Channel selectors and masks
+A colon (`:') followed by a selector (see ``Selector syntax'') specifies the
+input channels for effects that follow. For example,
+.EX
+	:0,2 eq 1k 1.0 -6
+.EE
+will apply an \fBeq\fR effect to channels 0 and 2. If an effect changes the total
+number of channels, the last channel selector given is parsed again. Additional
+channels are not added unless the selector includes an unbounded range.
+.PP
+Channel numbers refer to the channels in the active channel mask, which is a
+property of the containing block. Blocks may be created using braces
+(`{ ... }') or by sourcing a file (see ``Effects files''). The channel mask is
+derived from the active channel selector at creation. For example,
+.EX
+	:1,3 { :0 gain -6 :1 gain +6 }
+.EE
+creates a block with the mask `1,3'. Within the block, `:0' selects the first
+channel in the mask (channel 1), and `:1' selects the second channel in the
+mask (channel 3). Channel selectors have block scope.
+.PP
+Channels are automatically added or removed from the active channel mask if an
+effect changes the total number of channels. Additional channels are always
+appended to the end of the channel list.
+.SS Effects files
+Files may be sourced using the `@' directive:
+.EX
+	@[~/]path/to/file
+.EE
+See ``File paths'' for more information about how paths are interpreted. Note that sourcing
+a file implicitly creates a block (see ``Channel selectors and masks''). Within a
+file, lines in which the first non-whitespace character is `#' are ignored. A
+backslash (`\\') may be used to escape whitespace, `#', or `\\'. Example:
+.EX
+	gain -4.0
+	# This is a comment
+	lowshelf 90 1s +4 eq 3k 1.5 -3
+.EE
+.SS Other directives
+An exclamation mark (`!') allows initialization failure of the effect that
+follows.
+.SS FFTW wisdom
+Effects utilizing FFTW3 can optionally load and save wisdom. For \fBdsp\fR, set
+`$DSP_FFTW_WISDOM_PATH'. \fBladspa_dsp\fR uses `$LADSPA_DSP_FFTW_WISDOM_PATH'
+instead. If a path is set, FFTW plans are created with the FFTW_MEASURE flag.
+Accumulated wisdom is written on exit.
+.SH "مثال‌ها (EXAMPLES)"
+Read \fIfile.flac\fR, apply a bass boost, and write to alsa device \fIhw:2\fR:
+.EX
+	dsp file.flac -ot alsa -e s24_3 hw:2 lowshelf 60 0.5 +4
+.EE
+.PP
+Plot the magnitude vs frequency response of an effects chain:
+.EX
+	dsp -pn [effect [args]] ... | gnuplot
+.EE
+.PP
+Implement an LR4 crossover at 2.2KHz, where output channels 0 and 1 are the
+left and right tweeters, and channels 2 and 3 are the left and right woofers,
+respectively:
+.EX
+	dsp stereo_file.flac -ot alsa -e s32 hw:3 remix 0 1 0 1
+	  :0,1 highpass 2.2k 0.7071 highpass 2.2k 0.7071 :
+	  :2,3 lowpass 2.2k 0.7071 lowpass 2.2k 0.7071 :
+.EE
+.PP
+Apply effects from a file:
+.EX
+	dsp file.flac @eq.txt
+.EE
+.SH LADSPA FRONTEND
+.SS Configuration
+\fBladspa_dsp\fR looks for configuration files in the following directories:
+.IP \(bu 3
+$XDG_CONFIG_HOME/ladspa_dsp
+.IP \(bu 3
+$HOME/.config/ladspa_dsp (if $XDG_CONFIG_HOME is not set)
+.IP \(bu 3
+/etc/ladspa_dsp
+.PP
+To override the default directories, set the `LADSPA_DSP_CONFIG_PATH'
+environment variable to the desired path(s) (colon-separated).
+.PP
+Each file that is named either \fIconfig\fR or \fIconfig_<name>\fR (where \fI<name>\fR is
+any string) is loaded as a separate plugin. The plugin label is either
+\fIladspa_dsp\fR (for \fIconfig\fR) or \fIladspa_dsp:<name>\fR (for \fIconfig_<name>\fR).
+.PP
+Configuration files are a simple key-value format. Leading whitespace is
+ignored. The valid keys are:
+.TP
+.B input_channels
+Number of input channels. Default value is 1. May be left unset unless
+you want individual control over each channel.
+.TP
+.B output_channels
+Number of output channels. Default value is 1. This parameter is not
+currently set automatically because the number of LADSPA ports must be
+known before the effects chain is built. Initialization will fail if it
+does not match the effects chain.
+.TP
+.B LC_NUMERIC
+Set `LC_NUMERIC' to the given value while building the effects chain.
+Default value is `C', which gives consistent number parsing behavior
+regardless of the system locale and LADSPA host behavior. Setting this to
+an empty value uses the default system locale. The special value `none'
+leaves `LC_NUMERIC' up to the LADSPA host (not generally recommended).
+.TP
+.B effects_chain
+String to build the effects chain. The format is the same as an effects
+file, but only a single line is interpreted.
+.PP
+Example configuration:
+.EX
+	# This is a comment
+	input_channels=1
+	output_channels=1
+	LC_NUMERIC=C
+	effects_chain=gain -3 lowshelf 100 1s +3 @/path/to/eq_file
+.EE
+.PP
+Relative file paths in the \fBeffects_chain\fR line are relative to the
+directory in which the configuration file resides.
+.PP
+The loglevel can be set to `VERBOSE', `NORMAL', or `SILENT' through the
+`LADSPA_DSP_LOGLEVEL' environment variable.
+.PP
+Note: The resample effect cannot be used with the LADSPA frontend.
+.SS Examples
+See https://github.com/bmc0/dsp/blob/master/README.md for usage examples.
+.SH "اشکالات (BUGS)"
+No support for metadata.
+.PP
+Some effects do not support plotting.
+.PP
+When plotting an effects chain containing the \fBnoise\fR effect, a different
+random sequence is generated for each output channel regardless of whether the
+noise should be correlated between outputs. Summing correlated noise works
+correctly.
+.SH "مجوز (LICENSE)"
+This software is released under the ISC license.

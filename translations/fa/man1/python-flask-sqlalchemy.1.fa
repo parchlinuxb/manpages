@@ -1,0 +1,2832 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "FLASK-SQLALCHEMY" "1" "Dec 15, 2025" "3.1.x" "Flask-SQLAlchemy"
+.SH "نام (NAME)"
+flask-sqlalchemy \- Flask-SQLAlchemy 3.1.1
+[image]
+.sp
+Flask\-SQLAlchemy is an extension for Flask \%<https://\:flask\:.palletsprojects\:.com> that adds support for SQLAlchemy \%<https://\:www\:.sqlalchemy\:.org> to
+your application. It simplifies using SQLAlchemy with Flask by setting up common objects
+and patterns for using those objects, such as a session tied to each web request, models,
+and engines.
+.sp
+Flask\-SQLAlchemy does not change how SQLAlchemy works or is used. See the
+SQLAlchemy documentation \%<https://\:docs\:.sqlalchemy\:.org> to learn how to work with the ORM in depth. The
+documentation here will only cover setting up the extension, not how to use SQLAlchemy.
+.SH USER GUIDE
+.SS Quick Start
+.sp
+Flask\-SQLAlchemy simplifies using SQLAlchemy by automatically handling creating, using,
+and cleaning up the SQLAlchemy objects you\(aqd normally work with. While it adds a few
+useful features, it still works like SQLAlchemy.
+.sp
+This page will walk you through the basic use of Flask\-SQLAlchemy. For full capabilities
+and customization, see the rest of these docs, including the API docs for the
+\fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy> object.
+.SS Check the SQLAlchemy Documentation
+.sp
+Flask\-SQLAlchemy is a wrapper around SQLAlchemy. You should follow the
+SQLAlchemy Tutorial \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:tutorial/\:index\:.html> to learn about how to use it, and consult its documentation
+for detailed information about its features. These docs show how to set up
+Flask\-SQLAlchemy itself, not how to use SQLAlchemy. Flask\-SQLAlchemy sets up the
+engine and scoped session automatically, so you can skip those
+parts of the SQLAlchemy tutorial.
+.sp
+This guide assumes you are using SQLAlchemy 2.x, which has a new API for defining models
+and better support for Python type hints and data classes. If you are using SQLAlchemy 1.x,
+see Legacy Quickstart \%<>\&.
+.SS Installation
+.sp
+Flask\-SQLAlchemy is available on PyPI \%<https://\:pypi\:.org/\:project/\:Flask-SQLAlchemy> and can be installed with various Python tools.
+For example, to install or update the latest version using pip:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ pip install \-U Flask\-SQLAlchemy
+.EE
+.UNINDENT
+.UNINDENT
+.SS Initialize the Extension
+.sp
+First create the \fBdb\fP object using the \fBSQLAlchemy\fP constructor.
+.sp
+Pass a subclass of either DeclarativeBase \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:mapping_api\:.html#\:sqlalchemy\:.orm\:.DeclarativeBase> or DeclarativeBaseNoMeta \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:mapping_api\:.html#\:sqlalchemy\:.orm\:.DeclarativeBaseNoMeta>
+to the constructor.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+  pass
+
+db = SQLAlchemy(model_class=Base)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Learn more about customizing the base model class in Models and Tables \%<>\&.
+.SS About the \fBSQLAlchemy\fP object
+.sp
+Once constructed, the \fBdb\fP object gives you access to the \fBdb.Model\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.Model> class to
+define models, and the \fBdb.session\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.session> to execute queries.
+.sp
+The \fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy> object also takes additional arguments to customize the
+objects it manages.
+.SS Configure the Extension
+.sp
+The next step is to connect the extension to your Flask app.
+The only required Flask app config is the \fBSQLALCHEMY_DATABASE_URI\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_DATABASE_URI> key. That
+is a connection string that tells SQLAlchemy what database to connect to.
+.sp
+Create your Flask application object, load any config, and then initialize the
+\fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy> extension class with the application by calling
+\fBdb.init_app\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.init_app>\&. This example connects to a SQLite database,
+which is stored in the app\(aqs instance folder.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# create the app
+app = Flask(__name__)
+# configure the SQLite database, relative to the app instance folder
+app.config[\(dqSQLALCHEMY_DATABASE_URI\(dq] = \(dqsqlite:///project.db\(dq
+# initialize the app with the extension
+db.init_app(app)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+See Configuration \%<> for an explanation of connections strings and what other configuration
+keys are used.
+.SS Define Models
+.sp
+Subclass \fBdb.Model\fP to define a model class.
+The model will generate a table name by converting the \fBCamelCase\fP class name to
+\fBsnake_case\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+
+class User(db.Model):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(String)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+See Models and Tables \%<> for more information about defining and creating models and tables.
+.SS Create the Tables
+.sp
+After all models and tables are defined, call \fBSQLAlchemy.create_all()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.create_all> to create
+the table schema in the database. This requires an application context. Since you\(aqre not
+in a request at this point, create one manually.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+with app.app_context():
+    db.create_all()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you define models in other modules, you must import them before calling
+\fBcreate_all\fP, otherwise SQLAlchemy will not know about them.
+.sp
+\fBcreate_all\fP does not update tables if they are already in the database. If you change
+a model\(aqs columns, use a migration library like Alembic \%<https://\:alembic\:.sqlalchemy\:.org> with Flask\-Alembic \%<https://\:flask-alembic\:.readthedocs\:.io> or
+Flask\-Migrate \%<https://\:flask-migrate\:.readthedocs\:.io> to generate migrations that update the database schema.
+.SS Query the Data
+.sp
+Within a Flask view or CLI command, you can use \fBdb.session\fP to execute queries and
+modify model data.
+.sp
+SQLAlchemy automatically defines an \fB__init__\fP method for each model that assigns any
+keyword arguments to corresponding database columns and other attributes.
+.sp
+\fBdb.session.add(obj)\fP adds an object to the session, to be inserted. Modifying an
+object\(aqs attributes updates the object. \fBdb.session.delete(obj)\fP deletes an object.
+Remember to call \fBdb.session.commit()\fP after modifying, adding, or deleting any data.
+.sp
+\fBdb.session.execute(db.select(...))\fP constructs a query to select data from the
+database. Building queries is the main feature of SQLAlchemy, so you\(aqll want to read its
+tutorial on select \%<https://\:docs\:.sqlalchemy\:.org/\:tutorial/\:data_select\:.html> to learn all about it. You\(aqll usually use the \fBResult.scalars()\fP
+method to get a list of results, or the \fBResult.scalar()\fP method to get a single
+result.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@app.route(\(dq/users\(dq)
+def user_list():
+    users = db.session.execute(db.select(User).order_by(User.username)).scalars()
+    return render_template(\(dquser/list.html\(dq, users=users)
+
+@app.route(\(dq/users/create\(dq, methods=[\(dqGET\(dq, \(dqPOST\(dq])
+def user_create():
+    if request.method == \(dqPOST\(dq:
+        user = User(
+            username=request.form[\(dqusername\(dq],
+            email=request.form[\(dqemail\(dq],
+        )
+        db.session.add(user)
+        db.session.commit()
+        return redirect(url_for(\(dquser_detail\(dq, id=user.id))
+
+    return render_template(\(dquser/create.html\(dq)
+
+@app.route(\(dq/user/<int:id>\(dq)
+def user_detail(id):
+    user = db.get_or_404(User, id)
+    return render_template(\(dquser/detail.html\(dq, user=user)
+
+@app.route(\(dq/user/<int:id>/delete\(dq, methods=[\(dqGET\(dq, \(dqPOST\(dq])
+def user_delete(id):
+    user = db.get_or_404(User, id)
+
+    if request.method == \(dqPOST\(dq:
+        db.session.delete(user)
+        db.session.commit()
+        return redirect(url_for(\(dquser_list\(dq))
+
+    return render_template(\(dquser/delete.html\(dq, user=user)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You may see uses of \fBModel.query\fP to build queries. This is an older interface for
+queries that is considered legacy in SQLAlchemy. Prefer using
+\fBdb.session.execute(db.select(...))\fP instead.
+.sp
+See Modifying and Querying Data \%<> for more information about queries.
+.SS What to Remember
+.sp
+For the most part, you should use SQLAlchemy as usual. The \fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy> extension
+instance creates, configures, and gives access to the following things:
+.INDENT 0.0
+.IP \(bu 2
+\fBSQLAlchemy.Model\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.Model> declarative model base class. It sets the table
+name automatically instead of needing \fB__tablename__\fP\&.
+.IP \(bu 2
+\fBSQLAlchemy.session\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.session> is a session that is scoped to the current
+Flask application context. It is cleaned up after every request.
+.IP \(bu 2
+\fBSQLAlchemy.metadata\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.metadata> and \fBSQLAlchemy.metadatas\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.metadatas> gives access to each
+metadata defined in the config.
+.IP \(bu 2
+\fBSQLAlchemy.engine\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.engine> and \fBSQLAlchemy.engines\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.engines> gives access to each
+engine defined in the config.
+.IP \(bu 2
+\fBSQLAlchemy.create_all()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.create_all> creates all tables.
+.IP \(bu 2
+You must be in an active Flask application context to execute queries and to access
+the session and engine.
+.UNINDENT
+.SS Configuration
+.SS Configuration Keys
+.sp
+Configuration is loaded from the Flask \fBapp.config\fP when \fBSQLAlchemy.init_app()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.init_app>
+is called. The configuration is not read again after that. Therefore, all configuration
+must happen before initializing the application.
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.config.SQLALCHEMY_DATABASE_URI
+The database connection URI used for the default engine. It can be either a string
+or a SQLAlchemy \fBURL\fP instance. See below and Engine Configuration \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:engines\:.html> for
+examples.
+.sp
+At least one of this and \fBSQLALCHEMY_BINDS\fP must be set.
+.sp
+Changed in version 3.0: No longer defaults to an in\-memory SQLite database if not set.
+
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.config.SQLALCHEMY_ENGINE_OPTIONS
+A dict of arguments to pass to \fBsqlalchemy.create_engine()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:engines\:.html#\:sqlalchemy\:.create_engine> for the default
+engine.
+.sp
+This takes precedence over the \fBengine_options\fP argument to \fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy>,
+which can be used to set default options for all engines.
+.sp
+Changed in version 3.0: Only applies to the default bind.
+
+.sp
+Added in version 2.4.
+
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.config.SQLALCHEMY_BINDS
+A dict mapping bind keys to engine options. The value can be a string or a
+SQLAlchemy \fBURL\fP instance. Or it can be a dict of arguments, including the \fBurl\fP
+key, that will be passed to \fBsqlalchemy.create_engine()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:engines\:.html#\:sqlalchemy\:.create_engine>\&. The \fBNone\fP key can
+be used to configure the default bind, but \fBSQLALCHEMY_ENGINE_OPTIONS\fP and
+\fBSQLALCHEMY_DATABASE_URI\fP take precedence.
+.sp
+At least one of this and \fBSQLALCHEMY_DATABASE_URI\fP must be set.
+.sp
+Added in version 0.12.
+
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.config.SQLALCHEMY_ECHO
+The default value for \fBecho\fP and \fBecho_pool\fP for every engine. This is useful to
+quickly debug the connections and queries issued from SQLAlchemy.
+.sp
+Changed in version 3.0: Sets \fBecho_pool\fP in addition to \fBecho\fP\&.
+
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.config.SQLALCHEMY_RECORD_QUERIES
+If enabled, information about each query during a request will be recorded. Use
+\fBget_recorded_queries()\fP \%<#\:flask_sqlalchemy\:.record_queries\:.get_recorded_queries> to get a list of queries that were issued during the
+request.
+.sp
+Changed in version 3.0: Not enabled automatically in debug or testing mode.
+
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.config.SQLALCHEMY_TRACK_MODIFICATIONS
+If enabled, all \fBinsert\fP, \fBupdate\fP, and \fBdelete\fP operations on models are
+recorded, then sent in \fBmodels_committed\fP \%<#\:flask_sqlalchemy\:.track_modifications\:.models_committed> and
+\fBbefore_models_committed\fP \%<#\:flask_sqlalchemy\:.track_modifications\:.before_models_committed> signals when \fBsession.commit()\fP is called.
+.sp
+This adds a significant amount of overhead to every session. Prefer using
+SQLAlchemy\(aqs ORM Events \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:events\:.html> directly for the exact information you need.
+.sp
+Changed in version 3.0: Disabled by default.
+
+.sp
+Added in version 2.0.
+
+.UNINDENT
+.sp
+Changed in version 3.1: Removed \fBSQLALCHEMY_COMMIT_ON_TEARDOWN\fP\&.
+
+.sp
+Changed in version 3.0: Removed \fBSQLALCHEMY_NATIVE_UNICODE\fP, \fBSQLALCHEMY_POOL_SIZE\fP,
+\fBSQLALCHEMY_POOL_TIMEOUT\fP, \fBSQLALCHEMY_POOL_RECYCLE\fP, and
+\fBSQLALCHEMY_MAX_OVERFLOW\fP\&.
+
+.SS Connection URL Format
+.sp
+See SQLAlchemy\(aqs documentation on Engine Configuration \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:engines\:.html> for a complete
+description of syntax, dialects, and options.
+.sp
+A basic database connection URL uses the following format. Username, password, host, and
+port are optional depending on the database type and configuration.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+dialect://username:password@host:port/database
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Here are some example connection strings:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# SQLite, relative to Flask instance path
+sqlite:///project.db
+
+# PostgreSQL
+postgresql://scott:tiger@localhost/project
+
+# MySQL / MariaDB
+mysql://scott:tiger@localhost/project
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+SQLite does not use a user or host, so its URLs always start with _three_ slashes
+instead of two. The \fBdbname\fP value is a file path. Absolute paths start with a
+_fourth_ slash (on Linux or Mac). Relative paths are relative to the Flask application\(aqs
+\fBinstance_path\fP \%<https://\:flask\:.palletsprojects\:.com/\:en/\:stable/\:api/#\:flask\:.Flask\:.instance_path>\&.
+.SS Default Driver Options
+.sp
+Some default options are set for SQLite and MySQL engines to make them more usable by
+default in web applications.
+.sp
+SQLite relative file paths are relative to the Flask instance path instead of the
+current working directory. In\-memory databases use a static pool and
+\fBcheck_same_thread\fP to work across requests.
+.sp
+MySQL (and MariaDB) servers are configured to drop connections that have been idle for
+8 hours, which can result in an error like \fB2013: Lost connection to MySQL server
+during query\fP\&. A default \fBpool_recycle\fP value of 2 hours (7200 seconds) is used to
+recreate connections before that timeout.
+.SS Engine Configuration Precedence
+.sp
+Because Flask\-SQLAlchemy has support for multiple engines, there are rules for which
+config overrides other config. Most applications will only have a single database and
+only need to use \fBSQLALCHEMY_DATABASE_URI\fP and \fBSQLALCHEMY_ENGINE_OPTIONS\fP\&.
+.INDENT 0.0
+.IP \(bu 2
+If the \fBengine_options\fP argument is given to \fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy>, it sets default
+options for \fIall\fP engines. \fBSQLALCHEMY_ECHO\fP sets the default value for both
+\fBecho\fP and \fBecho_pool\fP for all engines.
+.IP \(bu 2
+The options for each engine in \fBSQLALCHEMY_BINDS\fP override those defaults.
+.IP \(bu 2
+\fBSQLALCHEMY_ENGINE_OPTIONS\fP overrides the \fBNone\fP key in
+\fBSQLALCHEMY_BINDS\fP, and \fBSQLALCHEMY_DATABASE_URI\fP overrides the \fBurl\fP key
+in that engine\(aqs options.
+.UNINDENT
+.SS Timeouts
+.sp
+Certain databases may be configured to close inactive connections after a period of
+time. MySQL and MariaDB are configured for this by default, but database services may
+also configure this type of limit. This can result in an error like
+\fB2013: Lost connection to MySQL server during query\fP\&.
+.sp
+If you encounter this error, try setting \fBpool_recycle\fP in the engine options to
+a value less than the database\(aqs timeout.
+.sp
+Alternatively, you can try setting \fBpool_pre_ping\fP if you expect the database to close
+connections often, such as if it\(aqs running in a container that may restart.
+.sp
+See SQAlchemy\(aqs docs on dealing with disconnects \%<https://\:docs\:.sqlalchemy\:.org/\:core/\:pooling\:.html#\:dealing-with-disconnects> for more information.
+.SS Models and Tables
+.sp
+Use the \fBdb.Model\fP class to define models, or the \fBdb.Table\fP class to create tables.
+Both handle Flask\-SQLAlchemy\(aqs bind keys to associate with a specific engine.
+.SS Initializing the Base Class
+.sp
+\fBSQLAlchemy\fP 2.x offers several possible base classes for your models:
+DeclarativeBase \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:mapping_api\:.html#\:sqlalchemy\:.orm\:.DeclarativeBase> or DeclarativeBaseNoMeta \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:mapping_api\:.html#\:sqlalchemy\:.orm\:.DeclarativeBaseNoMeta>\&.
+.sp
+Create a subclass of one of those classes:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import DeclarativeBase
+
+class Base(DeclarativeBase):
+  pass
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If desired, you can enable SQLAlchemy\(aqs native support for data classes \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:changelog/\:whatsnew_20\:.html#\:native-support-for-dataclasses-mapped-as-orm-models>
+by adding \fIMappedAsDataclass\fP as an additional parent class.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from sqlalchemy.orm import DeclarativeBase, MappedAsDataclass
+
+class Base(DeclarativeBase, MappedAsDataclass):
+  pass
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You can optionally construct the \fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy> object with a custom
+\fBMetaData\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:metadata\:.html#\:sqlalchemy\:.schema\:.MetaData> object. This allows you to specify a custom
+constraint naming convention \%<https://\:docs\:.sqlalchemy\:.org/\:core/\:constraints\:.html#\:constraint-naming-conventions>\&. This makes constraint names consistent and predictable,
+useful when using migrations, as described by Alembic \%<https://\:alembic\:.sqlalchemy\:.org/\:en/\:latest/\:naming\:.html>\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from sqlalchemy import MetaData
+
+class Base(DeclarativeBase):
+    metadata = MetaData(naming_convention={
+        \(dqix\(dq: \(aqix_%(column_0_label)s\(aq,
+        \(dquq\(dq: \(dquq_%(table_name)s_%(column_0_name)s\(dq,
+        \(dqck\(dq: \(dqck_%(table_name)s_%(constraint_name)s\(dq,
+        \(dqfk\(dq: \(dqfk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s\(dq,
+        \(dqpk\(dq: \(dqpk_%(table_name)s\(dq
+    })
+.EE
+.UNINDENT
+.UNINDENT
+.SS Initialize the Extension
+.sp
+Once you\(aqve defined a base class, create the \fBdb\fP object using the \fBSQLAlchemy\fP constructor.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+db = SQLAlchemy(model_class=Base)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Defining Models
+.sp
+See SQLAlchemy\(aqs declarative documentation \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:declarative_tables\:.html> for full information about defining model
+classes declaratively.
+.sp
+Subclass \fBdb.Model\fP to create a model class. Unlike plain SQLAlchemy,
+Flask\-SQLAlchemy\(aqs model will automatically generate a table name if \fB__tablename__\fP
+is not set and a primary key column is defined.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from sqlalchemy.orm import Mapped, mapped_column
+
+class User(db.Model):
+    id: Mapped[int] = mapped_column(db.Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(db.String, unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(db.String)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Defining a model does not create it in the database. Use \fBcreate_all()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.create_all>
+to create the models and tables after defining them. If you define models in submodules,
+you must import them so that SQLAlchemy knows about them before calling \fBcreate_all\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+with app.app_context():
+    db.create_all()
+.EE
+.UNINDENT
+.UNINDENT
+.SS Defining Tables
+.sp
+See SQLAlchemy\(aqs table documentation \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:metadata\:.html> for full information about defining table
+objects.
+.sp
+Create instances of \fBdb.Table\fP to define tables. The class takes a table name, then
+any columns and other table parts such as columns and constraints. Unlike plain
+SQLAlchemy, the \fBmetadata\fP argument is not required. A metadata will be chosen based
+on the \fBbind_key\fP argument, or the default will be used.
+.sp
+A common reason to create a table directly is when defining many to many relationships.
+The association table doesn\(aqt need its own model class, as it will be accessed through
+the relevant relationship attributes on the related models.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import sqlalchemy as sa
+
+user_book_m2m = db.Table(
+    \(dquser_book\(dq,
+    sa.Column(\(dquser_id\(dq, sa.ForeignKey(User.id), primary_key=True),
+    sa.Column(\(dqbook_id\(dq, sa.ForeignKey(Book.id), primary_key=True),
+)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Reflecting Tables
+.sp
+If you are connecting to a database that already has tables, SQLAlchemy can detect that
+schema and create tables with columns automatically. This is called reflection. Those
+tables can also be assigned to model classes with the \fB__table__\fP attribute instead of
+defining the full model.
+.sp
+Call the \fBreflect()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.reflect> method on the extension. It will reflect all the
+tables for each bind key. Each metadata\(aqs \fBtables\fP attribute will contain the detected
+table objects.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+with app.app_context():
+    db.reflect()
+
+class User:
+    __table__ = db.metadatas[\(dqauth\(dq].tables[\(dquser\(dq]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+In most cases, it will be more maintainable to define the model classes yourself. You
+only need to define the models and columns you will actually use, even if you\(aqre
+connecting to a broader schema. IDEs will know the available attributes, and migration
+tools like Alembic can detect changes and generate schema migrations.
+.SS Modifying and Querying Data
+.SS Insert, Update, Delete
+.sp
+See SQLAlchemy\(aqs ORM tutorial \%<https://\:docs\:.sqlalchemy\:.org/\:tutorial/\:orm_data_manipulation\:.html> and other SQLAlchemy documentation for more information
+about modifying data with the ORM.
+.sp
+To insert data, pass the model object to \fBdb.session.add()\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+user = User()
+db.session.add(user)
+db.session.commit()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To update data, modify attributes on the model objects:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+user.verified = True
+db.session.commit()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To delete data, pass the model object to \fBdb.session.delete()\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+db.session.delete(user)
+db.session.commit()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+After modifying data, you must call \fBdb.session.commit()\fP to commit the changes to
+the database. Otherwise, they will be discarded at the end of the request.
+.SS Select
+.sp
+See SQLAlchemy\(aqs Querying Guide \%<https://\:docs\:.sqlalchemy\:.org/\:orm/\:queryguide\:.html> and other SQLAlchemy documentation for more
+information about querying data with the ORM.
+.sp
+Queries are executed through \fBdb.session.execute()\fP\&. They can be constructed
+using \fBselect()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:selectable\:.html#\:sqlalchemy\:.sql\:.expression\:.select>\&. Executing a select returns a
+\fBResult\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Result> object that has many methods for working with the
+returned rows.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+user = db.session.execute(db.select(User).filter_by(username=username)).scalar_one()
+
+users = db.session.execute(db.select(User).order_by(User.username)).scalars()
+.EE
+.UNINDENT
+.UNINDENT
+.SS Queries for Views
+.sp
+If you write a Flask view function it\(aqs often useful to return a \fB404 Not Found\fP error
+for missing entries. Flask\-SQLAlchemy provides some extra query methods.
+.INDENT 0.0
+.IP \(bu 2
+\fBSQLAlchemy.get_or_404()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.get_or_404> will raise a 404 if the row with the given id doesn\(aqt
+exist, otherwise it will return the instance.
+.IP \(bu 2
+\fBSQLAlchemy.first_or_404()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.first_or_404> will raise a 404 if the query does not return any
+results, otherwise it will return the first result.
+.IP \(bu 2
+\fBSQLAlchemy.one_or_404()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.one_or_404> will raise a 404 if the query does not return exactly
+one result, otherwise it will return the result.
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@app.route(\(dq/user\-by\-id/<int:id>\(dq)
+def user_by_id(id):
+    user = db.get_or_404(User, id)
+    return render_template(\(dqshow_user.html\(dq, user=user)
+
+@app.route(\(dq/user\-by\-username/<username>\(dq)
+def user_by_username(username):
+    user = db.one_or_404(db.select(User).filter_by(username=username))
+    return render_template(\(dqshow_user.html\(dq, user=user)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You can add a custom message to the 404 error:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+user = db.one_or_404(
+    db.select(User).filter_by(username=username),
+    description=f\(dqNo user named \(aq{username}\(aq.\(dq
+)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Legacy Query Interface
+.sp
+You may see uses of \fBModel.query\fP or \fBsession.query\fP to build queries. That query
+interface is considered legacy in SQLAlchemy. Prefer using the
+\fBsession.execute(select(...))\fP instead.
+.sp
+See Legacy Query Interface \%<> for documentation.
+.SS Paging Query Results
+.sp
+If you have a lot of results, you may only want to show a certain number at a time,
+allowing the user to click next and previous links to see pages of data. This is
+sometimes called \fIpagination\fP, and uses the verb \fIpaginate\fP\&.
+.sp
+Call \fBSQLAlchemy.paginate()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.paginate> on a select statement to get a \fBPagination\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination>
+object.
+.sp
+During a request, this will take \fBpage\fP and \fBper_page\fP arguments from the query
+string \fBrequest.args\fP\&. Pass \fBmax_per_page\fP to prevent users from requesting too many
+results on a single page. If not given, the default values will be page 1 with 20 items
+per page.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+page = db.paginate(db.select(User).order_by(User.join_date))
+return render_template(\(dquser/list.html\(dq, page=page)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Showing the Items
+.sp
+The \fBPagination\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination> object\(aqs \fBPagination.items\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination\:.items> attribute is the list of
+items for the current page. The object can also be iterated over directly.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+<ul>
+  {% for user in page %}
+    <li>{{ user.username }}
+  {% endfor %}
+</ul>
+.EE
+.UNINDENT
+.UNINDENT
+.SS Page Selection Widget
+.sp
+The \fBPagination\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination> object has attributes that can be used to create a page
+selection widget by iterating over page numbers and checking the current page.
+\fBiter_pages()\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination\:.iter_pages> will produce up to three groups of numbers, separated by
+\fBNone\fP\&. It defaults to showing 2 page numbers at either edge, 2 numbers before the
+current, the current, and 4 numbers after the current. For example, if there are 20
+pages and the current page is 7, the following values are yielded.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+users.iter_pages()
+[1, 2, None, 5, 6, 7, 8, 9, 10, 11, None, 19, 20]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+You can use the \fBtotal\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination\:.total> attribute to show the total number of
+results, and \fBfirst\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination\:.first> and \fBlast\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination\:.last> to show the
+range of items on the current page.
+.sp
+The following Jinja macro renders a simple pagination widget.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{% macro render_pagination(pagination, endpoint) %}
+  <div class=page\-items>
+    {{ pagination.first }} \- {{ pagination.last }} of {{ pagination.total }}
+  </div>
+  <div class=pagination>
+    {% for page in pagination.iter_pages() %}
+      {% if page %}
+        {% if page != pagination.page %}
+          <a href=\(dq{{ url_for(endpoint, page=page) }}\(dq>{{ page }}</a>
+        {% else %}
+          <strong>{{ page }}</strong>
+        {% endif %}
+      {% else %}
+        <span class=ellipsis>…</span>
+      {% endif %}
+    {% endfor %}
+  </div>
+{% endmacro %}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Flask Application Context
+.sp
+An active Flask application context is required to make queries and to access
+\fBdb.engine\fP and \fBdb.session\fP\&. This is because the session is scoped to the context
+so that it is cleaned up properly after every request or CLI command.
+.sp
+Regardless of how an application is initialized with the extension, it is not stored for
+later use. Instead, the extension uses Flask\(aqs \fBcurrent_app\fP proxy to get the active
+application, which requires an active application context.
+.SS Automatic Context
+.sp
+When Flask is handling a request or a CLI command, an application context will
+automatically be pushed. Therefore you don\(aqt need to do anything special to use the
+database during requests or CLI commands.
+.SS Manual Context
+.sp
+If you try to use the database when an application context is not active, you will see
+the following error.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you find yourself in a situation where you need the database and don\(aqt have a
+context, you can push one with \fBapp_context\fP\&. This is common when calling
+\fBdb.create_all\fP to create the tables, for example.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(\(dqproject.config\(dq)
+
+    import project.models
+
+    with app.app_context():
+        db.create_all()
+
+    return app
+.EE
+.UNINDENT
+.UNINDENT
+.SS Tests
+.sp
+If you test your application using the Flask test client to make requests to your
+endpoints, the context will be available as part of the request. If you need to test
+something about your database or models directly, rather than going through a request,
+you need to push a context manually.
+.sp
+Only push a context exactly where and for how long it\(aqs needed for each test. Do not
+push an application context globally for every test, as that can interfere with how the
+session is cleaned up.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+def test_user_model(app):
+    user = User()
+
+    with app.app_context():
+        db.session.add(user)
+        db.session.commit()
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If you find yourself writing many tests like that, you can use a pytest fixture to push
+a context for a specific test.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+import pytest
+
+@pytest.fixture
+def app_ctx(app):
+    with app.app_context():
+        yield
+
+@pytest.mark.usefixtures(\(dqapp_ctx\(dq)
+def test_user_model():
+    user = User()
+    db.session.add(user)
+    db.session.commit()
+.EE
+.UNINDENT
+.UNINDENT
+.SS Multiple Databases with Binds
+.sp
+SQLAlchemy can connect to more than one database at a time. It refers to different
+engines as \(dqbinds\(dq. Flask\-SQLAlchemy simplifies how binds work by associating each
+engine with a short string, a \(dqbind key\(dq, and then associating each model and table with
+a bind key. The session will choose what engine to use for a query based on the bind key
+of the thing being queried. If no bind key is given, the default engine is used.
+.SS Configuring Binds
+.sp
+The default bind is still configured by setting \fBSQLALCHEMY_DATABASE_URI\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_DATABASE_URI>, and
+\fBSQLALCHEMY_ENGINE_OPTIONS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_ENGINE_OPTIONS> for any engine options. Additional binds are given in
+\fBSQLALCHEMY_BINDS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_BINDS>, a dict mapping bind keys to engine URLs. To specify engine
+options for a bind, the value can be a dict of engine options with the \fB\(dqurl\(dq\fP key,
+instead of only a URL string.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+SQLALCHEMY_DATABASE_URI = \(dqpostgresql:///main\(dq
+SQLALCHEMY_BINDS = {
+    \(dqmeta\(dq: \(dqsqlite:////path/to/meta.db\(dq,
+    \(dqauth\(dq: {
+        \(dqurl\(dq: \(dqmysql://localhost/users\(dq,
+        \(dqpool_recycle\(dq: 3600,
+    },
+}
+.EE
+.UNINDENT
+.UNINDENT
+.SS Defining Models and Tables with Binds
+.sp
+Flask\-SQLAlchemy will create a metadata and engine for each configured bind. Models and
+tables with a bind key will be registered with the corresponding metadata, and the
+session will query them using the corresponding engine.
+.sp
+To set the bind for a model, set the \fB__bind_key__\fP class attribute. Not setting a
+bind key is equivalent to setting it to \fBNone\fP, the default key.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+class User(db.Model):
+    __bind_key__ = \(dqauth\(dq
+    id = db.Column(db.Integer, primary_key=True)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Models that inherit from this model will share the same bind key, or can override it.
+.sp
+To set the bind for a table, pass the \fBbind_key\fP keyword argument.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+user_table = db.Table(
+    \(dquser\(dq,
+    db.Column(\(dqid\(dq, db.Integer, primary_key=True),
+    bind_key=\(dqauth\(dq,
+)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Ultimately, the session looks up the bind key on the metadata associated with the model
+or table. That association happens during creation. Therefore, changing the bind key
+after creating a model or table will have no effect.
+.SS Accessing Metadata and Engines
+.sp
+You may need to inspect the metadata or engine for a bind. Note that you should execute
+queries through the session, not directly on the engine.
+.sp
+The default engine is \fBSQLAlchemy.engine\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.engine>, and the default metadata is
+\fBSQLAlchemy.metadata\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.metadata>\&. \fBSQLAlchemy.engines\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.engines> and
+\fBSQLAlchemy.metadatas\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.metadatas> are dicts mapping all bind keys.
+.SS Creating and Dropping Tables
+.sp
+The \fBcreate_all()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.create_all> and \fBdrop_all()\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy\:.drop_all> methods operate on
+all binds by default. The \fBbind_key\fP argument to these methods can be a string or
+\fBNone\fP to operate on a single bind, or a list of strings or \fBNone\fP to operate on a
+subset of binds. Because these methods access the engines, they must be called inside an
+application context.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# create tables for all binds
+db.create_all()
+
+# create tables for the default and \(dqauth\(dq binds
+db.create_all(bind_key=[None, \(dqauth\(dq])
+
+# create tables for the \(dqmeta\(dq bind
+db.create_all(bind_key=\(dqmeta\(dq)
+
+# drop tables for the default bind
+db.drop_all(bind_key=None)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Recording Query Information
+.sp
+\fBWarning:\fP
+.INDENT 0.0
+.INDENT 3.5
+This feature is intended for debugging only.
+.UNINDENT
+.UNINDENT
+.sp
+Flask\-SQLAlchemy can record some information about every query that executes during a
+request. This information can then be retrieved to aid in debugging performance. For
+example, it can reveal that a relationship performed too many individual selects, or
+reveal a query that took a long time.
+.sp
+To enable this feature, set \fBSQLALCHEMY_RECORD_QUERIES\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_RECORD_QUERIES> to \fBTrue\fP in the Flask
+app config. Use \fBget_recorded_queries()\fP \%<#\:flask_sqlalchemy\:.record_queries\:.get_recorded_queries> to get a list of query info objects. Each
+object has the following attributes:
+.INDENT 0.0
+.TP
+.B \fBstatement\fP
+The string of SQL generated by SQLAlchemy with parameter placeholders.
+.TP
+.B \fBparameters\fP
+The parameters sent with the SQL statement.
+.TP
+.B \fBstart_time\fP / \fBend_time\fP
+Timing info about when the query started execution and when the results where
+returned. Accuracy and value depends on the operating system.
+.TP
+.B \fBduration\fP
+The time the query took in seconds.
+.TP
+.B \fBlocation\fP
+A string description of where in your application code the query was executed. This
+may be unknown in certain cases.
+.UNINDENT
+.SS Tracking Modifications
+.sp
+\fBWarning:\fP
+.INDENT 0.0
+.INDENT 3.5
+Tracking changes adds significant overhead. In most cases, you\(aqll be better served by
+using SQLAlchemy events \%<https://\:docs\:.sqlalchemy\:.org/\:core/\:event\:.html> directly.
+.UNINDENT
+.UNINDENT
+.sp
+Flask\-SQLAlchemy can set up its session to track inserts, updates, and deletes for
+models, then send a Blinker signal with a list of these changes either before or during
+calls to \fBsession.flush()\fP and \fBsession.commit()\fP\&.
+.sp
+To enable this feature, set \fBSQLALCHEMY_TRACK_MODIFICATIONS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_TRACK_MODIFICATIONS> in the Flask app
+config. Then add a listener to \fBmodels_committed\fP \%<#\:flask_sqlalchemy\:.track_modifications\:.models_committed> (emitted after the commit) or
+\fBbefore_models_committed\fP \%<#\:flask_sqlalchemy\:.track_modifications\:.before_models_committed> (emitted before the commit).
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_sqlalchemy.track_modifications import models_committed
+
+def get_modifications(sender: Flask, changes: list[tuple[t.Any, str]]) \-> None:
+    ...
+
+models_committed.connect(get_modifications)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Advanced Customization
+.sp
+The various objects managed by the extension can be customized by passing arguments to
+the \fBSQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy> constructor.
+.SS Model Class
+.sp
+SQLAlchemy models all inherit from a declarative base class. This is exposed as
+\fBdb.Model\fP in Flask\-SQLAlchemy, which all models extend. This can be customized by
+subclassing the default and passing the custom class to \fBmodel_class\fP\&.
+.sp
+The following example gives every model an integer primary key, or a foreign key for
+joined\-table inheritance.
+.sp
+\fBNote:\fP
+.INDENT 0.0
+.INDENT 3.5
+Integer primary keys for everything is not necessarily the best database design
+(that\(aqs up to your project\(aqs requirements), this is only an example.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
+
+class Base(DeclarativeBase):
+    @declared_attr.cascading
+    @classmethod
+    def id(cls):
+        for base in cls.__mro__[1:\-1]:
+            if getattr(base, \(dq__table__\(dq, None) is not None:
+                    return mapped_column(ForeignKey(base.id), primary_key=True)
+            else:
+                return mapped_column(Integer, primary_key=True)
+
+db = SQLAlchemy(app, model_class=Base)
+
+class User(db.Model):
+    name: Mapped[str] = mapped_column(String)
+
+class Employee(User):
+    title: Mapped[str] = mapped_column(String)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Abstract Models and Mixins
+.sp
+If behavior is only needed on some models rather than all models, use an abstract model
+base class to customize only those models. For example, if some models should track when
+they are created or updated.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from datetime import datetime
+from sqlalchemy import DateTime, Integer, String
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, declared_attr
+
+class TimestampModel(db.Model):
+    __abstract__ = True
+    created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Author(db.Model):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+
+class Post(TimestampModel):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This can also be done with a mixin class, inheriting from \fBdb.Model\fP separately.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+class TimestampMixin:
+    created: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Post(TimestampMixin, db.Model):
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Disabling Table Name Generation
+.sp
+Some projects prefer to set each model\(aqs \fB__tablename__\fP manually rather than relying
+on Flask\-SQLAlchemy\(aqs detection and generation. The simple way to achieve that is to
+set each \fB__tablename__\fP and not modify the base class. However, the table name
+generation can be disabled by setting \fIdisable_autonaming=True\fP in the \fISQLAlchemy\fP constructor.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+class Base(sa_orm.DeclarativeBase):
+    pass
+
+db = SQLAlchemy(app, model_class=Base, disable_autonaming=True)
+.EE
+.UNINDENT
+.UNINDENT
+.SS Session Class
+.sp
+Flask\-SQLAlchemy\(aqs \fBSession\fP \%<#\:flask_sqlalchemy\:.session\:.Session> class chooses which engine to query based on the
+bind key associated with the model or table. However, there are other strategies such as
+horizontal sharding that can be implemented with a different session class. The
+\fBclass_\fP key to the \fBsession_options\fP argument to the extension to change the
+session class.
+.sp
+Flask\-SQLAlchemy will always pass the extension instance as the \fBdb\fP argument to the
+session, so it must accept that to continue working. That can be used to get access to
+\fBdb.engines\fP\&.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from sqlalchemy.ext.horizontal_shard import ShardedSession
+from flask_sqlalchemy.session import Session
+
+class CustomSession(ShardedSession, Session):
+    ...
+
+db = SQLAlchemy(session_options={\(dqclass_\(dq: CustomSession})
+.EE
+.UNINDENT
+.UNINDENT
+.SS Query Class
+.sp
+\fBWarning:\fP
+.INDENT 0.0
+.INDENT 3.5
+The query interface is considered legacy in SQLAlchemy. This includes
+\fBsession.query\fP, \fBModel.query\fP, \fBdb.Query\fP, and \fBlazy=\(dqdynamic\(dq\fP
+relationships. Prefer using \fBsession.execute(select(...))\fP instead.
+.UNINDENT
+.UNINDENT
+.sp
+It is possible to customize the query interface used by the session, models, and
+relationships. This can be used to add extra query methods. For example, you could add
+a \fBget_or\fP method that gets a row or returns a default.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_sqlalchemy.query import Query
+
+class GetOrQuery(Query):
+    def get_or(self, ident, default=None):
+        out = self.get(ident)
+
+        if out is None:
+            return default
+
+        return out
+
+db = SQLAlchemy(query_class=GetOrQuery)
+
+user = User.query.get_or(user_id, anonymous_user)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Passing the \fBquery_class\fP argument will customize \fBdb.Query\fP, \fBdb.session.query\fP,
+\fBModel.query\fP, and \fBdb.relationship(lazy=\(dqdynamic\(dq)\fP relationships. It\(aqs also
+possible to customize these on a per\-object basis.
+.sp
+To customize a specific model\(aqs \fBquery\fP property, set the \fBquery_class\fP attribute on
+the model class.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+class User(db.Model):
+    query_class = GetOrQuery
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To customize a specific dynamic relationship, pass the \fBquery_class\fP argument to the
+relationship.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+db.relationship(User, lazy=\(dqdynamic\(dq, query_class=GetOrQuery)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+To customize only \fBsession.query\fP, pass the \fBquery_cls\fP key to the
+\fBsession_options\fP argument to the constructor.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+db = SQLAlchemy(session_options={\(dqquery_cls\(dq: GetOrQuery})
+.EE
+.UNINDENT
+.UNINDENT
+.SH API REFERENCE
+.SS API
+.SS Extension
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.SQLAlchemy(app=None, *, metadata=None, session_options=None, query_class=<class \(aqflask_sqlalchemy.query.Query\(aq>, model_class=<class \(aqflask_sqlalchemy.model.Model\(aq>, engine_options=None, add_models_to_shell=True, disable_autonaming=False)
+Integrates SQLAlchemy with Flask. This handles setting up one or more engines,
+associating tables and models with specific engines, and cleaning up connections and
+sessions after each request.
+.sp
+Only the engine configuration is specific to each application, other things like
+the model, table, metadata, and session are shared for all applications using that
+extension instance. Call \fBinit_app()\fP to configure the extension on an
+application.
+.sp
+After creating the extension, create model classes by subclassing \fBModel\fP, and
+table classes with \fBTable\fP\&. These can be accessed before \fBinit_app()\fP is
+called, making it possible to define the models separately from the application.
+.sp
+Accessing \fBsession\fP and \fBengine\fP requires an active Flask application
+context. This includes methods like \fBcreate_all()\fP which use the engine.
+.sp
+This class also provides access to names in SQLAlchemy\(aqs \fBsqlalchemy\fP and
+\fBsqlalchemy.orm\fP modules. For example, you can use \fBdb.Column\fP and
+\fBdb.relationship\fP instead of importing \fBsqlalchemy.Column\fP and
+\fBsqlalchemy.orm.relationship\fP\&. This can be convenient when defining models.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBapp\fP (\fIFlask\fP\fI | \fP\fINone\fP) \-\- Call \fBinit_app()\fP on this Flask application now.
+.IP \(bu 2
+\fBmetadata\fP (\fIsa.MetaData\fP\fI | \fP\fINone\fP) \-\- Use this as the default \fBsqlalchemy.schema.MetaData\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:metadata\:.html#\:sqlalchemy\:.schema\:.MetaData>\&. Useful
+for setting a naming convention.
+.IP \(bu 2
+\fBsession_options\fP (\fIdict\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:dict>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI, \fP\fIt.Any\fP\fI] \fP\fI| \fP\fINone\fP) \-\- Arguments used by \fBsession\fP to create each session
+instance. A \fBscopefunc\fP key will be passed to the scoped session, not the
+session instance. See \fBsqlalchemy.orm.sessionmaker\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:session_api\:.html#\:sqlalchemy\:.orm\:.sessionmaker> for a list of
+arguments.
+.IP \(bu 2
+\fBquery_class\fP (\fItype\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:type>\fI[\fP\fIQuery\fP \%<#\:flask_sqlalchemy\:.query\:.Query>\fI]\fP) \-\- Use this as the default query class for models and dynamic
+relationships. The query interface is considered legacy in SQLAlchemy.
+.IP \(bu 2
+\fBmodel_class\fP (\fI_FSA_MCT\fP) \-\- Use this as the model base class when creating the declarative
+model class \fBModel\fP\&. Can also be a fully created declarative model class
+for further customization.
+.IP \(bu 2
+\fBengine_options\fP (\fIdict\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:dict>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI, \fP\fIt.Any\fP\fI] \fP\fI| \fP\fINone\fP) \-\- Default arguments used when creating every engine. These are
+lower precedence than application config. See \fBsqlalchemy.create_engine()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:engines\:.html#\:sqlalchemy\:.create_engine>
+for a list of arguments.
+.IP \(bu 2
+\fBadd_models_to_shell\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Add the \fBdb\fP instance and all model classes to
+\fBflask shell\fP\&.
+.IP \(bu 2
+\fBdisable_autonaming\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>)
+.UNINDENT
+.UNINDENT
+.sp
+Changed in version 3.1.0: The \fBmetadata\fP parameter can still be used with SQLAlchemy 1.x classes,
+but is ignored when using SQLAlchemy 2.x style of declarative classes.
+Instead, specify metadata on your Base class.
+
+.sp
+Changed in version 3.1.0: Added the \fBdisable_autonaming\fP parameter.
+
+.sp
+Changed in version 3.1.0: Changed \fBmodel_class\fP parameter to accepta SQLAlchemy 2.x
+declarative base subclass.
+
+.sp
+Changed in version 3.0: An active Flask application context is always required to access \fBsession\fP and
+\fBengine\fP\&.
+
+.sp
+Changed in version 3.0: Separate \fBmetadata\fP are used for each bind key.
+
+.sp
+Changed in version 3.0: The \fBengine_options\fP parameter is applied as defaults before per\-engine
+configuration.
+
+.sp
+Changed in version 3.0: The session class can be customized in \fBsession_options\fP\&.
+
+.sp
+Changed in version 3.0: Added the \fBadd_models_to_shell\fP parameter.
+
+.sp
+Changed in version 3.0: Engines are created when calling \fBinit_app\fP rather than the first time they
+are accessed.
+
+.sp
+Changed in version 3.0: All parameters except \fBapp\fP are keyword\-only.
+
+.sp
+Changed in version 3.0: The extension instance is stored directly as \fBapp.extensions[\(dqsqlalchemy\(dq]\fP\&.
+
+.sp
+Changed in version 3.0: Setup methods are renamed with a leading underscore. They are considered
+internal interfaces which may change at any time.
+
+.sp
+Changed in version 3.0: Removed the \fBuse_native_unicode\fP parameter and config.
+
+.sp
+Changed in version 2.4: Added the \fBengine_options\fP parameter.
+
+.sp
+Changed in version 2.1: Added the \fBmetadata\fP, \fBquery_class\fP, and \fBmodel_class\fP parameters.
+
+.sp
+Changed in version 2.1: Use the same query class across \fBsession\fP, \fBModel.query\fP and
+\fBQuery\fP\&.
+
+.sp
+Changed in version 0.16: \fBscopefunc\fP is accepted in \fBsession_options\fP\&.
+
+.sp
+Changed in version 0.10: Added the \fBsession_options\fP parameter.
+
+.INDENT 7.0
+.TP
+.B Model
+A SQLAlchemy declarative model class. Subclass this to define database
+models.
+.sp
+If a model does not set \fB__tablename__\fP, it will be generated by converting
+the class name from \fBCamelCase\fP to \fBsnake_case\fP\&. It will not be generated
+if the model looks like it uses single\-table inheritance.
+.sp
+If a model or parent class sets \fB__bind_key__\fP, it will use that metadata and
+database engine. Otherwise, it will use the default \fBmetadata\fP and
+\fBengine\fP\&. This is ignored if the model sets \fBmetadata\fP or \fB__table__\fP\&.
+.sp
+For code using the SQLAlchemy 1.x API, customize this model by subclassing
+\fBModel\fP and passing the \fBmodel_class\fP parameter to the extension.
+A fully created declarative model class can be
+passed as well, to use a custom metaclass.
+.sp
+For code using the SQLAlchemy 2.x API, customize this model by subclassing
+\fBsqlalchemy.orm.DeclarativeBase\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:mapping_api\:.html#\:sqlalchemy\:.orm\:.DeclarativeBase> or
+\fBsqlalchemy.orm.DeclarativeBaseNoMeta\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:mapping_api\:.html#\:sqlalchemy\:.orm\:.DeclarativeBaseNoMeta>
+and passing the \fBmodel_class\fP parameter to the extension.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Query
+The default query class used by \fBModel.query\fP and \fBlazy=\(dqdynamic\(dq\fP
+relationships.
+.sp
+\fBWarning:\fP
+.INDENT 7.0
+.INDENT 3.5
+The query interface is considered legacy in SQLAlchemy.
+.UNINDENT
+.UNINDENT
+.sp
+Customize this by passing the \fBquery_class\fP parameter to the extension.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Table
+A \fBsqlalchemy.schema.Table\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:metadata\:.html#\:sqlalchemy\:.schema\:.Table> class that chooses a metadata
+automatically.
+.sp
+Unlike the base \fBTable\fP, the \fBmetadata\fP argument is not required. If it is
+not given, it is selected based on the \fBbind_key\fP argument.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBbind_key\fP \-\- Used to select a different metadata.
+.IP \(bu 2
+\fBargs\fP \-\- Arguments passed to the base class. These are typically the table\(aqs
+name, columns, and constraints.
+.IP \(bu 2
+\fBkwargs\fP \-\- Arguments passed to the base class.
+.UNINDENT
+.UNINDENT
+.sp
+Changed in version 3.0: This is a subclass of SQLAlchemy\(aqs \fBTable\fP rather than a function.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B create_all(bind_key=\(aq__all__\(aq)
+Create tables that do not exist in the database by calling
+\fBmetadata.create_all()\fP for all or some bind keys. This does not
+update existing tables, use a migration library for that.
+.sp
+This requires that a Flask application context is active.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBbind_key\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP\fI | \fP\fIlist\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP\fI]\fP) \-\- A bind key or list of keys to create the tables for. Defaults
+to all binds.
+.TP
+.B Return type
+None
+.UNINDENT
+.sp
+Changed in version 3.0: Renamed the \fBbind\fP parameter to \fBbind_key\fP\&. Removed the \fBapp\fP
+parameter.
+
+.sp
+Changed in version 0.12: Added the \fBbind\fP and \fBapp\fP parameters.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B drop_all(bind_key=\(aq__all__\(aq)
+Drop tables by calling \fBmetadata.drop_all()\fP for all or some bind keys.
+.sp
+This requires that a Flask application context is active.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBbind_key\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP\fI | \fP\fIlist\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP\fI]\fP) \-\- A bind key or list of keys to drop the tables from. Defaults to
+all binds.
+.TP
+.B Return type
+None
+.UNINDENT
+.sp
+Changed in version 3.0: Renamed the \fBbind\fP parameter to \fBbind_key\fP\&. Removed the \fBapp\fP
+parameter.
+
+.sp
+Changed in version 0.12: Added the \fBbind\fP and \fBapp\fP parameters.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B dynamic_loader(argument, **kwargs)
+A \fBsqlalchemy.orm.dynamic_loader()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:relationship_api\:.html#\:sqlalchemy\:.orm\:.dynamic_loader> that applies this extension\(aqs
+\fBQuery\fP class for relationships and backrefs.
+.sp
+Changed in version 3.0: The \fBQuery\fP class is set on \fBbackref\fP\&.
+
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBargument\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>)
+.IP \(bu 2
+\fBkwargs\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>)
+.UNINDENT
+.TP
+.B Return type
+\fIRelationshipProperty\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:internals\:.html#\:sqlalchemy\:.orm\:.RelationshipProperty>[\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>]
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property engine: Engine \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Engine>
+The default \fBEngine\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Engine> for the current application,
+used by \fBsession\fP if the \fBModel\fP or \fBTable\fP being queried does
+not set a bind key.
+.sp
+To customize, set the \fBSQLALCHEMY_ENGINE_OPTIONS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_ENGINE_OPTIONS> config, and set
+defaults by passing the \fBengine_options\fP parameter to the extension.
+.sp
+This requires that a Flask application context is active.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property engines: Mapping \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Mapping>[str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>, Engine \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Engine>]
+Map of bind keys to \fBsqlalchemy.engine.Engine\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Engine> instances for current
+application. The \fBNone\fP key refers to the default engine, and is available as
+\fBengine\fP\&.
+.sp
+To customize, set the \fBSQLALCHEMY_BINDS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_BINDS> config, and set defaults by
+passing the \fBengine_options\fP parameter to the extension.
+.sp
+This requires that a Flask application context is active.
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B first_or_404(statement, *, description=None)
+Like \fBResult.scalar()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Result\:.scalar>, but aborts
+with a \fB404 Not Found\fP error instead of returning \fBNone\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBstatement\fP (\fISelect\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:selectable\:.html#\:sqlalchemy\:.sql\:.expression\:.Select>) \-\- The \fBselect\fP statement to execute.
+.IP \(bu 2
+\fBdescription\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP) \-\- A custom message to show on the error page.
+.UNINDENT
+.TP
+.B Return type
+\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>
+.UNINDENT
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_engine(bind_key=None, **kwargs)
+Get the engine for the given bind key for the current application.
+This requires that a Flask application context is active.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBbind_key\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP) \-\- The name of the engine.
+.IP \(bu 2
+\fBkwargs\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>)
+.UNINDENT
+.TP
+.B Return type
+\fIEngine\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Engine>
+.UNINDENT
+.sp
+Deprecated since version 3.0: Will be removed in Flask\-SQLAlchemy 3.2. Use \fBengines[key]\fP instead.
+
+.sp
+Changed in version 3.0: Renamed the \fBbind\fP parameter to \fBbind_key\fP\&. Removed the \fBapp\fP
+parameter.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_or_404(entity, ident, *, description=None, **kwargs)
+Like \fBsession.get()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:session_api\:.html#\:sqlalchemy\:.orm\:.Session\:.get> but aborts with a
+\fB404 Not Found\fP error instead of returning \fBNone\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBentity\fP (\fItype\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:type>\fI[\fP\fI_O\fP\fI]\fP) \-\- The model class to query.
+.IP \(bu 2
+\fBident\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>) \-\- The primary key to query.
+.IP \(bu 2
+\fBdescription\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP) \-\- A custom message to show on the error page.
+.IP \(bu 2
+\fBkwargs\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>) \-\- Extra arguments passed to \fBsession.get()\fP\&.
+.UNINDENT
+.TP
+.B Return type
+\fI_O\fP
+.UNINDENT
+.sp
+Changed in version 3.1: Pass extra keyword arguments to \fBsession.get()\fP\&.
+
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B init_app(app)
+Initialize a Flask application for use with this extension instance. This
+must be called before accessing the database engine or session with the app.
+.sp
+This sets default configuration values, then configures the extension on the
+application and creates the engines for each bind key. Therefore, this must be
+called after the application has been configured. Changes to application config
+after this call will not be reflected.
+.sp
+The following keys from \fBapp.config\fP are used:
+.INDENT 7.0
+.IP \(bu 2
+\fBSQLALCHEMY_DATABASE_URI\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_DATABASE_URI>
+.IP \(bu 2
+\fBSQLALCHEMY_ENGINE_OPTIONS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_ENGINE_OPTIONS>
+.IP \(bu 2
+\fBSQLALCHEMY_ECHO\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_ECHO>
+.IP \(bu 2
+\fBSQLALCHEMY_BINDS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_BINDS>
+.IP \(bu 2
+\fBSQLALCHEMY_RECORD_QUERIES\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_RECORD_QUERIES>
+.IP \(bu 2
+\fBSQLALCHEMY_TRACK_MODIFICATIONS\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_TRACK_MODIFICATIONS>
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+\fBapp\fP (\fIFlask\fP \%<https://\:flask\:.palletsprojects\:.com/\:en/\:stable/\:api/#\:flask\:.Flask>) \-\- The Flask application to initialize.
+.TP
+.B Return type
+None
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property metadata: MetaData \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:metadata\:.html#\:sqlalchemy\:.schema\:.MetaData>
+The default metadata used by \fBModel\fP and \fBTable\fP if no bind key
+is set.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B metadatas: dict \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:dict>[str \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>, MetaData \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:metadata\:.html#\:sqlalchemy\:.schema\:.MetaData>]
+Map of bind keys to \fBsqlalchemy.schema.MetaData\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:metadata\:.html#\:sqlalchemy\:.schema\:.MetaData> instances. The
+\fBNone\fP key refers to the default metadata, and is available as
+\fBmetadata\fP\&.
+.sp
+Customize the default metadata by passing the \fBmetadata\fP parameter to the
+extension. This can be used to set a naming convention. When metadata for
+another bind key is created, it copies the default\(aqs naming convention.
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B one_or_404(statement, *, description=None)
+Like \fBResult.scalar_one()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Result\:.scalar_one>,
+but aborts with a \fB404 Not Found\fP error instead of raising \fBNoResultFound\fP
+or \fBMultipleResultsFound\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBstatement\fP (\fISelect\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:selectable\:.html#\:sqlalchemy\:.sql\:.expression\:.Select>) \-\- The \fBselect\fP statement to execute.
+.IP \(bu 2
+\fBdescription\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP) \-\- A custom message to show on the error page.
+.UNINDENT
+.TP
+.B Return type
+\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>
+.UNINDENT
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B paginate(select, *, page=None, per_page=None, max_per_page=None, error_out=True, count=True)
+Apply an offset and limit to a select statment based on the current page and
+number of items per page, returning a \fBPagination\fP object.
+.sp
+The statement should select a model class, like \fBselect(User)\fP\&. This applies
+\fBunique()\fP and \fBscalars()\fP modifiers to the result, so compound selects will
+not return the expected results.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBselect\fP (\fISelect\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:selectable\:.html#\:sqlalchemy\:.sql\:.expression\:.Select>) \-\- The \fBselect\fP statement to paginate.
+.IP \(bu 2
+\fBpage\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>\fI | \fP\fINone\fP) \-\- The current page, used to calculate the offset. Defaults to the
+\fBpage\fP query arg during a request, or 1 otherwise.
+.IP \(bu 2
+\fBper_page\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>\fI | \fP\fINone\fP) \-\- The maximum number of items on a page, used to calculate the
+offset and limit. Defaults to the \fBper_page\fP query arg during a request,
+or 20 otherwise.
+.IP \(bu 2
+\fBmax_per_page\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>\fI | \fP\fINone\fP) \-\- The maximum allowed value for \fBper_page\fP, to limit a
+user\-provided value. Use \fBNone\fP for no limit. Defaults to 100.
+.IP \(bu 2
+\fBerror_out\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Abort with a \fB404 Not Found\fP error if no items are returned
+and \fBpage\fP is not 1, or if \fBpage\fP or \fBper_page\fP is less than 1, or if
+either are not ints.
+.IP \(bu 2
+\fBcount\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Calculate the total number of values by issuing an extra count
+query. For very complex queries this may be inaccurate or slow, so it can be
+disabled and set manually if necessary.
+.UNINDENT
+.TP
+.B Return type
+\fIPagination\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination>
+.UNINDENT
+.sp
+Changed in version 3.0: The \fBcount\fP query is more efficient.
+
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B reflect(bind_key=\(aq__all__\(aq)
+Load table definitions from the database by calling \fBmetadata.reflect()\fP
+for all or some bind keys.
+.sp
+This requires that a Flask application context is active.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBbind_key\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP\fI | \fP\fIlist\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP\fI]\fP) \-\- A bind key or list of keys to reflect the tables from. Defaults
+to all binds.
+.TP
+.B Return type
+None
+.UNINDENT
+.sp
+Changed in version 3.0: Renamed the \fBbind\fP parameter to \fBbind_key\fP\&. Removed the \fBapp\fP
+parameter.
+
+.sp
+Changed in version 0.12: Added the \fBbind\fP and \fBapp\fP parameters.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B relationship(*args, **kwargs)
+A \fBsqlalchemy.orm.relationship()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:relationship_api\:.html#\:sqlalchemy\:.orm\:.relationship> that applies this extension\(aqs
+\fBQuery\fP class for dynamic relationships and backrefs.
+.sp
+Changed in version 3.0: The \fBQuery\fP class is set on \fBbackref\fP\&.
+
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBargs\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>)
+.IP \(bu 2
+\fBkwargs\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>)
+.UNINDENT
+.TP
+.B Return type
+\fIRelationshipProperty\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:internals\:.html#\:sqlalchemy\:.orm\:.RelationshipProperty>[\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>]
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B session
+A \fBsqlalchemy.orm.scoping.scoped_session\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:contextual\:.html#\:sqlalchemy\:.orm\:.scoped_session> that creates instances of
+\fBSession\fP scoped to the current Flask application context. The session
+will be removed, returning the engine connection to the pool, when the
+application context exits.
+.sp
+Customize this by passing \fBsession_options\fP to the extension.
+.sp
+This requires that a Flask application context is active.
+.sp
+Changed in version 3.0: The session is scoped to the current app context.
+
+.UNINDENT
+.UNINDENT
+.SS Model
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.model.Model
+The base class of the \fBSQLAlchemy.Model\fP declarative model class.
+.sp
+To define models, subclass \fBdb.Model\fP, not this. To
+customize \fBdb.Model\fP, subclass this and pass it as \fBmodel_class\fP to
+\fBSQLAlchemy\fP\&. To customize \fBdb.Model\fP at the metaclass level, pass an
+already created declarative model class as \fBmodel_class\fP\&.
+.INDENT 7.0
+.TP
+.B __bind_key__
+Use this bind key to select a metadata and engine to associate with this model\(aqs
+table. Ignored if \fBmetadata\fP or \fB__table__\fP is set. If not given, uses the
+default key, \fBNone\fP\&.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B __tablename__
+The name of the table in the database. This is required by SQLAlchemy; however,
+Flask\-SQLAlchemy will set it automatically if a model has a primary key defined.
+If the \fB__table__\fP or \fB__tablename__\fP is set explicitly, that will be used
+instead.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B query: t.ClassVar[Query \%<#\:flask_sqlalchemy\:.query\:.Query>]
+A SQLAlchemy query for a model. Equivalent to \fBdb.session.query(Model)\fP\&. Can be
+customized per\-model by overriding \fBquery_class\fP\&.
+.sp
+\fBWarning:\fP
+.INDENT 7.0
+.INDENT 3.5
+The query interface is considered legacy in SQLAlchemy. Prefer using
+\fBsession.execute(select())\fP instead.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B query_class
+Query class used by \fBquery\fP\&. Defaults to \fBSQLAlchemy.Query\fP, which
+defaults to \fBQuery\fP\&.
+.sp
+alias of \fBQuery\fP
+.UNINDENT
+.UNINDENT
+.SS Metaclass mixins (SQLAlchemy 1.x)
+.sp
+If your code uses the SQLAlchemy 1.x API (the default for code that doesn\(aqt specify a \fBmodel_class\fP),
+then these mixins are automatically applied to the \fBModel\fP class.
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.model.DefaultMeta(name, bases, d, **kwargs)
+SQLAlchemy declarative metaclass that provides \fB__bind_key__\fP and
+\fB__tablename__\fP support.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBname\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>)
+.IP \(bu 2
+\fBbases\fP (\fItuple\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:tuple>\fI[\fP\fItype\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:type>\fI, \fP\fI\&...\fP\fI]\fP)
+.IP \(bu 2
+\fBd\fP (\fIdict\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:dict>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI, \fP\fIt.Any\fP\fI]\fP)
+.IP \(bu 2
+\fBkwargs\fP (\fIt.Any\fP)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.model.BindMetaMixin(name, bases, d, **kwargs)
+Metaclass mixin that sets a model\(aqs \fBmetadata\fP based on its \fB__bind_key__\fP\&.
+.sp
+If the model sets \fBmetadata\fP or \fB__table__\fP directly, \fB__bind_key__\fP is
+ignored. If the \fBmetadata\fP is the same as the parent model, it will not be set
+directly on the child model.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBname\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>)
+.IP \(bu 2
+\fBbases\fP (\fItuple\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:tuple>\fI[\fP\fItype\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:type>\fI, \fP\fI\&...\fP\fI]\fP)
+.IP \(bu 2
+\fBd\fP (\fIdict\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:dict>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI, \fP\fIt.Any\fP\fI]\fP)
+.IP \(bu 2
+\fBkwargs\fP (\fIt.Any\fP)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.model.NameMetaMixin(name, bases, d, **kwargs)
+Metaclass mixin that sets a model\(aqs \fB__tablename__\fP by converting the
+\fBCamelCase\fP class name to \fBsnake_case\fP\&. A name is set for non\-abstract models
+that do not otherwise define \fB__tablename__\fP\&. If a model does not define a primary
+key, it will not generate a name or \fB__table__\fP, for single\-table inheritance.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBname\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>)
+.IP \(bu 2
+\fBbases\fP (\fItuple\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:tuple>\fI[\fP\fItype\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:type>\fI, \fP\fI\&...\fP\fI]\fP)
+.IP \(bu 2
+\fBd\fP (\fIdict\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:dict>\fI[\fP\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI, \fP\fIt.Any\fP\fI]\fP)
+.IP \(bu 2
+\fBkwargs\fP (\fIt.Any\fP)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Session
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.session.Session(db, **kwargs)
+A SQLAlchemy \fBSession\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:session_api\:.html#\:sqlalchemy\:.orm\:.Session> class that chooses what engine to
+use based on the bind key associated with the metadata associated with the thing
+being queried.
+.sp
+To customize \fBdb.session\fP, subclass this and pass it as the \fBclass_\fP key in the
+\fBsession_options\fP to \fBSQLAlchemy\fP\&.
+.sp
+Changed in version 3.0: Renamed from \fBSignallingSession\fP\&.
+
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBdb\fP (\fISQLAlchemy\fP \%<#\:flask_sqlalchemy\:.SQLAlchemy>)
+.IP \(bu 2
+\fBkwargs\fP (\fIt.Any\fP)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_bind(mapper=None, clause=None, bind=None, **kwargs)
+Select an engine based on the \fBbind_key\fP of the metadata associated with
+the model or table being queried. If no bind key is set, uses the default bind.
+.sp
+Changed in version 3.0.3: Fix finding the bind for a joined inheritance model.
+
+.sp
+Changed in version 3.0: The implementation more closely matches the base SQLAlchemy implementation.
+
+.sp
+Changed in version 2.1: Support joining an external transaction.
+
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBmapper\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>\fI | \fP\fINone\fP)
+.IP \(bu 2
+\fBclause\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>\fI | \fP\fINone\fP)
+.IP \(bu 2
+\fBbind\fP (\fIEngine\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Engine>\fI | \fP\fIConnection\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Connection>\fI | \fP\fINone\fP)
+.IP \(bu 2
+\fBkwargs\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>)
+.UNINDENT
+.TP
+.B Return type
+\fIEngine\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Engine> | \fIConnection\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:core/\:connections\:.html#\:sqlalchemy\:.engine\:.Connection>
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Pagination
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.pagination.Pagination
+A slice of the total items in a query obtained by applying an offset and limit to
+based on the current page and number of items per page.
+.sp
+Don\(aqt create pagination objects manually. They are created by
+\fBSQLAlchemy.paginate()\fP and \fBQuery.paginate()\fP\&.
+.sp
+Changed in version 3.0: Iterating over a pagination object iterates over its items.
+
+.sp
+Changed in version 3.0: Creating instances manually is not a public API.
+
+.INDENT 7.0
+.TP
+.B page: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>
+The current page.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B per_page: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>
+The maximum number of items on a page.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B items: list \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>[Any \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>]
+The items on the current page. Iterating over the pagination object is
+equivalent to iterating over the items.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B total: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>
+The total number of items across all pages.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property first: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>
+The number of the first item on the page, starting from 1, or 0 if there are
+no items.
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property last: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>
+The number of the last item on the page, starting from 1, inclusive, or 0 if
+there are no items.
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property pages: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>
+The total number of pages.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property has_prev: bool \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>
+\fBTrue\fP if this is not the first page.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property prev_num: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>
+The previous page number, or \fBNone\fP if this is the first page.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B prev(*, error_out=False)
+Query the \fBPagination\fP object for the previous page.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBerror_out\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Abort with a \fB404 Not Found\fP error if no items are returned
+and \fBpage\fP is not 1, or if \fBpage\fP or \fBper_page\fP is less than 1, or if
+either are not ints.
+.TP
+.B Return type
+\fIPagination\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination>
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property has_next: bool \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>
+\fBTrue\fP if this is not the last page.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property next_num: int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None \%<https://\:docs\:.python\:.org/\:3/\:library/\:constants\:.html#\:None>
+The next page number, or \fBNone\fP if this is the last page.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B next(*, error_out=False)
+Query the \fBPagination\fP object for the next page.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBerror_out\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Abort with a \fB404 Not Found\fP error if no items are returned
+and \fBpage\fP is not 1, or if \fBpage\fP or \fBper_page\fP is less than 1, or if
+either are not ints.
+.TP
+.B Return type
+\fIPagination\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination>
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B iter_pages(*, left_edge=2, left_current=2, right_current=4, right_edge=2)
+Yield page numbers for a pagination widget. Skipped pages between the edges
+and middle are represented by a \fBNone\fP\&.
+.sp
+For example, if there are 20 pages and the current page is 7, the following
+values are yielded.
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+1, 2, None, 5, 6, 7, 8, 9, 10, 11, None, 19, 20
+.EE
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBleft_edge\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>) \-\- How many pages to show from the first page.
+.IP \(bu 2
+\fBleft_current\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>) \-\- How many pages to show left of the current page.
+.IP \(bu 2
+\fBright_current\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>) \-\- How many pages to show right of the current page.
+.IP \(bu 2
+\fBright_edge\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>) \-\- How many pages to show from the last page.
+.UNINDENT
+.TP
+.B Return type
+\fIIterator\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Iterator>[int \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int> | None]
+.UNINDENT
+.sp
+Changed in version 3.0: Improved efficiency of calculating what to yield.
+
+.sp
+Changed in version 3.0: \fBright_current\fP boundary is inclusive.
+
+.sp
+Changed in version 3.0: All parameters are keyword\-only.
+
+.UNINDENT
+.UNINDENT
+.SS Query
+.INDENT 0.0
+.TP
+.B class flask_sqlalchemy.query.Query(entities, session=None)
+SQLAlchemy \fBQuery\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:queryguide/\:query\:.html#\:sqlalchemy\:.orm\:.Query> subclass with some extra methods
+useful for querying in a web application.
+.sp
+This is the default query class for \fBModel.query\fP\&.
+.sp
+Changed in version 3.0: Renamed to \fBQuery\fP from \fBBaseQuery\fP\&.
+
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBentities\fP (\fIUnion\fP\fI[\fP\fI_ColumnsClauseArgument\fP\fI[\fP\fIAny\fP\fI]\fP\fI, \fP\fISequence\fP\fI[\fP\fI_ColumnsClauseArgument\fP\fI[\fP\fIAny\fP\fI]\fP\fI]\fP\fI]\fP)
+.IP \(bu 2
+\fBsession\fP (\fIOptional\fP\fI[\fP\fISession\fP \%<#\:flask_sqlalchemy\:.session\:.Session>\fI]\fP)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B first_or_404(description=None)
+Like \fBfirst()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:queryguide/\:query\:.html#\:sqlalchemy\:.orm\:.Query\:.first> but aborts with a \fB404 Not Found\fP
+error instead of returning \fBNone\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBdescription\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP) \-\- A custom message to show on the error page.
+.TP
+.B Return type
+\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B get_or_404(ident, description=None)
+Like \fBget()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:queryguide/\:query\:.html#\:sqlalchemy\:.orm\:.Query\:.get> but aborts with a \fB404 Not Found\fP
+error instead of returning \fBNone\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBident\fP (\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>) \-\- The primary key to query.
+.IP \(bu 2
+\fBdescription\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP) \-\- A custom message to show on the error page.
+.UNINDENT
+.TP
+.B Return type
+\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B one_or_404(description=None)
+Like \fBone()\fP \%<https://\:docs\:.sqlalchemy\:.org/\:en/\:20/\:orm/\:queryguide/\:query\:.html#\:sqlalchemy\:.orm\:.Query\:.one> but aborts with a \fB404 Not Found\fP
+error instead of raising \fBNoResultFound\fP or \fBMultipleResultsFound\fP\&.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBdescription\fP (\fIstr\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:str>\fI | \fP\fINone\fP) \-\- A custom message to show on the error page.
+.TP
+.B Return type
+\fIAny\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:typing\:.html#\:typing\:.Any>
+.UNINDENT
+.sp
+Added in version 3.0.
+
+.UNINDENT
+.INDENT 7.0
+.TP
+.B paginate(*, page=None, per_page=None, max_per_page=None, error_out=True, count=True)
+Apply an offset and limit to the query based on the current page and number
+of items per page, returning a \fBPagination\fP object.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBpage\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>\fI | \fP\fINone\fP) \-\- The current page, used to calculate the offset. Defaults to the
+\fBpage\fP query arg during a request, or 1 otherwise.
+.IP \(bu 2
+\fBper_page\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>\fI | \fP\fINone\fP) \-\- The maximum number of items on a page, used to calculate the
+offset and limit. Defaults to the \fBper_page\fP query arg during a request,
+or 20 otherwise.
+.IP \(bu 2
+\fBmax_per_page\fP (\fIint\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:int>\fI | \fP\fINone\fP) \-\- The maximum allowed value for \fBper_page\fP, to limit a
+user\-provided value. Use \fBNone\fP for no limit. Defaults to 100.
+.IP \(bu 2
+\fBerror_out\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Abort with a \fB404 Not Found\fP error if no items are returned
+and \fBpage\fP is not 1, or if \fBpage\fP or \fBper_page\fP is less than 1, or if
+either are not ints.
+.IP \(bu 2
+\fBcount\fP (\fIbool\fP \%<https://\:docs\:.python\:.org/\:3/\:library/\:functions\:.html#\:bool>) \-\- Calculate the total number of values by issuing an extra count
+query. For very complex queries this may be inaccurate or slow, so it can be
+disabled and set manually if necessary.
+.UNINDENT
+.TP
+.B Return type
+\fIPagination\fP \%<#\:flask_sqlalchemy\:.pagination\:.Pagination>
+.UNINDENT
+.sp
+Changed in version 3.0: All parameters are keyword\-only.
+
+.sp
+Changed in version 3.0: The \fBcount\fP query is more efficient.
+
+.sp
+Changed in version 3.0: \fBmax_per_page\fP defaults to 100.
+
+.UNINDENT
+.UNINDENT
+.SS Record Queries
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.record_queries.get_recorded_queries()
+Get the list of recorded query information for the current session. Queries are
+recorded if the config \fBSQLALCHEMY_RECORD_QUERIES\fP \%<#\:flask_sqlalchemy\:.config\:.SQLALCHEMY_RECORD_QUERIES> is enabled.
+.sp
+Each query info object has the following attributes:
+.INDENT 7.0
+.TP
+.B \fBstatement\fP
+The string of SQL generated by SQLAlchemy with parameter placeholders.
+.TP
+.B \fBparameters\fP
+The parameters sent with the SQL statement.
+.TP
+.B \fBstart_time\fP / \fBend_time\fP
+Timing info about when the query started execution and when the results where
+returned. Accuracy and value depends on the operating system.
+.TP
+.B \fBduration\fP
+The time the query took in seconds.
+.TP
+.B \fBlocation\fP
+A string description of where in your application code the query was executed.
+This may not be possible to calculate, and the format is not stable.
+.UNINDENT
+.sp
+Changed in version 3.0: Renamed from \fBget_debug_queries\fP\&.
+
+.sp
+Changed in version 3.0: The info object is a dataclass instead of a tuple.
+
+.sp
+Changed in version 3.0: The info object attribute \fBcontext\fP is renamed to \fBlocation\fP\&.
+
+.sp
+Changed in version 3.0: Not enabled automatically in debug or testing mode.
+
+.INDENT 7.0
+.TP
+.B Return type
+list \%<https://\:docs\:.python\:.org/\:3/\:library/\:stdtypes\:.html#\:list>[\fI_QueryInfo\fP]
+.UNINDENT
+.UNINDENT
+.SS Track Modifications
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.track_modifications.models_committed
+This Blinker signal is sent after the session is committed if there were changed
+models in the session.
+.sp
+The sender is the application that emitted the changes. The receiver is passed the
+\fBchanges\fP argument with a list of tuples in the form \fB(instance, operation)\fP\&.
+The operations are \fB\(dqinsert\(dq\fP, \fB\(dqupdate\(dq\fP, and \fB\(dqdelete\(dq\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_sqlalchemy.track_modifications.before_models_committed
+This signal works exactly like \fBmodels_committed\fP but is emitted before the
+commit takes place.
+.UNINDENT
+.SH ADDITIONAL INFORMATION
+.SS BSD\-3\-Clause License
+.sp
+Copyright 2010 Pallets
+.sp
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+.INDENT 0.0
+.IP 1. 3
+Redistributions of source code must retain the above copyright
+notice, this list of conditions and the following disclaimer.
+.IP 2. 3
+Redistributions in binary form must reproduce the above copyright
+notice, this list of conditions and the following disclaimer in the
+documentation and/or other materials provided with the distribution.
+.IP 3. 3
+Neither the name of the copyright holder nor the names of its
+contributors may be used to endorse or promote products derived from
+this software without specific prior written permission.
+.UNINDENT
+.sp
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+\(dqAS IS\(dq AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.SS Changes
+.SS Version 3.1.1
+.sp
+Released 2023\-09\-11
+.INDENT 0.0
+.IP \(bu 2
+Deprecate the \fB__version__\fP attribute. Use feature detection, or
+\fBimportlib.metadata.version(\(dqflask\-sqlalchemy\(dq)\fP, instead. #5230 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:5230>
+.UNINDENT
+.SS Version 3.1.0
+.sp
+Released 2023\-09\-11
+.INDENT 0.0
+.IP \(bu 2
+Drop support for Python 3.7.  #1251 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:1251>
+.IP \(bu 2
+Add support for the SQLAlchemy 2.x API via \fBmodel_class\fP parameter. #1140 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1140>
+.IP \(bu 2
+Bump minimum version of SQLAlchemy to 2.0.16.
+.IP \(bu 2
+Remove previously deprecated code.
+.IP \(bu 2
+Pass extra keyword arguments from \fBget_or_404\fP to \fBsession.get\fP\&. #1149 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1149>
+.IP \(bu 2
+Fix bug with finding right bind key for clause statements. #1211 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1211>
+.UNINDENT
+.SS Version 3.0.5
+.sp
+Released 2023\-06\-21
+.INDENT 0.0
+.IP \(bu 2
+\fBPagination.next()\fP enforces \fBmax_per_page\fP\&. #1201 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1201>
+.IP \(bu 2
+Improve type hint for \fBget_or_404\fP return value to be non\-optional. #1226 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:1226>
+.UNINDENT
+.SS Version 3.0.4
+.sp
+Released 2023\-06\-19
+.INDENT 0.0
+.IP \(bu 2
+Fix type hint for \fBget_or_404\fP return value. #1208 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:1208>
+.IP \(bu 2
+Fix type hints for pyright (used by VS Code Pylance extension). #1205 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1205>
+.UNINDENT
+.SS Version 3.0.3
+.sp
+Released 2023\-01\-31
+.INDENT 0.0
+.IP \(bu 2
+Show helpful errors when mistakenly using multiple \fBSQLAlchemy\fP instances for the
+same app, or without calling \fBinit_app\fP\&. #1151 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:1151>
+.IP \(bu 2
+Fix issue with getting the engine associated with a model that uses polymorphic
+table inheritance. #1155 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1155>
+.UNINDENT
+.SS Version 3.0.2
+.sp
+Released 2022\-10\-14
+.INDENT 0.0
+.IP \(bu 2
+Update compatibility with SQLAlchemy 2. #1122 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1122>
+.UNINDENT
+.SS Version 3.0.1
+.sp
+Released 2022\-10\-11
+.INDENT 0.0
+.IP \(bu 2
+Export typing information instead of using external typeshed definitions.
+#1112 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1112>
+.IP \(bu 2
+If default engine options are set, but \fBSQLALCHEMY_DATABASE_URI\fP is not set, an
+invalid default bind will not be configured. #1117 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1117>
+.UNINDENT
+.SS Version 3.0.0
+.sp
+Released 2022\-10\-04
+.INDENT 0.0
+.IP \(bu 2
+Drop support for Python 2, 3.4, 3.5, and 3.6.
+.IP \(bu 2
+Bump minimum version of Flask to 2.2.
+.IP \(bu 2
+Bump minimum version of SQLAlchemy to 1.4.18.
+.IP \(bu 2
+Remove previously deprecated code.
+.IP \(bu 2
+The session is scoped to the current app context instead of the thread. This
+requires that an app context is active. This ensures that the session is cleaned up
+after every request.
+.IP \(bu 2
+An active Flask application context is always required to access \fBsession\fP and
+\fBengine\fP, regardless of if an application was passed to the constructor.
+#508 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:508>#944 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:944>
+.IP \(bu 2
+Different bind keys use different SQLAlchemy \fBMetaData\fP registries, allowing
+tables in different databases to have the same name. Bind keys are stored and looked
+up on the resulting metadata rather than the model or table.
+.IP \(bu 2
+\fBSQLALCHEMY_DATABASE_URI\fP does not default to \fBsqlite:///:memory:\fP\&. An error is
+raised if neither it nor \fBSQLALCHEMY_BINDS\fP define any engines. #731 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:731>
+.IP \(bu 2
+Configuring SQLite with a relative path is relative to \fBapp.instance_path\fP instead
+of \fBapp.root_path\fP\&. The instance folder is created if necessary. #462 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:462>
+.IP \(bu 2
+Added \fBget_or_404\fP, \fBfirst_or_404\fP, \fBone_or_404\fP, and \fBpaginate\fP methods to
+the extension object. These use SQLAlchemy\(aqs preferred \fBsession.execute(select())\fP
+pattern instead of the legacy query interface. #1088 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1088>
+.IP \(bu 2
+Setup methods that create the engines and session are renamed with a leading
+underscore. They are considered internal interfaces which may change at any time.
+.IP \(bu 2
+All parameters to \fBSQLAlchemy\fP except \fBapp\fP are keyword\-only.
+.IP \(bu 2
+Renamed the \fBbind\fP parameter to \fBbind_key\fP and removed the \fBapp\fP parameter
+from various \fBSQLAlchemy\fP methods.
+.IP \(bu 2
+The extension object uses \fB__getattr__\fP to alias names from the SQLAlchemy
+package, rather than copying them as attributes.
+.IP \(bu 2
+The extension object is stored directly as \fBapp.extensions[\(dqsqlalchemy\(dq]\fP\&.
+#698 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:698>
+.IP \(bu 2
+The session class can be customized by passing the \fBclass_\fP key in the
+\fBsession_options\fP parameter. #327 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:327>
+.IP \(bu 2
+\fBSignallingSession\fP is renamed to \fBSession\fP\&.
+.IP \(bu 2
+\fBSession.get_bind\fP more closely matches the base implementation.
+.IP \(bu 2
+Model classes and the \fBdb\fP instance are available without imports in
+\fBflask shell\fP\&. #1089 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1089>
+.IP \(bu 2
+The \fBCamelCase\fP to \fBsnake_case\fP table name converter handles more patterns
+correctly. If model that was already created in the database changed, either use
+Alembic to rename the table, or set \fB__tablename__\fP to keep the old name.
+#406 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:406>
+.IP \(bu 2
+\fBModel\fP \fBrepr\fP distinguishes between transient and pending instances.
+#967 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:967>
+.IP \(bu 2
+A custom model class can implement \fB__init_subclass__\fP with class parameters.
+#1002 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1002>
+.IP \(bu 2
+\fBdb.Table\fP is a subclass instead of a function.
+.IP \(bu 2
+The \fBengine_options\fP parameter is applied as defaults before per\-engine
+configuration.
+.IP \(bu 2
+\fBSQLALCHEMY_BINDS\fP values can either be an engine URL, or a dict of engine options
+including URL, for each bind. \fBSQLALCHEMY_DATABASE_URI\fP and
+\fBSQLALCHEMY_ENGINE_OPTIONS\fP correspond to the \fBNone\fP key and take precedence.
+#783 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:783>
+.IP \(bu 2
+Engines are created when calling \fBinit_app\fP rather than the first time they are
+accessed. #698 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:698>
+.IP \(bu 2
+\fBdb.engines\fP exposes the map of bind keys to engines for the current app.
+.IP \(bu 2
+\fBget_engine\fP, \fBget_tables_for_bind\fP, and \fBget_binds\fP are deprecated.
+.IP \(bu 2
+SQLite driver\-level URIs that look like \fBsqlite:///file:name.db?uri=true\fP are
+supported. #998 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:998>#1045 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1045>
+.IP \(bu 2
+SQLite engines do not use \fBNullPool\fP if \fBpool_size\fP is 0.
+.IP \(bu 2
+MySQL engines use the \(dqutf8mb4\(dq charset by default. #875 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:875>
+.IP \(bu 2
+MySQL engines do not set \fBpool_size\fP to 10.
+.IP \(bu 2
+MySQL engines don\(aqt set a default for \fBpool_recycle\fP if not using a queue pool.
+#803 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:803>
+.IP \(bu 2
+\fBQuery\fP is renamed from \fBBaseQuery\fP\&.
+.IP \(bu 2
+Added \fBQuery.one_or_404\fP\&.
+.IP \(bu 2
+The query class is applied to \fBbackref\fP in \fBrelationship\fP\&. #417 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:417>
+.IP \(bu 2
+Creating \fBPagination\fP objects manually is no longer a public API. They should be
+created with \fBdb.paginate\fP or \fBquery.paginate\fP\&. #1088 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1088>
+.IP \(bu 2
+\fBPagination.iter_pages\fP and \fBQuery.paginate\fP parameters are keyword\-only.
+.IP \(bu 2
+\fBPagination\fP is iterable, iterating over its items. #70 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/70>
+.IP \(bu 2
+Pagination count query is more efficient.
+.IP \(bu 2
+\fBPagination.iter_pages\fP is more efficient. #622 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:622>
+.IP \(bu 2
+\fBPagination.iter_pages\fP \fBright_current\fP parameter is inclusive.
+.IP \(bu 2
+Pagination \fBper_page\fP cannot be 0. #1091 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1091>
+.IP \(bu 2
+Pagination \fBmax_per_page\fP defaults to 100. #1091 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1091>
+.IP \(bu 2
+Added \fBPagination.first\fP and \fBlast\fP properties, which give the number of the
+first and last item on the page. #567 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:567>
+.IP \(bu 2
+\fBSQLALCHEMY_RECORD_QUERIES\fP is disabled by default, and is not enabled
+automatically with \fBapp.debug\fP or \fBapp.testing\fP\&. #1092 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:1092>
+.IP \(bu 2
+\fBget_debug_queries\fP is renamed to \fBget_recorded_queries\fP to better match the
+config and functionality.
+.IP \(bu 2
+Recorded query info is a dataclass instead of a tuple. The \fBcontext\fP attribute is
+renamed to \fBlocation\fP\&. Finding the location uses a more inclusive check.
+.IP \(bu 2
+\fBSQLALCHEMY_TRACK_MODIFICATIONS\fP is disabled by default. #727 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:727>
+.IP \(bu 2
+\fBSQLALCHEMY_COMMIT_ON_TEARDOWN\fP is deprecated. It can cause various design issues
+that are difficult to debug. Call \fBdb.session.commit()\fP directly instead.
+#216 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:216>
+.UNINDENT
+.SS Version 2.5.1
+.sp
+Released 2021\-03\-18
+.INDENT 0.0
+.IP \(bu 2
+Fix compatibility with Python 2.7.
+.UNINDENT
+.SS Version 2.5.0
+.sp
+Released 2021\-03\-18
+.INDENT 0.0
+.IP \(bu 2
+Update to support SQLAlchemy 1.4.
+.IP \(bu 2
+SQLAlchemy \fBURL\fP objects are immutable. Some internal methods have changed to
+return a new URL instead of \fBNone\fP\&. #885 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:885>
+.UNINDENT
+.SS Version 2.4.4
+.sp
+Released 2020\-07\-14
+.INDENT 0.0
+.IP \(bu 2
+Change base class of meta mixins to \fBtype\fP\&. This fixes an issue caused by a
+regression in CPython 3.8.4. #852 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:852>
+.UNINDENT
+.SS Version 2.4.3
+.sp
+Released 2020\-05\-26
+.INDENT 0.0
+.IP \(bu 2
+Deprecate \fBSQLALCHEMY_COMMIT_ON_TEARDOWN\fP as it can cause various design issues
+that are difficult to debug. Call \fBdb.session.commit()\fP directly instead.
+#216 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:216>
+.UNINDENT
+.SS Version 2.4.2
+.sp
+Released 2020\-05\-25
+.INDENT 0.0
+.IP \(bu 2
+Fix bad pagination when records are de\-duped. #812 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:812>
+.UNINDENT
+.SS Version 2.4.1
+.sp
+Released 2019\-09\-24
+.INDENT 0.0
+.IP \(bu 2
+Fix \fBAttributeError\fP when using multiple binds with polymorphic models. #651 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:651>
+.UNINDENT
+.SS Version 2.4.0
+.sp
+Released 2019\-04\-24
+.INDENT 0.0
+.IP \(bu 2
+Drop support for Python 2.6 and 3.3. #687 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:687>
+.IP \(bu 2
+Address SQLAlchemy 1.3 deprecations. #684 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:684>
+.IP \(bu 2
+Make engine configuration more flexible. Added the \fBengine_options\fP parameter and
+\fBSQLALCHEMY_ENGINE_OPTIONS\fP config. Deprecated the individual engine option config
+keys \fBSQLALCHEMY_NATIVE_UNICODE\fP, \fBSQLALCHEMY_POOL_SIZE\fP,
+\fBSQLALCHEMY_POOL_TIMEOUT\fP, \fBSQLALCHEMY_POOL_RECYCLE\fP, and
+\fBSQLALCHEMY_MAX_OVERFLOW\fP\&. #684 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:684>
+.IP \(bu 2
+\fBget_or_404()\fP and \fBfirst_or_404()\fP now accept a \fBdescription\fP parameter to
+control the 404 message. #636 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:636>
+.IP \(bu 2
+Use \fBtime.perf_counter\fP for Python 3 on Windows. #638 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:638>
+.IP \(bu 2
+Add an example of Flask\(aqs tutorial project, Flaskr, adapted for Flask\-SQLAlchemy.
+#720 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:720>
+.UNINDENT
+.SS Version 2.3.2
+.sp
+Released 2017\-10\-11
+.INDENT 0.0
+.IP \(bu 2
+Don\(aqt mask the parent table for single\-table inheritance models. #561 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:561>
+.UNINDENT
+.SS Version 2.3.1
+.sp
+Released 2017\-10\-05
+.INDENT 0.0
+.IP \(bu 2
+If a model has a table name that matches an existing table in the metadata, use that
+table. Fixes a regression where reflected tables were not picked up by models.
+#551 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:551>
+.IP \(bu 2
+Raise the correct error when a model has a table name but no primary key. #556 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:556>
+.IP \(bu 2
+Fix \fBrepr\fP on models that don\(aqt have an identity because they have not been
+flushed yet. #555 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:555>
+.IP \(bu 2
+Allow specifying a \fBmax_per_page\fP limit for pagination, to avoid users specifying
+high values in the request args. #542 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:542>
+.IP \(bu 2
+For \fBpaginate\fP with \fBerror_out=False\fP, the minimum value for \fBpage\fP is 1 and
+\fBper_page\fP is 0. #558 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:558>
+.UNINDENT
+.SS Version 2.3.0
+.sp
+Released 2017\-09\-28
+.INDENT 0.0
+.IP \(bu 2
+Multiple bugs with \fB__tablename__\fP generation are fixed. Names will be generated
+for models that define a primary key, but not for single\-table inheritance
+subclasses. Names will not override a \fBdeclared_attr\fP\&. \fBPrimaryKeyConstraint\fP is
+detected. #541 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:541>
+.IP \(bu 2
+Passing an existing \fBdeclarative_base()\fP as \fBmodel_class\fP to
+\fBSQLAlchemy.__init__\fP will use this as the base class instead of creating one.
+This allows customizing the metaclass used to construct the base. #546 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:546>
+.IP \(bu 2
+The undocumented \fBDeclarativeMeta\fP internals that the extension uses for binds and
+table name generation have been refactored to work as mixins. Documentation is added
+about how to create a custom metaclass that does not do table name generation.
+#546 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:546>
+.IP \(bu 2
+Model and metaclass code has been moved to a new \fBmodels\fP module.
+\fB_BoundDeclarativeMeta\fP is renamed to \fBDefaultMeta\fP; the old name will be
+removed in 3.0. #546 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:546>
+.IP \(bu 2
+Models have a default \fBrepr\fP that shows the model name and primary key. #530 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:530>
+.IP \(bu 2
+Fixed a bug where using \fBinit_app\fP would cause connectors to always use the
+\fBcurrent_app\fP rather than the app they were created for. This caused issues when
+multiple apps were registered with the extension. #547 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:547>
+.UNINDENT
+.SS Version 2.2
+.sp
+Released 2017\-02\-27, codename Dubnium
+.INDENT 0.0
+.IP \(bu 2
+Minimum SQLAlchemy version is 0.8 due to use of \fBsqlalchemy.inspect\fP\&.
+.IP \(bu 2
+Added support for custom \fBquery_class\fP and \fBmodel_class\fP as args to the
+\fBSQLAlchemy\fP constructor. #328 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:328>
+.IP \(bu 2
+Allow listening to SQLAlchemy events on \fBdb.session\fP\&. #364 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:364>
+.IP \(bu 2
+Allow \fB__bind_key__\fP on abstract models. #373 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:373>
+.IP \(bu 2
+Allow \fBSQLALCHEMY_ECHO\fP to be a string. #409 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:409>
+.IP \(bu 2
+Warn when \fBSQLALCHEMY_DATABASE_URI\fP is not set. #443 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:pull/\:443>
+.IP \(bu 2
+Don\(aqt let pagination generate invalid page numbers. #460 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:460>
+.IP \(bu 2
+Drop support of Flask < 0.10. This means the db session is always tied to the app
+context and its teardown event. #461 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:461>
+.IP \(bu 2
+Tablename generation logic no longer accesses class properties unless they are
+\fBdeclared_attr\fP\&. #467 \%<https://\:github\:.com/\:pallets-eco/\:flask-sqlalchemy/\:issues/\:467>
+.UNINDENT
+.SS Version 2.1
+.sp
+Released 2015\-10\-23, codename Caesium
+.INDENT 0.0
+.IP \(bu 2
+Table names are automatically generated in more cases, including subclassing mixins
+and abstract models.
+.IP \(bu 2
+Allow using a custom MetaData object.
+.IP \(bu 2
+Add support for binds parameter to session.
+.UNINDENT
+.SS Version 2.0
+.sp
+Released 2014\-08\-29, codename Bohrium
+.INDENT 0.0
+.IP \(bu 2
+Changed how the builtin signals are subscribed to skip non\-Flask\-SQLAlchemy
+sessions. This will also fix the attribute error about model changes not existing.
+.IP \(bu 2
+Added a way to control how signals for model modifications are tracked.
+.IP \(bu 2
+Made the \fBSignallingSession\fP a public interface and added a hook for customizing
+session creation.
+.IP \(bu 2
+If the \fBbind\fP parameter is given to the signalling session it will no longer cause
+an error that a parameter is given twice.
+.IP \(bu 2
+Added working table reflection support.
+.IP \(bu 2
+Enabled autoflush by default.
+.IP \(bu 2
+Consider \fBSQLALCHEMY_COMMIT_ON_TEARDOWN\fP harmful and remove from docs.
+.UNINDENT
+.SS Version 1.0
+.sp
+Released 2013\-07\-20, codename Aurum
+.INDENT 0.0
+.IP \(bu 2
+Added Python 3.3 support.
+.IP \(bu 2
+Dropped Python 2.5 compatibility.
+.IP \(bu 2
+Various bugfixes.
+.IP \(bu 2
+Changed versioning format to do major releases for each update now.
+.UNINDENT
+.SS Version 0.16
+.INDENT 0.0
+.IP \(bu 2
+New distribution format (flask_sqlalchemy).
+.IP \(bu 2
+Added support for Flask 0.9 specifics.
+.UNINDENT
+.SS Version 0.15
+.INDENT 0.0
+.IP \(bu 2
+Added session support for multiple databases.
+.UNINDENT
+.SS Version 0.14
+.INDENT 0.0
+.IP \(bu 2
+Make relative sqlite paths relative to the application root.
+.UNINDENT
+.SS Version 0.13
+.INDENT 0.0
+.IP \(bu 2
+Fixed an issue with Flask\-SQLAlchemy not selecting the correct binds.
+.UNINDENT
+.SS Version 0.12
+.INDENT 0.0
+.IP \(bu 2
+Added support for multiple databases.
+.IP \(bu 2
+Expose \fBBaseQuery\fP as \fBdb.Query\fP\&.
+.IP \(bu 2
+Set default \fBquery_class\fP for \fBdb.relation\fP, \fBdb.relationship\fP, and
+\fBdb.dynamic_loader\fP to \fBBaseQuery\fP\&.
+.IP \(bu 2
+Improved compatibility with Flask 0.7.
+.UNINDENT
+.SS Version 0.11
+.INDENT 0.0
+.IP \(bu 2
+Fixed a bug introduced in 0.10 with alternative table constructors.
+.UNINDENT
+.SS Version 0.10
+.INDENT 0.0
+.IP \(bu 2
+Added support for signals.
+.IP \(bu 2
+Table names are now automatically set from the class name unless overridden.
+.IP \(bu 2
+\fBModel.query\fP now always works for applications directly passed to the
+\fBSQLAlchemy\fP constructor. Furthermore the property now raises a \fBRuntimeError\fP
+instead of being \fBNone\fP\&.
+.IP \(bu 2
+Added session options to constructor.
+.IP \(bu 2
+Fixed a broken \fB__repr__\fP\&.
+.IP \(bu 2
+\fBdb.Table\fP is now a factory function that creates table objects. This makes it
+possible to omit the metadata.
+.UNINDENT
+.SS Version 0.9
+.INDENT 0.0
+.IP \(bu 2
+Applied changes to pass the Flask extension approval process.
+.UNINDENT
+.SS Version 0.8
+.INDENT 0.0
+.IP \(bu 2
+Added a few configuration keys for creating connections.
+.IP \(bu 2
+Automatically activate connection recycling for MySQL connections.
+.IP \(bu 2
+Added support for the Flask testing mode.
+.UNINDENT
+.SS Version 0.7
+.INDENT 0.0
+.IP \(bu 2
+Initial public release
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Pallets
+.SH "حق نشر (COPYRIGHT)"
+2010 Pallets
+.\" End of generated man page.

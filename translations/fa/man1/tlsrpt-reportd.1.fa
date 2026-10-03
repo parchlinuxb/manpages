@@ -1,0 +1,450 @@
+'\" t
+.\"     Title: tlsrpt-reportd
+.\"    Author: Boris Lohner
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-09-01
+.\"    Manual: tlsrpt-reportd
+.\"    Source: tlsrpt-reportd
+.\"  Language: English
+.\"
+.TH "TLSRPT\-REPORTD" "1" "2026-09-01" "tlsrpt\-reportd" "tlsrpt\-reportd"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+tlsrpt-reportd \- A daemon to create and deliver TLSRPT reports according to RFC 8460.
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBtlsrpt\-reportd\fP [\fIOPTION\fP]
+.SH "توضیحات (DESCRIPTION)"
+.sp
+The tlsrpt\-reportd is the final component in the TLSRPT framework.
+A MTA (Mail Transfer Agent) reports successful delivery or encountered errors via libtlsrpt to a tlsrpt\-collectd which collects and pre\-aggregates the data.
+The tlsrpt\-fetcher associated with a tlsrpt\-collectd transfers the pre\-aggregated data to the tlsrpt\-reportd.
+The tlsrpt\-reportd can retrieve data from multiple tlsrpt\-fetchers and aggregates the pre\-aggregated data into the final reports.
+Those reports are gzip\-compressed and sent out to the destinations as specified in the TLSRPT DNS records of the domains that have received emails from the MTA.
+.sp
+A simple data flow diagram visualizing the interaction of the components looks like this:
+(MTA)
+v
+libtlsrt
+v
+tlsrpt\-collectd
+v
+(storage)
+v
+tlsrpt\-fetcher
+v
+tlsrpt\-reportd
+v
+(report destination)
+.SH "گزینه‌ها (OPTIONS)"
+.SS "Report creation and configuration options"
+.sp
+\fB\-\-contact_info\fP=\fIaddr\fP
+.RS 4
+Use \fIaddr\fP as contact info in the TLSRPT report according to RFC 8460.
+.RE
+.sp
+\fB\-\-organization_name\fP=\fIdescr\fP
+.RS 4
+Use \fIdescr\fP as name of the organization sending the TLSRPT report according to RFC 8460.
+.RE
+.sp
+\fB\-\-sender_address\fP=\fIemail\fP
+.RS 4
+Use \fIemail\fP as "From:" address when sending reports via email.
+.RE
+.sp
+\fB\-\-fetchers\fP=\fIlist\fP
+.RS 4
+List of fetcher commands to retrieve data.
+Multiple fetcher commands can be given separated by commas.
+.RE
+.sp
+\fB\-\-dbname\fP=\fIpath\fP
+.RS 4
+Use SQLite data base at location \fIpath\fP.
+.RE
+.sp
+\fB\-\-compression_level\fP=\fIn\fP
+.RS 4
+Use compression level \fIn\fP to gzip\-compress the TLSRPT reports.
+.RE
+.sp
+\fB\-\-keep_days\fP=\fIn\fP
+.RS 4
+Keep old data for \fIn\fP days before deleting from the database.
+.RE
+.SS "Report delivery options"
+.sp
+\fB\-\-spread_out_delivery\fP=\fIsec\fP
+.RS 4
+Spread out the delivery of TLSRPT reports over \fIsec\fP seconds.
+The minimum value is 1 and causes all reports to be sent out immediately.
+This setting should be set to several hours according to RFC8460, section 4.1.
+For example, set spread_out_delivery to 14400 to spread out the delivery of the reports over four hours.
+.RE
+.sp
+\fB\-\-sendmail_script\fP=\fIpath\fP
+.RS 4
+Use the script \fIpath\fP to send a TLSRPT report via email.
+.RE
+.sp
+\fB\-\-sendmail_timeout\fP=\fIsec\fP
+.RS 4
+Set timeout of \fIsec\fP seconds for email requests to deliver reports.
+.RE
+.sp
+\fB\-\-http_script\fP=\fIpath\fP
+.RS 4
+Use the script \fIpath\fP to upload a TLSRPT report via HTTP(S).
+.RE
+.sp
+\fB\-\-http_timeout\fP=\fIsec\fP
+.RS 4
+Set timeout of \fIsec\fP seconds for HTTP POST requests to deliver reports.
+.RE
+.sp
+\fB\-\-max_retries_delivery\fP=\fIn\fP
+.RS 4
+Give up after \fIn\fP failed attempts to deliver a report to its destination.
+.RE
+.sp
+\fB\-\-min_wait_delivery\fP=\fIsec\fP
+.RS 4
+Minimum time to wait before retrying a failed report delivery attempt.
+.RE
+.sp
+\fB\-\-max_wait_delivery\fP=\fIsec\fP
+.RS 4
+Maximum time to wait before retrying a failed report delivery attempt.
+.RE
+.sp
+\fB\-\-http_upload_map\fP=\fIpath\fP
+.RS 4
+Load a transformation map for HTTPS report destinations from file \fIpath\fP.
+Cannot be used in combination with \fB\-\-debug_send_http_dest\fP!
+.RE
+.sp
+\fB\-\-mail_destination_map\fP=\fIpath\fP
+.RS 4
+Load a transformation map for SMTP report destinations from file \fIpath\fP.
+Cannot be used in combination with \fB\-\-debug_send_mail_dest\fP!
+.RE
+.sp
+\fB\-\-tlsrpt_record_map\fP=\fIpath\fP
+.RS 4
+Load a transformation map for all report destinations based on the TLSRPT domain from file \fIpath\fP.
+Cannot be used in combination with \fB\-\-debug_send_file_dest\fP!
+.RE
+.SS "Options controlling the interaction with one or more tlsrpt\-collectd"
+.sp
+\fB\-\-max_collectd_timediff\fP=\fIsec\fP
+.RS 4
+Log a warning if the collectd clock reported by its fetcher differs by more than \fIsec\fP seconds from the reportd´s clock.
+The reportd starts querying the fetchers \fIsec\fP seconds after the UTC day change, so a clock difference bigger than \fIsec\fP seconds indicates the collectd might not yet been ready to provide the complete data for the previous day.
+.RE
+.sp
+\fB\-\-max_collectd_timeout\fP=\fIsec\fP
+.RS 4
+Wait at most \fIsec\fP seconds for a fetcher to finish a request for data from its collectd.
+.RE
+.sp
+\fB\-\-max_retries_domaindetails\fP=\fIn\fP
+.RS 4
+Give up after \fIn\fP failed attempts to retrieve report details for a domain.
+.RE
+.sp
+\fB\-\-min_wait_domaindetails\fP=\fIsec\fP
+.RS 4
+Minimum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt\-collectd.
+.RE
+.sp
+\fB\-\-max_wait_domaindetails\fP=\fIsec\fP
+.RS 4
+Maximum time to wait before retry after a failed attempt to get the report details for a domain from a tlsrpt\-collectd.
+.RE
+.sp
+\fB\-\-max_retries_domainlist\fP=\fIn\fP
+.RS 4
+Give up after \fIn\fP failed attempts to retrieve the list of domains from a tlsrpt\-collectd.
+.RE
+.sp
+\fB\-\-min_wait_domainlist\fP=\fIsec\fP
+.RS 4
+Minimum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt\-collectd.
+.RE
+.sp
+\fB\-\-max_wait_domainlist\fP=\fIsec\fP
+.RS 4
+Maximum time to wait before retry after a failed attempt to get the list of domains from a tlsrpt\-collectd.
+.RE
+.sp
+\fB\-\-interval_main_loop\fP=\fIsec\fP
+.RS 4
+Wake up an idle main loop even if there are no tasks after \fIsec\fP seconds of inactivity.
+.RE
+.SS "Debug and development options"
+.sp
+\fB\-\-debug_db\fP=\fIn\fP
+.RS 4
+Control database debugging: 0 turns database debugging off, 1 activates logging of database statements.
+.RE
+.sp
+\fB\-\-debug_send_file_dest\fP=\fIdir\fP
+.RS 4
+Save reports into directory \fIdir\fP in addition to their delivery via email or HTTP POST requests.
+Cannot be used in combination with \fB\-\-tlsrpt_record_map\fP!
+.RE
+.sp
+\fB\-\-debug_send_mail_dest\fP=\fIpath\fP
+.RS 4
+Override the email destination to send out reports via email.
+Please note: With this option set, reports to email destinations will not be sent ot the requested destination from the TLSRPT DNS record but to this replacement address instead!
+This option must not be used on production systems!
+Cannot be used in combination with \fB\-\-mail_destination_map\fP!
+.RE
+.sp
+\fB\-\-debug_send_http_dest\fP=\fIpath\fP
+.RS 4
+Override the HTTP POST destination to send out reports via HTTP POST requests.
+Please note: With this option set, reports to HTTP POST destinations will not be sent ot the requested destination from the TLSRPT DNS record but to this replacement URL instead!
+This option must not be used on production systems!
+Cannot be used in combination with \fB\-\-http_upload_map\fP!
+.RE
+.SS "General options"
+.sp
+\fB\-\-config_file\fP=\fIfilename\fP
+.RS 4
+Read options from the section tlsrpt_reportd of the INI\-style configuration file \fIfilename\fP.
+Environment variables override setings from the configurstion file and command line options override both.
+.RE
+.sp
+\fB\-\-help\fP
+.RS 4
+Print a help message describing all options.
+.RE
+.sp
+\fB\-\-pidfilename\fP=\fIpath\fP
+.RS 4
+Specifies the file that contains the process ID of the tlsrpt\-reportd daemon. An empty string will cause no PID file to be created.
+.RE
+.SS "Logging options"
+.sp
+\fB\-\-logfilename\fP=\fIfilename\fP
+.RS 4
+Use \fIfilename\fP as log file.
+.RE
+.sp
+\fB\-\-log_level\fP=\fIlevel\fP
+.RS 4
+Set log level to \fIlevel\fP, allowed values: debug, info, warn, error.
+.RE
+.SH "محیط (ENVIRONMENT)"
+.sp
+All config options except \-\-help and \-\-config_file can also be set via environment variables.
+The environment variable for a configuration option is the prefix TLSRPT_REPORTD_ followed by the configuration setting name in all caps.
+For example the \-\-log_level option can instead by configured using the TLSRPT_REPORTD_LOG_LEVEL environment variable.
+.SH "DESTINATION MAPPING"
+.sp
+The \fB\-\-tlsrpt_record_map\fP, \fB\-\-http_upload_map\fP and \fB\-\-mail_destination_map\fP options allow a mapping of the report destinations retrieved from the TLSRPT record based on the domain the report is created for.
+.sp
+All maps are processed on a "first match wins" manner. No further rules are processed after a rule has matched.
+.sp
+The \fB\-\-tlsrpt_record_map\fP is used first to transform the whole set of destinations.
+The \fB\-\-http_upload_map\fP and \fB\-\-mail_destination_map\fP options allow for further modifications to report destinations matching the "mailto:" or "https:" URI scheme and they inspect the report destination to determine if the rule applies, not the domain for which the report is created.
+.sp
+Each map line has the format:
+\fBmatch\fP \fBaction\fP [\fBparameters\fP]
+.sp
+\fBmatch\fP is of the form "matchtype:pattern".
+Supported match tyoes are: "domain:" and "regexp:".
+.sp
+The "domain:" prefix can be omitted, i.e. without a match tyoe specified the "domain:" match style is the default.
+A "domain:" match matches the domain part of a "mailto:" URI in the \fB\-\-mail_destination_map\fP and the domain part of an "https:" URI in the \fB\-\-http_upload_map\fP.
+A "domain:" match can match a complete domain name or if it starts with a "." it matches all subdomains. A single "." matches every domain name. A trailing "." after a domain name is ignored.
+.sp
+The domain name "many.sub.domains.example.com" would not be matched by "sub.domains.example.com" or "sub.domains.example.com." without a leading dot, but it would be matched by these domain match expressions:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+many.sub.domains.example.com.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+many.sub.domains.example.com
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.sub.domains.example.com.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.sub.domains.example.com
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.domains.example.com.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.domains.example.com
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.example.com.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.example.com
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.com.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.com
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+\&.
+.RE
+.sp
+A "regexp:" style match in the \fB\-\-tlsrpt_record_map\fP matches against the domain name the report is created for.
+A "regexp:" style match in the \fB\-\-http_upload_map\fP and \fB\-\-mail_destination_map\fP maps matches against the whole report destination, not just the extracted domain part.
+.sp
+The \fBaction\fP can be on of "ACCEPT", "DISCARD", "APPEND", "REPLACE" and "REGEXP".
+"ACCEPT" actions just accept the report destinations as they are.
+"DISCARD" actions return an empty set of report destinations, no report will be sent out.
+"APPEND" actions supply additional report destinations.
+"REPLACE" actions replace the report destinations with other destinations.
+"REGEXP" actions transform each matching report destination according to their two parameters: a matching regexp and a substitution.
+.sp
+"APPEND" and "REPLACE" and "REGEXP" actions can introduce other URI schemes.
+tlsrpt\-reportd understands in addition to the "mailto:" and "https:" URI schemes defined in RFC 8460 the additional URI scheme "directory:" as a directory in the filesystem where reports are to be saved as files to allow inspection and debugging.
+.sp
+Rules in the \fB\-\-mail_destination_map\fP can also introduce "https:" and "directory:" URIs as report destinations.
+Rules in the \fB\-\-http_upload_map\fP can also introduce "https:" and "directory:" URIs as report destinations.
+No further processing is done with those destinations, i.e. a "https:" URI introduced in the \fB\-\-mail_destination_map\fP is not put through the transformations from \fB\-\-http_upload_map\fP and vice versa.
+.sp
+The results from \fB\-\-tlsrpt_record_map\fP which is processed first, however, are put through the transformations of \fB\-\-http_upload_map\fP and \fB\-\-mail_destination_map\fP even if \fB\-\-tlsrpt_record_map\fP already had actions modify the report destinations.
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Retrieve data from a local fetcher with standard configuration and from another local fetcher with a different storage:
+.sp
+\fBtlsrpt\-reportd \-\-fetchers "tlsrpt\-fetcher, tlsrpt\-fetcher \-\-storage sqlite:///tmp/test.sqlite"\fP
+.sp
+Retrieve data from a local fetcher and a remote fetcher:
+.sp
+\fBtlsrpt\-reportd \-\-fetchers "tlsrpt\-fetcher, ssh user@remote tlsrpt\-fetcher"\fP
+.SH "وضعیت خروج (EXIT STATUS)"
+.sp
+\fB0\fP
+.RS 4
+Success.
+.RE
+.sp
+\fB1\fP
+.RS 4
+Failure.
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+man:tlsrpt\-collectd[1], man:tlsrpt\-fetcher[1]
+.SH "نویسنده (AUTHOR)"
+.sp
+Boris Lohner

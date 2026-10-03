@@ -1,0 +1,620 @@
+.\" SPDX-FileCopyrightText: Yorhel <projects@yorhel.nl>
+.\" SPDX-License-Identifier: MIT
+.Dd August 16, 2025
+.Dt NCDU 1
+.Os
+.Sh "نام (NAME)"
+.Nm ncdu
+.Nd NCurses Disk Usage
+.
+.Sh "خلاصه دستور (SYNOPSIS)"
+.Nm
+.Op Fl f Ar file
+.Op Fl o Ar file
+.Op Fl O Ar file
+.Op Fl e , \-extended , \-no\-extended
+.Op Fl \-ignore\-config
+.Op Fl x , \-one\-file\-system , \-cross\-file\-system
+.Op Fl \-exclude Ar pattern
+.Op Fl X , \-exclude\-from Ar file
+.Op Fl \-include\-caches , \-exclude\-caches
+.Op Fl L , \-follow\-symlinks , \-no\-follow\-symlinks
+.Op Fl \-include\-kernfs , \-exclude\-kernfs
+.Op Fl t , \-threads Ar num
+.Op Fl c , \-compress , \-no\-compress
+.Op Fl \-compress\-level Ar num
+.Op Fl \-export\-block\-size Ar num
+.Op Fl 0 , 1 , 2
+.Op Fl q , \-slow\-ui\-updates , \-fast\-ui\-updates
+.Op Fl \-enable\-shell , \-disable\-shell
+.Op Fl \-enable\-delete , \-disable\-delete
+.Op Fl \-enable\-refresh , \-disable\-refresh
+.Op Fl r
+.Op Fl \-si , \-no\-si
+.Op Fl \-disk\-usage , \-apparent\-size
+.Op Fl \-show\-hidden , \-hide\-hidden
+.Op Fl \-show\-itemcount , \-hide\-itemcount
+.Op Fl \-show\-mtime , \-hide\-mtime
+.Op Fl \-show\-graph , \-hide\-graph
+.Op Fl \-show\-percent , \-hide\-percent
+.Op Fl \-graph\-style Ar hash | half\-block | eighth\-block
+.Op Fl \-shared\-column Ar off | shared | unique
+.Op Fl \-sort Ar column
+.Op Fl \-enable\-natsort , \-disable\-natsort
+.Op Fl \-group\-directories\-first , \-no\-group\-directories\-first
+.Op Fl \-confirm\-quit , \-no\-confirm\-quit
+.Op Fl \-confirm\-delete , \-no\-confirm\-delete
+.Op Fl \-delete\-command Ar command
+.Op Fl \-color Ar off | dark | dark-bg
+.Op Ar path
+.Nm
+.Op Fl h , \-help
+.Nm
+.Op Fl v , V , \-version
+.
+.Sh "توضیحات (DESCRIPTION)"
+.Nm
+(NCurses Disk Usage) is an interactive curses-based version of the well-known
+.Xr du 1 ,
+and provides a fast way to see what directories are using your disk space.
+.
+.Sh "گزینه‌ها (OPTIONS)"
+.Ss Mode Selection
+.Bl -tag -width Ds
+.It Fl h , \-help
+Print a short help message and quit.
+.It Fl v , V , \-version
+Print version and quit.
+.It Fl f Ar file
+Load the given file, which has earlier been created with the
+.Fl o
+or
+.Fl O
+flag.
+If
+.Ar file
+is equivalent to '\-', the file is read from standard input.
+Reading from standard input is only supported for the JSON format.
+.Pp
+For the sake of preventing a screw-up, the current version of
+.Nm
+will assume that the directory information in the imported file does not
+represent the filesystem on which the file is being imported.
+That is, the refresh, file deletion and shell spawning options in the browser
+will be disabled.
+.It Ar dir
+Scan the given directory.
+.It Fl o Ar file
+Export the directory tree in JSON format to
+.Ar file
+instead of opening the browser interface.
+If
+.Ar file
+is '\-', the data is written to standard output.
+See the examples section below for some handy use cases.
+.Pp
+Be warned that the exported data may grow quite large when exporting a
+directory with many files.
+10.000 files will get you an export in the order of 600 to 700 KiB
+uncompressed, or a little over 100 KiB when compressed with gzip.
+This scales linearly, so be prepared to handle a few tens of megabytes when
+dealing with millions of files.
+.Pp
+Consider enabling
+.Fl c
+to output Zstandard-compressed JSON, which can significantly reduce size of the
+exported data.
+.Pp
+When running a multi-threaded scan or when scanning a directory tree that may
+not fit in memory, consider using
+.Fl O
+instead.
+.It Fl O Ar file
+Export the directory tree in binary format to
+.Ar file
+instead of opening the browser interface.
+If
+.Ar file
+is '\-', the data is written to standard output.
+The binary format has built-in compression, supports low-memory multi-threaded
+export (in combination with
+.Fl t )
+and can be browsed without importing the entire directory tree into memory.
+.It Fl e , \-extended , \-no\-extended
+Enable/disable extended information mode.
+This will, in addition to the usual file information, also read the ownership,
+permissions and last modification time for each file.
+This will result in higher memory usage (by roughly ~30%) and in a larger
+output file when exporting.
+.Pp
+When using the file export/import function, this flag should be added both when
+exporting (to make sure the information is added to the export) and when
+importing (to read this extra information in memory).
+This flag has no effect when importing a file that has been exported without
+the extended information.
+.Pp
+This enables viewing and sorting by the latest child mtime, or modified time,
+using 'm' and 'M', respectively.
+.It Fl \-ignore\-config
+Do not attempt to load any configuration files.
+.El
+.
+.Ss Scan Options
+These options affect the scanning progress, they have no effect when importing
+directory information from a file.
+.Bl -tag -width Ds
+.It Fl x , \-one\-file\-system
+Do not cross filesystem boundaries, i.e. only count files and directories on
+the same filesystem as the directory being scanned.
+.It Fl \-cross\-file\-system
+Do cross filesystem boundaries.
+This is the default, but can be specified to overrule a previously configured
+.Fl x .
+.It Fl \-exclude Ar pattern
+Exclude files that match
+.Ar pattern .
+The files are still displayed by default, but are not counted towards the disk
+usage statistics.
+This argument can be added multiple times to add more patterns.
+.It Fl X , \-exclude\-from Ar file
+Exclude files that match any pattern in
+.Ar file .
+Patterns should be separated by a newline.
+.It Fl \-include\-caches , \-exclude\-caches
+Include (default) or exclude directories containing
+.Pa CACHEDIR.TAG .
+Excluded cache directories are still displayed, but their contents will not be
+scanned or counted towards the disk usage statistics.
+.Lk https://bford.info/cachedir/
+.It Fl L , \-follow\-symlinks , \-no\-follow\-symlinks
+Follow (or not) symlinks and count the size of the file they point to.
+This option does not follow symlinks to directories and will cause each
+symlinked file to count as a unique file.
+This is different from how hard links are handled.
+The exact counting behavior of this flag is subject to change in the future.
+.It Fl \-include\-kernfs , \-exclude\-kernfs
+(Linux only) Include (default) or exclude Linux pseudo filesystems such as
+.Pa /proc
+(procfs) and
+.Pa /sys
+(sysfs).
+.Pp
+The complete list of currently known pseudo filesystems is: binfmt, bpf, cgroup,
+cgroup2, debug, devpts, proc, pstore, security, selinux, sys, trace.
+.It Fl t , \-threads Ar num
+Number of threads to use when scanning the filesystem, defaults to 1.
+.Pp
+In single-threaded mode, the JSON export (see
+.Fl o )
+can operate with very little memory, but in multi-threaded mode the entire
+directory tree is first constructed in memory and written out after the
+filesystem scan has completed,
+This causes a delay in output and requires significantly more memory for large
+directory trees.
+The binary format (see
+.Fl O )
+does not have this problem and supports efficient exporting with any number of
+threads.
+.El
+.
+.Ss Export Options
+These options affect behavior when exporting to file with the
+.Fl o
+or
+.Fl O
+options.
+.Bl -tag -width Ds
+.It Fl c , \-compress , \-no\-compress
+Enable or disable Zstandard compression when exporting to JSON (see
+.Fl o ) .
+.It Fl \-compress\-level Ar num
+Set the Zstandard compression level when using
+.Fl O
+or
+.Fl c .
+Valid values are 1 (fastest) to 19 (slowest).
+Defaults to 4.
+.It Fl \-export\-block\-size Ar num
+Set the block size, in kibibytes, for the binary export format (see
+.Fl O ) .
+Larger blocks require more memory but result in better compression efficiency.
+This option can be combined with a higher
+.Fl \-compress\-level
+for even better compression.
+.Pp
+Accepted values are between 4 and 16000.
+The defaults is to start at 64 KiB and then gradually increase the block size
+for large exports.
+.El
+.
+.Ss Interface Options
+.Bl -tag -width Ds
+.It Fl 0
+Don't give any feedback while scanning a directory or importing a file, except
+when a fatal error occurs.
+Ncurses will not be initialized until the scan is complete.
+When exporting the data with
+.Fl o ,
+ncurses will not be initialized at all.
+This option is the default when exporting to standard output.
+.It Fl 1
+Write progress information to the terminal, but don't open a full-screen
+ncurses interface.
+This option is the default when exporting to a file.
+.Pp
+In some cases, the ncurses browser interface which you'll see after the
+scan/import is complete may look garbled when using this option.
+If you're not exporting to a file,
+.Fl 2
+is usually a better choice.
+.It Fl 2
+Show a full-screen ncurses interface while scanning a directory or importing
+a file.
+This is the only interface that provides feedback on any non-fatal errors while
+scanning.
+.It Fl q , \-slow\-ui\-updates , \-fast\-ui\-updates
+Change the UI update interval while scanning or importing.
+.Nm
+updates the screen 10 times a second by default (with
+.Fl \-fast\-ui\-updates
+), this can be decreased to once every 2 seconds with
+.Fl q
+or
+.Fl \-slow\-ui\-updates .
+This option can be used to save bandwidth over remote connections.
+This option has no effect in combination with
+.Fl 0 .
+.It Fl \-enable\-shell , \-disable\-shell
+Enable or disable shell spawning from the file browser.
+This feature is enabled by default when scanning a live directory and disabled
+when importing from file.
+.It Fl \-enable\-delete , \-disable\-delete
+Enable or disable the built-in file deletion feature.
+This feature is enabled by default when scanning a live directory and disabled
+when importing from file.
+Explicitly disabling the deletion feature can work as a safeguard to prevent
+accidental data loss.
+.It Fl \-enable\-refresh , \-disable\-refresh
+Enable or disable directory refreshing from the file browser.
+This feature is enabled by default when scanning a live directory and disabled
+when importing from file.
+.It Fl r
+Read-only mode.
+When given once, this is an alias for
+.Fl \-disable\-delete ,
+when given twice it will also add
+.Fl \-disable\-shell ,
+thus ensuring that there is no way to modify the file system from within
+.Nm .
+.It Fl \-si , \-no\-si
+List sizes using base 10 prefixes, that is, powers of 1000 (kB, MB, etc), as
+defined in the International System of Units (SI), instead of the usual base 2
+prefixes (KiB, MiB, etc).
+.It Fl \-disk\-usage , \-apparent\-size
+Select whether to display disk usage (default) or apparent sizes.
+Can also be toggled in the file browser with the 'a' key.
+.It Fl \-show\-hidden , \-hide\-hidden
+Show (default) or hide "hidden" and excluded files.
+Can also be toggled in the file browser with the 'e' key.
+.It Fl \-show\-itemcount , \-hide\-itemcount
+Show or hide (default) the item counts column.
+Can also be toggled in the file browser with the 'c' key.
+.It Fl \-show\-mtime , \-hide\-mtime
+Show or hide (default) the last modification time column.
+Can also be toggled in the file browser with the 'm' key.
+This option is ignored when not in extended mode, see
+.Fl e .
+.It Fl \-show\-graph , \-hide\-graph
+Show (default) or hide the relative size bar column.
+Can also be toggled in the file browser with the 'g' key.
+.It Fl \-show\-percent , \-hide\-percent
+Show (default) or hide the relative size percent column.
+Can also be toggled in the file browser with the 'g' key.
+.It Fl \-graph\-style Ar hash | half\-block | eighth\-block
+Change the way that the relative size bar column is drawn.
+Recognized values are
+.Ar hash
+to draw ASCII '#' characters (default and most portable),
+.Ar half\-block
+to use half-block drawing characters or
+.Ar eighth\-block
+to use eighth-block drawing characters.
+Eighth-block characters are the most precise but may not render correctly in
+all terminals.
+.It Fl \-shared\-column Ar off | shared | unique
+Set to
+.Ar off
+to disable the shared size column for directories,
+.Ar shared
+(default) to display shared directory sizes as a separate column or
+.Ar unique
+to display unique directory sizes as a separate column.
+These options can also be cycled through in the file browser with the 'u' key.
+.It Fl \-sort Ar column
+Change the default column to sort on.
+Accepted values are
+.Ar disk\-usage
+(the default),
+.Ar name , apparent\-size , itemcount
+or
+.Ar mtime .
+The latter only makes sense in extended mode, see
+.Fl e .
+.Pp
+The column name can be suffixed with
+.Li \-asc
+or
+.Li \-desc
+to change the order to ascending or descending, respectively.
+For example,
+.Li \-\-sort=name\-desc
+to sort by name in descending order.
+.It Fl \-enable\-natsort , \-disable\-natsort
+Enable (default) or disable natural sort when sorting by file name.
+.It Fl \-group\-directories\-first , \-no\-group\-directories\-first
+Sort (or not) directories before files.
+.It Fl \-confirm\-quit , \-no\-confirm\-quit
+Require a confirmation before quitting ncdu.
+Can be helpful when you accidentally press 'q' during or after a very long scan.
+.It Fl \-confirm\-delete , \-no\-confirm\-delete
+Require a confirmation before deleting a file or directory.
+Enabled by default, but can be disabled if you're absolutely sure you won't
+accidentally press 'd'.
+.It Fl \-delete\-command Ar command
+When set to a non-empty string, replace the built-in file deletion feature with
+a custom shell command.
+.Pp
+The absolute path of the item to be deleted is appended to the given command
+and the result is evaluated in a shell.
+The command is run from the same directory that ncdu itself was started in.
+The
+.Ev NCDU_DELETE_PATH
+environment variable is set to the absolute path of the item to be deleted and
+.Ev NCDU_LEVEL
+is set in the same fashion as when spawning a shell from within ncdu.
+.Pp
+After command completion, the in-memory view of the selected item is refreshed
+and directory sizes are adjusted as necessary.
+This is not a full refresh of the complete directory tree, so if the item has
+been renamed or moved to another directory, it's new location is not
+automatically picked up.
+.Pp
+For example, to use
+.Xr rm 1
+interactive mode to prompt before each deletion:
+.Dl ncdu --no-confirm-delete --delete-command \[aq]rm -ri --\[aq]
+Or to move files to trash:
+.Dl ncdu --delete-command \[aq]gio trash --\[aq]
+.It Fl \-color Ar off | dark | dark-bg
+Set the color scheme.
+The following schemes are recognized:
+.Ar off
+to disable colors,
+.Ar dark
+for a color scheme intended for dark backgrounds and
+.Ar dark\-bg
+for a variation of the
+.Ar dark
+color scheme that also works in terminals with a light background.
+.Pp
+The default is
+.Ar off .
+.El
+.
+.Sh "پیکربندی (CONFIGURATION)"
+.Nm
+can be configured by placing command-line options in
+.Pa /etc/ncdu.conf
+or
+.Pa $HOME/.config/ncdu/config .
+If both files exist, the system configuration will be loaded before the user
+configuration, allowing users to override options set in the system
+configuration.
+Options given on the command line will override options set in the
+configuration files.
+The files will not be read at all when
+.Fl \-ignore\-config
+is given on the command line.
+.Pp
+The configuration file format is simply one command line option per line.
+Lines starting with '#' are ignored.
+A line can be prefixed with '@' to suppress errors while parsing the option.
+Example configuration file:
+.Bd -literal -offset indent
+# Always enable extended mode
+\-e
+
+# Disable file deletion
+\-\-disable\-delete
+
+# Exclude .git directories
+\-\-exclude .git
+
+# Read excludes from ~/.ncduexcludes, ignore error if the file does not exist
+@--exclude-from ~/.ncduexcludes
+.Ed
+.
+.Sh KEYS
+.Bl -tag -width Ds
+.It ?
+Open help + keys + about screen
+.It up , down , j , k
+Cycle through the items
+.It right, enter, l
+Open selected directory
+.It left, <, h
+Go to parent directory
+.It n
+Order by filename (press again for descending order)
+.It s
+Order by filesize (press again for descending order)
+.It C
+Order by number of items (press again for descending order)
+.It a
+Toggle between showing disk usage and showing apparent size.
+.It M
+Order by latest child mtime, or modified time (press again for descending
+order).
+Requires the
+.Fl e
+flag.
+.It d
+Delete the selected file or directory.
+An error message will be shown when the contents of the directory do not match
+or do not exist anymore on the filesystem.
+.It t
+Toggle dirs before files when sorting.
+.It g
+Toggle between showing percentage, graph, both, or none.
+Percentage is relative to the size of the current directory, graph is relative
+to the largest item in the current directory.
+.It u
+Toggle display of the shared / unique size column for directories that share
+hard links.
+This column is only visible if the current listing contains directories with
+shared hard links.
+.It c
+Toggle display of child item counts.
+.It m
+Toggle display of latest child mtime, or modified time.
+Requires the
+.Fl e
+flag.
+.It e
+Show/hide 'hidden' or 'excluded' files and directories.
+Be aware that even if you can't see the hidden files and directories, they are
+still there and they are still included in the directory sizes.
+If you suspect that the totals shown at the bottom of the screen are not
+correct, make sure you haven't enabled this option.
+.It i
+Show information about the current selected item.
+.It r
+Refresh/recalculate the current directory.
+.It b
+Spawn shell in current directory.
+.Pp
+.Nm
+determines your preferred shell from the
+.Ev NCDU_SHELL
+or
+.Ev SHELL
+environment variable (in that order), or calls
+.Pa /bin/sh
+if neither are set.
+This allows you to also configure another command to be run when he 'b' key is
+pressed.
+For example, to spawn the
+.Xr vifm 1
+file manager instead of a shell, run
+.Nm
+as follows:
+.Dl NCDU_SHELL=vifm ncdu
+The
+.Ev NCDU_LEVEL
+environment variable is set or incremented before spawning the shell, allowing
+you to detect if your shell is running from within
+.Nm .
+This can be useful to avoid nesting multiple instances, although
+.Nm
+itself does not (currently) warn about or prevent this situation.
+.It q
+Quit
+.El
+.
+.Sh FILE FLAGS
+Entries in the browser interface may be prefixed by a one\-character flag.
+These flags have the following meaning:
+.Bl -tag -width Ds
+.It !
+An error occurred while reading this directory.
+.It \.
+An error occurred while reading a subdirectory, so the indicated size may not
+be correct.
+.It <
+File or directory is excluded from the statistics by using exclude patterns.
+.It >
+Directory is on another filesystem.
+.It ^
+Directory is excluded from the statistics due to being a Linux pseudo
+filesystem.
+.It @
+This is neither a file nor a folder (symlink, socket, ...).
+.It H
+Same file was already counted (hard link).
+.It e
+Empty directory.
+.El
+.
+.Sh "مثال‌ها (EXAMPLES)"
+To scan and browse the directory you're currently in, all you need is a simple:
+.Dl ncdu
+To scan a full filesystem, for example your root filesystem, you'll want to use
+.Fl x :
+.Dl ncdu \-x /
+.Pp
+Since scanning a large directory may take a while, you can scan a directory and
+export the results for later viewing:
+.Bd -literal -offset indent
+ncdu \-1xO export.ncdu /
+# ...some time later:
+ncdu \-f export.ncdu
+.Ed
+To export from a cron job, make sure to replace
+.Fl 1
+with
+.Fl 0
+to suppress unnecessary progress output.
+.Pp
+You can also export a directory and browse it once scanning is done:
+.Dl ncdu \-co\- | tee export.json.zst | ./ncdu \-f\-
+.Pp
+To scan a system remotely, but browse through the files locally:
+.Dl ssh user@system ncdu \-co\- / | ./ncdu \-f\-
+Remote scanning and local viewing has two major advantages when
+compared to running
+.Nm
+directly on the remote system: You can browse through the scanned directory on
+the local system without any network latency, and
+.Nm
+does not keep the entire directory structure in memory when exporting, so this
+won't consume much memory on the remote system.
+.
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr du 1 ,
+.Xr tree 1 .
+.Pp
+.Nm
+has a website:
+.Lk https://dev.yorhel.nl/ncdu
+.
+.Sh "نویسندگان (AUTHORS)"
+Written by
+.An Yorhel Aq Mt projects@yorhel.nl
+.
+.Sh "اشکالات (BUGS)"
+Directory hard links and firmlinks (MacOS) are not supported.
+They are not detected as being hard links and will thus get scanned and counted
+multiple times.
+.Pp
+Some minor glitches may appear when displaying filenames that contain multibyte
+or multicolumn characters.
+.Pp
+The unique and shared directory sizes are calculated based on the assumption
+that the link count of hard links does not change during a filesystem scan or
+in between refreshes.
+If this does happen, for example when a hard link is deleted, then these
+numbers will be very much incorrect and a full refresh by restarting ncdu is
+needed to get correct numbers again.
+.Pp
+All sizes are internally represented as a signed 64bit integer.
+If you have a directory larger than 8 EiB minus one byte, ncdu will clip its
+size to 8 EiB minus one byte.
+When deleting or refreshing items in a directory with a clipped size, the
+resulting sizes will be incorrect.
+Likewise, item counts are stored in a 32-bit integer, so will be incorrect in
+the unlikely event that you happen to have more than 4 billion items in a
+directory.
+.Pp
+Please report any other bugs you may find at the bug tracker, which can be
+found on the web site at
+.Lk https://dev.yorhel.nl/ncdu

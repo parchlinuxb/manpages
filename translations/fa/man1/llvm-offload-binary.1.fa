@@ -1,0 +1,394 @@
+'\" t
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LLVM-OFFLOAD-BINARY" "1" "2026-07-15" "22" "LLVM"
+.SH "نام (NAME)"
+llvm-offload-binary \- LLVM Offload Binary Packager
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBllvm\-offload\-binary\fP [\fIoptions\fP] [\fIinput files...\fP]
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBllvm\-offload\-binary\fP is a utility for bundling multiple device object
+files into a single binary container. The resulting binary can then be embedded
+into the host section table to form a fat binary containing offloading code for
+different targets. Conversely, it can also extract previously bundled device
+images.
+.sp
+The binary format begins with the magic bytes \fB0x10FF10AD\fP, followed by a
+version and size. Each binary contains its own header, allowing tools to locate
+offloading sections even when merged by a linker. Each offload entry includes
+metadata such as the device image kind, producer kind, and key\-value string
+metadata. Multiple offloading images are concatenated to form a fat binary.
+.SH "مثال (EXAMPLE)"
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# Package multiple device images into a fat binary:
+$ llvm\-offload\-binary \-o out.bin \e
+      \-\-image=file=input.o,triple=nvptx64,arch=sm_70
+
+# Extract a matching image from a fat binary:
+$ llvm\-offload\-binary in.bin \e
+      \-\-image=file=output.o,triple=nvptx64,arch=sm_70
+
+# Extract and archive images into a static library:
+$ llvm\-offload\-binary in.bin \-\-archive \-o libdevice.a
+.EE
+.UNINDENT
+.UNINDENT
+.SH "گزینه‌ها (OPTIONS)"
+.INDENT 0.0
+.TP
+.B \-\-archive
+When extracting from an input binary, write all extracted images into a static
+archive instead of separate files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-image=<<key>=<value>,...>
+Specify a set of arbitrary key\-value arguments describing an image.
+Commonly used optional keys include \fBarch\fP (e.g. \fBsm_70\fP for CUDA) and
+\fBtriple\fP (e.g. nvptx64\-nvidia\-cuda).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-o <file>
+Write output to <file>. When bundling, this specifies the fat binary filename.
+When extracting, this specifies the archive or output file destination.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help, \-h
+Display available options. Use \fB\-\-help\-hidden\fP to show hidden options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help\-list
+Display a list of all options. Use \fB\-\-help\-list\-hidden\fP to show hidden ones.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+Display the version of the \fBllvm\-offload\-binary\fP executable.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B @<FILE>
+Read command\-line options from response file \fI<FILE>\fP\&.
+.UNINDENT
+.SH BINARY FORMAT
+.sp
+The binary format is marked by the magic bytes \fB0x10FF10AD\fP, followed by a
+version number. Each created binary contains its own header. This allows tools
+to locate offloading sections even after linker operations such as relocatable
+linking. Conceptually, this binary format is a serialization of a string map and
+an image buffer.
+.SH Offloading Binary Header
+.TS
+box center;
+l|l|l.
+T{
+Type
+T}	T{
+Identifier
+T}	T{
+Description
+T}
+_
+T{
+uint8_t
+T}	T{
+magic
+T}	T{
+The magic bytes for the binary format (0x10FF10AD)
+T}
+_
+T{
+uint32_t
+T}	T{
+version
+T}	T{
+Version of this format (currently version 1)
+T}
+_
+T{
+uint64_t
+T}	T{
+size
+T}	T{
+Size of this binary in bytes
+T}
+_
+T{
+uint64_t
+T}	T{
+entry offset
+T}	T{
+Absolute offset of the offload entries in bytes
+T}
+_
+T{
+uint64_t
+T}	T{
+entry size
+T}	T{
+Size of the offload entries in bytes
+T}
+.TE
+.sp
+Each offload entry describes a bundled image along with its associated metadata.
+.SH Offloading Entry Table
+.TS
+box center;
+l|l|l.
+T{
+Type
+T}	T{
+Identifier
+T}	T{
+Description
+T}
+_
+T{
+uint16_t
+T}	T{
+image kind
+T}	T{
+The kind of the device image (e.g. bc, cubin)
+T}
+_
+T{
+uint16_t
+T}	T{
+offload kind
+T}	T{
+The producer of the image (e.g. openmp, cuda)
+T}
+_
+T{
+uint32_t
+T}	T{
+flags
+T}	T{
+Generic flags for the image
+T}
+_
+T{
+uint64_t
+T}	T{
+string offset
+T}	T{
+Absolute offset of the string metadata table
+T}
+_
+T{
+uint64_t
+T}	T{
+num strings
+T}	T{
+Number of string entries in the table
+T}
+_
+T{
+uint64_t
+T}	T{
+image offset
+T}	T{
+Absolute offset of the device image in bytes
+T}
+_
+T{
+uint64_t
+T}	T{
+image size
+T}	T{
+Size of the device image in bytes
+T}
+.TE
+.sp
+The entry table refers to both a string table and the raw device image itself.
+The string table provides arbitrary key\-value metadata.
+.SH Offloading String Entry
+.TS
+box center;
+l|l|l.
+T{
+Type
+T}	T{
+Identifier
+T}	T{
+Description
+T}
+_
+T{
+uint64_t
+T}	T{
+key offset
+T}	T{
+Absolute byte offset of the key in the string table
+T}
+_
+T{
+uint64_t
+T}	T{
+value offset
+T}	T{
+Absolute byte offset of the value in the string table
+T}
+.TE
+.sp
+The string table is a collection of null\-terminated strings stored in the image.
+Offsets allow string entries to be interpreted as key\-value pairs, enabling
+flexible metadata such as architecture or target triple.
+.sp
+The enumerated values for \fBimage kind\fP and \fBoffload kind\fP are:
+.SH Image Kind
+.TS
+box center;
+l|l|l.
+T{
+Name
+T}	T{
+Value
+T}	T{
+Description
+T}
+_
+T{
+IMG_None
+T}	T{
+0x00
+T}	T{
+No image information provided
+T}
+_
+T{
+IMG_Object
+T}	T{
+0x01
+T}	T{
+The image is a generic object file
+T}
+_
+T{
+IMG_Bitcode
+T}	T{
+0x02
+T}	T{
+The image is an LLVM\-IR bitcode file
+T}
+_
+T{
+IMG_Cubin
+T}	T{
+0x03
+T}	T{
+The image is a CUDA object file
+T}
+_
+T{
+IMG_Fatbinary
+T}	T{
+0x04
+T}	T{
+The image is a CUDA fatbinary file
+T}
+_
+T{
+IMG_PTX
+T}	T{
+0x05
+T}	T{
+The image is a CUDA PTX file
+T}
+.TE
+.SH Offload Kind
+.TS
+box center;
+l|l|l.
+T{
+Name
+T}	T{
+Value
+T}	T{
+Description
+T}
+_
+T{
+OFK_None
+T}	T{
+0x00
+T}	T{
+No offloading information provided
+T}
+_
+T{
+OFK_OpenMP
+T}	T{
+0x01
+T}	T{
+The producer was OpenMP offloading
+T}
+_
+T{
+OFK_CUDA
+T}	T{
+0x02
+T}	T{
+The producer was CUDA
+T}
+_
+T{
+OFK_HIP
+T}	T{
+0x03
+T}	T{
+The producer was HIP
+T}
+_
+T{
+OFK_SYCL
+T}	T{
+0x04
+T}	T{
+The producer was SYCL
+T}
+.TE
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+\fBclang(1) \%<clang\:.html>\fP, \fBllvm\-objdump(1) \%<llvm-objdump\:.html>\fP
+.SH "نویسنده (AUTHOR)"
+Maintained by the LLVM Team (https://llvm.org/).
+.SH "حق نشر (COPYRIGHT)"
+2003-2026, LLVM Project
+.\" End of generated man page.

@@ -1,0 +1,430 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "FLASK-MIGRATE" "1" "Dec 15, 2025" "" "Flask-Migrate"
+.SH "نام (NAME)"
+flask-migrate \- Flask-Migrate Documentation
+.sp
+\fBFlask\-Migrate\fP is an extension that handles SQLAlchemy database migrations for Flask applications using Alembic. The database operations are made available through the Flask command\-line interface.
+.SH WHY USE FLASK-MIGRATE VS. ALEMBIC DIRECTLY?
+.sp
+Flask\-Migrate is an extension that configures Alembic in the proper way to work with your Flask and Flask\-SQLAlchemy application. In terms of the actual database migrations, everything is handled by Alembic so you get exactly the same functionality.
+.SH INSTALLATION
+.sp
+Install Flask\-Migrate with \fIpip\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+pip install Flask\-Migrate
+.EE
+.UNINDENT
+.UNINDENT
+.SH "مثال (EXAMPLE)"
+.sp
+This is an example application that handles database migrations through Flask\-Migrate:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+app = Flask(__name__)
+app.config[\(aqSQLALCHEMY_DATABASE_URI\(aq] = \(aqsqlite:///app.db\(aq
+
+db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128))
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+With the above application you can create a migration repository with the following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ flask db init
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This will add a \fImigrations\fP folder to your application. The contents of this folder need to be added to version control along with your other source files.
+.sp
+You can then generate an initial migration:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ flask db migrate \-m \(dqInitial migration.\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The migration script needs to be reviewed and edited, as Alembic is not always able to detect every change you make to your models. In particular, Alembic is currently unable to detect table name changes, column name changes, or anonymously named constraints. A detailed summary of limitations can be found in the Alembic autogenerate documentation \%<https://\:alembic\:.sqlalchemy\:.org/\:en/\:latest/\:autogenerate\:.html#\:what-does-autogenerate-detect-and-what-does-it-not-detect>\&. Once finalized, the migration script also needs to be added to version control.
+.sp
+Then you can apply the changes described by the migration script to your database:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ flask db upgrade
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Each time the database models change, repeat the \fBmigrate\fP and \fBupgrade\fP commands.
+.sp
+To sync the database in another system just refresh the \fImigrations\fP folder from source control and run the \fBupgrade\fP command.
+.sp
+To see all the commands that are available run this command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ flask db \-\-help
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Note that the application script must be set in the \fBFLASK_APP\fP environment variable for all the above commands to work, as required by the \fBflask\fP command.
+.sp
+If the \fBdb\fP command group name is inconvenient, it can be changed to a different with the \fBcommand\fP argument passed to the \fBMigrate\fP class:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+migrate = Migrate(app, db, command=\(aqmigrate\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SH ALEMBIC CONFIGURATION OPTIONS
+.sp
+Starting with version 4.0, Flask\-Migrate automatically enables the following options that are disabled by default in Alembic:
+.INDENT 0.0
+.IP \(bu 2
+\fBcompare_type=True\fP: This option configures the automatic migration generation subsystem to detect column type changes.
+.IP \(bu 2
+\fBrender_as_batch=True\fP: This option generates migration scripts using batch mode \%<https://\:alembic\:.sqlalchemy\:.org/\:en/\:latest/\:batch\:.html>, an operational mode that works around limitations of many \fBALTER\fP commands in the SQLite database by implementing a \(dqmove and copy\(dq workflow. Enabling this mode should make no difference when working with other databases.
+.UNINDENT
+.sp
+To manually configure these or other Alembic options \%<https://\:alembic\:.sqlalchemy\:.org/\:en/\:latest/\:api/\:runtime\:.html#\:alembic\:.runtime\:.environment\:.EnvironmentContext\:.configure>, pass them as keyword arguments to the \fBMigrate\fP constructor. Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+migrate = Migrate(app, db, render_as_batch=False)
+.EE
+.UNINDENT
+.UNINDENT
+.SH CONFIGURATION CALLBACKS
+.sp
+Sometimes applications need to dynamically insert their own settings into the Alembic configuration. A function decorated with the \fBconfigure\fP callback will be invoked after the configuration is read, and before it is applied. The function can modify the configuration object, or replace it with a different one.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@migrate.configure
+def configure_alembic(config):
+    # modify config object
+    return config
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Multiple configuration callbacks can be defined simply by decorating multiple functions. The order in which multiple callbacks are invoked is undetermined.
+.SH MULTIPLE DATABASE SUPPORT
+.sp
+Flask\-Migrate can integrate with the  binds \%<http://\:flask-sqlalchemy\:.pocoo\:.org/\:binds> feature of Flask\-SQLAlchemy, making it possible to track migrations to multiple databases associated with an application.
+.sp
+To create a multiple database migration repository, add the \fB\-\-multidb\fP argument to the \fBinit\fP command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ flask db init \-\-multidb
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+With this command, the migration repository will be set up to track migrations on your main database, and on any additional databases defined in the \fBSQLALCHEMY_BINDS\fP configuration option.
+.SH COMMAND REFERENCE
+.sp
+Flask\-Migrate exposes one class called \fBMigrate\fP\&. This class contains all the functionality of the extension.
+.sp
+The following example initializes the extension with the standard Flask command\-line interface:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_migrate import Migrate
+migrate = Migrate(app, db)
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The two arguments to \fBMigrate\fP are the application instance and the Flask\-SQLAlchemy database instance. The \fBMigrate\fP constructor also takes additional keyword arguments, which are passed to Alembic\(aqs \fBEnvironmentContext.configure()\fP method. As is standard for all Flask extensions, Flask\-Migrate can be initialized using the \fBinit_app\fP method as well:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+db = SQLAlchemy()
+migrate = Migrate()
+
+def create_app():
+     \(dq\(dq\(dqApplication\-factory pattern\(dq\(dq\(dq
+     ...
+     ...
+     db.init_app(app)
+     migrate.init_app(app, db)
+     ...
+     ...
+     return app
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+After the extension is initialized, a \fBdb\fP group will be added to the command\-line options with several sub\-commands. Below is a list of the available sub\-commands:
+.INDENT 0.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db \-\-help\fP
+Shows a list of available commands.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db list\-templates\fP
+Shows a list of available database repository templates.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db init [\-\-multidb] [\-\-template TEMPLATE] [\-\-package]\fP
+Initializes migration support for the application. The optional \fB\-\-multidb\fP enables migrations for multiple databases configured as Flask\-SQLAlchemy binds \%<http://\:flask-sqlalchemy\:.pocoo\:.org/\:binds>\&. The \fB\-\-template\fP option allows you to explicitly select a database repository template, either from the stock templates provided by this package, or a custom one, given as a path to the template directory. The \fB\-\-package\fP option tells Alembic to add \fB__init__.py\fP files in the migrations and versions directories.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db revision [\-\-message MESSAGE] [\-\-autogenerate] [\-\-sql] [\-\-head HEAD] [\-\-splice] [\-\-branch\-label BRANCH_LABEL] [\-\-version\-path VERSION_PATH] [\-\-rev\-id REV_ID]\fP
+Creates an empty revision script. The script needs to be edited manually with the upgrade and downgrade changes. See Alembic\(aqs documentation \%<http://\:alembic\:.zzzcomputing\:.com/\:en/\:latest/\:index\:.html> for instructions on how to write migration scripts. An optional migration message can be included.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db migrate [\-\-message MESSAGE] [\-\-sql] [\-\-head HEAD] [\-\-splice] [\-\-branch\-label BRANCH_LABEL] [\-\-version\-path VERSION_PATH] [\-\-rev\-id REV_ID]\fP
+Equivalent to \fBrevision \-\-autogenerate\fP\&. The migration script is populated with changes detected automatically. The generated script should to be reviewed and edited as not all types of changes can be detected automatically. This command does not make any changes to the database, just creates the revision script.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db check\fP
+Checks that a \fBmigrate\fP command would not generate any changes. If pending changes are detected, the command exits with a non\-zero status code.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db edit <revision>\fP
+Edit a revision script using $EDITOR.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db upgrade [\-\-sql] [\-\-tag TAG] <revision>\fP
+Upgrades the database. If \fBrevision\fP isn\(aqt given then \fB\(dqhead\(dq\fP is assumed.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db downgrade [\-\-sql] [\-\-tag TAG] <revision>\fP
+Downgrades the database. If \fBrevision\fP isn\(aqt given then \fB\-1\fP is assumed.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db stamp [\-\-sql] [\-\-tag TAG] <revision>\fP
+Sets the revision in the database to the one given as an argument, without performing any migrations.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db current [\-\-verbose]\fP
+Shows the current revision of the database.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db history [\-\-rev\-range REV_RANGE] [\-\-verbose]\fP
+Shows the list of migrations. If a range isn\(aqt given then the entire history is shown.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db show <revision>\fP
+Show the revision denoted by the given symbol.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db merge [\-\-message MESSAGE] [\-\-branch\-label BRANCH_LABEL] [\-\-rev\-id REV_ID] <revisions>\fP
+Merge two revisions together. Creates a new revision file.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db heads [\-\-verbose] [\-\-resolve\-dependencies]\fP
+Show current available heads in the revision script directory.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBflask db branches [\-\-verbose]\fP
+Show current branch points.
+.UNINDENT
+.UNINDENT
+.sp
+Notes:
+.INDENT 0.0
+.IP \(bu 2
+All commands take one or more \fB\-\-x\-arg ARG=VALUE\fP or \fB\-x ARG=VALUE\fP options with custom arguments that can be used in \fBenv.py\fP\&.
+.IP \(bu 2
+All commands take a \fB\-\-directory DIRECTORY\fP option that points to the directory containing the migration scripts. If this argument is omitted the directory used is \fBmigrations\fP\&.
+.IP \(bu 2
+A directory can also be specified as a \fBdirectory\fP argument to the \fBMigrate\fP constructor, or in the \fBFLASK_DB_DIRECTORY\fP environment variable.
+.IP \(bu 2
+The \fB\-\-sql\fP option present in several commands performs an \(aqoffline\(aq mode migration. Instead of executing the database commands the SQL statements that need to be executed are printed to the console.
+.IP \(bu 2
+Detailed documentation on these commands can be found in the Alembic\(aqs command reference page \%<http://\:alembic\:.zzzcomputing\:.com/\:en/\:latest/\:api/\:commands\:.html>\&.
+.UNINDENT
+.SH API REFERENCE
+.sp
+The commands exposed by Flask\-Migrate\(aqs command\-line interface can also be accessed programmatically by importing the functions from module \fBflask_migrate\fP\&. The available functions are:
+.INDENT 0.0
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBinit(directory=\(aqmigrations\(aq, multidb=False)\fP
+Initializes migration support for the application.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBrevision(directory=\(aqmigrations\(aq, message=None, autogenerate=False, sql=False, head=\(aqhead\(aq, splice=False, branch_label=None, version_path=None, rev_id=None)\fP
+Creates an empty revision script.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBmigrate(directory=\(aqmigrations\(aq, message=None, sql=False, head=\(aqhead\(aq, splice=False, branch_label=None, version_path=None, rev_id=None)\fP
+Creates an automatic revision script.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBedit(directory=\(aqmigrations\(aq, revision=\(aqhead\(aq)\fP
+Edit revision script(s) using $EDITOR.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBmerge(directory=\(aqmigrations\(aq, revisions=\(aq\(aq, message=None, branch_label=None, rev_id=None)\fP
+Merge two revisions together.  Creates a new migration file.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBupgrade(directory=\(aqmigrations\(aq, revision=\(aqhead\(aq, sql=False, tag=None)\fP
+Upgrades the database.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBdowngrade(directory=\(aqmigrations\(aq, revision=\(aq\-1\(aq, sql=False, tag=None)\fP
+Downgrades the database.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBshow(directory=\(aqmigrations\(aq, revision=\(aqhead\(aq)\fP
+Show the revision denoted by the given symbol.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBhistory(directory=\(aqmigrations\(aq, rev_range=None, verbose=False)\fP
+Shows the list of migrations. If a range isn\(aqt given then the entire history is shown.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBheads(directory=\(aqmigrations\(aq, verbose=False, resolve_dependencies=False)\fP
+Show current available heads in the script directory.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBbranches(directory=\(aqmigrations\(aq, verbose=False)\fP
+Show current branch points
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBcurrent(directory=\(aqmigrations\(aq, verbose=False, head_only=False)\fP
+Shows the current revision of the database.
+.UNINDENT
+.IP \(bu 2
+.INDENT 2.0
+.TP
+.B \fBstamp(directory=\(aqmigrations\(aq, revision=\(aqhead\(aq, sql=False, tag=None)\fP
+Sets the revision in the database to the one given as an argument, without performing any migrations.
+.UNINDENT
+.UNINDENT
+.sp
+Notes:
+.INDENT 0.0
+.IP \(bu 2
+These commands will invoke the same functionality that runs from the command\-line, including output to the terminal. The logging configuration of the process will be overridden by Alembic according to the contents of the alembic.ini file.
+.IP \(bu 2
+For greater scripting flexibility you can also use the API exposed by Alembic directly.
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Miguel Grinberg
+.SH "حق نشر (COPYRIGHT)"
+2019, Miguel Grinberg
+.\" End of generated man page.

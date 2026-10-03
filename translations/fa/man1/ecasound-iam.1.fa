@@ -1,0 +1,795 @@
+.TH "ecasound\-iam" "1" "03\&.06\&.2012" "" "Multimedia software"
+
+.PP 
+.SH "نام (NAME)"
+ecasound\-iam \- ecasound interactive mode
+.SH "خلاصه دستور (SYNOPSIS)"
+
+.PP 
+.SH "توضیحات (DESCRIPTION)"
+
+.PP 
+Ecasound library contains an interpreter module that understands 
+a set of commands aimed at controlling various library services\&. 
+This is called the ecasound interactive mode (EIAM)\&. All programs 
+linked to ecasound library can use this facility\&.
+.PP 
+.SH "ECI API and return types"
+A special case of interactive mode use is ecasound\(cq\&s control interface (ECI), 
+which is a small library providing easy access to the interactive
+mode commands from outside of libecasound\&. When issuing inter commands using 
+the control interface, it\(cq\&s possible that commands also return information\&. 
+Currently supported return value types are: string [s], list of strings [S] 
+(elements separated by commas; escaped if necessary), integer [i], 
+long integer [li] and floating\-point number [f]\&. These definitions are 
+used throughout this document\&. Commands that return nothing (void) are 
+marked with [\-]\&. Additionally, return type [e] marks an error condition\&. 
+When an interactive mode command results in an error, an error string 
+explaining the condition is returned\&.
+.PP 
+.SH "Limitations related to real\-time control and modifications"
+It\(cq\&s not possible to use all interactive mode commands to modify and 
+control objects that belong to a connected chainsetup\&. Ecasound will automatically
+disconnect (and later try to reconnect) the chainsetup in case these commands
+are received while connected\&. Commands that have this limitation are:
+.PP 
+.RS 
+cs\-remove, cs\-set\-length, cs\-set\-length\-samples, cs\-toggle\-loop, 
+cs\-set\-param,  cs\-option,  
+c\-add,  c\-remove, c\-rename, c\-clear,  
+ai\-add, ai\-remove, ai\-attach,  ai\-forward, ai\-rewind,  ai\-set\-position,  
+ai\-set\-position\-samples,  
+ao\-add, ao\-add\-default,  ao\-remove,  ao\-attach,  ao\-forward, ao\-rewind,  
+ao\-set\-position,  ao\-set\-position\-samples\&.
+.RE
+
+.PP 
+The following commands may be used on with a connected chainsetup,
+but they require pausing the engine temporarily (if running) and this 
+can cause audible gaps to playback and recording\&. In practise
+this means it is currently not possible to add or remove chain
+operators in a gapless/seamless fashion\&. The affected commands:
+.PP 
+.RS 
+cop\-add,
+ctrl\-add,
+.RE
+
+.PP 
+The following commands can be used on a connected chainsetup
+and when the engine is running (not a complete list but at 
+least these commands are supported):
+.PP 
+.RS 
+cop\-set, copp\-set, ctrlp\-set,
+c\-bypass, c\-muting, 
+setpos, cs\-set\-position,
+*\-describe
+*\-deselect,
+*\-get,
+*\-list,
+*\-register
+*\-select,
+*\-selected,
+*\-status,
+dump\-*,
+int\-*,
+jack\-*,
+map\-*
+.RE
+
+.PP 
+.SH "GENERAL"
+.IP "quit, q"
+Quit ecasound session\&. What this means in practice depends on the 
+client implementation\&. In ecasound interactive mode, \(cq\&quit\(cq\& terminates
+the ecasound process\&. When sent over ecasound server connection (aka 
+NetECI), \(cq\&quit\(cq\& terminates the active network connection, but does not 
+terminate the ecasound server process\&. \fI[\-]\fP
+.IP 
+.IP "start, t"
+Processing is started (play)\&. Error string is return if any errors upon 
+startup are encountered\&. \fI[e]\fP
+.IP 
+.IP "stop, s"
+Stop processing\&. \fI[\-]\fP
+.IP 
+.IP "stop\-sync, s"
+Stop processing with a blocking call (do not return until engine has 
+actually stopped)\&. \fI[\-]\fP
+.IP 
+.IP "run"
+Like \(cq\&start\(cq\& but blocks until processing is finished\&. Error string
+is return if any errors upon startup, or during process, are 
+encountered\&. \fI[e]\fP
+.IP 
+.IP "debug \(cq\&debug\-level\(cq\&"
+Set debug level to \(cq\&debug\-level\(cq\&\&. Notice that client programs can
+reimplement the debug routines\&. \fI[\-]\fP
+
+.PP 
+.IP "resource\-file \(cq\&path\-to\-file\(cq\&"
+Overrides the global and user resource files\&. Does not affect
+already created objects\&. This command is equivalent to \(cq\&\-R\(cq\& ecasound 
+option (see ecasound (1) man page)\&. 
+.PP 
+.IP "\-prefix:arg1,\&.\&.\&.,argN"
+Equivalent to issuing \(cq\&cs\-option \-prefix:arg1,\&.\&.\&.,argN)\&. See documentation
+for \(cq\&cs\-option\(cq\&\&.
+.PP 
+.IP "help\(cq\&, \(cq\&h\(cq\&"
+Help! \fI[\-]\fP
+.PP 
+.SH "GLOBAL"
+
+.IP 
+.IP "engine\-status"
+Returns a string describing the engine status (running, stopped,
+finished, error, not ready)\&. See also \fIcs\-status\fP\&. \fI[s]\fP
+.PP 
+.IP "engine\-launch"
+Starts the real\-time engine\&. Engine will execute the currently
+connected chainsetup (see \(cq\&cs\-connect)\&. This action does not yet
+start actual processing (see \fIstart\fP and \fIstop\fP)\&. When
+ecasound is used as a JACK client, issuing \fIengine\-launch\fP 
+makes ecasound an active JACK client (i\&.e\&. ecasound\(cq\&s ports
+can be connected to other JACK clients)\&. \fI[\-]\fP
+.PP 
+.IP "engine\-halt"
+Stops the engine\&. Does not disconnect the chainsetup that 
+was running\&. See also \fIcs\-disconnet\fP and \fIstop\fP\&. When
+ecasound is used as a JACK client, \fIengine\-halt\fP will 
+cause ecasound to become a deactivated client (all JACK
+connections are torn down)\&. \fI[\-]\fP
+.PP 
+.SH "CHAINSETUPS"
+Chainsetup is the central data object\&. All other objects (inputs,
+outputs, chains, etc) are connected to some chainsetup\&. There can be 
+many chainsetups but only one can be connected\&. Similarly only
+one chainsetup can be selected\&. If not otherwise specified operations 
+are done on the selected chainsetup\&. Some operations also require
+that selected chainsetup is not connected\&.
+.IP 
+.IP "cs\-add \(cq\&name\(cq\&"
+Adds a new chainsetup with name \(cq\&name\(cq\&\&. \(cq\&name\(cq\& is now 
+the selected chainsetup\&. \fI[\-]\fP
+.PP 
+.IP "cs\-remove"
+Removes currently selected chainsetup\&. \fI[\-]\fP
+.PP 
+.IP "cs\-list"
+Returns a list of all chainsetups\&. \fI[S]\fP
+.PP 
+.IP "cs\-select \(cq\&name\(cq\&"
+Selects chainsetup \(cq\&name\(cq\&\&. \fI[\-]\fP
+.PP 
+.IP "cs\-selected"
+Returns the name of currently selected chainsetup\&. \fI[s]\fP
+.PP 
+.IP "cs\-index\-select \(cq\&cs_index\(cq\&, cs\-iselect \(cq\&cs_index\(cq\&"
+Selects a chainsetup based on a short index string\&. Chainsetup names
+can be rather long\&. This command can be used to avoid typing
+these long names\&. \(cq\&cs_index\(cq\& is an integer value, where \(cq\&1\(cq\& refers to 
+the first audio input/output\&. You can use \(cq\&cs\-list\(cq\& and \(cq\&cs\-status\(cq\& 
+to get a full list of currently available chainsetups\&. \fI[\-]\fP
+.PP 
+.IP "cs\-load \(cq\&filename\(cq\&"
+Adds a new chainsetup by loading it from file \(cq\&filename\(cq\&\&. 
+\(cq\&filename\(cq\& is now the selected chainsetup\&. \fI[\-]\fP
+.PP 
+.IP "cs\-save"
+Saves the currently selected chainsetup to file\&. If chainsetup was loaded
+from a file, the saved version will replace the original\&. If it doesn\(cq\&t 
+have a default filename, it\(cq\&s saved to \(dq\&chainsetup_name\&.ecs\(dq\&\&. \fI[\-]\fP
+.PP 
+.IP "cs\-save\-as \(cq\&filename\(cq\&"
+Saves currently selected chainsetup to file \(cq\&filename\(cq\&\&. \fI[\-]\fP
+.PP 
+.IP "cs\-edit"
+Currently selected chainsetup is saved to a temporary file\&. This
+file is loaded to an external editor (see ecasoundrc (5))\&. After
+editing, the chainsetup is loaded back to ecasound\&. \fI[\-]\fP
+.PP 
+.IP "cs\-is\-valid"
+Whether currently selected chainsetup is valid (=can be connected)? \fI[i]\fP
+.PP 
+.IP "cs\-connect"
+Connect currently selected chainsetup to engine\&. When connecting, 
+all resources (e\&.g\&. files, soundcard devices, external programs) needed 
+to execute the chainsetup are reserved\&. Only one chainsetup can be connected 
+at a time\&. Error string is returned if connection fails (for instance
+due to error in allocating the resources)\&. \fI[e]\fP
+.PP 
+.IP "cs\-disconnect"
+Disconnect currently connected chainsetup\&. This action will free
+all external resources needed by the chainsetup\&. \fI[\-]\fP
+.PP 
+.IP "cs\-connected"
+Returns the name of currently connected chainsetup\&. \fI[s]\fP
+.PP 
+.IP "cs\-rewind \(cq\&time\-in\-seconds\(cq\&, rewind \(cq\&time\-in\-seconds\(cq\&, rw \(cq\&time\-in\-seconds\(cq\&"
+Rewinds the current chainsetup position by \(cq\&time\-in\-seconds\(cq\& seconds\&.
+Position of all inputs and outputs attached to the selected chainsetup
+is also affected\&. \fI[\-]\fP
+.PP 
+.IP "cs\-forward \(cq\&time\-in\-seconds\(cq\&, forward \(cq\&time\-in\-seconds\(cq\&, fw \(cq\&ttime\-in\-seconds\(cq\&"
+The current chainsetup position is forwarded by \(cq\&time\-in\-seconds\(cq\&
+seconds\&. Position of all inputs and outputs attached to the selected chainsetup
+is also affected\&. \fI[\-]\fP
+.PP 
+.IP "cs\-set\-position \(cq\&time\-in\-seconds\(cq\&, cs\-setpos \(cq\&time\-in\-seconds\(cq\&, setpos \(cq\&time\-in\-seconds\(cq\&, set\-position \(cq\&time\-in\-seconds\(cq\&"
+Sets the chainsetup position to \(cq\&time\-in\-seconds\(cq\& seconds from the 
+beginning\&. Position of all inputs and outputs attached to the selected 
+chainsetup is also affected\&. \fI[\-]\fP
+.PP 
+.IP "cs\-set\-position\-samples \(cq\&time\-in\-samples\(cq\&"
+Sets the chainsetup position to \(cq\&time\-in\-samples\(cq\& samples from the 
+beginning\&. Position of all inputs and outputs attached to the selected 
+chainsetup is also affected\&. \fI[\-]\fP
+.PP 
+.IP "cs\-get\-position, cs\-getpos, getpos, get\-position"
+Returns the current chainsetup position in seconds\&. \fI[f]\fP
+.PP 
+.IP "cs\-get\-position\-samples"
+Returns the current chainsetup position in samples\&. \fI[li]\fP
+.PP 
+.IP "cs\-get\-length, get\-length"
+Returns the chainsetup length in seconds (if known)\&. \fI[f]\fP
+.PP 
+.IP "cs\-get\-length\-samples, get\-length\-samples"
+Returns the chainsetup length in samples (if known)\&. \fI[li]\fP
+.PP 
+.IP "cs\-set\-length \(cq\&seconds\(cq\&"
+Sets processing time in seconds (doesn\(cq\&t have to be an integer value)\&. 
+A special\-case value of \(cq\&\-1\(cq\& will set the chainsetup length 
+according to the longest input object\&. \fI[\-]\fP
+.PP 
+.IP "cs\-set\-length\-samples \(cq\&samples\(cq\&"
+Sets processing time in samples\&. \fI[\-]\fP
+.PP 
+.IP "cs\-toggle\-loop"
+Toggle looping\&. When processing is finished, engine will start 
+again from the initial position\&. It\(cq\&s not always possible to enable looping
+(for instance all inputs and outputs have infinite length and
+chainsetup length is not explicitly set with \(cq\&cs\-set\-length\(cq\&)\&. \fI[\-]\fP
+.PP 
+.IP "cs\-set\-param"
+Interpret general chainsetup parameters like for example
+\(dq\&\-b\(dq\& (buffersize), \(dq\&\-n\(dq\& (name), etc\&. See ecasound (1) for 
+more info\&. \fI[\-]\fP
+.PP 
+.IP "cs\-set\-audio\-format \(cq\&bits,channels,sample_rate\(cq\&"
+Set the default sample parameters for currently selected chainsetup\&. 
+For example cd\-quality audio would be \(dq\&16,2,44100\(dq\&\&. This does the
+same as command\-line argument \(dq\&\-f\(dq\& (see ecasound (1))\&. \fI[\-]\fP
+.PP 
+.IP "cs\-status, status, st"
+Prints out status information about available chainsetup\&.
+Detailed information is printed out for connected (=available
+for running) nd selected (=available for editing) chainsetups\&.
+Other chainsetups are listed, but further details are
+suppressed\&. To get full details of a specific chainsetup,
+select it with \(cq\&cs\-select\(cq\& or \(cq\&cs\-iselect\(cq\&, and then
+issue \(cq\&cs\-select\(cq\&\&. \fI[s]\fP
+.PP 
+.IP "cs\-option \(cq\&\-prefix:arg1,\&.\&.\&.,argN\(cq\&"
+One powerful feature of the interactive\-mode is that it
+provides full access to ecasound\(cq\&s command\-line syntax\&. 
+For instance, command \(dq\&cs\-option \-efb:400,200\(dq\& means that 
+a bandpass filter is added to the currently selected 
+chain, with initial parameters 400 (center frequency) 
+and 200 (width in Hz)\&.
+.PP 
+Note that session level options (such as setting debug level)
+can not be used with \(cq\&cs\-option\(cq\& (i\&.e\&. only options that modify
+chainsetups)\&.
+.PP 
+Note! Ecasound interactive mode implicitly interprets all strings 
+beginning with a \(cq\&\-\(cq\& as \(dq\&cs\-option string\(dq\&\&.
+
+.IP 
+.SH "CHAINS"
+Chain is a simple signal flow abstraction\&. Every chain has one input
+and one output\&. All chain operators and their controllers are attached
+to chains\&. Chains can be muted, unmuted and be bypassed\&. If not 
+otherwise stated, all operations are done to currently selected
+chainsetup\&.
+.IP 
+.IP "c\-add \(cq\&cname1,\&.\&.\&.,cnameN\(cq\&"
+Adds a set of chains\&. Added chains are automatically selected\&. Note
+that commas in chain names are not allowed\&. \fI[\-]\fP
+.PP 
+.IP "c\-remove"
+Removes selected chains\&. \fI[\-]\fP
+.PP 
+.IP "c\-list"
+Returns a list of all chains\&. \fI[S]\fP
+.PP 
+.IP "c\-select \(cq\&cname1,\&.\&.\&.,cnameN\(cq\&"
+Selects chains\&. Other chains are automatically deselected\&. \fI[\-]\fP
+.PP 
+.IP "c\-index\-select \(cq\&index1,\&.\&.\&.,indexN\(cq\&, c\-iselect \(cq\&index1,\&.\&.\&.,indexN\(cq\&"
+Selects a set of chains based on the list of indixes\&. Each index is
+an integer value, where \(cq\&1\(cq\& refers to the first chain\&. You can use 
+\(cq\&c\-list\(cq\& and \(cq\&c\-status\(cq\& to get a full list of currently available 
+chains\&. \fI[\-]\fP
+.PP 
+.IP "c\-select\-all"
+Selects all chains\&. \fI[\-]\fP
+.PP 
+.IP "c\-select\-add \(cq\&cname1,\&.\&.\&.,cnameN\(cq\&"
+Selects more chains\&. \fI[\-]\fP
+.PP 
+.IP "c\-deselect \(cq\&cname1,\&.\&.\&.,cnameN\(cq\&"
+Deselects chains\&. \fI[\-]\fP
+.PP 
+.IP "c\-selected"
+Returns a list of selected chains\&. \fI[S]\fP
+.PP 
+.IP "c\-clear"
+Clear selected chains by removing all chain operators and controllers\&.
+Doesn\(cq\&t change how chains are connected to inputs and outputs\&. \fI[\-]\fP
+.PP 
+.IP "c\-rename \(cq\&new_name\(cq\&"
+Renames the selected chain\&. When using this command, exactly one chain must
+be selected\&. \fI[\-]\fP
+.PP 
+.IP "c\-mute <on|off|toggle>"
+Set the mute state of the currently selected chain\&. When chain is muted,
+it will only output silence\&.
+.PP 
+The command takes a single parameter: \(dq\&on\(dq\& \-> chain is muted, 
+\(dq\&off\(dq\& \-> not muted, and \(dq\&toggle\(dq\& \-> change the muting state\&.
+If parameter is omitted, \(dq\&toggle\(dq\& is assumed (muting is either
+enabled or disabled, depending on previous state)\&.
+.PP 
+Control of chain and chain operator muting states is independent\&.
+If \(dq\&c\-mute off\(dq\& is executed, the states of individual cop\-bypass
+commands will take effect\&. If chain is muted, the chain will
+output silence irrespective of the individual chain operator
+muting state\&. \fI[\-]\fP
+.PP 
+.IP "c\-bypass <on|off|toggle>"
+Set the bypass state of the currently selected chain\&. When chain is bypassed,
+sample data is passed through unprocessed (all chain operators are disabled
+for the given chain)\&.
+.PP 
+The command takes a single parameter: \(dq\&on\(dq\& \-> chain is bypassed, 
+\(dq\&off\(dq\& \-> no bypass, and \(dq\&toggle\(dq\& \-> change the bypass state\&.
+If parameter is omitted, \(dq\&toggle\(dq\& is assumed (bypass is either
+enabled or disabled, depending on previous state)\&.
+.PP 
+Control of chain and chain operator bypass states is independent\&.
+If chain bypass is disabled, the states of individual cop\-bypass
+commands will take effect\&. If chain is bypassed, all operators are
+bypassed independetly of their cop\-bypass state\&. \fI[\-]\fP
+.PP 
+.IP "c\-status, cs"
+Print status info about all chains\&. \fI[s]\fP
+.PP 
+.IP "c\-is\-bypassed"
+Returns true if selected chain is currently bypassed (none of
+the chain operators are run)\&. See \(cq\&c\-bypass\(cq\&\&. \fI[i]\fP
+.PP 
+.IP "c\-is\-mute"
+Returns true if selected chain is currently muted (outputs 
+silence as its output)\&. See \(cq\&c\-mute\(cq\&\&. \fI[i]\fP
+.PP 
+.SH "AUDIO INPUT/OUTPUT OBJECTS"
+If not otherwise stated, all operations are done to currently selected
+object\&. All commands with \fIai\-\fP prefix operate on audio inputs,
+while commands with \fIao\-\fP operate on outputs\&.
+.IP 
+.IP "ai\-add \(cq\&input_format_string\(cq\&"
+Adds a new input object\&. See ecasound (1) man page for more info about 
+the argument format (\(cq\&\-i\(cq\& option)\&. Note on syntax: if any of 
+the parameters (such as a filename) contains commas, the parameter 
+should be enclosed in double\-quotes\&. \fI[\-]\fP
+.PP 
+.IP "ao\-add \(cq\&output_format_string\(cq\&"
+Adds a new output object\&. See ecasound (1) man page for more info about 
+the argument format (\(cq\&\-o\(cq\& option)\&. If argument is omitted, 
+a default output device is added (see ecasoundrc (5))\&. Note on syntax: if any 
+of the parameters (such as a filename) contains commas, the parameter 
+should be enclosed in double\-quotes\&. \fI[\-]\fP
+.PP 
+.IP "ao\-add\-default"
+Adds the default output device (see ecasoundrc (5))\&. \fI[\-]\fP
+.PP 
+.IP "ai\-describe, ao\-describe"
+Returns a Ecasound Option Syntax (EOS) compliant string
+describing the input/output\&. See the Ecasound User\(cq\&s Guide
+for more information about EOS\&. This command was introduced in 
+ecasound 2\&.4\&.4\&. \fI[s]\fP
+.PP 
+.IP "ai\-select \(cq\&aobject_name\(cq\&, ao\-select \(cq\&aobject_name\(cq\&"
+Selects an audio object\&. \(cq\&aobject_name\(cq\& refers to the string
+used when creating the object (the first argument given to ai\-add/ao\-add)\&. 
+Note that as a important difference to ai\-add/ao\-add, one should not 
+enclose the object name in double quotes for ai\-select/ao\-select\&. In the 
+case a chainsetup contains multiple inputs, or outputs, with 
+identical name, \(cq\&ai\-select\(cq\& and \(cq\&ao\-select\(cq\& will select 
+the first matching instance\&. In order to select a specific
+instance, the \(cq\&ai\-iselect\(cq\& and \(cq\&ao\-iselect\(cq\& commands need to 
+be used\&. \fI[\-]\fP
+.PP 
+.IP "ai\-index\-select \(cq\&aobject_index\(cq\&, ai\-iselect \(cq\&aobject_index\(cq\&, ao\-index\-select \(cq\&aobject_index\(cq\&, ao\-iselect \(cq\&aobject_index\(cq\&"
+Select some audio object based on a short index string\&. Especially file
+names can be rather long\&. This command can be used to avoid typing
+these long names when selecting audio objects\&. \(cq\&aobject_index\(cq\& is
+an integer value, where \(cq\&1\(cq\& refers to the first audio input/output\&. 
+You can use \(cq\&ai\-list\(cq\& and \(cq\&ao\-list\(cq\& to get a full list of currently
+available inputs/outputs\&. \fI[\-]\fP
+.PP 
+.IP "ai\-selected, ao\-selected"
+Returns the name of the currently selected audio object\&. \fI[s]\fP
+.PP 
+.IP "ai\-attach, ao\-attach"
+Attaches the currently selected audio object to all selected chains\&. \fI[\-]\fP
+.PP 
+.IP "ai\-remove, ao\-remove"
+Removes the currently selected audio object from the chainsetup\&. \fI[\-]\fP
+.PP 
+.IP "ai\-forward \(cq\&time_in_seconds\(cq\&, ai\-fw \(cq\&time_in_seconds\(cq\&, ao\-forward \(cq\&time_in_seconds\(cq\&, ao\-fw \(cq\&time_in_seconds\(cq\&"
+Selected audio object is forwarded by \(cq\&time\-in\-seconds\(cq\& seconds\&. 
+Time should be given as a floating point value (eg\&. 0\&.001 is the 
+same as 1ms)\&. \fI[\-]\fP
+.PP 
+.IP "ai\-rewind \(cq\&time_in_seconds\(cq\&, ai\-rw \(cq\&time_in_seconds\(cq\&, ao\-rewind \(cq\&time_in_seconds\(cq\&, ao\-rw \(cq\&time_in_seconds\(cq\&"
+Selected audio object is rewinded by \(cq\&time\-in\-seconds\(cq\& seconds\&. 
+Time should be given as a floating point value (eg\&. 0\&.001 is the 
+same as 1ms)\&. \fI[\-]\fP
+.PP 
+.IP "ai\-setpos \(cq\&time_in_seconds\(cq\&, ai\-set\-position \(cq\&time_in_seconds\(cq\&, ao\-setpos \(cq\&time_in_seconds\(cq\&, ao\-set\-position \(cq\&time_in_seconds\(cq\&"
+Set audio object position to \(cq\&time_in_seconds\(cq\&\&. \fI[\-]\fP
+.PP 
+.IP "ai\-set\-position\-samples \(cq\&time_in_samples\(cq\&, ao\-set\-position\-samples \(cq\&time_in_samples\(cq\&"
+Set audio object position to \(cq\&time_in_samples\(cq\&\&. \fI[\-]\fP
+.PP 
+.IP "ai\-getpos, ai\-get\-position, ao\-getpos, ao\-get\-position"
+Returns the audio object position in seconds\&. \fI[f]\fP
+.PP 
+.IP "ai\-get\-position\-samples, ao\-get\-position\-samples"
+Returns the audio object position in samples\&. \fI[li]\fP
+.PP 
+.IP "ai\-get\-length, ao\-get\-length"
+Returns the audio object length in seconds\&. \fI[f]\fP
+.PP 
+.IP "ai\-get\-length\-samples, ao\-get\-length\-samples"
+Returns the audio object length in samples\&. \fI[li]\fP
+.PP 
+.IP "ai\-get\-format, ao\-get\-format"
+Returns the audio format of the selected audio input/output as a
+formatted string\&. See documentation for \(cq\&\-f\(cq\& command\-line option\&. \fI[s]\fP
+.PP 
+.IP "ai\-list, ao\-list"
+Returns a list of all input/output objects\&. \fI[S]\fP
+.PP 
+.IP "aio\-register"
+Prints a list of registered audio object types\&. \fI[s]\fP
+.PP 
+.IP "aio\-status"
+Audio object status (index strings, position, length, etc)\&. \fI[s]\fP
+.PP 
+.SH "CHAIN OPERATORS"
+Chain operators are used to process and analyze sample data\&.
+They are attached to chains\&. If not otherwise stated,
+currently selected chainsetup and chain are used\&. Also, 
+\(cq\&chainop_id\(cq\& and \(cq\&param_id\(cq\& are used to select chain operators 
+and their parameters\&. First valid value for these parameters 
+is 1\&.
+.IP 
+.IP "cop\-add \(cq\&cop_format_string\(cq\&"
+Adds a new chain operator\&. In addition to normal chain operators, 
+this commmand can also be used to add effect presets and various 
+plugins\&. Note; it is not possible to add operators to multiple
+chains at once\&. In other words only one chain should be selected
+when issuing \(cq\&cop\-add\(cq\&\&.  See ecasound (1) man page for more info\&. \fI[\-]\fP
+.PP 
+.IP "cop\-bypass <on|off|toggle>"
+Set the bypass state of the currently selected chain operator\&.
+The command takes a single parameter: \(dq\&on\(dq\& \-> operator is bypassed, 
+\(dq\&off\(dq\& \-> no bypass, and \(dq\&toggle\(dq\& \-> change the bypass state\&.
+If parameter is omitted, \(dq\&toggle\(dq\& is assumed (bypass is either
+enabled or disabled, depending on previous state)\&. \fI[\-]\fP
+.PP 
+.IP "cop\-is\-bypassed"
+Returns true if selected chain operator is currently bypassed
+(temporarily not part of the processing chain)\&. \fI[i]\fP
+.PP 
+.IP "cop\-describe"
+Returns a Ecasound Option Syntax (EOS) compliant string
+describing the chain operator\&. See the Ecasound User\(cq\&s Guide
+for more information about EOS\&. This command was introduced in 
+ecasound 2\&.4\&.4\&. \fI[s]\fP
+.PP 
+.IP "cop\-remove"
+Removes the selected chain operator\&. \fI[\-]\fP
+.PP 
+.IP "cop\-list"
+Returns a list of all chain operators attached to the currently
+selected chain\&. \fI[S]\fP
+.PP 
+.IP "cop\-select \(cq\&param_id\(cq\&, cop\-index\-select \(cq\&param_id\(cq\&, cop\-iselect \(cq\&param_id\(cq\&"
+Selects a chain operator\&. \fI[\-]\fP
+.PP 
+.IP "cop\-selected"
+Returns the index number of currently selected chain operator\&. \fI[i]\fP
+.PP 
+.IP "cop\-set \(cq\&chainop_id,param_id,value\(cq\&"
+Changes the value of a single chain operator parameter\&. Unlike other
+chain operator commands, this can also be used during processing\&. 
+See also \(cq\&cop\-get\(cq\&\&. \fI[\-]\fP
+.PP 
+.IP "cop\-get \(cq\&chainop_id,param_id\(cq\&"
+Returns the current value of chain operator parameter identified by
+\(cq\&chainop_id\(cq\& and \(cq\&param_id\(cq\&\&. This command is a shorthand for
+\(cq\&cop\-select chainop_id ; copp\-iselect param_id ; copp\-get\(cq\&\&. \fI[f]\fP
+.PP 
+.IP "cop\-status"
+Returns info about chain operator status\&. \fI[s]\fP
+.PP 
+.IP "copp\-list"
+Returns a list of selected chain operator\(cq\&s parameters\&. \fI[S]\fP
+.PP 
+.IP "copp\-select \(cq\&param_id\(cq\&, copp\-index\-select \(cq\&param_id\(cq\&, copp\-iselect \(cq\&param_id\(cq\&"
+Selects a chain operator parameter\&. \fI[\-]\fP
+.PP 
+.IP "copp\-selected"
+Returns the index number of currently selected chain operator parameter\&. \fI[i]\fP
+.PP 
+.IP "copp\-set \(cq\&value\(cq\&"
+Sets the selected parameter value to \(cq\&value\(cq\&\&. \fI[\-]\fP
+.PP 
+.IP "copp\-get"
+Returns the selected parameter value\&. See also \(cq\&cop\-get\(cq\&\&. \fI[f]\fP
+.PP 
+.IP "cop\-register"
+Prints a list of registered chain operators\&. \fI[s]\fP
+.PP 
+.IP "preset\-register"
+Prints a list of registered effect presets\&. \fI[s]\fP
+.PP 
+.IP "ladspa\-register"
+Prints a list of registered LADSPA plugins\&. \fI[s]\fP
+.PP 
+.SH "CONTROLLERS"
+Controllers are used to control individual chain operator parameters\&.
+They are attached to chains\&. If not otherwise stated, currently 
+selected chainsetup and chains are used\&. 
+.IP 
+.IP "ctrl\-add \(cq\&copc_format_string\(cq\&"
+Adds a new controller and attach it to currently selected chain 
+operator\&. The argument syntax is either \(dq\&\-<id_string>:par1,\&.\&.\&.,parN\(dq\& 
+or just \(dq\&<id_string>:par1,\&.\&.\&.,parN\(dq\&\&. If parameter itself contains 
+commas, the parameter should be enclosed in double\-quotes\&.
+See ecasound (1) man page for more info\&. \fI[\-]\fP
+.IP 
+.IP "ctrl\-describe"
+Returns a Ecasound Option Syntax (EOS) compliant string
+describing the controller\&. See the Ecasound User\(cq\&s Guide
+for more information about EOS\&. This command was introduced in 
+ecasound 2\&.4\&.4\&. \fI[s]\fP
+.IP 
+.IP "ctrl\-remove"
+Removes the selected controller\&. \fI[\-]\fP
+.IP 
+.IP "ctrl\-list"
+Returns a list of all controllers attached to the currently
+selected chain\&. \fI[S]\fP
+.IP 
+.IP "ctrl\-select \(cq\&param_id\(cq\&, ctrl\-index\-select \(cq\&param_id\(cq\&, ctrl\-iselect \(cq\&param_id\(cq\&"
+Selects a controller\&. \fI[\-]\fP
+.IP 
+.IP "ctrl\-selected"
+Returns the index number of currently selected controller\&. \fI[i]\fP
+.IP 
+.IP "ctrl\-status"
+Returns info about controller status\&. \fI[s]\fP
+.IP 
+.IP "ctrl\-register"
+Prints a list of registered controllers\&. \fI[s]\fP
+.IP 
+.IP "ctrl\-get\-target"
+Returns the index number of the chain operator that is
+connected to the selected controller\&. The returned index 
+refers to the currently selected chain (see \(cq\&cop\-list\(cq\&)\&. \fI[i]\fP
+.IP 
+.IP "ctrlp\-list"
+Returns a list of all controller parameters\&. This command was introduced in 
+ecasound 2\&.4\&.2\&. \fI[S]\fP
+.IP 
+.IP "ctrlp\-select"
+Selects a controller parameter\&. This command was introduced in 
+ecasound 2\&.4\&.2\&. \fI[\-]\fP
+.IP 
+.IP "ctrlp\-selected"
+Returns the index number of currently selected controller parameter\&. This command 
+was introduced in ecasound 2\&.4\&.2\&. \fI[i]\fP
+.IP 
+.IP "ctrlp\-get"
+Returns the selected controller parameter value\&. This command was introduced in 
+ecasound 2\&.4\&.2\&. \fI[f]\fP
+.IP 
+.IP "ctrlp\-set"
+Sets the selected controller parameter value to \(cq\&value\(cq\&\&. This command was introduced in 
+ecasound 2\&.4\&.2\&. \fI[\-]\fP
+.IP 
+.SH "JACK CONNECTION MANAGEMENT"
+If Ecasound is compiled with support for JACK audio server,
+the following set of commands is provided for controlling connections 
+between JACK ports\&.
+.IP 
+.IP "jack\-connect \(cq\&src\-port\(cq\& \(cq\&dest\-port\(cq\&"
+Make a connection between the two ports given as parameters\&. This command
+is similar to the \(cq\&jack_connect\(cq\& command line tool that is distributed
+with JACK package\&. \fI[\-]\fP
+.IP 
+.IP "jack\-disconnect \(cq\&src\-port\(cq\& \(cq\&dest\-port\(cq\&"
+Disconnect the two ports given as parameters\&. This command is similar 
+to the \(cq\&jack_disconnect\(cq\& command line tool that is distributed
+with JACK package\&. \fI[\-]\fP
+.IP 
+.IP "jack\-list\-connections"
+Returns a list of all JACK ports and a list of connections 
+for each port\&. This command is similar to the \(cq\&jack_lsp\(cq\& command
+line tool (e\&.g\&. \(cq\&jack_lsp \-c\(cq\&) that is distributed with JACK package\&. \fI[s]\fP
+.IP 
+.SH "INTERNAL COMMANDS"
+Internal commands are not directly aimed at normal use\&. They
+are primarily meant for use in scripting and frontends\&.
+.IP 
+.IP "int\-cmd\-list"
+Returns a list of all registered interactive mode commands\&. \fI[S]\fP
+.IP 
+.IP "int\-log\-history"
+Returns recent log messages sent by libecasound modules\&. This
+is a good tool for debugging ECI/EIAM scripts and applications\&. This 
+command was introduced in ecasound 2\&.4\&.0\&. \fI[s]\fP
+.IP 
+.IP "int\-output\-mode\-wellformed"
+Select the well\-format output format for log messages\&. \fI[\-]\fP
+.IP 
+.IP "int\-set\-float\-to\-string\-precision"
+Sets precision used in float to text conversions\&. Note that 
+this can be used to control the precision of float return values 
+for ECI commands\&. \fI[\-]\fP
+.IP 
+.IP "int\-set\-log\-history\-length"
+Sets the log history length\&. Defaults to 0 items\&. 
+This command was introduced in ecasound 2\&.4\&.0\&. \fI[\-]\fP
+.IP 
+.IP "int\-cmd\-version\-string"
+Returns ecasound interactive mode parser version string\&. \fI[s]\fP
+.IP 
+.IP "int\-cmd\-version\-lib\-current"
+Returns ecasound interactive mode library interface version (libtool)\&. \fI[i]\fP
+.IP 
+.IP "int\-cmd\-version\-lib\-revision"
+Returns ecasound interactive mode library interface revision (libtool)\&. \fI[i]\fP
+.IP 
+.IP "int\-cmd\-version\-lib\-age"
+Returns ecasound interactive mode library interface age (libtool)\&. \fI[i]\fP
+.IP 
+.SH "OBJECT MAPS"
+Object maps are central repositories for commonly used object types\&.
+By querying the maps, applications can get a list of all registered
+object types and their properties\&. 
+.IP 
+.IP "map\-cop\-list"
+Prints a list of registered chain operators using 
+the format specified in section \fIOPERATOR DESCRIPTIONS\fP\&. \fI[s]\fP
+.IP 
+.IP "map\-preset\-list"
+Prints a list of registered effect presets using 
+the format specified in section \fIOPERATOR DESCRIPTIONS\fP\&. \fI[s]\fP
+.IP 
+.IP "map\-ladspa\-list"
+Prints a list of registered LADSPA plugins using 
+the format specified in section \fIOPERATOR DESCRIPTIONS\fP\&. \fI[s]\fP
+.IP 
+.IP "map\-ladspa\-id\-list"
+Prints a list of registered LADSPA plugins using 
+the format specified in section \fIOPERATOR DESCRIPTIONS\fP\&. 
+Numerical LADPSA plugin identifiers are used\&. \fI[s]\fP
+.IP 
+.IP "map\-ctrl\-list"
+Prints a list of registered controllers using 
+the format specified in section \fIOPERATOR DESCRIPTIONS\fP\&. \fI[s]\fP
+.IP 
+.SH "DUMP COMMANDS"
+The following dump commands are not meant for normal use\&. 
+Their primary purpose is to provide an easy way to get 
+internal state information from libecasound\&. All dump
+commands output a single line with syntax \(dq\&key value\(dq\&
+to the selected output stream (defaults to stdout)\&. 
+.IP 
+.IP "dump\-target \(cq\&filename\(cq\&"
+Set target stream for dumping\&. \fI[\-]\fP
+.IP 
+.IP "dump\-status"
+Dumps engine status \- \(cq\&running\(cq\&, \(cq\&stopped\(cq\&, \(cq\&finished\(cq\& or \(cq\&notready\(cq\&\&. \fI[\-]\fP
+.IP 
+.IP "dump\-position"
+Dumps the global position\&. Printed in seconds using a floating\-point 
+representation\&. \fI[\-]\fP
+.IP 
+.IP "dump\-length"
+Dumps the overall processing length\&. Printed in seconds using a floating\-point 
+representation\&. \fI[\-]\fP
+.IP 
+.IP "dump\-cs\-status"
+Dumps status string for the currently selected chainsetup \- \(cq\&connected\(cq\&, 
+\(cq\&selected\(cq\& or an empty string\&. \fI[\-]\fP
+.IP 
+.IP "dump\-c\-selected"
+Dumps the name of currently selected chain\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ai\-selected"
+Dumps label of currently selected audio input\&. If no input is
+selected, dumps an empty string\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ai\-position"
+Dumps position of currently selected audio inputs\&. Printed in
+seconds, using a floating\-point representation\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ai\-length"
+Dumps length of currently selected audio input\&. Printed in seconds,
+using a floating\-point representation\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ai\-open\-state"
+Dumps audio input state info\&. Either \(cq\&open\(cq\& or \(cq\&closed\(cq\&\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ao\-selected"
+Dumps label of currently selected audio output\&. If no output is
+selected, dumps an empty string\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ao\-position"
+Dumps position of currently selected audio outputs\&. Printed in
+seconds, using a floating\-point representation\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ao\-length"
+Dumps length of currently selected audio output\&. Printed in seconds,
+using a floating\-point representation\&. \fI[\-]\fP
+.IP 
+.IP "dump\-ao\-open\-state"
+Dumps audio output state info\&. Either \(cq\&open\(cq\& or \(cq\&closed\(cq\&\&. \fI[\-]\fP
+.IP 
+.IP "dump\-cop\-value \(cq\&chainop,param\(cq\&"
+Dumps chain operator parameter value\&. \(cq\&chainop\(cq\& and \(cq\&param\(cq\& are 
+operator and parameter index values (1\&.\&.\&.n)\&. \fI[\-]\fP
+.IP 
+.SH "OPERATOR DESCRIPTIONS"
+The \fImap\-xxx\-list\fP commands return a string containing all registered
+objects of the given type \fIxxx\fP\&. Each line of the output describes
+one registered type\&. The used syntax is:
+.IP 
+\(cq\&keyword,name,description,num_of_params,par1_def,par2_def,\&.\&.\&.\(cq\&
+.IP 
+\fIparX_def\fP describes one object parameter\&. This definition
+is present for all parameters of the described object type\&.
+The used syntax is:
+.IP 
+\(cq\&name,description,defaultvalue,upper_bound_flag,upper_bound,
+lower_bound_flag,lower_bound,toggled_flag,integer_flag,
+logarithmic_flag,output_flag\(cq\&
+.IP 
+For exact descriptions of these fields, please see
+the header file \fIecasound/libecasound/eca\-operator\&.h\fP\&.
+.IP 
+.SH "DEPRECATED COMMANDS"
+Use of following commands is deprecated\&. They still work in
+current version of Ecasound, but will be dropped in 
+the future:
+.IP 
+.RS 
+ai\-wave\-edit, ao\-wave\-edit
+.RE
+
+.IP 
+.SH "همچنین ببینید (SEE ALSO)"
+ecasound (1), ecatools (1), ecasoundrc (5)
+.IP 
+.SH "نویسنده (AUTHOR)"
+
+	Kai Vehmanen, <kvehmanen \-at\- eca \-dot\- cx <kvehmanen \-at\- eca \-dot\- cx>>

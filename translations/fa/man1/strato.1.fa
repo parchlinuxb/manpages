@@ -1,0 +1,2487 @@
+'\" t
+.\"     Title: strato
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-09-03
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "STRATO" "1" "2026-09-03" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+strato \- Dump and analyze system calls and event logs
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBstrato\fP
+[\~\fB\-i\fP\~<capture\~source>|\-\~]
+[\~\fB\-f\fP\~<capture\~filter>\~]
+[\~\fB\-2\fP\~]
+[\~\fB\-r\fP\~<infile>\~]
+[\~\fB\-w\fP\~<outfile>|\-\~]
+[\~\fBoptions\fP\~]
+[\~<filter>\~]
+.sp
+\fBstrato\fP
+\fB\-h|\-\-help\fP
+.sp
+\fBstrato\fP
+\fB\-v|\-\-version\fP
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBstrato\fP is a system call and log analyzer.
+It lets you capture system call and log events from a live source, or read events from a previously saved
+capture file, either printing a decoded form of those events to the
+standard output or writing the packets to a file.  \fBstrato\fP\*(Aqs native
+capture file format is \fBscap\fP format, which is also the format used
+by \fBStratoshark\fP, \fBFalco\fP, \fBsysdig\fP and various other tools.
+.sp
+Without any options set, \fBstrato\fP will work much like \fBsysdig\fP.  It
+will use the libscap and libsinsp to capture traffic from the first available
+source and displays a summary line on the standard output for
+each received packet.
+.sp
+When run with the \fB\-r\fP option, specifying a capture file from which to
+read, \fBstrato\fP will again work much like \fBsysdig\fP, reading packets
+from the file and displaying a summary line on the standard output for
+each packet read.  \fBstrato\fP is able to detect, read and write the same
+capture files that are supported by \fBStratoshark\fP.  The input file
+doesn\(cqt need a specific filename extension; the file format and an
+optional gzip, Zstandard, or LZ4 compression will be automatically detected.  Near the
+beginning of the DESCRIPTION section of wireshark(1) or
+.URL "https://www.wireshark.org/docs/man\-pages/wireshark.html" "" ""
+is a detailed
+description of the way \fBWireshark\fP handles this, which is the same way
+\fBstrato\fP handles this.
+.sp
+Compressed file support uses (and therefore requires) the zlib library.
+If the zlib library is not present when compiling \fBstrato\fP, it will be
+possible to compile it, but the resulting program will be unable to read
+compressed files. Similarly, LZ4 and ZStandard also require their respective
+libraries.
+.sp
+When displaying events on the standard output, \fBstrato\fP writes, by
+default, a summary line containing the fields specified by the
+preferences file (which are also the fields displayed in the packet list
+pane in \fBWireshark\fP), although if it\(cqs writing packets as it captures
+them, rather than writing packets from a saved capture file, it won\(cqt
+show the "frame number" field.  If the \fB\-V\fP option is specified, it
+instead writes a view of the details of the packet, showing all the
+fields of all protocols in the packet.  If the \fB\-O\fP option is
+specified, it will only show the full details for the protocols
+specified, and show only the top\-level detail line for all other
+protocols.  Use the output of "\fBstrato \-G protocols\fP" to find the
+abbreviations of the protocols you can specify.  If the \fB\-P\fP option is
+specified with either the \fB\-V\fP or \fB\-O\fP options, both the summary line
+for the entire packet and the details will be displayed.
+.sp
+Packet capturing is performed with the pcap library.  That library
+supports specifying a filter expression; packets that don\(cqt match that
+filter are discarded.  The \fB\-f\fP option is used to specify a capture
+filter.  The syntax of a capture filter is defined by the pcap library;
+this syntax is different from the display filter syntax described below,
+and the filtering mechanism is limited in its abilities.
+.sp
+Display filters in \fBstrato\fP, which allow you to select which packets are
+to be decoded or written to a file, are very powerful; more fields are
+filterable in \fBstrato\fP than in other protocol analyzers, and the syntax
+you can use to create your filters is richer.  As \fBstrato\fP progresses,
+expect more and more protocol fields to be allowed in display filters.
+Display filters use the same syntax as display and color filters in
+\fBWireshark\fP; a display filter is specified with the \fB\-Y\fP option.
+.sp
+Display filters can be specified when capturing or when reading from a
+capture file.  Note that capture filters are much more efficient
+than display filters, and it may be more difficult for \fBstrato\fP to keep up
+with a busy network if a display filter is specified for a live capture, so
+you might be more likely to lose packets if you\(cqre using a display filter.
+.sp
+A capture or display filter can either be specified with the \fB\-f\fP or \fB\-Y\fP
+option, respectively, in which case the entire filter expression must be
+specified as a single argument (which means that if it contains spaces,
+it must be quoted), or can be specified with command\-line arguments
+after the option arguments, in which case all the arguments after the
+filter arguments are treated as a filter expression.  If the filter is
+specified with command\-line arguments after the option arguments, it\(cqs a
+capture filter if a capture is being done (i.e., if no \fB\-r\fP option was
+specified) and a display filter if a capture file is being read (i.e., if a
+\fB\-r\fP option was specified).
+.sp
+If the \fB\-w\fP option is specified when capturing packets or reading from
+a capture file, \fBstrato\fP does not display packets on the standard
+output.  Instead, it writes the packets to a capture file with the name
+specified by the \fB\-w\fP option.  Note that display filters are currently
+not supported when capturing and saving the captured packets.
+.sp
+If you want to write the decoded form of packets to a file, run
+\fBstrato\fP without the \fB\-w\fP option, and redirect its standard output to
+the file (do \fInot\fP use the \fB\-w\fP option).
+.sp
+If you want the packets to be displayed to the standard output and also
+saved to a file, specify the \fB\-P\fP option in addition to the \fB\-w\fP
+option to have the summary line displayed, specify the \fB\-V\fP option
+in addition to the \fB\-w\fP option to have the details of the packet
+displayed, and specify the \fB\-O\fP option, with a list of protocols, to
+have the full details of the specified protocols and the top\-level
+detail line for all other protocols to be displayed.  If the \fB\-P\fP
+option is used together with the \fB\-V\fP or \fB\-O\fP option, the summary line
+will be displayed along with the detail lines.
+.sp
+When writing packets to a file, \fBstrato\fP, by default, writes the file
+in \fBpcapng\fP format, and writes all of the packets it sees to the output
+file.  The \fB\-F\fP option can be used to specify the format in which to
+write the file.  The list of available file formats is displayed by the
+\fB\-F\fP option without a value.  However, for a live capture, you can only
+specify a file format supported by dumpcap(1), viz.
+\fBpcapng\fP or \fBpcap\fP. The \fB\-\-compress\fP option can be used to specify
+a compression method as well; the list of supported compression methods
+for writing can be displayed by the \fB\-\-compress\fP method without an
+argument. If the \fB\-\-compress\fP option is not given, then the desired
+compression method, if any, is deduced from the extension of the filename
+given as argument to the \fB\-w\fP option.
+.sp
+When capturing packets, \fBstrato\fP writes to the standard error an
+initial line listing the interfaces from which packets are being
+captured and, if packet information isn\(cqt being displayed to the
+terminal, writes a continuous count of packets captured to the standard
+output.  If the \fB\-q\fP option is specified, neither the continuous count
+nor the packet information will be displayed; instead, at the end of the
+capture, a count of packets captured will be displayed.  If the \fB\-Q\fP
+option is specified, neither the initial line, nor the packet
+information, nor any packet counts will be displayed.  If the \fB\-q\fP or
+\fB\-Q\fP option is used, the \fB\-P\fP, \fB\-V\fP, or \fB\-O\fP option can be used to
+cause the corresponding output to be displayed even though other output
+is suppressed.
+.sp
+When reading packets, the \fB\-q\fP and \fB\-Q\fP option will suppress the
+display of the packet summary or details; this would be used if \fB\-z\fP
+options are specified in order to display statistics, so that only the
+statistics, not the packet information, is displayed.
+.sp
+The \fB\-G\fP option is a special mode that simply causes \fBstrato\fP
+to dump one of several types of internal glossaries and then exit.
+.SH "گزینه‌ها (OPTIONS)"
+.sp
+\-2
+.RS 4
+.sp
+Perform a two\-pass analysis. This causes \fBstrato\fP to buffer output until the
+entire first pass is done, but allows it to fill in fields that require future
+knowledge, such as \*(Aqresponse in frame #\*(Aq fields. Also permits reassembly
+frame dependencies to be calculated correctly. This requires the ability
+to seek backwards on the input, and as such cannot be used with live captures
+or when reading from a pipe or FIFO.
+.RE
+.sp
+\-a|\-\-autostop  <capture autostop condition>
+.RS 4
+.sp
+Specify a criterion that specifies when \fBstrato\fP is to stop writing
+to a capture file.  The criterion is of the form \fItest:value\fP,
+where \fItest\fP is one of:
+.sp
+\fBduration\fP:\fIvalue\fP Stop writing to a capture file after \fIvalue\fP seconds
+have elapsed. Floating point values (e.g. 0.5) are allowed.
+.sp
+\fBfiles\fP:\fIvalue\fP Stop writing to capture files after \fIvalue\fP number of files
+were written.
+.sp
+\fBfilesize\fP:\fIvalue\fP Stop writing to a capture file after it reaches a size of
+\fIvalue\fP kB.  If this option is used together with the \fB\-b\fP option, \fBstrato\fP
+will stop writing to the current capture file and switch to the next one if
+filesize is reached.  When reading a capture file, \fBstrato\fP will stop reading
+the file after the number of bytes read exceeds this number (the complete
+packet  will be read, so more bytes than this number may be read).  Note that
+the filesize is limited to a maximum value of 2 TB, although you might have
+problems before then if the number of packets exceeds exceeds 232 (4294967296).
+.sp
+\fBpackets\fP:\fIvalue\fP switch to the next file after it contains \fIvalue\fP
+packets.
+This does not include any packets that do not pass the display filter, so it
+may differ from \fB\-c\fP<capture packet count>.
+.RE
+.sp
+\-A  <user>:<password>
+.RS 4
+.sp
+Specify a user and a password when \fBstrato\fP captures from a rpcap:// interface
+where authentication is required.
+.sp
+This option is available with libpcap with enabled remote support.
+.RE
+.sp
+\-b|\-\-ring\-buffer  <capture ring buffer option>
+.RS 4
+.sp
+Cause \fBstrato\fP to run in "multiple files" mode.  In "multiple files" mode,
+\fBstrato\fP will write to several capture files.  When the first capture file
+fills up, \fBstrato\fP will switch writing to the next file and so on.
+.sp
+The created filenames are based on the filename given with the \fB\-w\fP option,
+the number of the file and on the creation date and time,
+e.g. outfile_00001_20260714120117.pcap, outfile_00002_20260714120523.pcap, .\|.\|.
+.sp
+With the \fIfiles\fP option it\(cqs also possible to form a "ring buffer".
+This will fill up new files until the number of files specified,
+at which point \fBstrato\fP will discard the data in the first file and start
+writing to that file and so on.  If the \fIfiles\fP option is not set,
+new files filled up until one of the capture stop conditions match (or
+until the disk is full).
+.sp
+The criterion is of the form \fIkey:value\fP,
+where \fIkey\fP is one of:
+.sp
+\fBduration\fP:\fIvalue\fP switch to the next file after \fIvalue\fP seconds have
+elapsed, even if the current file is not completely filled up. Floating
+point values (e.g. 0.5) are allowed.
+.sp
+\fBfiles\fP:\fIvalue\fP begin again with the first file after \fIvalue\fP number of
+files were written (form a ring buffer).  This value must be less than 100000.
+Caution should be used when using large numbers of files: some filesystems do
+not handle many files in a single directory well.  The \fBfiles\fP criterion
+requires either \fBduration\fP, \fBinterval\fP or \fBfilesize\fP to be specified to
+control when to go to the next file.  It should be noted that each \fB\-b\fP
+parameter takes exactly one criterion; to specify two criterion, each must be
+preceded by the \fB\-b\fP option.
+.sp
+\fBfilesize\fP:\fIvalue\fP switch to the next file after it reaches a size of
+\fIvalue\fP kB.  Note that the filesize is limited to a maximum value of 2 TB,
+although you might have problems before then if the number of packets exceeds
+exceeds 232 (4294967296).
+.sp
+\fBinterval\fP:\fIvalue\fP switch to the next file when the time is an exact
+multiple of \fIvalue\fP seconds.  For example, use 3600 to switch to a new file
+every hour on the hour.
+.sp
+\fBpackets\fP:\fIvalue\fP switch to the next file after it contains \fIvalue\fP
+packets.
+.sp
+\fBprintname\fP:\fIfilename\fP print the name of the most recently written file
+to \fIfilename\fP after the file is closed. \fIfilename\fP can be \f(CRstdout\fP or \f(CR\-\fP
+for standard output, or \f(CRstderr\fP for standard error.
+.sp
+\fBnametimenum\fP:\fIvalue\fP Choose between two save filename templates.  If
+\fIvalue\fP is 1, make running file number part before start time part; this is
+the original and default behaviour (e.g. log_00001_20260714164426.pcap).  If
+\fIvalue\fP is greater than 1, make start time part before running number part
+(e.g. log_20210828164426_00001.pcap).  The latter makes alphabetical sorting
+order equal to creation time order, and keeps related multiple file sets in
+same directory close to each other.
+.sp
+Example: \fBstrato \-b filesize:1000 \-b files:5\fP results in a ring buffer of five
+files of size one megabyte each.
+.RE
+.sp
+\-B|\-\-buffer\-size  <capture buffer size>
+.RS 4
+.sp
+Set capture buffer size (in MiB, default is 2 MiB).  This is used by
+the capture driver to buffer packet data until that data can be written
+to disk.  If you encounter packet drops while capturing, try to increase
+this size.  Note that, while \fBstrato\fP attempts to set the buffer size
+to 2 MiB by default, and can be told to set it to a larger value, the
+system or interface on which you\(cqre capturing might silently limit the
+capture buffer size to a lower value or raise it to a higher value.
+.sp
+This is available on UNIX\-compatible systems, such as Linux, macOS,
+\(rs*BSD, Solaris, and AIX, with libpcap 1.0.0 or later, and on Windows.
+It is not available on UNIX\-compatible systems with earlier versions of
+libpcap.
+.sp
+This option can occur multiple times.  If used before the first
+occurrence of the \fB\-i\fP option, it sets the default capture buffer size.
+If used after an \fB\-i\fP option, it sets the capture buffer size for
+the interface specified by the last \fB\-i\fP option occurring before
+this option.  If the capture buffer size is not set specifically,
+the default capture buffer size is used instead.
+.RE
+.sp
+\-c  <capture packet count>
+.RS 4
+.sp
+Set the maximum number of packets to read when capturing live
+data.
+If reading a capture file, set the maximum number of packets to read.
+This includes any packets that do not pass the display filter, so it
+may differ from \fB\-a packets:\fP<capture packet count>.
+.RE
+.sp
+\-C  <configuration profile>
+.RS 4
+.sp
+Run with the given configuration profile. If used in conjunction with
+\-\-global\-profile, then the global profile with the associated name
+would be used.
+.RE
+.sp
+\-D|\-\-list\-interfaces
+.RS 4
+.sp
+Print a list of the interfaces on which \fBstrato\fP can capture, and
+exit.  For each network interface, a number and an interface name,
+possibly followed by a text description of the interface, is printed.
+The interface name or the number can be supplied to the \fB\-i\fP flag to
+specify an interface on which to capture.  The number can be useful on
+Windows systems, where the interfaces have long names that usually
+contain a GUID.
+.RE
+.sp
+\-e  <field>
+.RS 4
+.sp
+Add a field to the list of fields to display if \fB\-T ek|fields|json|pdml\fP
+is selected.  This option can be used multiple times on the command line.
+At least one field must be provided if the \fB\-T fields\fP option is
+selected. Column types may be used prefixed with "_ws.col."
+Prefixing the field name with an at sign (@) will display the data as hex bytes.
+.sp
+Example: \fBstrato \-T fields \-e frame.number \-e ip.addr \-e udp \-e _ws.col.info\fP
+.sp
+Fields are separated by tab characters by default.  \fB\-E\fP controls the
+format of the printed fields.
+Giving a protocol rather than a single field will print the protocol summary
+(subtree label) from the packet details as a single field.
+If the protocol summary contains only the protocol name
+(e.g. "Hypertext Transfer Protocol") then the protocol filter name ("http")
+will be printed.
+.RE
+.sp
+\-E  <field print option>
+.RS 4
+.sp
+Set an option controlling the printing of fields when \fB\-T fields\fP is
+selected.
+.sp
+Options are:
+.sp
+\fBbom=y|n\fP If \fBy\fP, prepend output with the UTF\-8 byte order mark
+(hexadecimal ef, bb, bf). Defaults to \fBn\fP.
+.sp
+\fBheader=y|n\fP If \fBy\fP, print a list of the field names given using \fB\-e\fP
+as the first line of the output; the field name will be separated using
+the same character as the field values.  Defaults to \fBn\fP.
+.sp
+\fBseparator=/t|/s|\fP<character> Set the separator character to
+use for fields.  If \fB/t\fP tab will be used (this is the default), if
+\fB/s\fP, a single space will be used.  Otherwise any character that can be
+accepted by the command line as part of the option may be used.
+.sp
+\fBoccurrence=f|l|a\fP Select which occurrence to use for fields that have
+multiple occurrences.  If \fBf\fP the first occurrence will be used, if \fBl\fP
+the last occurrence will be used and if \fBa\fP all occurrences will be used
+(this is the default).
+.sp
+\fBaggregator=,|/s|\fP<character> Set the aggregator character to
+use for fields that have multiple occurrences.  If \fB,\fP a comma will be used
+(this is the default), if \fB/s\fP, a single space will be used.  Otherwise
+any character that can be accepted by the command line as part of the
+option may be used.
+.sp
+\fBquote=d|s|n\fP Set the quote character to use to surround fields.  \fBd\fP
+uses double\-quotes, \fBs\fP single\-quotes, \fBn\fP no quotes (the default).
+If the quote character appears in a field value, it will be escaped
+by being duplicated.
+.sp
+\fBescape=y|n\fP If \fBy\fP, the whitespace control characters (tab, line feed,
+carriage return, form feed, and vertical tab) backspace, and the
+backslash will be replaced in field values by C\-style escapes, e.g.
+"\(rsn" for line feed.  If \fBn\fP, field value strings will be printed as\-is.
+Defaults to \fBy\fP.
+.sp
+\fBescape_formulas=y|n\fP If \fBy\fP, prefix any field value that a spreadsheet
+application would evaluate as a formula with an apostrophe, so that packet
+data cannot inject a formula into a CSV file that is later opened in a
+spreadsheet.  Values that begin with \fB=\fP, \fB+\fP, \fB\-\fP or \fB@\fP (optionally
+preceded by blanks) are affected.  Note that this changes the exported
+values, and in particular that it also applies to legitimately negative
+numbers, so it is off by default; enable it when the output is destined for
+a spreadsheet rather than for further machine processing.  Defaults to \fBn\fP.
+.RE
+.sp
+\-f  <capture filter>
+.RS 4
+.sp
+Set the capture filter expression.
+.sp
+This option can occur multiple times.  If used before the first
+occurrence of the \fB\-i\fP option, it sets the default capture filter expression.
+If used after an \fB\-i\fP option, it sets the capture filter expression for
+the interface specified by the last \fB\-i\fP option occurring before
+this option.  If the capture filter expression is not set specifically,
+the default capture filter expression is used if provided.
+.sp
+Pre\-defined capture filter names, as shown in the GUI menu item Capture\(->Capture
+Filters, can be used by prefixing the argument with "predef:".
+Example: \fBstrato \-f "predef:MyPredefinedHostOnlyFilter"\fP
+.RE
+.sp
+\-F  <file format>
+.RS 4
+Set the file format of the output capture file written using the \fB\-w\fP
+option.  The output written with the \fB\-w\fP option is raw packet data, not
+text, so there is no \fB\-F\fP option to request text output.  The option \fB\-F\fP
+without a value will list the available formats. The default is the
+\fBpcapng\fP format (unless the default has been changed in preferences.)
+\&.
+.RE
+.sp
+\-g
+.RS 4
+This option causes the output file(s) to be created with group\-read permission
+(meaning that the output file(s) can be read by other members of the calling
+user\(cqs group).
+.RE
+.sp
+\-G  <report type>
+.RS 4
+.sp
+The \fB\-G\fP option will cause \fBstrato\fP to dump one of several types of glossaries
+and then exit.  The glossary type is now mandatory; previous versions generated
+the \fBfields\fP report by default when no type was given. With one exception, the
+reports reflect the current configuration, including that given by a \fB\-C\fP option
+or as modified by other command line options.
+Using the report type of \fBhelp\fP lists all the current report types.
+.sp
+The available report types include:
+.sp
+\fBcolumn\-formats\fP Dumps the column formats understood by \fBstrato\fP.
+There is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+format string (e.g. "%rD")
+.RE
+.sp
+Field 2
+.RS 4
+text description of format string (e.g. "Dest port (resolved)")
+.RE
+.sp
+Field 3
+.RS 4
+field abbreviation used for the column text (e.g. "_ws.col.res_dst_port")
+.RE
+.sp
+This report is followed by a usage example that demonstrates how to change
+the columns by overriding the \f(CRgui.column.format\fP preference value with \fB\-o\fP.
+.sp
+\fBcurrentprefs\fP  Dumps a copy of the current preferences file to stdout.
+.sp
+\fBdecodes\fP Dumps the "layer type"/"decode as" associations to stdout.
+There is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+layer type, e.g. "tcp.port"
+.RE
+.sp
+Field 2
+.RS 4
+selector in decimal
+.RE
+.sp
+Field 3
+.RS 4
+"decode as" name, e.g. "http"
+.RE
+.sp
+\fBdefaultprefs\fP  Dumps a default preferences file to stdout. This report
+is unaffected by other command line arguments.
+.sp
+\fBdissectors\fP  Dumps a list of registered dissectors to stdout.  There is
+one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+dissector name
+.RE
+.sp
+Field 2
+.RS 4
+dissector description
+.RE
+.sp
+\fBdissector\-tables\fP  Dumps a list of dissector tables to stdout.  There
+is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+dissector table name, e.g. "tcp.port"
+.RE
+.sp
+Field 2
+.RS 4
+name used for the dissector table in the GUI
+.RE
+.sp
+Field 3
+.RS 4
+type (textual representation of the ftenum type, or "heuristic")
+.RE
+.sp
+Field 4
+.RS 4
+base for display (for integer types)
+.RE
+.sp
+Field 5
+.RS 4
+protocol name
+.RE
+.sp
+Field 6
+.RS 4
+"decode as" support (for non\-heuristic tables)
+.RE
+.sp
+\fBelastic\-mapping\fP[,\fIfilter\fP]  Dumps the ElasticSearch mapping file to stdout. Fields
+falling in the default case (string) won\(cqt be mapped.
+.sp
+\fIfilter\fP is an optional list of comma separated protocol filter names
+that limits the generated mapping file to the specified protocols,
+to avoid a huge mapping file that can choke some software (such as Kibana). E.g.,
+.sp
+.if n .RS 4
+.nf
+.fam C
+strago \-G elastic\-mapping,ip,udp,dns
+.fam
+.fi
+.if n .RE
+.sp
+\fBenterprises\fP Dumps the IANA Private Enterprise Number (PEN) table.
+.sp
+\fBfieldcount\fP  Dumps the number of header fields to stdout.
+.sp
+\fBfields\fP[,\fIprefix\fP]  Dumps the contents of the registration database to
+stdout.  An independent program can take this output and format it into nice
+tables or HTML or whatever.  There is one record per line.  Each record is
+either a protocol or a header field, differentiated by the first field.
+The fields are tab\-delimited.
+.sp
+.B Protocols
+.br
+.sp
+Field 1
+.RS 4
+\*(AqP\*(Aq
+.RE
+.sp
+Field 2
+.RS 4
+descriptive protocol name
+.RE
+.sp
+Field 3
+.RS 4
+protocol abbreviation
+.RE
+.sp
+.B Header Fields
+.br
+.sp
+Field 1
+.RS 4
+\*(AqF\*(Aq
+.RE
+.sp
+Field 2
+.RS 4
+descriptive field name
+.RE
+.sp
+Field 3
+.RS 4
+field abbreviation
+.RE
+.sp
+Field 4
+.RS 4
+type (textual representation of the ftenum type)
+.RE
+.sp
+Field 5
+.RS 4
+parent protocol abbreviation
+.RE
+.sp
+Field 6
+.RS 4
+base for display (for integer types); "parent bitfield width" for FT_BOOLEAN
+.RE
+.sp
+Field 7
+.RS 4
+bitmask: format: hex: 0x.\|.\|..
+.RE
+.sp
+Field 8
+.RS 4
+blurb describing field
+.RE
+.sp
+An optional search prefix argument can be given to
+\fBfields\fP, in which case the output is limited to protocols and fields whose
+abbreviation starts with the search prefix.
+.sp
+.B Search Output
+.br
+.sp
+Field 1
+.RS 4
+protocol or field abbreviation
+.RE
+.sp
+Field 2
+.RS 4
+descriptive protocol or field name
+.RE
+.sp
+\fBfolders\fP Dumps various folders used by \fBstrato\fP.  This is essentially the
+same data reported in Wireshark\(cqs About | Folders tab.
+There is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+Folder type (e.g "Personal configuration:")
+.RE
+.sp
+Field 2
+.RS 4
+Folder location (e.g. "/home/vagrant/.config/wireshark/")
+.RE
+.sp
+\fBftypes\fP Dumps the "ftypes" (fundamental types) understood by \fBstrato\fP.
+There is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+FTYPE (e.g "FT_IPv6")
+.RE
+.sp
+Field 2
+.RS 4
+text description of type (e.g. "IPv6 address")
+.RE
+.sp
+\fBheuristic\-decodes\fP Dumps the heuristic decodes currently installed.
+There is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+heuristic dissector table name (e.g. "tcp")
+.RE
+.sp
+Field 2
+.RS 4
+name of heuristic decoder (e.g. "ucp")
+.RE
+.sp
+Field 3
+.RS 4
+heuristic enabled (e.g. "T" or "F")
+.RE
+.sp
+Field 4
+.RS 4
+heuristic enabled by default (e.g. "T" or "F")
+.RE
+.sp
+Field 5
+.RS 4
+heuristic short name (e.g. "ucp_tcp")
+.RE
+.sp
+Field 6
+.RS 4
+heuristic display name (e.g. "UCP over TCP")
+.RE
+.sp
+\fBhelp\fP Displays the available report types.
+.sp
+\fBmanuf\fP Dumps the MAC address lookup table in \f(CRmanuf\fP format.
+.sp
+\fBplugins\fP Dumps the plugins currently installed.
+There is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+plugin library/Lua script/extcap executable (e.g. "gryphon.so")
+.RE
+.sp
+Field 2
+.RS 4
+plugin version (e.g. 0.0.4)
+.RE
+.sp
+Field 3
+.RS 4
+plugin type ("dissector", "tap", "file type", etc.)
+.RE
+.sp
+Field 4
+.RS 4
+full path to plugin file
+.RE
+.sp
+\fBprofiles\fP[,\fIfilter\fP]  Dumps a list of profiles. Specific profile types
+can be listed with the "global", "personal", or "all" filters.  By default,
+"all" are shown.
+.sp
+Field 1
+.RS 4
+Profile name
+.RE
+.sp
+Field 2
+.RS 4
+Type of profile (personal, global, default)
+.RE
+.sp
+\fBprotocols\fP Dumps the protocols in the registration database to stdout.
+An independent program can take this output and format it into nice tables
+or HTML or whatever.  There is one record per line.  The fields are tab\-delimited.
+.sp
+Field 1
+.RS 4
+protocol name
+.RE
+.sp
+Field 2
+.RS 4
+protocol short name
+.RE
+.sp
+Field 3
+.RS 4
+protocol filter name
+.RE
+.sp
+Field 4
+.RS 4
+protocol enabled (e.g. "T" or "F")
+.RE
+.sp
+Field 5
+.RS 4
+protocol enabled by default (e.g. "T" or "F")
+.RE
+.sp
+Field 6
+.RS 4
+protocol can toggle (e.g. "T" or "F")
+.RE
+.sp
+\fBservices\fP Dumps the TCP, UDP, and SCTP transport service (port) table.
+.sp
+\fBvalues\fP Dumps the value_strings, range_strings or true/false strings
+for fields that have them.  There is one record per line.  Fields are
+tab\-delimited.  There are three types of records: Value String, Range
+String and True/False String.  The first field, \*(AqV\*(Aq, \*(AqR\*(Aq or \*(AqT\*(Aq, indicates
+the type of record.
+.sp
+.B Value Strings
+.br
+.sp
+Field 1
+.RS 4
+\*(AqV\*(Aq
+.RE
+.sp
+Field 2
+.RS 4
+field abbreviation to which this value string corresponds
+.RE
+.sp
+Field 3
+.RS 4
+Integer value
+.RE
+.sp
+Field 4
+.RS 4
+String
+.RE
+.sp
+.B Range Strings
+.br
+.sp
+Field 1
+.RS 4
+\*(AqR\*(Aq
+.RE
+.sp
+Field 2
+.RS 4
+field abbreviation to which this range string corresponds
+.RE
+.sp
+Field 3
+.RS 4
+Integer value: lower bound
+.RE
+.sp
+Field 4
+.RS 4
+Integer value: upper bound
+.RE
+.sp
+Field 5
+.RS 4
+String
+.RE
+.sp
+.B True/False Strings
+.br
+.sp
+Field 1
+.RS 4
+\*(AqT\*(Aq
+.RE
+.sp
+Field 2
+.RS 4
+field abbreviation to which this true/false string corresponds
+.RE
+.sp
+Field 3
+.RS 4
+True String
+.RE
+.sp
+Field 4
+.RS 4
+False String
+.RE
+.RE
+.sp
+\-h|\-\-help
+.RS 4
+Print the version number and options and exit.
+.RE
+.sp
+\-H  <input hosts file>
+.RS 4
+.sp
+Read a list of entries from a "hosts" file, which will then be written
+to a capture file.  Implies \fB\-W n\fP. Can be called multiple times.
+.sp
+The "hosts" file format is documented at
+.URL "https://en.wikipedia.org/wiki/Hosts_(file)" "" "."
+.RE
+.sp
+\-i|\-\-interface  <capture interface> | \-
+.RS 4
+.sp
+Set the name of the network interface or pipe to use for live packet
+capture.
+.sp
+Network interface names should match one of the names listed in "\fBstrato
+\-D\fP" (described above); a number, as reported by "\fBstrato \-D\fP", can also
+be used.
+.sp
+If no interface is specified, \fBstrato\fP searches the list of
+interfaces, choosing the first non\-loopback interface if there are any
+non\-loopback interfaces, and choosing the first loopback interface if
+there are no non\-loopback interfaces.  If there are no interfaces at all,
+\fBstrato\fP reports an error and doesn\(cqt start the capture.
+.sp
+Pipe names should be either the name of a FIFO (named pipe) or "\-" to
+read data from the standard input.  On Windows systems, pipe names must be
+of the form "\(rs\(rs.\(rspipe\(rs\fBpipename\fP".  Data read from pipes must be in
+standard pcapng or pcap format. Pcapng data must have the same
+endianness as the capturing host.
+.sp
+This option can occur multiple times. When capturing from multiple
+interfaces, the capture file will be saved in pcapng format.
+.RE
+.sp
+\-j  <protocol match filter>
+.RS 4
+.sp
+Protocol match filter used for ek|json|jsonraw|pdml output file types.
+Only the protocol\(cqs parent node is included. Child nodes are only
+included if explicitly specified in the filter.
+.sp
+Example: \fBstrato \-T json \-j "ip ip.flags http"\fP
+.RE
+.sp
+\-J  <protocol match filter>
+.RS 4
+.sp
+Protocol top level filter used for ek|json|jsonraw|pdml output file types.
+The protocol\(cqs parent node and all child nodes are included.
+Lower\-level protocols must be explicitly specified in the filter.
+.sp
+Example: \fBstrato \-T pdml \-J "tcp http"\fP
+.RE
+.sp
+\-l
+.RS 4
+.sp
+Flush the standard output after the information for each packet is
+printed.  (This is not, strictly speaking, line\-buffered if \fB\-V\fP
+was specified; however, it is the same as line\-buffered if \fB\-V\fP wasn\(cqt
+specified, as only one line is printed for each packet, and, as \fB\-l\fP is
+normally used when piping a live capture to a program or script, so that
+output for a packet shows up as soon as the packet is seen and
+dissected, it should work just as well as true line\-buffering.  We do
+this as a workaround for a deficiency in the Microsoft Visual C++ C
+library.) This also sets \fB\-\-update\-interval\fP to 0 ms.
+.sp
+This may be useful when piping the output of \fBstrato\fP to another
+program, as it means that the program to which the output is piped will
+see the dissected data for a packet as soon as \fBstrato\fP sees the
+packet and generates that output, rather than seeing it only when the
+standard output buffer containing that data fills up.
+.RE
+.sp
+\-L|\-\-list\-data\-link\-types
+.RS 4
+List the data link types supported by the interface and exit.  The reported
+link types can be used for the \fB\-y\fP option.
+.RE
+.sp
+\-o  <preference>:<value>
+.RS 4
+.sp
+Set a preference value, overriding the default value and any value read
+from a preference file.  The argument to the option is a string of the
+form \fIprefname:value\fP, where \fIprefname\fP is the name of the
+preference (which is the same name that would appear in the preference
+file), and \fIvalue\fP is the value to which it should be set.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+\fBstrato\fP does not save preferences, so use this for temporary changes
+for a single execution. To permanently set a preference, change it in the
+\fBWireshark\fP GUI or edit the preference file directly, creating multiple
+configuration profiles if you need different preference sets for different
+occasions.
+.sp .5v
+.RE
+.RE
+.sp
+\-O  <protocols>
+.RS 4
+.sp
+Similar to the \fB\-V\fP option, but causes \fBstrato\fP to only show a
+detailed view of the comma\-separated list of \fIprotocols\fP specified, and
+show only the top\-level detail line for all other protocols, rather than
+a detailed view of all protocols.  Use the output of "\fBstrato \-G
+protocols\fP" to find the abbreviations of the protocols you can specify.
+.RE
+.sp
+\-P|\-\-print
+.RS 4
+.sp
+Decode and display the packet summary or details, even if writing raw
+packet data using the \fB\-w\fP option, and even if packet output is
+otherwise suppressed with \fB\-Q\fP.
+.RE
+.sp
+\-q
+.RS 4
+.sp
+When capturing packets, don\(cqt display the continuous count of packets
+captured that is normally shown when saving a capture to a file;
+instead, just display, at the end of the capture, a count of packets
+captured.  On systems that support the SIGINFO signal, such as various
+BSDs, you can cause the current count to be displayed by typing your
+"status" character (typically control\-T, although it
+might be set to "disabled" by default on at least some BSDs, so you\(cqd
+have to explicitly set it to use it).
+.sp
+When reading a capture file, or when capturing and not saving to a file,
+don\(cqt print packet information; this is useful if you\(cqre using a \fB\-z\fP
+option to calculate statistics and don\(cqt want the packet information
+printed, just the statistics.
+.RE
+.sp
+\-Q
+.RS 4
+.sp
+When capturing packets, don\(cqt display, on the standard error, the
+initial message indicating on which interfaces the capture is being
+done, the continuous count of packets captured shown when saving a
+capture to a file, and the final message giving the count of packets
+captured.  Only true errors are displayed on the standard error.
+.sp
+This outputs less than the \fB\-q\fP option, so the interface name and total
+packet count and the end of a capture are not sent to stderr.
+.sp
+When reading a capture file, or when capturing and not saving to a file,
+don\(cqt print packet information; this is useful if you\(cqre using a \fB\-z\fP
+option to calculate statistics and don\(cqt want the packet information
+printed, just the statistics.
+.RE
+.sp
+\-r|\-\-read\-file  <infile>
+.RS 4
+.sp
+Read packet data from \fIinfile\fP, can be any supported capture file format
+(including compressed files).  It is possible to use named pipes or stdin (\-)
+here but only with certain capture file formats (in particular: those that
+can be read without seeking backwards.)
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Tip
+.ps -1
+.br
+.sp
+Reading a live capture from the standard out of another process through
+a pipe can circumvent restrictions that apply to \fBstrato\fP during live capture,
+such as file formats or compression.
+.sp .5v
+.RE
+.RE
+.sp
+\-R|\-\-read\-filter  <Read filter>
+.RS 4
+.sp
+Cause the specified filter (which uses the syntax of read/display filters,
+rather than that of capture filters) to be applied during the first pass of
+analysis. Packets not matching the filter are not considered for future
+passes. Only makes sense with multiple passes, see \fB\-2\fP. For regular filtering
+on single\-pass dissect see \fB\-Y\fP instead.
+.sp
+Note that forward\-looking fields such as \*(Aqresponse in frame #\*(Aq cannot be used
+with this filter, since they will not have been calculated when this filter is
+applied.
+.RE
+.sp
+\-s|\-\-snapshot\-length  <capture snaplen>
+.RS 4
+.sp
+Set the default snapshot length to use when capturing live data.
+No more than \fIsnaplen\fP bytes of each network packet will be read into
+memory, or saved to disk.  A value of 0 specifies a snapshot length of
+262144, so that the full packet is captured; this is the default.
+.sp
+This option can occur multiple times.  If used before the first
+occurrence of the \fB\-i\fP option, it sets the default snapshot length.
+If used after an \fB\-i\fP option, it sets the snapshot length for
+the interface specified by the last \fB\-i\fP option occurring before
+this option.  If the snapshot length is not set specifically,
+the default snapshot length is used if provided.
+.RE
+.sp
+\-S  <separator>
+.RS 4
+Set the line separator to be printed between packets.
+.RE
+.sp
+\-T  ek|fields|json|jsonraw|pdml|ps|psml|tabs|text
+.RS 4
+.sp
+Set the format of the output when viewing decoded packet data.  The
+options are one of:
+.sp
+\fBek\fP Newline delimited JSON format for bulk import into Elasticsearch.
+It can be used with \fB\-j\fP or \fB\-J\fP to specify
+which protocols to include or with
+\fB\-x\fP to include raw hex\-encoded packet data.
+If \fB\-P\fP is specified it will print the packet summary only, with both
+\fB\-P\fP and \fB\-V\fP it will print the packet summary and packet details.
+If neither \fB\-P\fP or \fB\-V\fP are used it will print the packet details only.
+Example of usage to import data into Elasticsearch:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-T ek \-j "http tcp ip" \-P \-V \-x \-r file.pcap > file.json
+curl \-H "Content\-Type: application/x\-ndjson" \-XPOST http://elasticsearch:9200/_bulk \-\-data\-binary "@file.json"
+.fam
+.fi
+.if n .RE
+.sp
+Elastic requires a mapping file to be loaded as template for packets\-*
+index in order to convert Wireshark types to elastic types. This file
+can be auto\-generated with the command "strato \-G elastic\-mapping". Since
+the mapping file can be huge, protocols can be selected by using the option
+\-\-elastic\-mapping\-filter:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-G elastic\-mapping \-\-elastic\-mapping\-filter ip,udp,dns
+.fam
+.fi
+.if n .RE
+.sp
+or adding the filter directly to the \fB\-G elastic\-mapping\fP option:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-G elastic\-mapping,ip,udp,dns
+.fam
+.fi
+.if n .RE
+.sp
+\fBfields\fP The values of fields specified with the \fB\-e\fP option, in a
+form specified by the \fB\-E\fP option.  For example,
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-T fields \-E separator=, \-E quote=d
+.fam
+.fi
+.if n .RE
+.sp
+would generate comma\-separated values (CSV) output suitable for importing
+into your favorite spreadsheet program.
+.sp
+\fBjson\fP JSON file format.  It can be used with \fB\-j\fP or \fB\-J\fP to specify
+which protocols to include or with \fB\-x\fP option to include
+raw hex\-encoded packet data.  Example of usage:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-T json \-r file.pcap
+strato \-T json \-j "http tcp ip" \-x \-r file.pcap
+.fam
+.fi
+.if n .RE
+.sp
+\fBjsonraw\fP JSON file format including only raw hex\-encoded packet data.
+It can be used with \fB\-j\fP or \fB\-J\fP to specify which protocols to include.
+Example of usage:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-T jsonraw \-r file.pcap
+strato \-T jsonraw \-j "http tcp ip" \-x \-r file.pcap
+.fam
+.fi
+.if n .RE
+.sp
+\fBpdml\fP Packet Details Markup Language, an XML\-based format for the
+details of a decoded packet.  This information is equivalent to the
+packet details printed with the \fB\-V\fP option.  Using the \fB\-\-color\fP option
+will add color attributes to \fBpdml\fP output.  These attributes are
+nonstandard.
+.sp
+\fBps\fP PostScript for a human\-readable one\-line summary of each of the
+packets, or a multi\-line view of the details of each of the packets,
+depending on whether the \fB\-V\fP option was specified.
+.sp
+\fBpsml\fP Packet Summary Markup Language, an XML\-based format for the summary
+information of a decoded packet.  This information is equivalent to the
+information shown in the one\-line summary printed by default.
+Using the \fB\-\-color\fP option will add color attributes to \fBpdml\fP output. These
+attributes are nonstandard.
+.sp
+\fBtabs\fP Similar to the default \fBtext\fP report except the human\-readable one\-line
+summary of each packet will include an ASCII horizontal tab (0x09) character
+as a delimiter between each column.
+.sp
+\fBtext\fP Text of a human\-readable one\-line summary of each of the packets, or a
+multi\-line view of the details of each of the packets, depending on
+whether the \fB\-V\fP option was specified.  This is the default.
+.RE
+.sp
+\-\-temp\-dir <directory>
+.RS 4
+.sp
+Specifies the directory into which temporary files (including capture
+files) are to be written.  The default behavior on UNIX\-compatible systems,
+such as Linux, macOS, \(rs*BSD, Solaris, and AIX, is to use the environment
+variable \fI$TMPDIR\fP if set, and the system default, typically \fI/tmp\fP, if it
+is not.  On Windows, the \fI%TEMP%\fP environment variable is used, which
+typically defaults to \fI%USERPROFILE%\(rsAppData\(rsLocal\(rsTemp\fP.
+.RE
+.sp
+\-U <tap name>
+.RS 4
+.sp
+PDUs export, exports PDUs from infile to outfile according to the tap
+name given. Use \fB\-Y\fP to filter.
+.sp
+Enter an empty tap name "" or a tap name of ? to get a list of available
+names.
+.RE
+.sp
+\-v|\-\-version
+.RS 4
+Print the full version information and exit.
+.RE
+.sp
+\-V
+.RS 4
+Cause \fBstrato\fP to print a view of the packet details.
+.RE
+.sp
+\-w  <outfile> | \-
+.RS 4
+.sp
+Write raw packet data to \fIoutfile\fP or to the standard output if
+\fIoutfile\fP is \*(Aq\-\*(Aq. The \fB\-F\fP and \fB\-\-compress\fP options can be used
+to control the file format and compression method. If the latter is
+not given, then the extension may be used to deduce the desired
+compression algorithm, if supported, e.g. a gzip archive for \*(Aq.gz\*(Aq.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+\fB\-w\fP provides raw packet data, not text.  If you want text output
+you need to redirect stdout (e.g. using \*(Aq>\*(Aq), don\(cqt use the \fB\-w\fP
+option for this.
+.sp .5v
+.RE
+.RE
+.sp
+\-W  <file format option>
+.RS 4
+.sp
+Save extra information in the file if the format supports it.  For
+example,
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-F pcapng \-W n
+.fam
+.fi
+.if n .RE
+.sp
+will save host name resolution records along with captured packets.
+.sp
+Future versions of \fBstrato\fP may automatically change the capture format
+to \fBpcapng\fP as needed.
+.sp
+The argument is a string that may contain the following letter:
+.sp
+\fBn\fP write network address resolution information (pcapng only)
+.RE
+.sp
+\-x
+.RS 4
+Cause \fBstrato\fP to print a hex and ASCII dump of the packet data
+after printing the summary and/or details, if either are also being displayed.
+.RE
+.sp
+\-\-hexdump <hexoption>
+.RS 4
+.sp
+Cause \fBstrato\fP to print a hex and ASCII dump of the packet data
+with the ability to select which data sources to dump, how to
+format or exclude the ASCII dump text, and whether to print the
+frame timestamp as preamble.
+.sp
+This option (and \fB\-x\fP) can occur multiple times on the command line,
+and the hex dump will only be printed once. In the case of conflicting
+options, the last options given will be used. The possible \fB<hexoption>\fP
+values are:
+.sp
+\fBall\fP
+.RS 4
+Enable hexdump, generate hexdump blocks for all data sources associated
+with each frame. Used to negate earlier use of \f(CR\-\-hexdump frames\fP.
+The \fB\-x\fP option displays all data sources by default.
+.RE
+.sp
+\fBframes\fP
+.RS 4
+Enable hexdump, generate hexdump blocks only for the frame data. Use
+this option to exclude from hexdump output any hexdump blocks for
+secondary data sources such as \*(AqBitstring tvb\*(Aq, \*(AqReassembled TCP\*(Aq,
+\*(AqDe\-chunked entity body\*(Aq, etc.
+.RE
+.sp
+\fBascii\fP
+.RS 4
+Enable hexdump, with undelimited ASCII dump text. Used to negate earlier
+use of \f(CR\-\-hexdump delimit\fP or \f(CR\-\-hexdump noascii\fP. The \fB\-x\fP option
+displays undelimited ASCII dump text by default.
+.RE
+.sp
+\fBdelimit\fP
+.RS 4
+Enable hexdump with the ASCII dump text delimited with \*(Aq|\*(Aq characters.
+This is useful to unambiguously determine the last of the hex byte text
+and start of the ASCII dump text.
+.RE
+.sp
+\fBnoascii\fP
+.RS 4
+Enable hexdump without printing any ASCII dump text.
+.RE
+.sp
+\fBtime\fP
+.RS 4
+Enable hexdump and print each frame timestamp as preamble. The \fB\-t\fP
+option can be used to change the timestamp format.
+.RE
+.sp
+\fBnotime\fP
+.RS 4
+Enable hexdump without print each frame timestamp as preamble.
+.RE
+.sp
+\fBhelp\fP
+.RS 4
+Display \fB\-\-hexdump\fP specific help then exit.
+.RE
+.sp
+The use of \fB\-\-hexdump <hexoption>\fP is particularly useful to generate output
+that can be used to create a pcap or pcapng file from a capture file type such
+as Microsoft NetMon 2.x which \fBstrato\fP and \fBWireshark\fP can read but can not
+directly do a "Save as" nor export packets from.
+.sp
+Examples:
+.sp
+Generate hexdump output, with only the frame data source, with delimited ASCII
+dump text, and with each frame hex block preceded by a human readable timestamp
+in the local time zone that is directly usable by the \fBtext2pcap\fP utility:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato ... \-\-hexdump frames \-\-hexdump delimit \-\-hexdump time \-t ad \(rs
+    | text2pcap \-t \*(AqISO\*(Aq \- MYNEWPCAPNG
+.fam
+.fi
+.if n .RE
+.sp
+Generate hexdump output, with only the frame data source, with the default
+ASCII dump text with no delimiter, and with each frame hex block preceded by a
+human readable timestamp in UTC that is directly usable by the \fBtext2pcap\fP
+utility with the \fB\-a\fP option:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato ... \-\-hexdump frames \-\-hexdump time \-t ud \(rs
+    | text2pcap \-a \-t \*(AqISO\*(Aq \- MYNEWPCAPNG
+.fam
+.fi
+.if n .RE
+.sp
+Generate hexdump output, with only the frame data source, with no ASCII dump
+text, and with each frame hex block preceded by an epoch timestamp that is
+directly usable by the \fBtext2pcap\fP utility:
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato ... \-\-hexdump frames \-\-hexdump noascii \-\-hexdump time \-t e \(rs
+    | text2pcap \-t %s.%f \- MYNEWPCAPNG
+.fam
+.fi
+.if n .RE
+.RE
+.sp
+\-X <eXtension options>
+.RS 4
+.sp
+Specify an option to be passed to a \fBstrato\fP module.  The eXtension option
+is in the form \fIextension_key:value\fP, where \fIextension_key\fP can be:
+.sp
+\fBlua_script\fP:\fIlua_script_filename\fP tells \fBstrato\fP to load the given script in
+addition to the default Lua scripts.
+.sp
+\fBlua_script\fP\fInum\fP:\fIargument\fP tells \fBstrato\fP to pass the given argument
+to the lua script identified by \*(Aqnum\*(Aq, which is the number indexed order of the
+\*(Aqlua_script\*(Aq command. For example, if only one script was loaded with
+\*(Aq\-X lua_script:my.lua\*(Aq, then \*(Aq\-X lua_script1:foo\*(Aq will pass the string \*(Aqfoo\*(Aq to
+the \*(Aqmy.lua\*(Aq script.  If two scripts were loaded, such as \*(Aq\-X lua_script:my.lua\*(Aq
+and \*(Aq\-X lua_script:other.lua\*(Aq in that order, then a \*(Aq\-X lua_script2:bar\*(Aq would
+pass the string \*(Aqbar\*(Aq to the second lua script, namely \*(Aqother.lua\*(Aq.
+.sp
+\fBread_format\fP:\fIfile_format\fP tells \fBstrato\fP to use the given file format to
+read in the file (the file given in the \fB\-r\fP command option). Providing no
+\fIfile_format\fP argument, or an invalid one, will produce a list of available
+file formats to use. For example,
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-r rtcp_broken.pcapng \-X read_format:"MIME Files Format" \-V
+.fam
+.fi
+.if n .RE
+.sp
+will display the internal file structure  and allow access to the
+\f(CRfile\-pcapng\fP fields.
+.RE
+.sp
+\-Y|\-\-display\-filter  <displaY filter>
+.RS 4
+.sp
+Cause the specified filter (which uses the syntax of read/display filters,
+rather than that of capture filters) to be applied before printing a
+decoded form of packets or writing packets to a file.  Packets matching the
+filter are printed or written to file; packets that the matching packets
+depend upon (e.g., fragments), are not printed but are written to file;
+packets not matching the filter nor depended upon are discarded rather
+than being printed or written.
+.sp
+Use this instead of \fB\-R\fP for filtering using single\-pass analysis. If doing
+two\-pass analysis (see \fB\-2\fP) then only packets matching the read filter (if there
+is one) will be checked against this filter.
+.RE
+.sp
+\-M  <auto session reset>
+.RS 4
+.sp
+Automatically reset internal session when reached to specified number of packets.
+For example,
+.sp
+.if n .RS 4
+.nf
+.fam C
+strato \-M 100000
+.fam
+.fi
+.if n .RE
+.sp
+will reset session every 100000 packets.
+.sp
+This feature does not support \fB\-2\fP two\-pass analysis
+.RE
+.sp
+\-z  <statistics>
+.RS 4
+.sp
+Get \fBstrato\fP to collect various types of statistics and display the
+result after finishing reading the capture file.  Use the \fB\-q\fP option
+if you\(cqre reading a capture file and only want the statistics printed,
+not any per\-packet information.
+.sp
+Statistics are calculated independently of the normal per\-packet output,
+unaffected by the main display filter. However, most have their own
+optional \fIfilter\fP parameter, and only packets that match that filter (and
+any capture filter or read filter) will be used in the calculations.
+.sp
+Note that the \fB\-z proto\fP option is different \- it doesn\(cqt cause
+statistics to be gathered and printed when the capture is complete, it
+modifies the regular packet summary output to include the values of
+fields specified with the option.  Therefore you must not use the \fB\-q\fP
+option, as that option would suppress the printing of the regular packet
+summary output, and must also not use the \fB\-V\fP option, as that would
+cause packet detail information rather than packet summary information
+to be printed.
+.sp
+Some of the currently implemented statistics are:
+.RE
+.sp
+\fB\-z help\fP
+.RS 4
+Display all possible values for \fB\-z\fP.
+.RE
+.sp
+\fB\-z\fP container_io,tree[,\fIfilter\fP]
+.RS 4
+Calculate file I/O statistics for containers.
+.RE
+.sp
+\fB\-z\fP expert[\fI,error|,warn|,note|,chat|,comment\fP][,\fIfilter\fP]
+.RS 4
+.sp
+Collects information about all expert info, and will display them in order,
+grouped by severity.
+.sp
+Example: \fB\-z expert,sip\fP will show expert items of all severity for frames that
+match the sip protocol.
+.sp
+This option can be used multiple times on the command line.
+.sp
+Example: \fB\-z "expert,note,tcp"\fP will only collect expert items for frames that
+include the tcp protocol, with a severity of note or higher.
+.RE
+.sp
+\-\-capture\-comment <comment>
+.RS 4
+.sp
+Add a capture comment to the output file, if supported by the output
+file format.
+.sp
+This option may be specified multiple times.  Note that Wireshark
+currently only displays the first comment of a capture file.
+.RE
+.sp
+\-\-list\-time\-stamp\-types
+.RS 4
+List time stamp types supported for the interface. If no time stamp type can be
+set, no time stamp types are listed.
+.RE
+.sp
+\-\-no\-optimize
+.RS 4
+Do not run the libpcap optimizer when generating code for a capture filter.
+This is useful if you suspect a bug in the optimizer.
+.RE
+.sp
+This option can occur multiple times. If used before the first
+occurrence of the \fB\-i\fP option, capture filters are not optimized for all
+interfaces. If used after an \fB\-i\fP option, the capture filter for the interface
+specified by the last \fB\-i\fP option occurring before this option is not optimized.
+.sp
+\-\-time\-stamp\-type <type>
+.RS 4
+Change the interface\(cqs timestamp method.
+.RE
+.sp
+\-\-update\-interval  <interval>
+.RS 4
+Set the length of time in milliseconds between new packet reports during
+a capture. Also sets the granularity of file duration conditions.
+The default value is 100ms.
+.RE
+.sp
+\-\-color
+.RS 4
+Enable coloring of packets according to standard Wireshark color
+filters. On Windows colors are limited to the standard console
+character attribute colors. Other platforms require a terminal that
+handles 24\-bit "true color" terminal escape sequences. See
+.URL "https://wiki.wireshark.org/ColoringRules" "" ""
+for more information on
+configuring color filters.
+.RE
+.sp
+\-\-no\-duplicate\-keys
+.RS 4
+If a key appears multiple times in an object, only write it a single time with
+as value a json array containing all the separate values. (Only works with
+\fB\-T json\fP)
+.RE
+.sp
+\-\-elastic\-mapping\-filter <protocol>,<protocol>,.\|.\|.
+.RS 4
+.sp
+When generating the ElasticSearch mapping file, only put the specified protocols
+in it, to avoid a huge mapping file that can choke some software (such as Kibana).
+The option takes a list of wanted protocol abbreviations, separated by comma.
+.sp
+Example: ip,udp,dns puts only those three protocols in the mapping file.
+.RE
+.sp
+\-\-export\-objects <protocol>,<destdir>
+.RS 4
+.sp
+Export all objects within a protocol into directory \fBdestdir\fP. The available
+values for \fBprotocol\fP can be listed with \fB\-\-export\-objects help\fP.
+.sp
+The objects are directly saved in the given directory. Filenames are dependent
+on the dissector, but typically it is named after the basename of a file.
+Duplicate files are not overwritten, instead an increasing number is appended
+before the file extension.
+.sp
+This interface is subject to change, adding the possibility to filter on files.
+.RE
+.sp
+\-\-print\-timers
+.RS 4
+Output JSON containing elapsed times for each pass strato does to process a capture
+file and the sum elapsed time for all passes. The per\-pass output contains the total
+elapsed time and aggregate counters for per\-packet operations (dissection and filtering).
+.RE
+.sp
+\-\-compress <type>
+.RS 4
+.sp
+Compress the output file using the type compression format.
+\fB\-\-compress\fP with no argument provides a list of the compression formats supported
+for writing. The type given takes precedence over the extension of \fIoutfile\fP.
+.RE
+.SH "DISSECTION OPTIONS"
+.sp
+\-d  <layer type>==<selector>,<decode\-as protocol>
+.RS 4
+.sp
+Like Wireshark\(cqs \fBDecode As.\|.\|.\fP feature, this lets you specify how a
+layer type should be dissected.  If the layer type in question (for example,
+\fBtcp.port\fP or \fBudp.port\fP for a TCP or UDP port number) has the specified
+selector value, packets should be dissected as the specified protocol.
+.sp
+.B Example 1. Decode As Port
+.br
+.RS 4
+.sp
+\fB\-d tcp.port==8888,http\fP will decode any traffic running over
+TCP port 8888 as HTTP.
+.RE
+.sp
+.B Example 2. Decode As Port Range
+.br
+.RS 4
+.sp
+\fB\-d tcp.port==8888\-8890,http\fP will decode any traffic running
+over TCP ports 8888, 8889 or 8890 as HTTP.
+.RE
+.sp
+.B Example 3. Decode As Port Range via Length
+.br
+.RS 4
+.sp
+\fB\-d tcp.port==8888:3,http\fP will decode any traffic running over
+the three TCP ports 8888, 8889 or 8890 as HTTP.
+.RE
+.sp
+Using an invalid selector or protocol will print out a list of valid selectors
+and protocol names, respectively.
+.sp
+.B Example 4. Decode As List of Selectors
+.br
+.RS 4
+.sp
+\fB\-d .\fP is a quick way to get a list of valid selectors.
+.RE
+.sp
+.B Example 5. Decode As List of Values for a Selector
+.br
+.RS 4
+.sp
+\fB\-d ethertype==0x0800,.\fP is a quick way to get a list of protocols
+that can be selected with an ethertype.
+.RE
+.RE
+.sp
+\-\-disable\-all\-protocols
+.RS 4
+Disable dissection of all protocols.
+.RE
+.sp
+\-\-disable\-protocol <proto_name>[,<proto_name>,.\|.\|.]
+.RS 4
+Disable dissection of proto_name.
+Use a proto_name of \fBALL\fP to override
+your chosen profile\(cqs default enabled protocol list and temporarily
+disable all protocols.
+.RE
+.sp
+\-\-disable\-heuristic <short_name>
+.RS 4
+Disable dissection of heuristic protocol.
+.RE
+.sp
+\-\-enable\-protocol <proto_name>[,<proto_name>,.\|.\|.]
+.RS 4
+.sp
+Enable dissection of proto_name.
+Use a proto_name of \fBALL\fP to override
+your chosen profile\(cqs default disabled protocol list and temporarily
+enable all protocols which are enabled by default.
+.sp
+If a protocol is implicated in both \fB\-\-disable\-protocol\fP
+and \fB\-\-enable\-protocol\fP, the protocol is enabled. This allows you to
+temporarily disable all protocols but a list of exceptions.
+Example: \fB\-\-disable\-protocol ALL \-\-enable\-protocol eth,ip\fP
+.RE
+.sp
+\-\-enable\-heuristic <short_name>
+.RS 4
+Enable dissection of heuristic protocol.
+.RE
+.sp
+\-K  <keytab>
+.RS 4
+.sp
+Load kerberos crypto keys from the specified keytab file.
+This option can be used multiple times to load keys from several files.
+.sp
+Example: \fB\-K krb5.keytab\fP
+.RE
+.sp
+\-n
+.RS 4
+Disable network object name resolution (such as hostname, TCP and UDP port
+names); the \fB\-N\fP option might override this one.
+.RE
+.sp
+\-N  <name resolving flags>
+.RS 4
+.sp
+Turn on name resolving only for particular types of addresses and port
+numbers, with name resolving for other types of addresses and port
+numbers turned off.  This option (along with \fB\-n\fP) can be specified
+multiple times; the last value given overrides earlier ones. This option
+and \fB\-n\fP override the options from the preferences, including preferences
+set via the \fB\-o\fP option. If both \fB\-N\fP and \fB\-n\fP options are not present,
+the values from the preferences are used, which default to \fB\-N dmN\fP.
+.sp
+The argument is a string that may contain the letters:
+.sp
+\fBd\fP to enable resolution from captured DNS packets
+.sp
+\fBg\fP to enable IP address geolocation information lookup from configured
+MaxMind databases
+.sp
+\fBm\fP to enable MAC address resolution
+.sp
+\fBn\fP to enable network address resolution
+.sp
+\fBN\fP to enable using external resolvers (e.g., DNS) for network address
+resolution; no effect without \fBn\fP also enabled.
+.sp
+\fBs\fP to enable address resolution using SNI information found in captured
+handshake packets
+.sp
+\fBt\fP to enable transport\-layer port number resolution
+.sp
+\fBv\fP to enable VLAN IDs to names resolution
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Caution
+.ps -1
+.br
+.sp
+In tshark single\-pass mode, external resolution and geolocation lookup is
+performed synchronously. For live captures, which are always in single\-pass
+mode, this makes it more difficult for dissection to keep up with a busy
+network, possibly leading to dropped packets.
+.sp .5v
+.RE
+.RE
+.sp
+\-\-only\-protocols <protocols>
+.RS 4
+Only enable dissection of these protocols, comma separated. Disable everything else.
+.RE
+.sp
+\-t  (a|ad|adoy|d|dd|e|r|rc|u|ud|udoy)[.[N]]|.[N]
+.RS 4
+.sp
+Set the format of the packet timestamp displayed in the default time
+column.  The format can be one of:
+.sp
+\fBa\fP absolute: The absolute time, as local time in your time zone,
+is the actual time the packet was captured, with no date displayed
+.sp
+\fBad\fP absolute with date: The absolute date, displayed as YYYY\-MM\-DD,
+and time, as local time in your time zone, is the actual time and date
+the packet was captured
+.sp
+\fBadoy\fP absolute with date using day of year: The absolute date,
+displayed as YYYY/DOY, and time, as local time in your time zone,
+is the actual time and date the packet was captured
+.sp
+\fBd\fP delta: The delta time is the time since the previous packet was
+captured
+.sp
+\fBdd\fP delta_displayed: The delta_displayed time is the time since the
+previous displayed packet was captured
+.sp
+\fBe\fP epoch: The time in seconds since epoch (Jan 1, 1970 00:00:00)
+.sp
+\fBr\fP relative: The relative time is the time elapsed between the first packet
+and the current packet
+.sp
+\fBrc\fP relative to capture start: The relative to capture start time is the
+time elapsed between the start of the capturing and the current packet
+.sp
+\fBu\fP UTC: The absolute time, as UTC with a "Z" suffix, is the actual time
+the packet was captured, with no date displayed
+.sp
+\fBud\fP UTC with date: The absolute date, displayed as YYYY\-MM\-DD,
+and time, as UTC with a "Z" suffix, is the actual time and date the packet
+was captured
+.sp
+\fBudoy\fP UTC with date using day of year: The absolute date, displayed
+as YYYY/DOY, and time, as UTC with a "Z" suffix, is the actual time and date
+the packet was captured
+.sp
+\fB.[N]\fP Set the precision: N is the number of decimals (0 through 9).
+If using "." without N, automatically determine precision from trace.
+.sp
+The default format is relative with precision based on capture format.
+.RE
+.sp
+\-u <s|hms>
+.RS 4
+.sp
+Specifies how packet timestamp formats in \fB\-t\fP which are relative times
+(i.e.  relative, delta, and delta_displayed) are displayed.  Valid choices are:
+.sp
+\fBs\fP for seconds
+.sp
+\fBhms\fP for hours, minutes, and seconds
+.sp
+The default format is seconds.
+.RE
+.SH "DIAGNOSTIC OPTIONS"
+.sp
+\-\-log\-level <level>
+.RS 4
+Set the active log level.
+Supported levels in lowest to highest order are "noisy", "debug", "info", "message", "warning", "critical", and "error".
+Messages at each level and higher will be printed, for example "warning" prints "warning", "critical", and "error" messages and "noisy" prints all messages.
+Levels are case insensitive.
+.RE
+.sp
+\-\-log\-fatal <level>
+.RS 4
+Abort the program if any messages are logged at the specified level or higher.
+For example, "warning" aborts on any "warning", "critical", or "error" messages.
+.RE
+.sp
+\-\-log\-fatal\-count <count>
+.RS 4
+The amount of fatal log messages which may pass before the program is aborted.
+.RE
+.sp
+\-\-log\-domains <list>
+.RS 4
+Only print messages for the specified log domains, e.g. "GUI,Epan,sshdump".
+List of domains must be comma\-separated. Can be negated with "!" as the first character (inverts the match).
+.RE
+.sp
+\-\-log\-debug <list>
+.RS 4
+Force the specified domains to log at the "debug" level.
+List of domains must be comma\-separated. Can be negated with "!" as the first character (inverts the match).
+.RE
+.sp
+\-\-log\-noisy <list>
+.RS 4
+Force the specified domains to log at the "noisy" level.
+List of domains must be comma\-separated. Can be negated with "!" as the first character (inverts the match).
+.RE
+.sp
+\-\-log\-fatal\-domains <list>
+.RS 4
+Abort the program if any messages are logged for the specified log domains.
+List of domains must be comma\-separated.
+.RE
+.sp
+\-\-log\-file <path>
+.RS 4
+Write log messages and stderr output to the specified file.
+.RE
+.SH "فایل‌ها (FILES)"
+.sp
+These files contain various \fBWireshark\fP configuration settings.
+.sp
+Preferences
+.RS 4
+.sp
+The \fIpreferences\fP files contain global (system\-wide) and personal
+preference settings.  If the system\-wide preference file exists, it is
+read first, overriding the default settings.  If the personal preferences
+file exists, it is read next, overriding any previous values.  Note: If
+the command line flag \fB\-o\fP is used (possibly more than once), it will
+in turn override values from the preferences files.
+.sp
+The preferences settings are in the form \fIprefname:value\fP,
+one per line,
+where \fIprefname\fP is the name of the preference
+and \fIvalue\fP is the value to
+which it should be set; white space is allowed between \fB:\fP and
+\fIvalue\fP.  A preference setting can be continued on subsequent lines by
+indenting the continuation lines with white space.  A \fB#\fP character
+starts a comment that runs to the end of the line:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# Vertical scrollbars should be on right side?
+# TRUE or FALSE (case\-insensitive).
+gui.scrollbar_on_right: TRUE
+.fam
+.fi
+.if n .RE
+.sp
+The global preferences file is looked for in the \fIwireshark\fP directory
+under the \fIshare\fP subdirectory of the main installation directory.  On
+macOS, this would typically be
+\fI/Application/Wireshark.app/Contents/Resources/share\fP; on other
+UNIX\-compatible systems, such as Linux, \(rs*BSD, Solaris, and AIX, this
+would typically be \fI/usr/share/wireshark/preferences\fP for
+system\-installed packages and \fI/usr/local/share/wireshark/preferences\fP
+for locally\-installed packages; on Windows, this would typically be
+\fIC:\(rsProgram Files\(rsWireshark\(rspreferences\fP.
+.sp
+On UNIX\-compatible systems, the personal preferences file is looked for
+in \fI$XDG_CONFIG_HOME/wireshark/preferences\fP, (or, if
+\fI$XDG_CONFIG_HOME/wireshark\fP does not exist while \fI$HOME/.wireshark\fP
+does exist, \fI$HOME/.wireshark/preferences\fP); this is typically
+\fI$HOME/.config/wireshark/preferences\fP.  On Windows,
+the personal preferences file is looked for in
+\fI%APPDATA%\(rsWireshark\(rspreferences\fP (or, if %APPDATA% isn\(cqt defined,
+\fI%USERPROFILE%\(rsApplication Data\(rsWireshark\(rspreferences\fP).
+.RE
+.sp
+Disabled (Enabled) Protocols
+.RS 4
+.sp
+The \fIdisabled_protos\fP files contain system\-wide and personal lists of
+protocols that have been disabled, so that their dissectors are never
+called.  The files contain protocol names, one per line, where the
+protocol name is the same name that would be used in a display filter
+for the protocol:
+.sp
+.if n .RS 4
+.nf
+.fam C
+http
+tcp\&     # a comment
+.fam
+.fi
+.if n .RE
+.sp
+If a protocol is listed in the global \fIdisabled_protos\fP file it cannot
+be enabled by the user.
+.sp
+The global \fIdisabled_protos\fP file uses the same directory as the global
+preferences file.
+.sp
+The personal \fIdisabled_protos\fP file uses the same directory as the
+personal preferences file.
+.sp
+The \fIdisabled_protos\fP files list only protocols that are enabled by default
+but have been disabled; protocols that are disabled by default (such as some
+postdissectors) are not listed. There are analogous \fIenabled_protos\fP files
+for protocols that are disabled by default but have been enabled.
+.RE
+.sp
+Heuristic Dissectors
+.RS 4
+.sp
+The \fIheuristic_protos\fP files contain system\-wide and personal lists of
+heuristic dissectors and indicate whether they are enabled or disabled.
+The files contain heuristic dissector unique short names, one per line,
+followed by a comma and 0 for disabled and 1 for enabled:
+.sp
+.if n .RS 4
+.nf
+.fam C
+quic,1
+rtcp_stun,1
+rtcp_udp,1
+rtp_stun,0
+rtp_udp,0
+tls_tcp,1
+.fam
+.fi
+.if n .RE
+.sp
+The global \fIheuristic_protos\fP file uses the same directory as the global
+preferences file.
+.sp
+The personal \fIheuristic_protos\fP file uses the same directory as the
+personal preferences file.
+.RE
+.sp
+Name Resolution (hosts)
+.RS 4
+.sp
+Entries in \fIhosts\fP files in the global and personal preferences
+directory are used to resolve IPv4 and IPv6 addresses before any
+other attempts are made to resolve them.
+The file has the standard \fIhosts\fP file syntax; each line contains one
+IP address and name, separated by whitespace. The personal \fIhosts\fP
+file, if present, overrides the one in the global directory.
+.sp
+Capture filter name resolution is handled by libpcap on UNIX\-compatible
+systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX, and Npcap
+on Windows.  As such the Wireshark personal \fIhosts\fP file will
+not be consulted for capture filter name resolution.
+.RE
+.sp
+Name Resolution (subnets)
+.RS 4
+.sp
+If an IPv4 address cannot be translated via name resolution (no exact
+match is found) then a partial match is attempted via the \fIsubnets\fP file.
+Both the global \fIsubnets\fP file and personal \fIsubnets\fP files are used
+if they exist.
+.sp
+Each line of this file consists of an IPv4 address, a subnet mask length
+separated only by a / and a name separated by whitespace. While the address
+must be a full IPv4 address, any values beyond the mask length are subsequently
+ignored.
+.sp
+An example is:
+.sp
+# Comments must be prepended by the # sign!
+192.168.0.0/24 ws_test_network
+.sp
+A partially matched name will be printed as "subnet\-name.remaining\-address".
+For example, "192.168.0.1" under the subnet above would be printed as
+"ws_test_network.1"; if the mask length above had been 16 rather than 24, the
+printed address would be "ws_test_network.0.1".
+.RE
+.sp
+Name Resolution (ethers)
+.RS 4
+.sp
+The \fIethers\fP files are consulted to correlate 6\-byte EUI\-48 and 8\-byte EUI\-64
+hardware addresses to names.  First the personal \fIethers\fP file is tried and
+if an address is not found there the global \fIethers\fP file is tried next.
+.sp
+The file has a similar format to that defined by ethers(5) on some UNIX\-like
+systems.  Each line contains one hardware address and name, separated by
+whitespace (tabs or spaces).  The hexadecimal digits of the hardware address
+are separated by colons (:), dashes (\-) or periods (.).  The same separator
+character must be used consistently in an address.  A \f(CR#\fP indicates a comment
+that extends to the rest of the line. Both 6\-byte MAC and 8\-byte EUI\-64
+addresses are supported.  The following four lines are valid lines of an
+\fIethers\fP file:
+.sp
+.if n .RS 4
+.nf
+.fam C
+ff:ff:ff:ff:ff:ff\&          Broadcast
+c0\-00\-ff\-ff\-ff\-ff\&          TR_broadcast
+00.00.00.00.00.00\&          Zero_broadcast
+00:00:00:00:00:00:00:00\&    EUI64_zero_broadcast
+.fam
+.fi
+.if n .RE
+.sp
+Note that this accepts a greater variety of formats than the file
+defined by ethers(5) on most UN*X systems.
+.sp
+The global \fIethers\fP file is looked for in the \fI/etc\fP directory on
+UNIX\-compatible systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX,
+and in the main installation directory (for example, \fIC:\(rsProgram
+Files\(rsWireshark\fP) on Windows systems.
+.sp
+The personal \fIethers\fP file is looked for in the same directory as the personal
+preferences file.
+.sp
+Capture filter name resolution is handled by libpcap on UNIX\-compatible
+systems and Npcap on Windows.  As such the Wireshark personal
+\fIethers\fP file will not be consulted for capture filter name
+resolution.
+.RE
+.sp
+Name Resolution (manuf)
+.RS 4
+.sp
+The \fImanuf\fP file is used to match the 3\-byte vendor portion of a 6\-byte
+hardware address with the manufacturer\(cqs name; it can also contain well\-known
+MAC addresses and address ranges specified with a netmask.  The format of the
+file is similar the \fIethers\fP files, except that entries such as:
+.sp
+.if n .RS 4
+.nf
+.fam C
+00:00:0C\&      Cisco\&     Cisco Systems, Inc
+.fam
+.fi
+.if n .RE
+.sp
+can be provided, with the 3\-byte OUI and both an abbreviated and long name for
+a vendor, and entries such as:
+.sp
+.if n .RS 4
+.nf
+.fam C
+00\-00\-0C\-07\-AC/40\&     All\-HSRP\-routers
+.fam
+.fi
+.if n .RE
+.sp
+can be specified, with a MAC address and a mask indicating how many bits
+of the address must match.  The above entry, for example, has 40
+significant bits, or 5 bytes, and would match addresses from
+00\-00\-0C\-07\-AC\-00 through 00\-00\-0C\-07\-AC\-FF.  The mask need not be a
+multiple of 8.
+.sp
+A global \fImanuf\fP file is looked for in the same directory as the global
+preferences file, and a personal \fImanuf\fP file is looked for in the same
+directory as the personal preferences file.
+.sp
+In earlier versions of Wireshark, official information from the IEEE
+Registration Authority was distributed in this format as the global
+\fImanuf\fP file. This information is now compiled in to speed program
+startup, but the internal information can be written out in this format
+with \fBtshark \-G manuf\fP.
+.sp
+In addition to the \fImanuf\fP file, another file with the same format,
+\fIwka\fP, is looked for in the global directory. This file is distributed
+with Wireshark, and contains data about well\-known MAC addresses and
+address ranges assembled from various non IEEE but respected sources.
+.RE
+.sp
+Name Resolution (services)
+.RS 4
+.sp
+The \fIservices\fP file is used to translate port numbers into names.
+Both the global \fIservices\fP file and personal \fIservices\fP files are used
+if they exist.
+.sp
+The file has the standard \fIservices\fP file syntax; each line contains one
+(service) name and one transport identifier separated by white space.  The
+transport identifier includes one port number and one transport protocol name
+(typically tcp, udp, or sctp) separated by a /.
+.sp
+An example is:
+.sp
+mydns       5045/udp     # My own Domain Name Server
+mydns       5045/tcp     # My own Domain Name Server
+.sp
+In earlier versions of Wireshark, official information from the IANA
+Registry was distributed in this format as the global \fIservices\fP file.
+This information is now compiled in to speed program startup, but the
+internal information can be written out in this format with \fBtshark \-G services\fP.
+.RE
+.sp
+Name Resolution (ipxnets)
+.RS 4
+.sp
+The \fIipxnets\fP files are used to correlate 4\-byte IPX network numbers to
+names.  First the global \fIipxnets\fP file is tried and if that address is not
+found there the personal one is tried next.
+.sp
+The format is the same as the \fIethers\fP
+file, except that each address is four bytes instead of six.
+Additionally, the address can be represented as a single hexadecimal
+number, as is more common in the IPX world, rather than four hex octets.
+For example, these four lines are valid lines of an \fIipxnets\fP file:
+.sp
+.if n .RS 4
+.nf
+.fam C
+C0.A8.2C.00\&              HR
+c0\-a8\-1c\-00\&              CEO
+00:00:BE:EF\&              IT_Server1
+110f\&                     FileServer3
+.fam
+.fi
+.if n .RE
+.sp
+The global \fIipxnets\fP file is looked for in the \fI/etc\fP directory on
+UNIX\-compatible systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX,
+and in the main installation directory (for example, \fIC:\(rsProgram
+Files\(rsWireshark\fP) on Windows systems.
+.sp
+The personal \fIipxnets\fP file is looked for in the same directory as the
+personal preferences file.
+.RE
+.sp
+Name Resolution (ss7pcs)
+.RS 4
+.sp
+The \fIss7pcs\fP file is used to translate SS7 point codes to names.
+It is read from the personal configuration directory.
+.sp
+Each line in this file consists of one network indicator followed by a dash
+followed by a point code in decimal and a node name separated by whitespace.
+An example is:
+.sp
+.if n .RS 4
+.nf
+.fam C
+2\-1234 MyPointCode1
+.fam
+.fi
+.if n .RE
+.RE
+.sp
+Name Resolution (vlans)
+.RS 4
+.sp
+The \fIvlans\fP file is used to translate VLAN tag IDs into names.
+It is read from the personal configuration directory.
+.sp
+Each line in this file consists of one VLAN tag ID separated by whitespace
+from a name.  An example is:
+.sp
+.if n .RS 4
+.nf
+.fam C
+123\&    Server\-Lan
+2049\&   HR\-Client\-LAN
+.fam
+.fi
+.if n .RE
+.RE
+.sp
+Color Filters (Coloring Rules)
+.RS 4
+.sp
+The \fIcolorfilters\fP files contain system\-wide and personal color filters.
+Each line contains one filter, starting with the string displayed in the
+dialog box, followed by the corresponding display filter.  Then the
+background and foreground colors are appended:
+.sp
+.if n .RS 4
+.nf
+.fam C
+# a comment
+@tcp@tcp@[59345,58980,65534][0,0,0]
+@udp@udp@[28834,57427,65533][0,0,0]
+.fam
+.fi
+.if n .RE
+.sp
+The global \fIcolorfilters\fP file uses the same directory as the
+global preferences file.
+.sp
+The personal \fIcolorfilters\fP file uses the same directory as the
+personal preferences file.  It is written through the View:Coloring Rules
+dialog.
+.sp
+If the global \fIcolorfilters\fP file exists, it is used only if the personal
+\fIcolorfilters\fP file does not exist; global and personal color filters are
+not merged.
+.RE
+.sp
+Plugins
+.RS 4
+.sp
+Wireshark looks for plugins in both a personal plugin folder and a
+global plugin folder.
+.sp
+On UNIX\-compatible systems, such as Linux, macOS, \(rs*BSD, Solaris, and
+AIX, the global plugin directory is \fIlib/wireshark/plugins/\fP (on
+some systems substitute \fIlib64\fP for \fIlib\fP) under the main installation
+directory (for example, \fI/usr/local/lib/wireshark/plugins/\fP). The personal
+plugin directory is \fI$HOME/.local/lib/wireshark/plugins\fP.
+.sp
+On macOS, if Wireshark is installed as an application bundle, the global plugin
+folder is instead \fI%APPDIR%/Contents/PlugIns/wireshark\fP.
+.sp
+On Windows, the global plugin folder is \fIplugins/\fP under the main
+installation directory (for example, \fIC:\(rsProgram Files\(rsWireshark\(rsplugins\(rs\fP).
+The personal plugin folder is \fI%APPDATA%\(rsWireshark\(rsplugins\fP (or, if
+%APPDATA% isn\(cqt defined, \fI%USERPROFILE%\(rsApplication Data\(rsWireshark\(rsplugins\fP).
+.sp
+Lua plugins are stored in the plugin folders;
+compiled plugins are stored in subfolders of the plugin folders, with
+the subfolder name being the Wireshark minor version number (X.Y). There is
+another hierarchical level for each Wireshark plugin type (libwireshark,
+libwiretap and codecs).  For example, the location for a libwireshark plugin
+\fIfoo.so\fP (\fIfoo.dll\fP on Windows) would be \fIPLUGINDIR/X.Y/epan\fP
+(libwireshark used to be called libepan; the other folder names are \fIcodecs\fP
+and \fIwiretap\fP).
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+On UNIX\-compatible systems, Lua plugins (but not binary plugins) may also
+be placed in \fI$XDG_CONFIG_HOME/wireshark/plugins\fP,
+(or, if \fI$XDG_CONFIG_HOME/wireshark\fP does not exist while \fI$HOME/.wireshark\fP
+does exist, \fI$HOME/.wireshark/plugins\fP.)
+.sp .5v
+.RE
+.sp
+Note that a dissector plugin module may support more than one protocol;
+there is not necessarily a one\-to\-one correspondence between dissector plugin
+modules and protocols.  Protocols supported by a dissector plugin module are
+enabled and disabled in the same way as protocols built into Wireshark.
+.RE
+.SH "OUTPUT"
+.sp
+\fBstrato\fP uses UTF\-8 to represent strings internally. In some cases the
+output might not be valid. For example, a dissector might generate
+invalid UTF\-8 character sequences. Programs reading \fBstrato\fP output
+should expect UTF\-8 and be prepared for invalid output.
+.sp
+If \fBstrato\fP detects that it is writing to a TTY on a UNIX\-compatible
+system, such as Linux, macOS, \(rs*BSD, Solaris, and AIX, and the locale
+does not support UTF\-8, output will be re\-encoded to match the current
+locale.
+.sp
+If \fBstrato\fP detects that it is writing to the console on Windows,
+dissection output will be encoded as UTF\-16LE. Other output will be
+UTF\-8. If extended characters don\(cqt display properly in your terminal
+you might try setting your console code page to UTF\-8 (\fBchcp 65001\fP)
+and using a modern terminal application if possible.
+.SH "ENVIRONMENT VARIABLES"
+.sp
+WIRESHARK_CONFIG_DIR
+.RS 4
+This environment variable overrides the location of personal
+configuration files.  On UNIX\-compatible systems, such as Linux, macOS,
+\(rs*BSD, Solaris, and AIX, it defaults to \fI$XDG_CONFIG_HOME/wireshark\fP
+(or, if that directory doesn\(cqt exist but \fI$HOME/.wireshark\fP does
+exist, \fI$HOME/.wireshark\fP); this is typically
+\fI$HOME/.config/wireshark\fP.  On Windows, it defaults to
+\fI%APPDATA%\(rsWireshark\fP (or, if %APPDATA% isn\(cqt defined,
+\fI%USERPROFILE%\(rsApplication Data\(rsWireshark\fP).  Available since
+Wireshark 3.0.
+.RE
+.sp
+WIRESHARK_DEBUG_WMEM_OVERRIDE
+.RS 4
+Setting this environment variable forces the wmem framework to use the
+specified allocator backend for \fBall\fP allocations, regardless of which
+backend is normally specified by the code. This is mainly useful to developers
+when testing or debugging. See \fIREADME.wmem\fP in the source distribution for
+details.
+.RE
+.sp
+WIRESHARK_RUN_FROM_BUILD_DIRECTORY
+.RS 4
+This environment variable causes the plugins and other data files to be
+loaded from the build directory (where the program was compiled) rather
+than from the standard locations.  It has no effect when the program in
+question is running with root (or setuid) permissions on UNIX\-compatible
+systems, such as Linux, macOS, \(rs*BSD, Solaris, and AIX.
+.RE
+.sp
+WIRESHARK_DATA_DIR
+.RS 4
+This environment variable causes the various data files to be loaded from
+a directory other than the standard locations.  It has no effect when the
+program in question is running with root (or setuid) permissions on
+UNIX\-compatible systems.
+.RE
+.sp
+WIRESHARK_EXTCAP_DIR
+.RS 4
+This environment variable causes the various extcap programs and scripts
+to be run from a directory other than the standard locations.  It has no
+effect when the program in question is running with root (or setuid)
+permissions on UNIX\-compatible systems.
+.RE
+.sp
+WIRESHARK_PLUGIN_DIR
+.RS 4
+This environment variable causes the various plugins to be loaded from
+a directory other than the standard locations.  It has no effect when the
+program in question is running with root (or setuid) permissions on
+UNIX\-compatible systems.
+.RE
+.sp
+ERF_RECORDS_TO_CHECK
+.RS 4
+This environment variable controls the number of ERF records checked when
+deciding if a file really is in the ERF format.  Setting this environment
+variable a number higher than the default (20) would make false positives
+less likely.
+.RE
+.sp
+IPFIX_RECORDS_TO_CHECK
+.RS 4
+This environment variable controls the number of IPFIX records checked when
+deciding if a file really is in the IPFIX format.  Setting this environment
+variable a number higher than the default (20) would make false positives
+less likely.
+.RE
+.sp
+WIRESHARK_ABORT_ON_DISSECTOR_BUG
+.RS 4
+If this environment variable is set, \fBstrato\fP will call abort(3)
+when a dissector bug is encountered.  abort(3) will cause the program to
+exit abnormally; if you are running \fBstrato\fP in a debugger, it
+should halt in the debugger and allow inspection of the process, and, if
+you are not running it in a debugger, it will, on some OSes, assuming
+your environment is configured correctly, generate a core dump file.
+This can be useful to developers attempting to troubleshoot a problem
+with a protocol dissector.
+.RE
+.sp
+WIRESHARK_ABORT_ON_TOO_MANY_ITEMS
+.RS 4
+If this environment variable is set, \fBstrato\fP will call abort(3)
+if a dissector tries to add too many items to a tree (generally this
+is an indication of the dissector not breaking out of a loop soon enough).
+abort(3) will cause the program to exit abnormally; if you are running
+\fBstrato\fP in a debugger, it should halt in the debugger and allow
+inspection of the process, and, if you are not running it in a debugger,
+it will, on some OSes, assuming your environment is configured correctly,
+generate a core dump file.  This can be useful to developers attempting to
+troubleshoot a problem with a protocol dissector.
+.RE
+.sp
+WIRESHARK_LOG_LEVEL
+.RS 4
+This environment variable controls the verbosity of diagnostic messages to
+the console. From less verbose to most verbose levels can be \f(CRcritical\fP,
+\f(CRwarning\fP, \f(CRmessage\fP, \f(CRinfo\fP, \f(CRdebug\fP or \f(CRnoisy\fP. Levels above the
+current level are also active. Levels \f(CRcritical\fP and \f(CRerror\fP are always
+active.
+.RE
+.sp
+WIRESHARK_LOG_FATAL
+.RS 4
+Sets the fatal log level. Fatal log levels cause the program to abort.
+This level can be set to \f(CRError\fP, \f(CRcritical\fP or \f(CRwarning\fP. \f(CRError\fP is
+always fatal and is the default.
+.RE
+.sp
+WIRESHARK_LOG_DOMAINS
+.RS 4
+This environment variable selects which log domains are active. The filter is
+given as a case\-insensitive comma separated list. If set only the included
+domains will be enabled. The default domain is always considered to be enabled.
+Domain filter lists can be preceded by \*(Aq!\*(Aq to invert the sense of the match.
+.RE
+.sp
+WIRESHARK_LOG_DEBUG
+.RS 4
+List of domains with \f(CRdebug\fP log level. This sets the level of the provided
+log domains and takes precedence over the active domains filter. If preceded
+by \*(Aq!\*(Aq this disables the \f(CRdebug\fP level instead.
+.RE
+.sp
+WIRESHARK_LOG_NOISY
+.RS 4
+Same as above but for \f(CRnoisy\fP log level instead.
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+wireshark\-filter(4), stratoshark(1), editcap(1), dumpcap(1)
+.SH "نکات (NOTES)"
+.sp
+This is the manual page for \fBstrato\fP 0.10.3.
+\fBstrato\fP is part of the \fBStratoshark\fP distribution.
+The latest version of \fBStratoshark\fP can be found at \c
+.URL "https://stratoshark.org" "" "."
+.sp
+HTML versions of the Wireshark project man pages are available at
+.URL "https://www.wireshark.org/docs/man\-pages" "" "."
+.SH "نویسندگان (AUTHORS)"
+.sp
+\fBstrato\fP uses the same dissection code as \fBStratoshark\fP and \fBWireshark\fP,
+as well as using many other modules from \fBStratoshark\fP and \fBWireshark\fP; see the list of
+authors in the \fBWireshark\fP man page for a list of authors of that code.

@@ -1,0 +1,180 @@
+.TH ddr_lzma 1 "2024-03-10" "Dmitrii Ivanov" "XZ de/compression plugin for dd_rescue"
+.
+.SH "نام (NAME)"
+ddr_lzma \- Data de/compression plugin for dd_rescue
+.
+.SH "خلاصه دستور (SYNOPSIS)"
+.na
+.nh
+.B -L /path/to/libddr_lzma.so[=option[:option[:...]]]
+.br
+.B -L lzma=[=option[:option[:...]]]
+.
+.SH "توضیحات (DESCRIPTION)"
+.SS About
+XZ is an archiving format that uses the LZMA2 compression algorithm,
+also known as Lempel-Ziv-Markov chain algorithm. LZMA2 has fixed
+some quirks of the highly successful LZMA algo which provides high
+compression ratios and is known for its superior decompression speeds.
+It's optimized for much better compression ratios at the cost of
+compression speed compared to e.g. LZO. It's lowest preset levels
+tend to beat highest gzip and lowest bzip2 levels for both
+compression ratio and speed.
+.PP
+This plugin has been written for
+.B dd_rescue
+and uses the plugin interface from it. See the
+.BR dd_rescue(1)
+man page for more information on
+.B dd_rescue.
+.
+.SH "گزینه‌ها (OPTIONS)"
+Options are passed using
+.B dd_rescue
+option passing syntax: The name of the plugin (lzma) is optionally
+followed by an equal sign (=) and options are separated by a colon (:).
+the
+.B lzma
+plugin also allows most of common options from xz util with some additional ones.
+See the EXAMPLES section below.
+.
+.SS Compression or decompression
+The lzma dd_rescue plugin (subsequently referred to as just ddr_lzma which
+reflects the variable parts of the filename libddr_lzma.so) choses
+compression or decompression mode automatically
+if one of the input/output files has an [lt]xz suffix; otherwise
+you may specify
+.B z
+or
+.B d
+parameters on the command line for compression and decompression respectively.
+.P
+The parameter
+.B mt
+will tell ddr_lzma to do de/compression in multithreded mode. This
+might speed up processing of data by using all cores of the CPU.
+If the number of cores can not be detected, only one will be used.
+You can also pass
+.B mt=N
+to explicitly specify the number of threads to be used.
+.br
+Note that liblzma prior to 5.2.0 does not support multithreaded compression,
+while liblzma prior to 5.4.0 does not support multihreaded decompression.
+This parameter will be ignored then.
+.P
+The plugin also supports the parameter
+.B bench[mark]
+; if it's specified,
+it will output some information about CPU usage.
+.P
+If you only want to make an integrity check of the xz-compressed file,
+you can use
+.B test
+; if data is corrupted, you will get a message in the console about it.
+Instead of test you can use just t.
+.P
+Pass
+.B check=XXX
+where XXX can be one of next integrity checksum algos: CRC32, CRC64, SHA256, NONE.
+If NONE is specified, the integrity checksum will not be calculated while compressing
+By default CRC32 will be calculated by the plugin.
+.P
+Also if you want to limit memory usage when decoding, use next param:
+.B memlimit=XXX
+, where XXX is memory limit for decoding. The usual suffices k, M, G are
+supported. Values below 1M or above the machine's memory size will be
+rejected.
+.
+.SS Compression presets
+The parameter
+.B preset=X ,
+selects the compression ratio, where X can be an integer from 0 to 9
+inclusively. The default value is 3 which is lower than the default of
+6 that xz uses but provides much better bandwidth. The effect
+on compression speed and ratio is significant, see the xz documentation.
+Note that decompression speed is always very good with lzma, even
+without multithreading.
+You can append an e to the preset level to use more CPU (but not more
+memory), trying to compress the data better. This corresponds to the
+--extreme flag in xz. Use levels 0,1,2 if you want compression levels
+better than highest gzip (or low bzip2) with better speed.
+Multithreading may further speed things up, though you need to test it
+on your system, see below. Use the lzo plugin instead to achieve
+highest compression speeds (lowest CPU usage) and lowest memory
+consumption with very modest compression.
+.
+.SH BUGS/LIMITATIONS
+.SS Maturity
+The plugin is new as of dd_rescue 1.99.17. Do not yet rely on data
+saved with ddr_lzma as the only backup for valuable data.
+The options may also still change in the future.
+After the events around xz/liblzma in March 2024, some additional
+reviews should be done on this code before passing untrusted compressed
+files to it.
+.P
+Compressed data is more sensitive to data corruption than plain data.
+Note that the checksums in the xz file format do NOT allow to correct
+for errors, because next bytes depends on previous ones. Checksums
+just allow a rather reliable detection of data corruption.
+.P
+Unlike ddr_lzo, no work has been invested to recover well from corrupted
+compressed data. liblzma may recover in some cases, but don't count on
+it.
+.P
+When deciding which compressed storage format to use, please read
+https://www.nongnu.org/lzip/xz_inadequate.html. While not all reasons
+given there may be as serious as the author makes them sound, they are
+valid. Right now the lzma plugin is the one choice you have for high
+compression in dd_rescue; consider using tools like par2 to protect
+against corruption for long-time storage. The future may bring lzip,
+zstd or other plugins.
+For many purposes, the proven lzo plugin continues to be a reasonable
+choice.
+.P
+When using multithreading, you may hit bugs. Missing function symbols
+on decoder initialization, memlimit for the decoder always set to 1 byte
+might be issues you hit (depends on the system which you use).
+Test the mt option before relying on it.
+.
+.SH "مثال‌ها (EXAMPLES)"
+.TP
+.BI dd_rescue\ -L\ lzma=z:preset=9\ infile\ outfile
+compresses data from
+.IR infile
+into
+.IR outfile
+with compression preset == 9 (highest compression, lowest speed
+short of the extreme settings).
+.TP
+.BI dd_rescue\ -L\ lzma=d:mt:memlimit=1234\ infile\ infile2
+will decompress
+.IR infile
+to
+.IR infile2
+in multithreding mode with memory limit equal to 1234 Megabytes.
+.TP
+.BI dd_rescue\ -L\ lzma\ infile.xz\ outfile
+will decompress infile.xz into outfile. (The fact that the infile
+has an .xz extension makes ddr_lzma assume that it's compressed
+and you want to decompress.)
+.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR dd_rescue (1)
+.BR liblzma\ documentation
+.
+.SH "نویسنده (AUTHOR)"
+Dmitrii Ivanov <dsivanov_9@edu.hse.ru>
+.
+.SH CREDITS
+The liblzma library and algorithm has been written by
+The Tukaani Project
+.br
+https://xz.tukaani.org/xz-utils/
+.br
+.
+.SH "حق نشر (COPYRIGHT)"
+This plugin is under the same license as dd_rescue: The GNU General
+Public License (GPL) v2 or v3 - at your option.
+.
+.SH "تاریخچه (HISTORY)"
+ddr_lzma plugin was first introduced with dd_rescue 1.99.17 (Nov 2024).

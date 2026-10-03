@@ -1,0 +1,411 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "LY-SERVER" "1" "Apr 04, 2026" "0.9.10" "python-ly"
+.SH "نام (NAME)"
+ly-server \- Manipulate LilyPond source files via HTTP
+.sp
+Usage:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ly\-server [options]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+An HTTP server for manipulating LilyPond input code
+.SH SERVER OPTIONS
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B  \-v\fP,\fB  \-\-version
+show version number and exit
+.TP
+.B  \-h\fP,\fB  \-\-help
+show this help text and exit
+.TP
+.BI \-p\fP,\fB  \-\-port \ PORT
+port server listens to (default 5432)
+.TP
+.BI \-t\fP,\fB  \-\-timeout \ TIME
+If set, server shuts down automatically
+after \-t seconds of inactivity
+NOT IMPLEMENTED YET!
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH COMMAND OPTIONS
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.BI \-e\fP,\fB  \-\-encoding \ ENC
+(input) encoding (default UTF\-8)
+.TP
+.BI \-\-output\-encoding \ ENC
+output encoding (default to input encoding)
+.TP
+.BI \-l\fP,\fB  \-\-language \ NAME
+default pitch name language (default to \(dqnederlands\(dq)
+.TP
+.BI \-d \ <variable=value>
+set a variable (see below)
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Command options define defaults for the execution of commands triggered by HTTP
+requests. These options can be overridden by the individual HTTP request.
+.SH HTTP REQUESTS
+.SS GET Requests
+.sp
+Some GET requests will be implemented later to retrieve values
+or change some server settings based on the URL path.
+.SS POST Requests
+.sp
+The server accepts POST requests without (currently) making use of the URL path.
+As the request body it expects a single JSON string with the following elements:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fBcommands\fP (mandatory)
+An array with one or more commands to be executed subsequently. 
+Each entry contains:
+.INDENT 7.0
+.TP
+.B \fBcommand\fP (mandatory): 
+A name for the command. It has to be one out of the list of
+available commands below.
+.TP
+.B \fBargs\fP (optional):
+If a command requires arguments (e.g. the \fBtranspose\fP command)
+they are given as a single string value.
+.TP
+.B \fBvariables\fP (optional): 
+A dictionary of variable assignments. Keys have to be from the 
+list below, and proper value types are checked. If one or more
+variables are given they will be set \fIbefore\fP the command is
+executed. A variable may be modified again before the execution
+of the next command but it is not reset automatically. Giving a
+variable with a value of \(aq\(aq unsets the variable.
+.UNINDENT
+.TP
+.B \fBoptions\fP (optional)
+A dictionary of option assignments. Keys have to be from the above list 
+of Command Options, taking the long name without the leading hyphens, 
+e.g. \fB{ \(dqencoding\(dq: \(dqUTF\-16\(dq }\fP\&.
+If an option is given here it overrides the default option given on the
+command line, but only for the current command.
+.TP
+.B \fBdata\fP (mandatory)
+A single string containing the LilyPond input document.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+The server will try to construct a series of commands from the request, and if
+anything is wrong with it send a \(dqBad Request\(dq message with HTTP response code 400.
+.SS Response Object
+.sp
+If the commands execute successfully the response body will contain a serialized
+JSON object with the following elements:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fBinfo\fP
+An array of entries with the result of \(dqinfo\(dq commands (see below).
+Each entry has a \fBcommand\fP and an \fBinfo\fP field.
+.TP
+.B \fBdoc\fP
+An object with two fields:
+.INDENT 7.0
+.TP
+.B \fBcontent\fP
+A string with the content of the document with all \(dqedit\(dq commands applied
+consecutively. (If no edit commands have been specified this contains the
+original input.
+.TP
+.B \fBcommands\fP
+An array with the names of the commands that have been applied.
+.UNINDENT
+.TP
+.B \fBexports\fP
+An array with entries for each applied \(dqexport\(dq command.
+Each entry has the following fields:
+.INDENT 7.0
+.TP
+.B \fBdoc\fP
+A string with the content of the converted/exported document
+.TP
+.B \fBcommand\fP
+The name of the applied command
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Commands
+.sp
+There are three types of commands whose results are handled independently:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP \(bu 2
+\(dqinfo\(dq commands retrieve metadata from the input document
+.IP \(bu 2
+\(dqedit\(dq commands modify the document, subsequent edit commands cascade the
+modifications
+.IP \(bu 2
+\(dqexport\(dq commands that convert the input to another format.
+Subsequent commands are not affected by the result of export commands.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Informative commands that return information and do not change the file:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fBmode\fP
+print the mode (guessing if not given) of the document
+.TP
+.B \fBversion\fP
+print the LilyPond version, if set in the document
+.TP
+.B \fBlanguage\fP
+print the pitch name language, if set in the document
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Commands that modify the input:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fBindent\fP
+re\-indent the file
+.TP
+.B \fBreformat\fP
+reformat the file
+.TP
+.B \fBtranslate <language>\fP
+translate the pitch names to the language
+.TP
+.B \fBtranspose <from> <to>\fP
+transpose the file like LilyPond would do, pitches
+are given in the \(aqnederlands\(aq language
+.TP
+.B \fBabs2rel\fP
+convert absolute music to relative
+.TP
+.B \fBrel2abs\fP
+convert relative music to absolute
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Commands that convert the input to another format:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fBmusicxml\fP
+convert to MusicXML (in development, far from complete)
+.TP
+.B \fBhighlight\fP
+export the document as syntax colored HTML
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Variables
+.sp
+The following variables can be set to influence the behaviour of commands.
+If there is a default value, it is written between brackets:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fBmode\fP 
+mode of the input to read (default automatic) can be one
+of: lilypond, scheme, latex, html, docbook, texinfo.
+.TP
+.B \fBencoding\fP [UTF\-8]
+encoding to read (also set by \-e argument)
+.TP
+.B \fBdefault\-language\fP [nederlands]
+the pitch names language to use by default, when not specified
+otherwise in the document
+.TP
+.B \fBoutput\-encoding\fP
+encoding to write (defaults to \fBencoding\fP, also
+set by the \fB\-\-output\-encoding\fP argument)
+.TP
+.B \fBindent\-tabs\fP [\fBfalse\fP]
+whether to use tabs for indent
+.TP
+.B \fBindent\-width\fP [2]
+how many spaces for each indent level (if not using tabs)
+.TP
+.B \fBfull\-html\fP [\fBTrue\fP]
+if set to True a full document with syntax\-highlighted HTML
+will be exported, otherwise only the bare content wrapped in an
+element configured by the \fBwrapper\-\fP variables.
+.TP
+.B \fBstylesheet\fP
+filename to reference as an external stylesheet for
+syntax\-highlighted HTML. This filename is literally used
+in the \fB<link rel=\(dqstylesheet\(dq>\fP tag.
+.TP
+.B \fBinline\-style\fP [\fBfalse\fP]
+whether to use inline style attributes for syntax\-highlighted HTML.
+By default a css stylesheet is embedded.
+.TP
+.B \fBnumber\-lines\fP [\fBfalse\fP]
+whether to add line numbers when creating syntax\-highlighted HTML.
+.TP
+.B \fBwrapper\-tag\fP [\fBpre\fP]
+which tag syntax highlighted HTML will be wrapped in. Possible values:
+\fBdiv\fP, \fBpre\fP, \fBid\fP and \fBcode\fP
+.TP
+.B \fBwrapper\-attribute\fP [\fBclass\fP]
+attribute used for the wrapper tag. Possible values: \fBid\fP and \fBclass\fP\&.
+.TP
+.B \fBdocument\-id\fP [\fBlilypond\fP]
+name applied to the wrapper\-attribute.
+If the three last options use their default settings
+the highlighted HTML elements are wrapped in an element
+\fB<pre class=\(dqlilypond\(dq></pre>\fP
+.TP
+.B \fBlinenumbers\-id\fP [\fBlinenumbers\fP]
+if linenumbers are exported this is the name used for the \fB<td>\fP elements
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Here is the basic invocation, listening on port 5432:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ly\-server
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Specifying port and a timeout:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+ly\-server \-p 4000 \-t 5000
+.EE
+.UNINDENT
+.UNINDENT
+.SS Sample Requests
+.sp
+The simplest request, just applying one edit command. In this case the result
+will be in \fBresult[\(aqdoc\(aq][\(aqcontent\(aq]\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+    \(aqcommands\(aq: [
+        {
+            \(aqcommand\(aq: \(aqindent\(aq
+        }
+    ],
+    \(aqdata\(aq : \(dq\erelative c\(aq { c ( d e f ) }\(dq
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Another simple request, this time applying an \(dqinfo\(dq command. The result will
+be in \fBresult[\(aqinfo\(aq]\fP, containing \fBlilypond\fP in the \fBinfo\fP field and
+\fBmode\fP in the \fBcommand\fP field:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+    \(aqcommands\(aq: [
+        {
+            \(aqcommand\(aq: \(aqmode\(aq
+        }
+    ],
+    \(aqdata\(aq : \(dq\erelative c\(aq { c ( d e f ) }\(dq
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+And a more complex example. This will first transpose the document and then
+convert the transposed version independently to highlighted HTML and MusicXML.
+Additionally it will retrieve the mode. This time the result will be in all
+three places: the transposed document in \fBdoc.content\fP, the mode in 
+\fBinfo.info\fP, and HTML and MusicXML in \fBexports[0].doc\fP and \fBexports[1].doc\fP\&.:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+    \(aqcommands\(aq: [
+        {
+            \(aqcommand\(aq: \(aqtranspose\(aq,
+            \(aqargs\(aq: \(aqc d\(aq
+        },
+        {
+            \(aqcommand\(aq: \(aqhighlight\(aq,
+            \(aqvariables\(aq: { \(aqfull\-html\(aq: \(aqfalse\(aq }
+        },
+        { \(aqcommand\(aq: \(aqmusicxml\(aq },
+        { \(aqcommand\(aq: \(aqmode\(aq },
+    ],
+    \(aqoptions\(aq: {
+        \(aqlanguage\(aq: \(dqdeutsch\(dq
+    },
+    \(aqdata\(aq: \(dq\erelative c\(aq { c4 ( d e ) }\(dq
+}
+.EE
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Wilbert Berendsen
+.SH "حق نشر (COPYRIGHT)"
+2025, Wilbert Berendsen
+.\" End of generated man page.

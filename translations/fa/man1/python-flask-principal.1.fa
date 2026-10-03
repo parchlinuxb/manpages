@@ -1,0 +1,688 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.3 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "FLASK-PRINCIPAL" "1" "Dec 15, 2025" "0.4.0" "Flask Principal"
+.SH "نام (NAME)"
+flask-principal \- Flask-Principal Documentation
+.sp
+\fI\(dqI am that I am\(dq\fP
+.SH INTRODUCTION
+.sp
+Flask\-Principal provides a very loose framework to tie in providers of two
+types of service, often located in different parts of a web application:
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+Authentication providers
+.IP 2. 3
+User information providers
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+For example, an authentication provider may be oauth, using Flask\-OAuth and
+the user information may be stored in a relational database. Looseness of
+the framework is provided by using signals as the interface.
+.sp
+The major components are the Identity, Needs, Permission, and the IdentityContext.
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.IP 1. 3
+The Identity represents the user, and is stored/loaded from various
+locations (eg session) for each request. The Identity is the user\(aqs
+avatar to the system. It contains the access rights that the user has.
+.IP 2. 3
+A Need is the smallest grain of access control, and represents a specific
+parameter for the situation. For example \(dqhas the admin role\(dq, \(dqcan edit
+blog posts\(dq.
+.sp
+Needs are any tuple, or probably could be object you like, but a tuple
+fits perfectly. The predesigned Need types (for saving your typing) are
+either pairs of (method, value) where method is used to specify
+common things such as \fI\(dqrole\(dq\fP, \fI\(dquser\(dq\fP, etc. And the value is the
+value. An example of such is \fI(\(aqrole\(aq, \(aqadmin\(aq)\fP\&. Which would be a
+Need for a admin role. Or Triples for use\-cases such as \(dqThe permission
+to edit a particular instance of an object or row\(dq, which might be represented
+as the triple \fI(\(aqarticle\(aq, \(aqedit\(aq, 46)\fP, where 46 is the key/ID for that
+row/object.
+.sp
+Essentially, how and what Needs are is very much down to the user, and is
+designed loosely so that any effect can be achieved by using custom
+instances as Needs.
+.sp
+Whilst a Need is a permission to access a resource, an Identity should
+provide a set of Needs that it has access to.
+.IP 3. 3
+A Permission is a set of requirements, any of which should be
+present for access to a resource.
+.IP 4. 3
+An IdentityContext is the context of a certain identity against a certain
+Permission. It can be used as a context manager, or a decorator.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+[graph].SH LINKS
+.INDENT 0.0
+.IP \(bu 2
+documentation \%<http://\:packages\:.python\:.org/\:Flask-Principal>
+.IP \(bu 2
+source \%<http://\:github\:.com/\:mattupstate/\:flask-principal>
+.IP \(bu 2
+changelog \%<>
+.UNINDENT
+.SH PROTECTING ACCESS TO RESOURCES
+.sp
+For users of Flask\-Principal (not authentication providers), access
+restriction is easy to define as both a decorator and a context manager. A
+simple quickstart example is presented with commenting:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import Flask, Response
+from flask.ext.principal import Principal, Permission, RoleNeed
+
+app = Flask(__name__)
+
+# load the extension
+principals = Principal(app)
+
+# Create a permission with a single Need, in this case a RoleNeed.
+admin_permission = Permission(RoleNeed(\(aqadmin\(aq))
+
+# protect a view with a principal for that need
+@app.route(\(aq/admin\(aq)
+@admin_permission.require()
+def do_admin_index():
+    return Response(\(aqOnly if you are an admin\(aq)
+
+# this time protect with a context manager
+@app.route(\(aq/articles\(aq)
+def do_articles():
+    with admin_permission.require():
+        return Response(\(aqOnly if you are admin\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SH AUTHENTICATION PROVIDERS
+.sp
+Authentication providers should use the \fIidentity\-changed\fP signal to indicate
+that a request has been authenticated. For example, the following code is a
+hypothetical example of how one might combine the popular
+Flask\-Login \%<http://\:packages\:.python\:.org/\:Flask-Login>  extension with
+Flask\-Principal:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask import Flask, current_app, request, session
+from flask.ext.login import LoginManager, login_user, logout_user, \e
+     login_required, current_user
+from flask.ext.wtf import Form, TextField, PasswordField, Required, Email
+from flask.ext.principal import Principal, Identity, AnonymousIdentity, \e
+     identity_changed
+
+app = Flask(__name__)
+
+Principal(app)
+
+login_manager = LoginManager(app)
+
+@login_manager.user_loader
+def load_user(userid):
+    # Return an instance of the User model
+    return datastore.find_user(id=userid)
+
+class LoginForm(Form):
+    email = TextField()
+    password = PasswordField()
+
+@app.route(\(aq/login\(aq, methods=[\(aqGET\(aq, \(aqPOST\(aq])
+def login():
+    # A hypothetical login form that uses Flask\-WTF
+    form = LoginForm()
+
+    # Validate form input
+    if form.validate_on_submit():
+        # Retrieve the user from the hypothetical datastore
+        user = datastore.find_user(email=form.email.data)
+
+        # Compare passwords (use password hashing production)
+        if form.password.data == user.password:
+            # Keep the user info in the session using Flask\-Login
+            login_user(user)
+
+            # Tell Flask\-Principal the identity changed
+            identity_changed.send(current_app._get_current_object(),
+                                  identity=Identity(user.id))
+
+            return redirect(request.args.get(\(aqnext\(aq) or \(aq/\(aq)
+
+    return render_template(\(aqlogin.html\(aq, form=form)
+
+@app.route(\(aq/logout\(aq)
+@login_required
+def logout():
+    # Remove the user information from the session
+    logout_user()
+
+    # Remove session keys set by Flask\-Principal
+    for key in (\(aqidentity.name\(aq, \(aqidentity.auth_type\(aq):
+        session.pop(key, None)
+
+    # Tell Flask\-Principal the user is anonymous
+    identity_changed.send(current_app._get_current_object(),
+                          identity=AnonymousIdentity())
+
+    return redirect(request.args.get(\(aqnext\(aq) or \(aq/\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.SH USER INFORMATION PROVIDERS
+.sp
+User information providers should connect to the \fIidentity\-loaded\fP signal to
+add any additional information to the Identity instance such as roles. The
+following is another hypothetical example using Flask\-Login and could be
+combined with the previous example. It shows how one might use a role based
+permission scheme:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from flask.ext.login import current_user
+from flask.ext.principal import identity_loaded, RoleNeed, UserNeed
+
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    identity.user = current_user
+
+    # Add the UserNeed to the identity
+    if hasattr(current_user, \(aqid\(aq):
+        identity.provides.add(UserNeed(current_user.id))
+
+    # Assuming the User model has a list of roles, update the
+    # identity with the roles that the user provides
+    if hasattr(current_user, \(aqroles\(aq):
+        for role in current_user.roles:
+            identity.provides.add(RoleNeed(role.name))
+.EE
+.UNINDENT
+.UNINDENT
+.SH GRANULAR RESOURCE PROTECTION
+.sp
+Now lets say, for example, you only want the author of a blog post to be able to
+edit said article. This can be achieved by creating the necessary \fINeed\fP and
+\fIPermission\fP objects, and adding more logic into the \fIidentity_loaded\fP signal
+handler. For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+from collections import namedtuple
+from functools import partial
+
+from flask.ext.login import current_user
+from flask.ext.principal import identity_loaded, Permission, RoleNeed, \e
+     UserNeed
+
+BlogPostNeed = namedtuple(\(aqblog_post\(aq, [\(aqmethod\(aq, \(aqvalue\(aq])
+EditBlogPostNeed = partial(BlogPostNeed, \(aqedit\(aq)
+
+class EditBlogPostPermission(Permission):
+    def __init__(self, post_id):
+        need = EditBlogPostNeed(unicode(post_id))
+        super(EditBlogPostPermission, self).__init__(need)
+
+@identity_loaded.connect_via(app)
+def on_identity_loaded(sender, identity):
+    # Set the identity user object
+    identity.user = current_user
+
+    # Add the UserNeed to the identity
+    if hasattr(current_user, \(aqid\(aq):
+        identity.provides.add(UserNeed(current_user.id))
+
+    # Assuming the User model has a list of roles, update the
+    # identity with the roles that the user provides
+    if hasattr(current_user, \(aqroles\(aq):
+        for role in current_user.roles:
+            identity.provides.add(RoleNeed(role.name))
+
+    # Assuming the User model has a list of posts the user
+    # has authored, add the needs to the identity
+    if hasattr(current_user, \(aqposts\(aq):
+        for post in current_user.posts:
+            identity.provides.add(EditBlogPostNeed(unicode(post.id)))
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The next step will be to protect the endpoint that allows a user to edit an
+article. This is done by creating a permission object on the fly using the ID
+of the resource, in this case the blog post:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+@app.route(\(aq/posts/<post_id>\(aq, methods=[\(aqPUT\(aq, \(aqPATCH\(aq])
+def edit_post(post_id):
+    permission = EditBlogPostPermission(post_id)
+
+    if permission.can():
+        # Save the edits ...
+        return render_template(\(aqedit_post.html\(aq)
+
+    abort(403)  # HTTP Forbidden
+.EE
+.UNINDENT
+.UNINDENT
+.SH STARTING THE EXTENSION
+.INDENT 0.0
+.TP
+.B class flask_principal.Principal(app=None, use_sessions=True, skip_static=False)
+Principal extension
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBapp\fP \-\- The flask application to extend
+.IP \(bu 2
+\fBuse_sessions\fP \-\- Whether to use sessions to extract and store
+identification.
+.IP \(bu 2
+\fBskip_static\fP \-\- Whether to ignore static endpoints.
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B identity_loader(f)
+Decorator to define a function as an identity loader.
+.sp
+An identity loader function is called before request to find any
+provided identities. The first found identity is used to load from.
+.sp
+For example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+app = Flask(__name__)
+
+principals = Principal(app)
+
+@principals.identity_loader
+def load_identity_from_weird_usecase():
+    return Identity(\(aqali\(aq)
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B identity_saver(f)
+Decorator to define a function as an identity saver.
+.sp
+An identity loader saver is called when the identity is set to persist
+it for the next request.
+.sp
+For example:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+app = Flask(__name__)
+
+principals = Principal(app)
+
+@principals.identity_saver
+def save_identity_to_weird_usecase(identity):
+    my_special_cookie[\(aqidentity\(aq] = identity
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B set_identity(identity)
+Set the current identity.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBidentity\fP \-\- The identity to set
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH MAIN TYPES
+.INDENT 0.0
+.TP
+.B class flask_principal.Permission(*needs)
+Represents needs, any of which must be present to access a resource
+.INDENT 7.0
+.TP
+.B Parameters
+\fBneeds\fP \-\- The needs for this permission
+.UNINDENT
+.INDENT 7.0
+.TP
+.B allows(identity)
+Whether the identity can access this permission.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBidentity\fP \-\- The identity
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B can()
+Whether the required context for this permission has access
+.sp
+This creates an identity context and tests whether it can access this
+permission
+.UNINDENT
+.INDENT 7.0
+.TP
+.B difference(other)
+Create a new permission consisting of requirements in this
+permission and not in the other.
+.UNINDENT
+.INDENT 7.0
+.TP
+.B issubset(other)
+Whether this permission needs are a subset of another
+.INDENT 7.0
+.TP
+.B Parameters
+\fBother\fP \-\- The other permission
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B require(http_exception=None)
+Create a principal for this permission.
+.sp
+The principal may be used as a context manager, or a decroator.
+.sp
+If \fBhttp_exception\fP is passed then \fBabort()\fP will be called
+with the HTTP exception code. Otherwise a \fBPermissionDenied\fP
+exception will be raised if the identity does not meet the
+requirements.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBhttp_exception\fP \-\- the HTTP exception code (403, 401 etc)
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B reverse()
+Returns reverse of current state (needs\->excludes, excludes\->needs)
+.UNINDENT
+.INDENT 7.0
+.TP
+.B test(http_exception=None)
+Checks if permission available and raises relevant exception
+if not. This is useful if you just want to check permission
+without wrapping everything in a require() block.
+.sp
+This is equivalent to:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+with permission.require():
+    pass
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 7.0
+.TP
+.B union(other)
+Create a new permission with the requirements of the union of this
+and other.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBother\fP \-\- The other permission
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_principal.Identity(id, auth_type=None)
+Represent the user\(aqs identity.
+.INDENT 7.0
+.TP
+.B Parameters
+.INDENT 7.0
+.IP \(bu 2
+\fBid\fP \-\- The user id
+.IP \(bu 2
+\fBauth_type\fP \-\- The authentication type used to confirm the user\(aqs
+identity.
+.UNINDENT
+.UNINDENT
+.sp
+The identity is used to represent the user\(aqs identity in the system. This
+object is created on login, or on the start of the request as loaded from
+the user\(aqs session.
+.sp
+Once loaded it is sent using the \fIidentity\-loaded\fP signal, and should be
+populated with additional required information.
+.sp
+Needs that are provided by this identity should be added to the \fIprovides\fP
+set after loading.
+.INDENT 7.0
+.TP
+.B can(permission)
+Whether the identity has access to the permission.
+.INDENT 7.0
+.TP
+.B Parameters
+\fBpermission\fP \-\- The permission to test provision for.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_principal.AnonymousIdentity
+An anonymous identity
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_principal.IdentityContext(permission, http_exception=None)
+The context of an identity for a permission.
+.sp
+\fBNote:\fP
+.INDENT 7.0
+.INDENT 3.5
+The principal is usually created by the flaskext.Permission.require method
+call for normal use\-cases.
+.UNINDENT
+.UNINDENT
+.sp
+The principal behaves as either a context manager or a decorator. The
+permission is checked for provision in the identity, and if available the
+flow is continued (context manager) or the function is executed (decorator).
+.INDENT 7.0
+.TP
+.B can()
+Whether the identity has access to the permission
+.UNINDENT
+.INDENT 7.0
+.TP
+.B http_exception
+The permission of this principal
+.UNINDENT
+.INDENT 7.0
+.TP
+.B property identity
+The identity of this principal
+.UNINDENT
+.UNINDENT
+.SH PREDEFINED NEED TYPES
+.INDENT 0.0
+.TP
+.B class flask_principal.Need(method, value)
+A required need
+.sp
+This is just a named tuple, and practically any tuple will do.
+.sp
+The \fBmethod\fP attribute can be used to look up element 0, and the \fBvalue\fP
+attribute can be used to look up element 1.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_principal.RoleNeed
+alias of functools.partial(<class \(aqflask_principal.Need\(aq>, \(aqrole\(aq)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B flask_principal.UserNeed
+alias of functools.partial(<class \(aqflask_principal.Need\(aq>, \(aqid\(aq)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B class flask_principal.ItemNeed(method, value, type)
+A required item need
+.sp
+An item need is just a named tuple, and practically any tuple will do. In
+addition to other Needs, there is a type, for example this could be specified
+as:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+ItemNeed(\(aqupdate\(aq, 27, \(aqposts\(aq)
+(\(aqupdate\(aq, 27, \(aqposts\(aq) # or like this
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+And that might describe the permission to update a particular blog post. In
+reality, the developer is free to choose whatever convention the permissions
+are.
+.UNINDENT
+.SH SIGNALS
+.INDENT 0.0
+.TP
+.B identity_changed
+Signal sent when the identity for a request has been changed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B identity_loaded
+Signal sent when the identity has been initialised for a request.
+.UNINDENT
+.SH FLASK-PRINCIPAL CHANGELOG
+.sp
+Here you can see the full list of changes between each Flask\-Principal release.
+.SS Version 0.4.0
+.sp
+Released June 14th 2013
+.INDENT 0.0
+.IP \(bu 2
+Added Python 3 support
+.IP \(bu 2
+Dropped support for Python 2.5
+.UNINDENT
+.SS Version 0.3.5
+.sp
+Released April 3rd 2013
+.INDENT 0.0
+.IP \(bu 2
+Fixed possible bug with \fBAnonymousIdentity\fP supplying \(dqanon\(dq as the username
+.IP \(bu 2
+Changed Indentity \fBname\fP property to \fBid\fP to be more generic
+.UNINDENT
+.SS Version 0.3.4
+.sp
+Released February 1st 2013
+.INDENT 0.0
+.IP \(bu 2
+Add \fB__repr__\fP method to Identity and Permission classes
+.IP \(bu 2
+Optimized \fB_is_static_resource\fP method
+.UNINDENT
+.SS Version 0.3.3
+.sp
+Released September 4th 2012
+.INDENT 0.0
+.IP \(bu 2
+Add \fBinit_app\fP method to accomodate usage with a factory pattern.
+.UNINDENT
+.SS Version 0.3.2
+.sp
+Released August 25th 2012
+.INDENT 0.0
+.IP \(bu 2
+Update to check for \fBstatic_url_path\fP in Flask 0.9
+.UNINDENT
+.SS Version 0.3.1
+.sp
+Released August 16th 2012
+.INDENT 0.0
+.IP \(bu 2
+Fixed bug with re\-raising exceptions/tracebacks
+.UNINDENT
+.SS Version 0.3
+.sp
+Released June 20th 2012
+.INDENT 0.0
+.IP \(bu 2
+Python 2.5/GAE support
+.IP \(bu 2
+New extension structure
+.IP \(bu 2
+Added ignore_static option
+.IP \(bu 2
+Updated docs
+.UNINDENT
+.SS Version 0.2
+.sp
+Initial development by Ali Asfshar. Original repository \%<https://\:bitbucket\:.org/\:aafshar/\:flask-principal-main>
+.INDENT 0.0
+.IP \(bu 2
+Index \%<>
+.IP \(bu 2
+Module Index \%<>
+.IP \(bu 2
+Search Page \%<>
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Matt Wright
+.SH "حق نشر (COPYRIGHT)"
+2012, Ali Afshar
+.\" End of generated man page.

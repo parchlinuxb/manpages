@@ -1,0 +1,316 @@
+.TH "kitten-@-launch" "1" "Jul 30, 2026" "0.48.2" "kitten Manual"
+.SH "نام (NAME)"
+kitten-@-launch \- Run an arbitrary process in a new window/tab
+.SH "نحوه استفاده (USAGE)"
+.SY "kitten @ launch  [CMD ...]"
+.YS
+.SH "توضیحات (DESCRIPTION)"
+Prints out the id of the newly opened window. Any command line arguments are assumed to be the command line used to run in the new window, if none are provided, the default shell is run. For example::
+
+
+    kitten @ launch \-\-title=Email mutt
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.BI "--match, -m" 
+The tab to match. Match specifications are of the form: field:query. Where field can be one of: id, index, title, window_id, window_title, pid, cwd, cmdline env, var, state, session and recent. query is the expression to match. Expressions can be either a number or a regular expression, and can be combined using Boolean operators.
+
+The special value all matches all tabs.
+
+For numeric fields: id, index, window_id, pid and recent, the expression is interpreted as a number, not a regular expression. Negative values for id/window_id match from the highest id number down, in particular, \-1 is the most recently created tab/window.
+
+When using title or id, first a matching tab is looked for, and if not found a matching window is looked for, and the tab for that window is used.
+
+You can also use window_id and window_title to match the tab that contains the window with the specified id or title.
+
+The index number is used to match the nth tab in the currently active OS window. The recent number matches recently active tabs in the currently active OS window, with zero being the currently active tab, one the previously active tab and so on.
+
+The field session matches tabs that were created in the specified session. Use the expression \(ha$ to match windows that were not created in a session and . to match the currently active session and \(ti to match either the currently active session or the last active session when no session is active.
+
+When using the env field to match on environment variables, you can specify only the environment variable name or a name and value, for example, env:MY_ENV_VAR=2. Tabs containing any window with the specified environment variables are matched. Similarly, var matches tabs containing any window with the specified user variable.
+
+The field state matches on the state of the tab. Supported states are: active, focused, needs_attention, parent_active, parent_focused and focused_os_window. Active tabs are the tabs that are active in their parent OS window. There is only one focused tab and it is the tab to which keyboard events are delivered. If no tab is focused, the last focused tab is matched. The value focused_os_window matches all tabs in the currently focused OS window.
+
+Note that you can use the kitten @ ls command to get a list of tabs.
+.TP
+.BI "--wait-for-child-to-exit" " [=no]"
+Wait until the launched program exits and print out its exit code. The exit code is printed out instead of the window id. If the program exited normally its exit code is printed, which is always greater than or equal to zero. If the program was killed by a signal, the symbolic name of the SIGNAL is printed, if available, otherwise the signal number with a leading minus sign is printed.
+.TP
+.BI "--response-timeout" " [=86400]"
+The time in seconds to wait for the started process to exit, when using the 
+.B \-\-wait\-for\-child\-to\-exit option. Defaults to one day.
+.TP
+.BI "--no-response" " [=no]"
+Do not print out the id of the newly created window.
+.TP
+.BI "--self" " [=no]"
+If specified the tab containing the window this command is run in is used instead of the active tab
+.TP
+.BI "--source-window" 
+A match expression to select the window from which data such as title, colors, env vars, screen contents, etc. are copied. When not specified the currently active window is used. See search_syntax for the syntax used for specifying windows.
+.TP
+.BI "--title, --window-title" 
+The title to set for the new window. By default, title is controlled by the child process. The special value current will copy the title from the 
+.B \-\-source\-window.
+.TP
+.BI "--tab-title" 
+The title for the new tab if launching in a new tab. By default, the title of the active window in the tab is used as the tab title. The special value current will copy the title from the tab containing the 
+.B \-\-source\-window.
+.TP
+.BI "--type" " [=window]"
+Where to launch the child process:
+
+window
+    A new kitty window in the current tab
+
+tab
+    A new tab in the current OS window. Not available when the launch <launch> command is used in startup sessions.
+
+os\-window
+    A new operating system window.  Not available when the launch <launch> command is used in startup sessions.
+
+overlay
+    An overlay window covering the current active kitty window
+
+overlay\-main
+    An overlay window covering the current active kitty window. Unlike a plain overlay window, this window is considered as a main window which means it is used as the active window for getting the current working directory, the input text for kittens, launch commands, etc. Useful if this overlay is intended to run for a long time as a primary window.
+
+background
+    The process will be run in the background, without a kitty window. Note that if 
+.B \-\-allow\-remote\-control is specified the 
+.B KITTY_LISTEN_ON environment variable will be set to a dedicated socket pair file descriptor that the process can use for remote control.
+
+clipboard, primary
+    These two are meant to work with 
+.B \-\-stdin\-source to copy data to the system clipboard or primary selection.
+
+os\-panel
+    Similar to os\-window, except that it creates the new OS Window as a desktop panel. Only works on platforms that support this, such as Wayland compositors that support the layer shell protocol. Use the 
+.B \-\-os\-panel option to configure the panel.
+
+
+
+Choices: window, background, clipboard, os-panel, os-window, overlay, overlay-main, primary, tab
+.TP
+.BI "--dont-take-focus, --keep-focus" " [=no]"
+Keep the focus on the currently active window instead of switching to the newly opened window.
+.TP
+.BI "--cwd" 
+The working directory for the newly launched child. Use the special value current to use the working directory of the 
+.B \-\-source\-window. The special value last_reported uses the last working directory reported by the shell (needs shell_integration to work). The special value oldest works like current but uses the working directory of the oldest foreground process associated with the currently active window rather than the newest foreground process. Finally, the special value root refers to the process that was originally started when the window was created.
+
+When opening in the same working directory as the current window causes the new window to connect to a remote host, you can use the 
+.B \-\-hold\-after\-ssh flag to prevent the new window from closing when the connection is terminated.
+.TP
+.BI "--add-to-session" 
+Add the newly created window/tab to the specified session. Use . to add to the session of the 
+.B \-\-source\-window, if any. See sessions for what a session is and how to use one. By default, the window is added to the session of the 
+.B \-\-source\-window when 
+.B \-\-cwd is set to use the working directory from that window, otherwise the newly created window does not belong to any session. To force adding to no session, use the value !. Adding a newly created window to a session is purely temporary, it does not change the actual session file, for that you have to resave the session. Note that using this flag in a launch command within a session file has no effect as the window is always added to the session belonging to that file.
+.TP
+.BI "--env" 
+Environment variables to set in the child process. Can be specified multiple times to set different environment variables. Syntax: name=value. Using name= will set to empty string and just name will remove the environment variable.
+.TP
+.BI "--var" 
+User variables to set in the created window. Can be specified multiple times to set different user variables. Syntax: name=value. Using name= will set to empty string.
+.TP
+.BI "--hold" " [=no]"
+Keep the window open even after the command being executed exits, at a shell prompt. The shell will be run after the launched command exits.
+.TP
+.BI "--copy-colors" " [=no]"
+Set the colors of the newly created window to be the same as the colors in the 
+.B \-\-source\-window.
+.TP
+.BI "--copy-cmdline" " [=no]"
+Ignore any specified command line and instead use the command line from the 
+.B \-\-source\-window.
+.TP
+.BI "--copy-env" " [=no]"
+Copy the environment variables from the 
+.B \-\-source\-window into the newly launched child process. Note that this only copies the environment when the window was first created, as it is not possible to get updated environment variables from arbitrary processes. In particular, this means, if you are running a shell in the window and the shell has set env vars in its rc files, these will **not** be copied. To copy that environment, use either the clone\-in\-kitty feature or the kitty remote control feature with 
+.B \-\-copy\-env.
+.TP
+.BI "--location" " [=default]"
+Where to place the newly created window when it is added to a tab which already has existing windows in it. after and before place the new window before or after the active window. neighbor is a synonym for after. Also applies to creating a new tab, where the value of after will cause the new tab to be placed next to the current tab instead of at the end. The values of vsplit, hsplit and split are only used by the splits layout and control if the new window is placed in a vertical, horizontal or automatic split with the currently active window. The default is to place the window in a layout dependent manner, typically, after the currently active window. See 
+.B \-\-next\-to to use a window other than the currently active window.
+
+Choices: default, after, before, first, hsplit, last, neighbor, split, vsplit
+.TP
+.BI "--next-to" 
+A match expression to select the window next to which the new window is created. See search_syntax for the syntax for specifying windows. If not specified defaults to the active window. When used via remote control this option is ignored unless the matched window is in the target tab (default active tab). When using 
+.B \-\-type of tab, the tab will be created in the OS Window containing the matched window.
+.TP
+.BI "--bias" " [=0]"
+The bias used to alter the size of the window. It controls what fraction of available space the window takes. The exact meaning of bias depends on the current layout.
+
+* Splits layout: The bias is interpreted as a percentage between 0 and 100. When splitting a window into two, the new window will take up the specified fraction of the space allotted to the original window and the original window will take up the remainder of the space.
+
+* Vertical/horizontal layout: The bias is interpreted as adding/subtracting from the normal size of the window. It should be a number between \-90 and 90. This number is the percentage of the OS Window size that should be added to the window size. So for example, if a window would normally have been size 50 in the layout inside an OS Window that is size 80 high and \-\-bias \-10 is used it will become *approximately* size 42 high. Note that sizes are approximations, you cannot use this method to create windows of fixed sizes.
+
+* Tall layout: If the window being created is the *first* window in a column, then the bias is interpreted as a percentage, as for the splits layout, splitting the OS Window width between columns. If the window is a second or subsequent window in a column the bias is interpreted as adding/subtracting from the window size as for the vertical layout above.
+
+* Fat layout: Same as tall layout except it goes by rows instead of columns.
+
+* Grid layout: The bias is interpreted the same way as for the Vertical and Horizontal layouts, as something to be added/subtracted to the normal size. However, the since in a grid layout there are rows *and* columns, the bias on the first window in a column operates on the columns. Any later windows in that column operate on the row. So, for example, if you bias the first window in a grid layout it will change the width of the first column, the second window, the width of the second column, the third window, the height of the second row and so on.
+
+The bias option was introduced in kitty version 0.36.0.
+.TP
+.BI "--allow-remote-control" " [=no]"
+Programs running in this window can control kitty (even if remote control is not enabled in 
+.I kitty.conf). Note that any program with the right level of permissions can still write to the pipes of any other program on the same computer and therefore can control kitty. It can, however, be useful to block programs running on other computers (for example, over SSH) or as other users. See 
+.B \-\-remote\-control\-password for ways to restrict actions allowed by remote control.
+.TP
+.BI "--remote-control-password" 
+Restrict the actions remote control is allowed to take. This works like 
+.B remote_control_password. You can specify a password and list of actions just as for 
+.B remote_control_password. For example::
+
+
+    \-\-remote\-control\-password \[aq]\[dq]my passphrase\[dq] get\-* set\-colors\[aq]
+
+This password will be in effect for this window only. Note that any passwords you have defined for 
+.B remote_control_password in 
+.I kitty.conf are also in effect. You can override them by using the same password here. You can also disable all 
+.B remote_control_password global passwords for this window, by using::
+
+
+    \-\-remote\-control\-password \[aq]!\[aq]
+
+This option only takes effect if 
+.B \-\-allow\-remote\-control is also specified. Can be specified multiple times to create multiple passwords. This option was added to kitty in version 0.26.0
+.TP
+.BI "--stdin-source" " [=none]"
+Pass the screen contents as 
+.I STDIN to the child process.
+
+@selection
+    is the currently selected text in the 
+.B \-\-source\-window.
+
+@screen
+    is the contents of the 
+.B \-\-source\-window.
+
+@screen_scrollback
+    is the same as @screen, but includes the scrollback buffer as well.
+
+@alternate
+    is the secondary screen of the 
+.B \-\-source\-window. For example if you run a full screen terminal application, the secondary screen will be the screen you return to when quitting the application.
+
+@first_cmd_output_on_screen
+    is the output from the first command run in the shell on screen.
+
+@last_cmd_output
+    is the output from the last command run in the shell.
+
+@last_visited_cmd_output
+    is the first output below the last scrolled position via scroll_to_prompt, this needs shell integration to work.
+
+
+
+Choices: none, @alternate, @alternate_scrollback, @first_cmd_output_on_screen, @last_cmd_output, @last_visited_cmd_output, @screen, @screen_scrollback, @selection
+.TP
+.BI "--stdin-add-formatting" " [=no]"
+When using 
+.B \-\-stdin\-source add formatting escape codes, without this only plain text will be sent.
+.TP
+.BI "--stdin-add-line-wrap-markers" " [=no]"
+When using 
+.B \-\-stdin\-source add a carriage return at every line wrap location (where long lines are wrapped at screen edges). This is useful if you want to pipe to program that wants to duplicate the screen layout of the screen.
+.TP
+.BI "--marker" 
+Create a marker that highlights text in the newly created window. The syntax is the same as for the toggle_marker action (see /marks).
+.TP
+.BI "--os-window-class" 
+Set the WM_CLASS property on X11 and the application id property on Wayland for the newly created OS window when using 
+.B \-\-type. Defaults to whatever is used by the parent kitty process, which in turn defaults to kitty.
+.TP
+.BI "--os-window-name" 
+Set the WM_NAME property on X11 for the newly created OS Window when using 
+.B \-\-type. Defaults to 
+.B \-\-os\-window\-class.
+.TP
+.BI "--os-window-title" 
+Set the title for the newly created OS window. This title will override any titles set by programs running in kitty. The special value current will copy the title from the OS Window containing the 
+.B \-\-source\-window.
+.TP
+.BI "--os-window-state" " [=normal]"
+The initial state for the newly created OS Window.
+
+Choices: normal, fullscreen, maximized, minimized
+.TP
+.BI "--os-window-position" 
+The position, for example 10x20, on screen at which to place the newly created OS Window. This may or may not work depending on the policies of the desktop environment/window manager. It never works on Wayland.
+.TP
+.BI "--logo" 
+Path to a PNG image to use as the logo for the newly created window. See 
+.B window_logo_path. Relative paths are resolved from the kitty configuration directory.
+.TP
+.BI "--logo-position" 
+The position for the window logo. Only takes effect if 
+.B \-\-logo is specified. See 
+.B window_logo_position.
+.TP
+.BI "--logo-alpha" " [=\-1]"
+The amount the window logo should be faded into the background. Only takes effect if 
+.B \-\-logo is specified. See 
+.B window_logo_alpha.
+.TP
+.BI "--color" 
+Change colors in the newly launched window. You can either specify a path to a 
+.I .conf file with the same syntax as 
+.I kitty.conf to read the colors from, or specify them individually, for example::
+
+
+    \-\-color background=white \-\-color foreground=red
+.TP
+.BI "--spacing" 
+Set the margin and padding for the newly created window. For example: margin=20 or padding\-left=10 or margin\-h=30. The shorthand form sets all values, the *\-h and *\-v variants set horizontal and vertical values. Can be specified multiple times. Note that this is ignored for overlay windows as these use the settings from the base window.
+.TP
+.BI "--watcher, -w" 
+Path to a Python file. Appropriately named functions in this file will be called for various events, such as when the window is resized, focused or closed. See the section on watchers in the launch command documentation: watchers. Relative paths are resolved relative to the kitty config directory. Global watchers for all windows can be specified with 
+.B watcher in 
+.I kitty.conf.
+.TP
+.BI "--os-panel" 
+Options to control the creation of desktop panels. Takes the same settings as the panel kitten, except for 
+.B \-\-override and 
+.B \-\-config. Can be specified multiple times. For example, to create a desktop panel at the bottom of the screen two lines high::
+
+
+    launch \-\-type os\-panel \-\-os\-panel lines=2 \-\-os\-panel edge=bottom sh \-c \[dq]echo; echo; echo hello; sleep 5s\[dq]
+.TP
+.BI "--hold-after-ssh" " [=no]"
+When using 
+.B \-\-cwd=current or similar from a window that is running the ssh kitten, the new window will run a local shell after disconnecting from the remote host, when this option is specified.
+.TP
+.BI "--help, -h" " [=no]"
+Show help for this command
+.SH Global options
+.TP
+.BI "--to" 
+An address for the kitty instance to control. Corresponds to the address given to the kitty instance via the 
+.B \-\-listen\-on option or the 
+.B listen_on setting in 
+.I kitty.conf. If not specified, the environment variable 
+.B KITTY_LISTEN_ON is checked. If that is also not found, messages are sent to the controlling terminal for this process, i.e. they will only work if this process is run within a kitty window.
+.TP
+.BI "--password" 
+A password to use when contacting kitty. This will cause kitty to ask the user for permission to perform the specified action, unless the password has been accepted before or is pre\-configured in 
+.I kitty.conf. To use a blank password specify 
+.B \-\-use\-password as always.
+.TP
+.BI "--password-file" " [=rc\-pass]"
+A file from which to read the password. Trailing whitespace is ignored. Relative paths are resolved from the kitty configuration directory. Use \- to read from STDIN. Use fd:num to read from the file descriptor num. Used if no 
+.B \-\-password is supplied. Defaults to checking for the 
+.I rc\-pass file in the kitty configuration directory.
+.TP
+.BI "--password-env" " [=KITTY_RC_PASSWORD]"
+The name of an environment variable to read the password from. Used if no 
+.B \-\-password\-file is supplied. Defaults to checking the environment variable 
+.B KITTY_RC_PASSWORD.
+.TP
+.BI "--use-password" " [=if\-available]"
+If no password is available, kitty will usually just send the remote control command without a password. This option can be used to force it to always or never use the supplied password. If set to always and no password is provided, the blank password is used.
+
+Choices: if-available, always, never

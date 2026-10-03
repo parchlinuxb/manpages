@@ -1,0 +1,207 @@
+.TH "HXPIPE" "1" "10 Feb 2022" "8.x" "HTML-XML-utils"
+
+.de d \" begin display
+.sp
+.in +4
+.nf
+.ft CR
+.CDS
+..
+.de e \" end display
+.CDE
+.in -4
+.fi
+.ft R
+.sp
+..
+
+.SH "نام (NAME)"
+hxpipe \- convert XML file to a format easier to parse with Perl or AWK
+.SH "خلاصه دستور (SYNOPSIS)"
+.B hxpipe
+.RB "[\| " \-l " \|]"
+.RB "[\| " \-H " \|]"
+.RB "[\| " \-\- " \|]"
+.RI "[\| " file-or-URL " \|]"
+.SH "توضیحات (DESCRIPTION)"
+.B hxpipe
+parses an HTML or XML file and outputs a line-oriented representation
+of it that is well suited to further processing with AWK or similar
+tools. The format is similar to the ESIS (Element Structure
+Information Set) that is output by nsgmls/onsgmls.
+.LP
+The reverse operation, converting back to mark-up, is performed by the
+.B hxunpipe
+program.
+.LP
+The output format is as follows:
+.TP 10
+<!--comment-->
+Comments are output as
+.d
+*comment
+.e
+I.e., a single line starting with "*" followed by the text of the
+comment. Line feeds, carriage returns and tabs in the text are written
+as "\\n", "\\r" and "\\t", respectively. Text that looks like a
+numerical character entity is written with the "&" replaced by "\\".
+The line ends with a line feed.
+.IP ""
+Note that onsgmls outputs comments starting with a "_" instead of a
+"*" and doesn't replace the "&" of numerical character entities by
+"\\" (and by default it omits comments altogether).
+.TP
+<?processing instruction>
+Processing instructions are output as
+.d
+?processing instruction
+.e
+I.e., a single line starting with a "?" followed by the text of the
+processing instruction. The text is escaped as for comments (see
+above).
+.TP
+<!DOCTYPE root PUBLIC "-//foo//DTD bar//EN" "http://example.org/dtd">
+DOCTYPEs are output as one of the following:
+.d
+!root "-//foo//DTD bar//EN" http://example.org/dtd
+!root "-//foo//DTD bar//EN"
+!root "" http://example.org/dtd
+!root ""
+.e
+for respectively: a DOCTYPE with (1) both a public and a system
+identifier, (2) only a public identifier, (3) only a system
+identifier, or (4) neither of the two. I.e., a single line starting
+with a "!", followed by a space and a possibly empty quoted string,
+followed optionally by a space and arbitrary text. Note the quotes for
+the public identifier and the absence of quotes for the system
+identifier.
+.TP
+<elt att1="value1" att2="value2">
+A start tag is output as
+.d
+Aatt1 CDATA value1
+Aatt2 CDATA value2
+(elt
+.e
+I.e., as zero or more lines for the attributes and one line for the
+element type. Each line for an attribute starts with "A" followed by
+the name of the attribute, a space, the literal string "CDATA",
+another space, and the attribute value. The text of the attribute
+value is escaped as for comments (see above). The line for the element
+type starts with "(" followed by the element type.
+.IP ""
+.B hxpipe
+does not read DTDs and assumes that attributes are always CDATA. It
+never generates other types (IMPLIED, TOKEN, ID, etc.), unlike
+onsgmls.
+.TP
+</elt>
+End tags are output as
+.d
+)elt
+.e
+I.e., as a line starting with ")" followed by the element type.
+.TP
+<empty att1="val1" att2="val2"/>
+Empty elements are output as
+.d
+Aatt1 CDATA val1
+Aatt2 CDATA val2
+|empty
+.e
+I.e., as zero or more lines for attributes and one line starting with
+"|" followed by the element type.
+.IP ""
+Note that
+.B onsgmls
+never outputs "|". (However, it can optionally output a line
+consisting of a single "e" just before the "(" line, to indicate that
+the element is empty.)
+.TP
+text
+Text is output as
+.d
+\-text
+.e
+I.e., as a single line starting with a "\-". The text is escaped as
+for comments (see above).
+.TP
+line numbers
+When the
+.B \-l
+option is in effect,
+.B hxpipe
+will intersperse the output with lines of the form
+.d
+L12
+.e
+where "12" is replaced with the line number in the source where the
+next output came from.
+.LP
+.B hxpipe
+normalizes the input only in the sense that it outputs attributes in a
+fixed order (alphabetical, but not locale-dependent). It does not read
+a DTD and thus cannot remove redundant white space and cannot add
+implied attributes. It does not expand character entities. (But you
+can pipe the input through
+.B hxunent
+beforehand.) It also does not add implied tags. (But see the
+.B \-H
+option.)
+.SH "گزینه‌ها (OPTIONS)"
+The following options are supported:
+.TP 10
+.B \-l
+Add "L" lines to the output to indicate the line numbers in the
+source. Currently does not work together with the
+.B \-H
+ option.
+.TP
+.B \-H
+Apply special rules for HTML. Normally,
+.B hxpipe
+assumes well-formed XML. With this option,
+.B hxpipe
+will assume the input is HTML and will add implied tags, recognize
+empty elements and treat the contents of <script> and <style> elements
+as literal text.
+.SH OPERANDS
+The following operand is supported:
+.TP 10
+.I file-or-URL
+The name or URL of an HTML file. If absent, standard input is read
+instead.
+.SH "وضعیت خروج (EXIT STATUS)"
+The following exit values are returned:
+.TP 10
+.B 0
+Successful completion.
+.TP
+.B > 0
+An error occurred in the parsing of the HTML file.
+.B hxpipe
+will try to correct the error and produce output anyway.
+.SH "محیط (ENVIRONMENT)"
+To use a proxy to retrieve remote files, set the environment variables
+.B http_proxy
+and
+.BR ftp_proxy "."
+E.g.,
+.B http_proxy="http://localhost:8080"
+.SH "اشکالات (BUGS)"
+.LP
+The error recovery for incorrect HTML is primitive.
+.LP
+.B hxpipe
+can currently only retrieve remote files over HTTP. It doesn't handle
+password-protected files, nor files whose content depends on HTTP
+"cookies."
+.LP
+Option
+.B \-l
+ought to work also with HTML input (option
+.BR \-H ).
+.SH "همچنین ببینید (SEE ALSO)"
+.BR hxunpipe (1),
+.BR hxunent (1),
+.BR onsgmls (1).

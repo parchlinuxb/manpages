@@ -1,0 +1,415 @@
+.de d \" begin display
+.sp
+.in +4
+.nf
+..
+.de e \" end display
+.in -4
+.fi
+.sp
+..
+.TH "HXINDEX" "1" "10 Jul 2011" "7.x" "HTML-XML-utils"
+.SH "نام (NAME)"
+hxindex \- insert an index into an HTML document
+.SH "خلاصه دستور (SYNOPSIS)"
+.B hxindex
+.RB "[\|" \-t "\|]"
+.RB "[\|" \-x "\|]"
+.RB "[\|" \-n "|" \-N "\|]"
+.RB "[\|" \-f "\|]"
+.RB "[\|" \-r "\|]"
+.RB "[\|" \-c
+.IR class "\/[\fB,\fP" class "...]\|]"
+.RB "[\|" \-b
+.IR base "\/\|]"
+.RB "[\|" \-i
+.IR indexdb "\/\|]"
+.RB "[\|" \-s
+.IR template "\/\|]"
+.RB "[\|" \-u
+.IR phrase "\/\|]"
+.RB "[\|" \-O
+.IR element "\/[\fB,\fP" element "...]\|]"
+.RB "[\|" \-X
+.IR element "\/[\fB,\fB" element "...]\|]"
+.RB "[\|" \-A
+.IR delimiters "\/\|]"
+.RB "[\|" \-S
+.IR delimiters "\/\|]"
+.RB "[--]"
+.RI "[\|" file\-or\-URL "\/\|]"
+.SH "توضیحات (DESCRIPTION)"
+.LP
+The
+.B hxindex
+looks for terms to be indexed in a document, collects them, turns them
+into target anchors and creates a sorted index as an HTML list, which
+is inserted at the place of a placeholder in the document. The
+resulting document is written to standard output.
+.LP
+The index is inserted at the place of a comment of the form
+.d
+<!--index-->
+.e
+or between two comments of the form
+.d
+<!--begin-index-->
+\&...
+<!--end-index-->
+.e
+In the latter case, all existing content between the two comments is
+removed first.
+.LP
+Index terms are either elements of type \fI<dfn>\fP or elements with a
+class attribute of \fI"index".\fP (For backward compatibility, also
+class attributes \fI"index-inst"\fP and \fI"index-def"\fP are
+recognized.) \fI<dfn>\fP elements (and class \fI"index-def"\fP) are
+considered more important than elements with class \fI"index"\fP and
+will appear in bold in the generated index.
+.LP
+The option
+.B \-c
+adds additional classes, that are aliases for \fI"index"\fP.
+.LP
+By default, the contents of the element are taken as the index term.
+Here are two examples of occurrences of the index term "shoe":
+.d
+A <dfn>shoe</dfn> is a piece of clothing that...
+completed by a leather <span class="index">shoe</span>...
+.e
+.LP
+If the term to be indexed is not equal to the contents of the element,
+the \fItitle\fP attribute can be used to give the correct term:
+.d
+\&... <dfn title="shoe">Shoes</dfn> are pieces of clothing that...
+\&... with two leather <span class="index" title="shoe">shoes</span>...
+.e
+.LP
+The \fItitle\fP attribute must also be used when the index term is a
+subterm of another. Subterms appear indented in the index, under their
+head term. To define a subterm, use a \fItitle\fP attribute with two
+exclamation marks ("!!") between the term and the subterm, like this:
+.d
+<dfn title="shoe!!leather">...</dfn>
+<dfn title="shoe!!invention of">...</dfn>
+<em class="index" title="shoe!!protective!!steel nosed">...</em>
+.e
+As the last example above shows, there can be multiple levels of
+sub-subterms.
+.LP
+The \fItitle\fP attribute also allows multiple index terms to be
+associated with a single occurrence. The multiple terms are separated
+with a vertical bar ("|"). Compare the following examples with the
+ones above:
+.d
+<dfn title="shoe|boot">...</dfn>
+<dfn title="shoe!!invention of|inventions!!shoe">...</dfn>
+.e
+These two elements both insert two terms into the index. Note that the
+second example above combines subterms and multiple terms.
+.LP
+It is possible to run index on a file that already has an index. The
+old target anchors and the old index will be removed before being
+re-generated.
+.SH "گزینه‌ها (OPTIONS)"
+The following options are supported:
+.TP 10
+.B \-t
+By default,
+.B hxindex
+adds an ID attribute to the element that contains the occurrence of a
+term and
+.I also
+inserts an \fI<a>\fP element inside it with a \fIname\fP
+attribute equal to the ID. This is to allow old browsers that ignore
+ID attributes, such as
+Netscape 4, to find the target as well. The
+.B \-t
+option suppresses the \fI<a>\fP element.
+.TP
+.B \-x
+This option turns on XML syntax conventions: empty elements will end
+in \fI/>\fP instead of \fI>\fP as in HTML.
+.B \-x
+implies
+.B \-t.
+.TP
+.BI \-i " indexdb"
+.B hxindex
+can read an initial index from a file and write the merged collection
+of index terms back to that file. This allows an index to span several
+documents. The
+.B \-i
+option is used to give the name of the file that contains the index.
+.TP
+.BI \-b " base"
+This option is useful in combination with
+.B \-i
+to give the base URL reference of the document. By default,
+.B hxindex
+will store links to occurrences in the \fIindexdb\fP file in the form
+\fI#anchor\fP, but when
+.B \-b
+is given, the links will look like \fIbase#anchor\fP instead.
+.IP
+When used in combination with
+.BR \-n ,
+the title attributes of the links will contain the title of the document that contains the term. The title is inserted before the
+.I template
+(see option
+.BR \-s )
+and separated from it with a comma and a space. E.g., if
+.B hxindex
+is called with
+.d
+hxindex -i termdb -n -base myfile.html myfile.html
+.e
+and the termdb already contains an entry for "foo" in in section "3.1"
+of a document called "file2.html" with title "The foos", then the
+generated index will contain an entry such as this:
+.d
+foo, <a href="file2.html#foo"
+  title="The foos, section 3.1">3.1</a>
+.e
+.TP
+\fB\-c\fP \fIclass\fP\fB,\fP\fIclass\fP\fB,\fP...
+Normal index terms are recognized because they have a class of
+\fI"index".\fP The 
+.B \-c
+option adds additional, comma-separated class
+names that will be considered aliases for \fI"index"\fP. E.g.,
+.B \-c instance
+will make sure that
+.B <span class="instance">term</span>
+is recognized as a term for the index.
+.TP
+.B \-n
+By default, the index consists of links with "#" as the anchor text. 
+Option
+.B \-n
+causes the link text to consist of the section numbers of the sections
+in which the terms occur, falling back to "without number" (see option
+.B \-u
+below) if no section
+number could be found. Section numbers are found by looking for the
+nearest preceding start tag with a class of "secno" or "no-num". In
+the case of "secno", the contents of that element are taken as the
+section number. In the case of "no-num" the section is assumed to have
+no number and
+.B hxindex
+will print "without number" instead. These classes are also used by
+.BR hxnum (1),
+so it is useful to run
+.B hxindex
+.I after
+.BR hxnum ", e.g.,"
+.d
+hxnum myfile.html | hxindex \-n >mynewfile.html
+.e
+.TP
+.B \-N
+With this option, the anchor text of the links in the index is the
+full title of the section in which the term occurs. The title of the
+section is the nearest preceding H1, H2, H3, H4, H5 or H6 element, or
+the document's title if there is no preceding H* element. This option
+cannot be used together with
+.BR \-n .
+If both are used, the last one specified wins.
+.TP
+.BI \-s " template"
+When option
+.B \-n
+is used, the link will have a title attribute and the
+.I template
+determines what it contains. The default is "section %s", where the %s
+is a placeholder for the section number. In other words, the index
+will contain entries like this:
+.d
+term, <a href="#term" title="section 7.8">7.8</a>
+.e
+.IP
+Some examples:
+.d
+hxindex -n -s 'chapter %s'
+hxindex -n -s 'part %s'
+hxindex -n -s 'hoofdstuk %s' -u 'zonder nummer'
+.e
+.IP
+This option is only useful in combination with
+.B \-n
+.TP
+.BI \-u " phrase"
+When option
+.B \-n
+is used to display section numbers, references for which no section
+number can be found are shown as
+.I phrase
+instead. The default is "??".
+.IP
+This option is only useful in combination with
+.B \-n
+.TP
+.B \-f
+Remove \fItitle\fP attributes that were used for the index as well as
+the comments that delimit the inserted index. This avoids that
+browsers display these attributes. Note that \fBhxindex\fP cannot be
+run again on its own output if this option is used. (Mnemonic:
+"\fBf\fPreeze" or "\fBf\fPinal".)
+.TP
+.B \-r
+Do not ignore trailing punctuation when sorting index terms. E.g., if
+two terms are written as
+.d
+<dfn>foo,</dfn>... <span class=index>foo</span>
+.e
+.B hxindex
+will normally ignore the comma and treat them as the same term, but
+with
+.B \-r,
+they are treated as different. This affects trailing commas (,),
+semicolons (;), colons (:), exclamations mark (!), question marks (?) 
+and full stops (.). A final full stop is never ignored if there are
+two or more in the term, to protect abbreviations ("B.C.") and
+ellipsis ("more..."). This does
+.I not
+affect how the index term is printed (it is always printed as it
+appears in the text), only how it is compared to similar
+terms. (Mnemonic: "\fBr\fPaw".)
+.TP
+\fB\-O\fP \fIelement\fP\fB,\fP\fIelement\fP\fB,\fP...
+If
+.B \-O
+is present, only elements with the given names will be indexed. E.g.,
+.d
+hxindex -O span,i,em
+.e
+means that
+.B hxindex
+will only look for \fIclass="index"\fP (and other classes, according to
+.BR \-c ")"
+on the elements
+.B span, i
+and
+.B em.
+The argument of
+.B \-O
+must be a comma-separated list of element names.
+Note that this does not affect the element
+.B dfn.
+It will always be indexed as a defining instance.
+.TP
+\fB\-X\fP \fIelement\fB,\fP\fIelement\fP\fB,\fP...
+The option
+.B \-X
+excludes the given elements from being indexed. E.g.,
+.d
+hxindex -X ul,ol
+.e
+makes sure that
+.B ul
+and
+.B ol
+elements are not indexed, even if they have a
+.I class="index"
+attribute. This does not exclude their children from being indexed. E.g.,
+.d
+<ul class=index>
+ <li class=index>foo
+ <li class=index>bar
+ <li>baz
+</ul>
+.e
+will add
+.I foo
+and
+.I bar
+to the index, but not the whole content of the
+.B ul
+element
+.RI "(" "foo bar baz\/" ")."
+If both
+.B \-O
+and
+.B \-X
+are given and an element occurs in both options, it will be excluded. E.g.,
+.d
+hxindex -X p,h1,ul -O em,span,h1,h2
+.e
+will cause
+.B hxindex
+to only look for class attributes on
+.B em, span
+and
+.B h2,
+because
+.B h1
+is excluded.
+.TP
+\fB\-A\fP \fIdelim delim \fP...
+A space-separated list of strings that separate multiple terms. The
+default is "|". Note that spaces must be quoted when using the option
+on the command line, to protect them from interpetation by the shell.
+.TP
+\fB\-S\fP \fIdelim delim \fP...
+A space-separated list of strings that separate subterms. The default
+is "!! ::", i.e., the two strings "!!" and "::". Note that spaces must
+be quoted when using the option on the command line, to protect them
+from interpetation by the shell.
+.SH OPERANDS
+The following operand is supported:
+.TP 10
+.I file\-or\-URL
+The name of an HTML or XML file or the URL of one. If absent, or if
+the file is "-", standard input is read instead.
+.SH "وضعیت خروج (EXIT STATUS)"
+The following exit values are returned:
+.TP 10
+.B 0
+Successful completion.
+.TP
+.B >0
+An error occurred in parsing the HTML file.
+.SH "محیط (ENVIRONMENT)"
+The input is assumed to be in UTF-8, but the current locale is used to
+determine the sorting order of the index terms. I.e.,
+.B hxindex
+looks at the LANG, LC_ALL and/or LC_COLLATE environment variables. See
+.BR locale (1).
+.LP
+To use a proxy to retrieve remote files, set the environment variables
+.B http_proxy
+or
+.BR ftp_proxy "."
+E.g.,
+.B http_proxy="http://localhost:8080"
+.SH "اشکالات (BUGS)"
+.LP
+Assumes UTF-8 as input. Doesn't expand character entities (apart from
+the standard ones: "&amp;", "&lt;", "&gt" and "&quot"). Instead, pipe
+the input through
+.BR hxunent (1)
+and, if needed,
+.BR asc2xml (1)
+to convert it to UTF-8.
+.LP
+Remote files (specified with a URL) are currently only supported for
+HTTP. Password-protected files or files that depend on HTTP "cookies"
+are not handled. (You can use tools such as
+.BR curl (1)
+or
+.BR wget (1)
+to retrieve such files.)
+.LP
+The accessibility of an index, even when generated with option
+.BR \-n ,
+is poor.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR asc2xml (1),
+.BR hxnormalize (1),
+.BR hxnum (1),
+.BR hxprune (1),
+.BR hxtoc (1),
+.BR hxunent (1),
+.BR xml2asc (1),
+.BR locale (1),
+.BR UTF-8 " (RFC 2279)"

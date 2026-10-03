@@ -1,0 +1,180 @@
+.TH DOTLOCKFILE 1 "January 10, 2017" "" "Cistron Utilities"
+.SH "نام (NAME)"
+dotlockfile \- Utility to manage lockfiles
+.SH "خلاصه دستور (SYNOPSIS)"
+.B dotlockfile
+.B \-l
+.RB [ \-r
+.IR retries ]
+.RB [ \-i
+.IR interval ]
+.RB [ \-p ]
+.RB [ \-q ]
+.RB < \-m \ |
+.IR lockfile >
+.br
+.B dotlockfile
+.B \-l
+.RB [ \-r
+.IR retries ]
+.RB [ \-i
+.IR interval ]
+.RB [ \-p ]
+.RB [ \-q ]
+.RB < \-m \ |
+.IR lockfile >
+.RB [ \-P ]
+.IR cmd "\ args \&...\&"
+.br
+.B dotlockfile
+.RB \-u \ | \ \-t
+.br
+.SH "توضیحات (DESCRIPTION)"
+.B dotlockfile
+is a command line utility to reliably create, test and remove lockfiles.
+It creates lockfiles
+.I reliably
+on local and NFS filesystems, because the crucial steps of testing for a
+preexisting lockfile and creating it are performed
+.I atomically
+by a
+.I single
+call to
+.IR link (2).
+Manpage
+.IR lockfile_create (3)
+describes the used algorithm.
+.PP
+.B dotlockfile
+is installed with attribute
+.BI SETGID \ mail
+and thus can also be used to lock and unlock mailboxes
+.I even
+if the mailspool directory is only writable by group mail.
+.PP
+The name
+.B dotlockfile
+comes from the way mailboxes are locked for updates on a lot of UNIX systems.
+A lockfile is created with the same filename as the mailbox but with the string
+"\fI.lock\fR" appended.
+.PP
+The names
+.B dotlock
+and
+.B lockfile
+were already taken \(en hence the name \fBdotlockfile\fR \fI:)\fR.
+.SH "گزینه‌ها (OPTIONS)"
+.IP "\fB\-l\fR"
+Create a lockfile if no preexisting valid lockfile is found, else wait and retry
+according to option \fB\-r\fR.  Retry interval can be explicitly set with option \fB\-i\fR.
+This option (\fB-l\fR) is the default, so it can be left off.
+
+A lockfile is treated as valid,
+.br
+\[bu]\ \ if it holds the
+.I process\-id
+of a running process,
+.br
+\[bu]\ \ or if it does not hold any
+.I process\-id
+and has been touched less than 5\ minutes ago (timestamp is younger than
+5\ minutes).
+.IP "\fB\-r retries\fR"
+The number of times
+.B dotlockfile
+retries to acquire the lock if it failed the first time before giving up.
+The initial sleep after failing to acquire the lock is 5\ seconds.
+After each retry the sleep interval is increased incrementally by 5\ seconds
+up to a maximum sleep of 60\ seconds between tries unless overridden by \fB\-i\fR.
+The default number of retries is 5.
+To try only once, use "\fB\-r 0\fR".
+To try indefinitely, use "\fB\-r \-1\fR".
+.IP "\fB\-i interval\fR"
+Sets a consistent retry interval.
+.IP "\fB\-u\fR"
+Remove a lockfile.
+.IP "\fB\-t\fR"
+Touch an existing lockfile (update the timestamp).
+Useful for lockfiles on NFS filesystems.
+For lockfiles on local filesystems the
+.B \-p
+option is preferable.
+.IP "\fB\-p\fR"
+Write the
+.I process\-id
+of the calling process (or dotlockfile itself if a command is executed)
+into the lockfile.
+Also when testing for an existing lockfile, check the contents for the
+.I process\-id
+of a running process to verify if the lockfile is still valid.
+Obviously useful only for lockfiles on local filesystems.
+.IP "\fB\-m\fR"
+Lock or unlock the current users mailbox.
+The path to the mailbox is the default system mailspool directory (usually
+.IR /var/mail )
+with the username as gotten from
+.IR getpwuid ()
+appended.
+If the environment variable
+.I $MAIL
+is set, that is used instead.
+Then the string "\fI.lock\fR" is appended to get the name of the actual
+lockfile.
+.IP "\fB\-q\fR"
+Don't print warnings or errors to the standard error output. Used internally
+by liblockfile when it spawns
+.B dotlockfile
+as a helper program.
+.IP "\fB\-P\fR"
+On successful "lock and spawn command", don't exit with status zero, but
+pass through the exit value of the spawned command.
+.IP lockfile
+The lockfile to be created or removed.
+Must not be specified if the \fB\-m\fR option is given.
+.IP "\fIcommand\fR argument \&...\&"
+Create lockfile, run the
+.I command
+, wait for it to exit, and remove lockfile.
+.SH RETURN\ VALUE
+Zero on success, and non\-zero on failure.
+When locking (the default, or with the \fB\-l\fR option)
+.B dotlockfile
+returns the same values as the library function
+.IR lockfile_create (3).
+Unlocking a non\-existent lockfile is not an error.
+.PP
+Unless the
+.B \-P
+option was supplied, when a command is executed, the return value does not
+correspond with that of the command that was run.  If locking and unlocking
+was successful, the exit status is zero.
+.SH "نکات (NOTES)"
+The lockfile is created exactly as named on the command line.
+The extension "\fI.lock\fR" is \fInot\fR automatically appended.
+.PP
+This utility is a lot like the
+.IR lockfile (1)
+utility included with
+.IR procmail ,
+and the
+.IR mutt_dotlock (1)
+utility included with
+.IR mutt .
+However the command\-line arguments differ, and so does the return status.
+It is believed, that
+.I dotlockfile
+is the most flexible implementation, since it automatically detects when it
+needs to use privileges to lock a mailbox, and does it safely.
+.PP
+The above mentioned
+.IR lockfile_create (3)
+manpage is present in the
+.I liblockfile\-dev
+package.
+.SH "اشکالات (BUGS)"
+None known.
+.SH SEE\ ALSO
+.IR lockfile_create (3),
+.IR maillock (3)
+.SH "نویسنده (AUTHOR)"
+Miquel van Smoorenburg

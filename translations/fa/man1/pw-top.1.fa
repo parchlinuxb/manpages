@@ -1,0 +1,257 @@
+.TH "pw-top" 1 "1.6.8" "PipeWire" \" -*- nroff -*-
+.ad l
+.nh
+.SH "نام (NAME)"
+pw-top \- The PipeWire process viewer
+
+.PP
+.SH "خلاصه دستور (SYNOPSIS)"
+.PP
+
+.PP
+\fBpw-top\fP [\fIoptions\fP]
+
+.PP
+.SH "توضیحات (DESCRIPTION)"
+.PP
+
+.PP
+The \fIpw-top\fP program provides a dynamic real-time view of the pipewire node and device statistics\&.
+
+.PP
+A hierarchical view is shown of Driver nodes and follower nodes\&. The Driver nodes are actively using a timer to schedule dataflow in the followers\&. The followers of a driver node are shown below their driver with a + sign (or = for async nodes) in a tree-like representation\&.
+
+.PP
+The columns presented are as follows:
+
+.PP
+\fBS\fP
+.RS 4
+Node status\&.
+
+.PP
+.IP "\(bu" 2
+E = ERROR
+.IP "\(bu" 2
+C = CREATING
+.IP "\(bu" 2
+S = SUSPENDED
+.IP "\(bu" 2
+I = IDLE
+.IP "\(bu" 2
+R = RUNNING
+.IP "\(bu" 2
+t = RUNNING + transport starting
+.IP "\(bu" 2
+T = RUNNING + transport running 
+.PP
+.RE
+.PP
+
+.PP
+\fBID\fP
+.RS 4
+The ID of the pipewire node/device, as found in \fIpw-dump\fP and \fIpw-cli\fP
+.RE
+.PP
+\fBQUANT\fP
+.RS 4
+The current quantum (for drivers) and the suggested quantum for follower nodes\&.
+
+.PP
+The quantum by itself needs to be divided by the RATE column to calculate the duration of a scheduling period in fractions of a second\&.
+
+.PP
+For a QUANT of 1024 and a RATE of 48000, the duration of one period in the graph is 1024/48000 or 21\&.3 milliseconds\&.
+
+.PP
+Follower nodes can have a 0 QUANT field, which means that the node does not have a suggestion for the quantum and thus uses what the driver selected\&.
+
+.PP
+The driver will use the lowest quantum of any of the followers\&. If none of the followers select a quantum, the default quantum in the pipewire configuration file will be used\&.
+
+.PP
+The QUANT on the drivers usually translates directly into the number of audio samples processed per processing cycle of the graph\&.
+
+.PP
+See also https://gitlab.freedesktop.org/pipewire/pipewire/-/wikis/FAQ#pipewire-buffering-explained 
+.RE
+.PP
+
+.PP
+\fBRATE\fP
+.RS 4
+The current rate (for drivers) and the suggested rate for follower nodes\&.
+
+.PP
+This is the rate at which the \fIgraph\fP processes data and needs to be combined with the QUANT value to derive the duration of a processing cycle in the graph\&.
+
+.PP
+Some nodes can have a 0 RATE, which means that they don\\'t have any rate suggestion for the graph\&. Nodes that suggest a rate can make the graph switch rates if the graph is otherwise idle and the new rate is allowed as a possible graph rate (see the pipewire configuration file)\&.
+
+.PP
+The RATE on (audio) driver nodes usually also translates directly to the samplerate used by the device\&. Although some devices might not be able to operate at the given samplerate, in which case resampling will need to be done\&. The negotiated samplerate with the device and stream can be found in the FORMAT column\&.
+
+.PP
+.RE
+.PP
+
+.PP
+\fBWAIT\fP
+.RS 4
+The waiting time of a node is the elapsed time between when the node is ready to start processing and when it actually started processing\&.
+
+.PP
+For Driver nodes, this is the time between when the node wakes up to start processing the graph and when the driver (and thus also the graph) completes a cycle\&. The WAIT time for driver is thus the elapsed time processing the graph\&.
+
+.PP
+For follower nodes, it is the time spent between being woken up (when all dependencies of the node are satisfied) and when processing starts\&. The WAIT time for follower nodes is thus mostly caused by context switching\&.
+
+.PP
+A value of --- means that the node was not signaled\&. A value of +++ means that the node was signaled but not awake\&. 
+.RE
+.PP
+
+.PP
+\fBBUSY\fP
+.RS 4
+The processing time is started when the node starts processing until it completes and wakes up the next nodes in the graph\&.
+
+.PP
+A value of --- means that the node was not started\&. A value of +++ means that the node was started but did not complete\&. 
+.RE
+.PP
+
+.PP
+\fBW/Q\fP
+.RS 4
+Ratio of WAIT / QUANT\&.
+
+.PP
+The W/Q time of the driver node is a good measure of the graph load\&. The running averages of the driver W/Q ratios are used as the DSP load in other (JACK) tools\&.
+
+.PP
+Values of --- and +++ are copied from the WAIT column\&.
+
+.PP
+.RE
+.PP
+
+.PP
+\fBB/Q\fP
+.RS 4
+Ratio of BUSY / QUANT
+
+.PP
+This is a good measure of the load of a particular driver or follower node\&.
+
+.PP
+Values of --- and +++ are copied from the BUSY column\&. 
+.RE
+.PP
+
+.PP
+\fBERR\fP
+.RS 4
+Total of Xruns and Errors
+
+.PP
+Xruns for drivers are when the graph did not complete a cycle\&. This can be because a node in the graph also has an Xrun\&. It can also be caused when scheduling delays cause a deadline to be missed, causing a hardware Xrun\&.
+
+.PP
+Xruns for followers are incremented when the node started processing but did not complete before the end of the graph cycle deadline\&. 
+.RE
+.PP
+
+.PP
+\fBFORMAT\fP
+.RS 4
+The format used by the driver node or the stream\&. This is the hardware format negotiated with the device or stream\&.
+
+.PP
+If the stream of driver has a different rate than the graph, resampling will be done\&.
+
+.PP
+For raw audio formats, the layout is <sampleformat> <channels> <samplerate>\&.
+
+.PP
+For IEC958 passthrough audio formats, the layout is IEC958 <codec> <samplerate>\&.
+
+.PP
+For DSD formats, the layout is <dsd-rate> <channels>\&.
+
+.PP
+For Video formats, the layout is <pixelformat> <width>x<height>\&. 
+.RE
+.PP
+
+.PP
+\fBNAME\fP
+.RS 4
+Name assigned to the device/node, as found in \fIpw-dump\fP node\&.name
+
+.PP
+Names are prefixed by \fI+\fP/*=* when they are linked to a driver (entry above with no +/=) 
+.RE
+.PP
+
+.PP
+.SH "COMMANDS"
+.PP
+
+.PP
+The following keys can be used in the interactive mode:
+
+.PP
+\fBq\fP
+.RS 4
+Quit
+.RE
+.PP
+\fBc\fP
+.RS 4
+Clear the ERR counters\&. This does \fInot\fP clear the counters globally, it will only reset the counters in this instance of \fIpw-top\fP\&.
+.RE
+.PP
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+
+.PP
+\fB-h | --help\fP
+.RS 4
+Show help\&.
+.RE
+.PP
+\fB-b | --batch-mode\fP
+.RS 4
+Run in non-interactive batch mode, similar to top\\'s batch mode\&.
+.RE
+.PP
+\fB-n | --iterations=NUMBER\fP
+.RS 4
+Exit after NUMBER of batch iterations\&. Only used in batch mode\&.
+.RE
+.PP
+\fB-r | --remote=NAME\fP
+.RS 4
+The name the \fIremote\fP instance to monitor\&. If left unspecified, a connection is made to the default PipeWire instance\&.
+.RE
+.PP
+\fB-V | --version\fP
+.RS 4
+Show version information\&.
+.RE
+.PP
+.SH "نویسندگان (AUTHORS)"
+.PP
+
+.PP
+The PipeWire Developers <https://gitlab.freedesktop.org/pipewire/pipewire/issues>; PipeWire is available from <https://pipewire.org>
+
+.PP
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+
+.PP
+\fBpipewire(1)\fP, \fBpw-dump(1)\fP, \fBpw-cli(1)\fP, \fBpw-profiler(1)\fP 
+

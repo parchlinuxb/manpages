@@ -1,0 +1,565 @@
+'\" t
+.\"     Title: pkcs15-initpkcs15-init
+.\"    Author: [see the "Authors" section]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 06/02/2026
+.\"    Manual: OpenSC ToolsOpenSC Tools
+.\"    Source: openscopensc
+.\"  Language: English
+.\"
+.TH "PKCS15\-INITPKCS15\-" "1" "06/02/2026" "openscopensc" "OpenSC ToolsOpenSC Tools"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+pkcs15-init \- smart card personalization utility
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBpkcs15\-init\fR\ 'u
+\fBpkcs15\-init\fR [\fIOPTIONS\fR]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+The
+\fBpkcs15\-init\fR
+utility can be used to create a PKCS #15 structure on a smart card, and add key or certificate objects\&. Details of the structure that will be created are controlled via profiles\&.
+.PP
+The profile used by default is
+\fBpkcs15\fR\&. Alternative profiles can be specified via the
+\fB\-p\fR
+switch\&.
+.SH "PIN USAGE"
+.PP
+\fBpkcs15\-init\fR
+can be used to create a PKCS #15 structure on your smart card, create PINs, and install keys and certificates on the card\&. This process is also called
+\fIpersonalization\fR\&.
+.PP
+An OpenSC card can have one security officer PIN, and zero or more user PINs\&. PIN stands for Personal Identification Number, and is a secret code you need to present to the card before being allowed to perform certain operations, such as using one of the stored RSA keys to sign a document, or modifying the card itself\&.
+.PP
+Usually, PINs are a sequence of decimal digits, but some cards will accept arbitrary ASCII characters\&. Be aware however that using characters other than digits will make the card unusable with PIN pad readers, because those usually have keys for entering digits only\&.
+.PP
+The security officer (SO) PIN is special; it is used to protect meta data information on the card, such as the PKCS #15 structure itself\&. Setting the SO PIN is optional, because the worst that can usually happen is that someone finding your card can mess it up\&. To extract any of your secret keys stored on the card, an attacker will still need your user PIN, at least for the default OpenSC profiles\&. However, it is possible to create card profiles that will allow the security officer to override user PINs\&.
+.PP
+For each PIN, you can specify a PUK (also called
+\fIunblock PIN\fR)\&. The PUK can be used to overwrite or unlock a PIN if too many incorrect values have been entered in a row\&.
+.PP
+For some cards that use the PKCS#15 emulation, the attributes of private objects are protected and cannot be parsed without authentication (usually with User PIN)\&. This authentication need to be done immediately after the card binding\&. In such cases
+\fB\-\-verify\-pin\fR
+has to be used\&.
+.SH "MODES OF OPERATION"
+.SS "Initialization"
+.PP
+This is the first step during card personalization, and will create the basic files on the card\&. To create the initial PKCS #15 structure, invoke the utility as
+.PP
+\fBpkcs15\-init \-\-create\-pkcs15\fR
+.PP
+You will then be asked for the security officer PIN and PUK\&. Simply pressing return at the SO PIN prompt will skip installation of an SO PIN\&.
+.PP
+If the card supports it, you should erase the contents of the card with
+\fBpkcs15\-init \-\-erase\-card\fR
+before creating the PKCS#15 structure\&.
+.SS "User PIN Installation"
+.PP
+Before installing any user objects such as private keys, you need at least one PIN to protect these objects\&. you can do this using
+.PP
+\fBpkcs15\-init \-\-store\-pin \-\-id " nn\fR
+.PP
+where
+\fInn\fR
+is a PKCS #15 ID in hexadecimal notation\&. Common values are 01, 02, etc\&.
+.PP
+Entering the command above will ask you for the user\*(Aqs PIN and PUK\&. If you do not wish to install an unblock PIN, simply press return at the PUK prompt\&.
+.PP
+To set a label for this PIN object (which can be used by applications to display a meaningful prompt to the user), use the
+\fB\-\-label\fR
+command line option\&.
+.SS "Key generation"
+.PP
+\fBpkcs15\-init\fR
+lets you generate a new key and store it on the card\&. You can do this using:
+.PP
+\fBpkcs15\-init \-\-generate\-key "keyspec" \-\-auth\-id "nn"\fR
+.PP
+where
+\fIkeyspec\fR
+describes the algorithm and the parameters of the key to be created\&. For example,
+rsa:2048
+generates a RSA key with 2048\-bit modulus, default is 3072\&. If you are generating an EC key, the curve designation must be specified, for example
+ec:prime256v1\&. The following curves do not need parameters: Edwards 25519 curves use one of these equivalent names: Ed25519(preferred), ed25519 or edwards25519 and for the 448 curve use: Ed448\&. For Montgomery 25519 curves use one of these equivalent names: X25519(preferred), cv25519 or curve25519 and for the 448 curve use: X448\&. For symmetric key, the length of key is specified in bytes, for example
+AES:32
+or
+DES3:24\&.
+.PP
+\fInn\fR
+is the ID of a user PIN installed previously, e\&.g\&.
+01\&.
+.PP
+In addition to storing the private portion of the key on the card,
+\fBpkcs15\-init\fR
+will also store the public portion of the key as a PKCS #15 public key object\&.
+.SS "Private Key Upload"
+.PP
+You can use a private key generated by other means and upload it to the card\&. For instance, to upload a private key contained in a file named
+okir\&.pem, which is in PEM format, you would use
+.PP
+\fBpkcs15\-init \-\-store\-private\-key okir\&.pem \-\-id 45 \-\-auth\-id 01\fR
+.PP
+In addition to storing the private portion of the key on the card,
+\fBpkcs15\-init\fR
+will also store the public portion of the key as a PKCS #15 public key object\&.
+.PP
+Note that usage of
+\fB\-\-id\fR
+option in the
+\fBpkcs15\-init\fR
+commands to generate or to import a new key is deprecated\&. Better practice is to let the middleware to derive the identifier from the key material\&. (SHA1(modulus) for RSA, \&.\&.\&.)\&. This allows easily set up relation between \*(Aqrelated\*(Aq objects (private/public keys and certificates)\&.
+.PP
+In addition to the PEM key file format,
+\fBpkcs15\-init\fR
+also supports DER encoded keys, and PKCS #12 files\&. The latter is the file format used by Netscape Navigator (among others) when exporting certificates to a file\&. A PKCS #12 file usually contains the X\&.509 certificate corresponding to the private key\&. If that is the case,
+\fBpkcs15\-init\fR
+will store the certificate instead of the public key portion\&.
+.SS "Public Key Upload"
+.PP
+You can also upload individual public keys to the card using the
+\fB\-\-store\-public\-key\fR
+option, which takes a filename as an argument\&. This file is supposed to contain the public key\&. If you don\*(Aqt specify a key file format using the
+\fB\-\-format\fR
+option,
+\fBpkcs15\-init\fR
+will assume PEM format\&. The only other supported public key file format is DER\&.
+.PP
+Since the corresponding public keys are always uploaded automatically when generating a new key, or when uploading a private key, you will probably use this option only very rarely\&.
+.SS "Certificate Upload"
+.PP
+You can upload certificates to the card using the
+\fB\-\-store\-certificate\fR
+option, which takes a filename as an argument\&. This file is supposed to contain the PEM encoded X\&.509 certificate\&.
+.SS "Uploading PKCS #12 bags"
+.PP
+Most browsers nowadays use PKCS #12 format files when you ask them to export your key and certificate to a file\&.
+\fBpkcs15\-init\fR
+is capable of parsing these files, and storing their contents on the card in a single operation\&. This works just like storing a private key, except that you need to specify the file format:
+.PP
+\fBpkcs15\-init \-\-store\-private\-key okir\&.p12 \-\-format pkcs12 \-\-auth\-id 01\fR
+.PP
+This will install the private key contained in the file
+okir\&.p12, and protect it with the PIN referenced by authentication ID
+01\&. It will also store any X\&.509 certificates contained in the file, which is usually the user certificate that goes with the key, as well as the CA certificate\&.
+.SS "Secret Key Upload"
+.PP
+You can use a secret key generated by other means and upload it to the card\&. For instance, to upload an AES\-secret key generated by the system random generator you would use
+.PP
+\fBpkcs15\-init \-\-store\-secret\-key /dev/urandom \-\-secret\-key\-algorithm aes:256 \-\-auth\-id 01\fR
+.PP
+By default a random ID is generated for the secret key\&. You may specify an ID with the
+\fB\-\-id\fR
+if needed\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+.PP
+\fB\-\-version\fR,
+.RS 4
+Print the OpenSC package release version\&.
+.RE
+.PP
+\fB\-\-card\-profile\fR \fIname\fR, \fB\-c\fR \fIname\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to load the specified card profile option\&. You will rarely need this option\&.
+.RE
+.PP
+\fB\-\-create\-pkcs15\fR, \fB\-C\fR
+.RS 4
+This tells
+\fBpkcs15\-init\fR
+to create a PKCS #15 structure on the card, and initialize any PINs\&.
+.RE
+.PP
+\fB\-\-serial\fR \fISERIAL\fR
+.RS 4
+Specify the serial number of the card\&.
+.RE
+.PP
+\fB\-\-erase\-card\fR, \fB\-E\fR
+.RS 4
+This will erase the card prior to creating the PKCS #15 structure, if the card supports it\&. If the card does not support erasing,
+\fBpkcs15\-init\fR
+will fail\&.
+.RE
+.PP
+\fB\-\-erase\-application\fR \fIAID\fR
+.RS 4
+This will erase the application with the application identifier
+\fIAID\fR\&.
+.RE
+.PP
+\fB\-\-generate\-key\fR \fIkeyspec\fR, \fB\-G\fR \fIkeyspec\fR
+.RS 4
+Tells the card to generate new key and store it on the card\&.
+\fIkeyspec\fR
+consists of an algorithm name, optionally followed by a colon ":", slash "/" or hyphen "\-" and the parameters of the key to be created\&. It is a good idea to specify the key ID along with this command, using the
+\fBid\fR
+option, otherwise an intrinsic ID will be calculated from the key material\&. Look the description of the \*(Aqpkcs15\-id\-style\*(Aq attribute in the \*(Aqpkcs15\&.profile\*(Aq for the details about the algorithm used to calculate intrinsic ID\&. For the multi\-application cards the target PKCS#15 application can be specified by the hexadecimal AID value of the
+\fBaid\fR
+option\&.
+.RE
+.PP
+\fB\-\-pin\fR \fIpin\fR, \fB\-\-puk\fR \fIpuk\fR, \fB\-\-so\-pin\fR \fIsopin\fR, \fB\-\-so\-puk\fR \fIsopuk\fR
+.RS 4
+These options can be used to specify the PIN/PUK values on the command line\&. If the value is set to
+env:\fIVARIABLE\fR, the value of the specified environment variable is used\&. By default, the code is prompted on the command line if needed\&.
+.sp
+Note that on most operation systems, any user can display the command line of any process on the system using utilities such as
+\fBps(1)\fR\&. Therefore, you should prefer passing the codes via an environment variable on an unsecured system\&.
+.RE
+.PP
+\fB\-\-no\-so\-pin\fR,
+.RS 4
+Do not install a SO PIN, and do not prompt for it\&.
+.RE
+.PP
+\fB\-\-profile\fR \fIname\fR, \fB\-p\fR \fIname\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to load the specified general profile\&. Currently, the only application profile defined is
+pkcs15, but you can write your own profiles and specify them using this option\&.
+.sp
+The profile name can be combined with one or more profile options, which slightly modify the profile\*(Aqs behavior\&. For instance, the default OpenSC profile supports the
+\fBopenpin\fR
+option, which installs a single PIN during card initialization\&. This PIN is then used both as the SO PIN as well as the user PIN for all keys stored on the card\&.
+.sp
+Profile name and options are separated by a
++
+character, as in
+pkcs15+onepin\&.
+.RE
+.PP
+\fB\-\-secret\-key\-algorithm\fR \fIkeyspec\fR,
+.RS 4
+\fIkeyspec\fR
+describes the algorithm and length of the key to be created or downloaded, such as
+aes:256\&. This will create a 256 bit AES key\&.
+.RE
+.PP
+\fB\-\-store\-certificate\fR \fIfilename\fR, \fB\-X\fR \fIfilename\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to store the certificate given in
+\fBfilename\fR
+on the card, creating a certificate object with the ID specified via the
+\fB\-\-id\fR
+option\&. Without supplied ID an intrinsic ID will be calculated from the certificate\*(Aqs public key\&. Look the description of the \*(Aqpkcs15\-id\-style\*(Aq attribute in the \*(Aqpkcs15\&.profile\*(Aq for the details about the algorithm used to calculate intrinsic ID\&. The file is assumed to contain the PEM encoded certificate\&. For the multi\-application cards the target application can be specified by the hexadecimal AID value of the
+\fBaid\fR
+option\&.
+.RE
+.PP
+\fB\-\-store\-pin\fR, \fB\-P\fR
+.RS 4
+Store a new PIN/PUK on the card\&.
+.RE
+.PP
+\fB\-\-store\-public\-key\fR \fIfilename\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to download the specified public key to the card and create a public key object with the key ID specified via the
+\fB\-\-id\fR\&. By default, the file is assumed to contain the key in PEM format\&. Alternative formats can be specified using
+\fB\-\-format\fR\&.
+.RE
+.PP
+\fB\-\-store\-private\-key\fR \fIfilename\fR, \fB\-S\fR \fIfilename\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to download the specified private key to the card\&. This command will also create a public key object containing the public key portion\&. By default, the file is assumed to contain the key in PEM format\&. Alternative formats can be specified using
+\fB\-\-format\fR\&. It is a good idea to specify the key ID along with this command, using the
+\fB\-\-id\fR
+option, otherwise an intrinsic ID will be calculated from the key material\&. Look the description of the \*(Aqpkcs15\-id\-style\*(Aq attribute in the \*(Aqpkcs15\&.profile\*(Aq for the details about the algorithm used to calculate intrinsic ID\&. For the multi\-application cards the target PKCS#15 application can be specified by the hexadecimal AID value of the
+\fBaid\fR
+option\&.
+.RE
+.PP
+\fB\-\-store\-secret\-key\fR \fIfilename\fR,
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to download the specified secret key to the card\&. The file is assumed to contain the raw key\&. They key type should be specified with
+\fB\-\-secret\-key\-algorithm\fR
+option\&.
+.sp
+You may additionally specify the key ID along with this command, using the
+\fB\-\-id\fR
+option, otherwise a random ID is generated\&. For the multi\-application cards the target PKCS#15 application can be specified by the hexadecimal AID value of the
+\fBaid\fR
+option\&.
+.RE
+.PP
+\fB\-\-store\-data\fR \fIfilename\fR, \fB\-W\fR \fIfilename\fR
+.RS 4
+Store a data object\&.
+.RE
+.PP
+\fB\-\-update\-certificate\fR \fIfilename\fR, \fB\-U\fR \fIfilename\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to update the certificate object with the ID specified via the
+\fB\-\-id\fR
+option with the certificate in
+\fIfilename\fR\&. The file is assumed to contain a PEM encoded certificate\&.
+.sp
+Pay extra attention when updating mail decryption certificates, as missing certificates can render e\-mail messages unreadable!
+.RE
+.PP
+\fB\-\-delete\-objects\fR \fIarg\fR, \fB\-D\fR \fIarg\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to delete the specified object\&.
+\fIarg\fR
+is comma\-separated list containing any of
+privkey,
+pubkey,
+secrkey,
+cert,
+chain
+or
+data\&.
+.sp
+When
+data
+is specified, an \-\fB\-\-application\-id\fR
+must also be specified, in the other cases an
+\fB\-\-id\fR
+must also be specified
+.sp
+When
+chain
+is specified, the certificate chain starting with the cert with specified ID will be deleted, until there\*(Aqs a CA certificate that certifies another cert on the card
+.RE
+.PP
+\fB\-\-change\-attributes\fR \fIarg\fR, \fB\-A\fR \fIarg\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to change the specified attribute\&.
+\fIarg\fR
+is either
+privkey,
+pubkey,
+secrkey,
+cert
+or
+data\&. You also have to specify the
+\fB\-\-id\fR
+of the object\&. For now, you can only change the
+\fB\-\-label\fR, e\&.g:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+								pkcs15\-init \-A cert \-\-id 45 \-a 1 \-\-label Jim
+							
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.RE
+.PP
+\fB\-\-use\-default\-transport\-keys\fR, \fB\-T\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to not ask for the transport keys and use default keys, as known by the card driver\&.
+.RE
+.PP
+\fB\-\-sanity\-check\fR
+.RS 4
+Tells
+\fBpkcs15\-init\fR
+to perform a card specific sanity check and possibly update procedure\&.
+.RE
+.PP
+\fB\-\-reader\fR \fIarg\fR, \fB\-r\fR \fIarg\fR
+.RS 4
+Number of the reader to use\&. By default, the first reader with a present card is used\&. If
+\fIarg\fR
+is an ATR, the reader with a matching card will be chosen\&.
+.RE
+.PP
+\fB\-\-verbose\fR, \fB\-v\fR
+.RS 4
+Causes
+\fBpkcs15\-init\fR
+to be more verbose\&. Specify this flag several times to enable debug output in the OpenSC library\&.
+.RE
+.PP
+\fB\-\-wait\fR, \fB\-w\fR
+.RS 4
+Causes
+\fBpkcs15\-init\fR
+to wait for a card insertion\&.
+.RE
+.PP
+\fB\-\-use\-pinpad\fR
+.RS 4
+Do not prompt the user; if no PINs supplied, pinpad will be used\&.
+.RE
+.PP
+\fB\-\-auth\-id\fR \fIfilename\fR, \fB\-a\fR \fIfilename\fR
+.RS 4
+Specify ID of PIN to use/create
+.RE
+.PP
+\fB\-\-puk\-id\fR \fIID\fR
+.RS 4
+Specify ID of PUK to use/create
+.RE
+.PP
+\fB\-\-label\fR \fILABEL\fR
+.RS 4
+Specify label for a PIN, key, certificate or data object when creating a new objects\&. When deleting objects, this can be used to delete object by label\&.
+.RE
+.PP
+\fB\-\-puk\-label\fR \fILABEL\fR
+.RS 4
+Specify label of PUK
+.RE
+.PP
+\fB\-\-public\-key\-label\fR \fILABEL\fR
+.RS 4
+Specify public key label (use with
+\fB\-\-generate\-key\fR)
+.RE
+.PP
+\fB\-\-cert\-label\fR \fILABEL\fR
+.RS 4
+Specify user cert label (use with
+\fB\-\-store\-private\-key\fR)
+.RE
+.PP
+\fB\-\-application\-name\fR \fIarg\fR
+.RS 4
+Specify application name of data object (use with
+\fB\-\-store\-data\-object\fR)
+.RE
+.PP
+\fB\-\-aid\fR \fIAID\fR
+.RS 4
+Specify AID of the on\-card PKCS#15 application to be binded to (in hexadecimal form)
+.RE
+.PP
+\fB\-\-output\-file\fR \fIfilename\fR \fB\-o\fR \fIfilename\fR,
+.RS 4
+Output public portion of generated key to file
+.RE
+.PP
+\fB\-\-passphrase\fR \fIPASSPHRASE\fR
+.RS 4
+Specify passphrase for unlocking secret key
+.RE
+.PP
+\fB\-\-authority\fR
+.RS 4
+Mark certificate as a CA certificate
+.RE
+.PP
+\fB\-\-key\-usage\fR \fIarg\fR \fB\-u\fR \fIarg\fR,
+.RS 4
+Specifies the X\&.509 key usage\&.
+\fIarg\fR
+is comma\-separated list containing any of
+digitalSignature,
+nonRepudiation,
+keyEncipherment,
+dataEncipherment,
+keyAgreement,
+keyCertSign,
+cRLSign\&. Abbreviated names are allowed if unique (e\&.g\&.
+dataEnc)\&.
+.sp
+The alias
+sign
+is equivalent to
+digitalSignature,keyCertSign,cRLSign
+.sp
+The alias
+decrypt
+is equivalent to
+keyEncipherment,dataEncipherment
+.RE
+.PP
+\fB\-\-finalize\fR \fB\-F\fR,
+.RS 4
+Finish initialization phase of the smart card
+.RE
+.PP
+\fB\-\-update\-last\-update\fR
+.RS 4
+Update \*(AqlastUpdate\*(Aq attribute of tokenInfo
+.RE
+.PP
+\fB\-\-ignore\-ca\-certificates\fR
+.RS 4
+When storing PKCS#12 ignore CA certificates
+.RE
+.PP
+\fB\-\-update\-existing\fR
+.RS 4
+Store or update existing certificate
+.RE
+.PP
+\fB\-\-extractable\fR
+.RS 4
+Private key stored as an extractable key
+.RE
+.PP
+\fB\-\-user\-consent\fR \fIarg\fR
+.RS 4
+Specify user\-consent\&.
+\fIarg\fR
+is an integer value\&. If > 0, the value specifies how many times the object can be accessed before a new authentication is required\&. If zero, the object does not require re\-authentication\&.
+.RE
+.PP
+\fB\-\-insecure\fR
+.RS 4
+Insecure mode: do not require a PIN for private key
+.RE
+.PP
+\fB\-\-md\-container\-guid\fR \fIGUID\fR
+.RS 4
+For a new key specify GUID for a MD container
+.RE
+.PP
+\fB\-\-help\fR \fB\-h\fR,
+.RS 4
+Display help message
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBpkcs15-profile\fR(5)
+.SH "نویسندگان (AUTHORS)"
+.PP
+\fBpkcs15\-init\fR
+was written by Olaf Kirch
+<okir@suse\&.de>\&.

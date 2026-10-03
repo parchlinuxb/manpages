@@ -1,0 +1,66 @@
+.nh
+.TH containers-storage 1 "August 2024"
+.SH "نام (NAME)"
+containers-storage-zstd-chunked \- Information about zstd:chunked
+
+.SH "توضیحات (DESCRIPTION)"
+The traditional format for container image layers is application/vnd.oci.image.layer.v1.tar+gzip
+\[la]https://github.com/opencontainers/image\-spec/blob/main/layer.md#gzip\-media\-types\[ra]\&.
+More recently, the standard was augmented with zstd: application/vnd.oci.image.layer.v1.tar+zstd
+\[la]https://github.com/opencontainers/image\-spec/blob/main/layer.md#zstd\-media\-types\[ra]
+which is a more modern and efficient compression format.
+
+.PP
+\fBzstd:chunked\fR is a variant of the \fBapplication/vnd.oci.image.layer.v1.tar+zstd\fR media type that
+uses zstd skippable frames
+\[la]https://github.com/facebook/zstd/blob/dev/doc/zstd_compression_format.md#skippable\-frames\[ra]
+to include additional metadata (especially a "table of contents") that includes the SHA-256 and offsets of individual chunks of files.
+Additionally chunks are compressed separately. This allows a client to dynamically fetch only content which
+it doesn't already have using HTTP range requests.
+
+.PP
+At the time of this writing, support for this is enabled by default in the code.
+
+.PP
+You can explicitly enable or disable zstd:chunked with following changes to \fBcontainers-storage.conf\fR:
+
+.EX
+[storage.options.pull_options]
+enable_partial_images = "true" | "false"
+.EE
+
+.PP
+Note that the value of this field must be a "string bool", it cannot be a native TOML boolean.
+
+.SH IMPLEMENTATION
+Each layer has an associated "big data" key called \fBchunked-manifest-cache\fR that
+is a custom binary format suitable for mmap() that contains index metadata
+for each layer with the full sha256 digest of each file plus its "chunks" (as
+computed by \fBzstd:chunked\fR).
+
+.PP
+When any image is pulled all existing other layers are scanned using \fBchunked-manifest-cache\fR to see if they contain a file with a matching digest. If one is found, the other file is hardlinked if \fBuse_hardlinks = "true\fR",
+otherwise it is reflinked (if supported by the filesystem, or a full physical copy
+is made). There is a best-effort attempt to enable fsverity on the file if configured
+(see 
+\[la]https://github.com/containers/storage/issues/2017\[ra]).
+
+.PP
+For more information, at the current time the file with the most information is pkg/chunked/internal/compression.go
+\[la]https://github.com/containers/storage/blob/39d469c34c96db67062e25954bc9d18f2bf6dae3/pkg/chunked/internal/compression.go\[ra]\&.
+The above is a permanent link for stability, but be sure to check to see if there are newer changes too.
+
+.SH STANDARDIZATION
+At the current time the format is not officially standardized or documented beyond
+the comments and code in the reference implementation.
+
+.SH "اشکالات (BUGS)"
+.IP \(bu 2
+https://github.com/containers/storage/issues?q=is%3Aissue+label%3Aarea%2Fzstd%3Achunked+is%3Aopen
+
+.SH FOOTNOTES
+The Containers Storage project is committed to inclusivity, a core value of open source.
+The \fBmaster\fR and \fBslave\fR mount propagation terminology is used in this repository.
+This language is problematic and divisive, and should be changed.
+However, these terms are currently used within the Linux kernel and must be used as-is at this time.
+When the kernel maintainers rectify this usage, Containers Storage will follow suit immediately.

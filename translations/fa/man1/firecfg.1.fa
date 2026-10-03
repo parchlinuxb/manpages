@@ -1,0 +1,214 @@
+.TH FIRECFG 1 "Mar 2026" "0.9.80" "firecfg man page"
+.SH "نام (NAME)"
+Firecfg \- Desktop integration utility for Firejail software.
+.SH "خلاصه دستور (SYNOPSIS)"
+firecfg [OPTIONS]
+.SH "توضیحات (DESCRIPTION)"
+Firecfg is the desktop integration utility for Firejail sandbox.
+It allows the user to sandbox applications automatically by
+clicking on desktop manager icons and menus.
+
+The integration covers:
+.br
+.PP
+.RS
+- programs started in a terminal - typing "firefox" would be enough to start a sandboxed Firefox browser
+.br
+
+.br
+- programs started by clicking on desktop manager menus - all major desktop managers are supported
+.br
+
+.br
+- programs started by clicking on file icons in file manager - only Cinnamon, KDE, LXDE/LXQT, MATE and XFCE
+desktop managers are supported in this moment
+.RE
+.PP
+Note: The examples use \fBsudo\fR, but \fBdoas\fR is also supported.
+.PP
+To set it up, run "sudo firecfg" after installing Firejail software.
+The same command should also be run after
+installing new programs. If the program is supported by Firejail, the symbolic link in /usr/local/bin
+will be created.
+.PP
+To configure the list of programs used by firecfg when creating symlinks, see
+\fBFILES\fR and \fBSYNTAX\fR.
+.PP
+For user-driven manual integration, see \fBDESKTOP INTEGRATION\fR section in
+\fBman 1 firejail\fR.
+.SH DEFAULT ACTIONS
+The following actions are implemented by default by running sudo firecfg:
+
+.RS
+- set or update the symbolic links for desktop integration;
+.br
+
+.br
+- add the current user to Firejail user access database (firecfg --add-users);
+.br
+
+.br
+- fix desktop files in $HOME/.local/share/applications/ (firecfg \-\-fix).
+.br
+.br
+- automatically loads and forces the AppArmor profile "firejail-default".
+.RE
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+\fB\-\-add-users user [user]
+Add the list of users to Firejail user access database.
+
+Example:
+.br
+$ sudo firecfg \-\-add-users dustin lucas mike eleven
+
+.TP
+\fB\-\-bindir=directory
+Create and search symbolic links in directory instead of the default location /usr/local/bin.
+Directory should precede /usr/bin and /bin in the PATH environment variable.
+
+.TP
+\fB\-\-clean
+Remove all firejail symbolic links.
+
+.TP
+\fB\-\-fix
+Fix .desktop files. Some .desktop files use full path to executable. Firecfg will check .desktop files in
+/usr/share/applications/, replace full path by name if it is in PATH, and write result to $HOME/.local/share/applications/.
+This action is done by default when running "sudo firecfg". We have it as a separate option for regular users.
+
+.TP
+\fB\-\-fix-sound
+Create a proper ~/.config/pulse/client.conf file without shm support. On some PulseAudio versions,
+shared memory support (shm) breaks the process ID namespace. PulseAudio software was designed
+a long time ago, and the introduction of PID namespace in Linux kernel breaks their design. This was
+reportedly fixed in PulseAudio version 9. If you have sound problems on your system, run
+"firecfg --fix-sound" command in a terminal, followed by logout/login in order to apply the changes.
+.TP
+\fB\-\-guide
+Guided configuration for new users.
+.br
+
+.br
+Example:
+.br
+$ sudo firecfg \-\-guide
+.br
+.TP
+\fB\-\-debug
+Print debug messages.
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Print options end exit.
+.TP
+\fB\-\-list
+List all firejail symbolic links
+.TP
+\fB\-\-version
+Print program version and exit.
+
+
+.PP
+Example:
+.br
+
+.br
+$ sudo firecfg
+.br
+/usr/local/bin/firefox created
+.br
+/usr/local/bin/vlc created
+.br
+[...]
+.br
+$ firecfg --list
+.br
+/usr/local/bin/firefox
+.br
+/usr/local/bin/vlc
+.br
+[...]
+.br
+$ sudo firecfg --clean
+.br
+/usr/local/bin/firefox removed
+.br
+/usr/local/bin/vlc removed
+.br
+[...]
+.SH "سینتکس (SYNTAX)"
+Configuration file syntax:
+.PP
+A line that starts with \fB#\fR is considered a comment.
+.br
+A line that starts with \fB!PROGRAM\fR means to ignore "PROGRAM" when creating
+symlinks and fixing .desktop files.
+.br
+A line that starts with anything else is considered to be the name of an
+executable and firecfg will attempt to create a symlink for it.
+.PP
+For example, to prevent firecfg from creating symlinks for "firefox" and
+"patch" while attempting to create a symlink for "myprog", the following lines
+could be added to /etc/firejail/firecfg.d/10-my.conf:
+.PP
+.RS
+!firefox
+.br
+!patch
+.br
+
+.br
+myprog
+.RE
+.PP
+Note that certain programs may use different naming schemes for their .desktop
+file compared to the main executable.
+To ensure that both files are handled in the same manner, it is recommended to
+list both names in the configuration.
+For example, if Spectacle has its main executable at /usr/bin/spectacle and its
+\&.desktop file at /usr/share/applications/org.kde.spectacle.desktop, then the
+following lines can to be used to ignore both:
+.PP
+.RS
+!org.kde.spectacle
+.br
+!spectacle
+.RE
+.SH "فایل‌ها (FILES)"
+.PP
+Configuration files are searched for and parsed in the following paths:
+.PP
+.RS
+1. /etc/firejail/firecfg.d/*.conf (in alphabetical order)
+.br
+2. /etc/firejail/firecfg.config
+.RE
+.PP
+The programs that are supported by default are listed in
+/etc/firejail/firecfg.config.
+It is recommended to leave it as is and put all customizations inside
+/etc/firejail/firecfg.d/.
+.PP
+Profile files are also searched in the user configuration directory:
+.PP
+.RS
+3. ~/.config/firejail/*.profile
+.RE
+.PP
+For every \fBPROGRAM.profile\fR file found, firecfg attempts to create a
+symlink for "PROGRAM", as if "PROGRAM" was listed in a configuration file.
+.SH "مجوز (LICENSE)"
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 2 of the License, or (at your option) any later version.
+.PP
+Homepage:
+.UR https://firejail.wordpress.com
+.UE
+.SH "همچنین ببینید (SEE ALSO)"
+.BR firejail (1),
+.BR firemon (1),
+.BR firejail-profile (5),
+.BR firejail-login (5),
+.BR firejail-users (5),
+.BR jailcheck (1)
+.\" vim: set filetype=groff :

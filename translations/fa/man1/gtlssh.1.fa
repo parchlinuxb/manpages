@@ -1,0 +1,247 @@
+.TH gtlssh 1 01/02/19  "Shell connection over TLS"
+
+.SH "نام (NAME)"
+gtlssh / gsh \- Shell connection  over TLS
+
+.SH "خلاصه دستور (SYNOPSIS)"
+.B gtlssh [options] <host> [<program>]
+or
+.B gsh [options] <host> [<program>]
+
+.SH "توضیحات (DESCRIPTION)"
+The
+.BR gtlssh
+program connects to a remote server, authenticates the remote server
+using SSL, then authenticates itself with the server.
+
+.BR gsh
+is a synonym for
+.BR gtlssh
+that runs in ssh compatibility by default.
+
+.BR gtlsshd
+will attempt an SCTP connection first, and fall back to TCP if that
+doesn't work.
+.SH WINDOWS HACKS
+See "WINDOWS HACKS" in the gtlssh-keygen.1 man page for information
+about special windows configuration.
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.I \-p|\-\-port port
+Use the given port instead of the default port.
+.TP
+.I \-i|\-\-keyfile file
+Use the given file for the key instead of the default.  If you specify
+this, the certfile will be the same name ending in .crt, unless you
+specify it explicitly.
+.TP
+.I \-\-certfile file
+Set the certificate to use.
+.TP
+.I \-\-cadir directory
+Set the directory that holds the certificate authority used to authenticate
+the server.
+.TP
+.I \-e|\-\-escchar char
+Specify a character to use for the escape character.  Setting it to
+-1 disables the escape character.  This can either be a decimal or
+hexadeximal number or ^x to set a control character.  By default it is
+^\\ if io1 is the default and stdin is a tty, or disabled otherwise.
+See ESCAPES below for more details on the escape character.  Only handled
+on io1.
+.TP
+.I \-\-ssh-compat
+Enable ssh-compatible command handling.  Default for gsh, off by
+default for gtlssh.
+
+gtlssh normally handles commands by passing individual arguments over
+as separate arguments then passing them to the remote command as such.
+In ssh compatible mode, it will work like ssh, combining all remaining
+arguments with a space between them and passing them as a single
+command.
+
+gtlssh command handling is a little more sane, if you run "gsh server
+ls '/a b'" it will do what you expect.  ssh will not.  But some
+programs expect it to work as ssh does.
+
+Added in gensio-3.0.4.
+.TP
+.I \-\-nossh-compat
+Disable ssh-compatible command handling.
+.TP
+.I \-r|\-\-telnet
+Do telnet processing with RFC2217 handling.
+.TP
+.I \-\-nosctp
+Disable SCTP support.  It is disabled by default.
+.TP
+.I \-\-sctp
+Enable SCTP support.
+.TP
+.I \-\-notcp
+Disable TCP support
+.TP
+.I \-\-transport <connecter>
+Instead of using SCTP or TCP, use the given gensio connecter for
+transport.  In this case, the
+.B host
+is required but the hostname part is ignored.  This is so the username
+can be set, if required.
+.TP
+.I \-m|\-\-mdns
+Look up the name using mDNS.  This will fetch then IP address, IPv4 or
+IPv6, the port number and whether telnet is required and make the
+connection
+.TP
+.I \-\-mdns\-type
+Set the type used for the lookup.  See the gmdns(1) man page
+under 'STRING VALUES FOR QUERIES' for detail on how to do regex, glob,
+etc.
+.TP
+.I \-\-nomux
+Don't use a mux gensio.  This may cause issues with gtlsshd, but is
+useful in some cases for talking with ser2net with no mux support.
+.TP
+.I \-\-nointeractive
+Not an interactive login, for programs and such.  Do not prompt for
+passwords or do any other interactive operations.
+.TP
+.I \-\-nointeractive\-pw
+If nointeractive is set, allow for prompting for a password on the
+console.  You will only get one time to enter the password correctly.
+.TP
+.I \-\-privileged
+.TP
+When logging onto a Windows server, don't drop privileges on a
+privileged account.  Normally you are logged in and run as a normal
+user (with a privileged linked token), this will allow you just run
+privileged.  Requires --allow-root on the server.
+.I \-L <accept addr>:<connect addr>
+Listen at the
+.I <accept addr>
+on the local machine, and if a connection comes in forward it to the
+<connect addr> from the remote machine on the gtlssh connection.  A
+local address is in the form
+.I [<bind addr>:][sctp|tcp,]port
+or
+.I <unix socket path>.
+Remote addresses are in the form
+.I <hostname>:[sctp|tcp,]port
+or
+.I <unix socket path>.
+If a name begins with '/' it is a unix socket path.
+.I <hostname>
+and
+.I <bindaddr>
+are standard internet names or addresses.
+.TP
+.I \-R <accept addr>:<connect addr>
+Like -L, except the
+.I <accept addr>
+is on the remote machine and
+.I <connect addr>
+is done from the local machine.
+.TP
+.I \-4
+Do IPv4 only.
+.TP
+.I \-6
+Do IPv6 only.
+.TP
+.I \-d|\-\-debug
+Generate debugging output.  Specifying more than once increases the output.
+.TP
+.I \-\-version
+Print the version number and exit.
+.TP
+.I \-h|\-\-help
+Help output
+
+.SH "HOST AUTHENTICATION"
+After connecting, the host is first validated using standard SSL.  The
+keys used for validation are in $HOME/.gtlssh/server_certs by default.
+If the given key is not recognized, the user is prompted with the
+certificate fingerprint asking if the user wants to accept the
+certificate.
+
+If the user accepts the certificate, then it is added into the default
+directory.  If not, the connection is terminated.
+
+Certificates are stored in the form "<hostname>,<port>.crt" and
+"<ipaddress>,<port>.crt".  Both are created for a connection (unless
+connecting with an IP address).  A connection is verified as matching
+both entries, if the certificate in the file does not match the
+certificate from the remote end, the connection is terminated and the
+user informed.
+
+.SH "USER AUTHENTICATION"
+If host authentication succeeds,
+.BR gtlssh
+authenticates itself with a key and certificate.  These files are
+fetch by default from $HOME/.gtlssh/keycerts in the form
+<host>[,<port>].key and <host>[,<port>].crt.  If the form with the
+host and port exists, that is taken.  Otherwise if the form with just
+the host exists, it is taken.  Otherwise it defaults to
+$HOME/.gtlssh/default.key and $HOME/.gttlssh/default.crt.
+
+The remote end looks in $HOME/.gtlssh/allowed_certs for the
+certificate.  If the remote end does not have the certificate
+presented, then password authentication is tried.
+
+.SH "ITERACTIVE MODE"
+If the stdin for
+.BR gtlssh
+is a tty and no program is given to run, then the login is an
+interactive login.  Any sort of delay in I/O processing is disabled,
+and the local terminal is used for I/O and it is put into raw mode
+
+In non-interactive mode, the local side uses stdio for local I/O and
+I/O processing delay on the network side is not disabled.  This is
+useful for programs transferring data over the connection.
+
+.SH "ESCAPES"
+If the escape character is received from the user, the character is
+not transferred and the program waits for another character.  If the
+other character is also the escape character, a single escape
+character is sent.  If the other character is not recognized as a
+valid escape, it is ignore and not transferred.  Upper and lower case
+are equivalent.
+
+Escape characters are:
+.TP
+.B q
+Quit the program.
+.TP
+.B b
+Send a break to io2.  Ignored if io2 does not support break.
+.TP
+.B d
+Dump serial data for io2.  Ignored if io2 is not a RFC2217 capable.
+.TP
+.B s
+Set the serial port (baud) rate for io2.  Ignored if io2 is not
+RFC2177 capable.  After this, the serial port speed must be typed,
+terminated by a new line.  Invalid speeds are ignore, use escchar-d to
+know if you set it right.
+.TP
+.B n, o, e
+Set the parity on io2 to none, odd, or even.  Ignored if io2 is not
+RFC2217 capable.
+.TP
+.B 7, 8
+Set the data size on io2 to 7 or 8 bits.  Ignored if io2 is not
+RFC2217 capable.
+.TP
+.B 1, 2
+Set the number of stop bits to 1 or 2 on io2 bits.  Ignored if io2 is
+not RFC2217 capable.
+
+.SH "همچنین ببینید (SEE ALSO)"
+gensio(5), gtlsshd(1), gtlssh-keygen(1), gmdns(1)
+
+.SH "KNOWN PROBLEMS"
+None.
+
+.SH "نویسنده (AUTHOR)"
+.PP
+Corey Minyard <minyard@acm.org>

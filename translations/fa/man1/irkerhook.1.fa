@@ -1,0 +1,393 @@
+'\" t
+.\"     Title: irkerhook
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 07/26/2026
+.\"    Manual: Commands
+.\"    Source: irker
+.\"  Language: English
+.\"
+.TH "IRKERHOOK" "1" "07/26/2026" "irker" "Commands"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+irkerhook \- repository hook script issuing irker notifications
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBirkerhook\&.py\fR\ 'u
+\fBirkerhook\&.py\fR [\-n] [\-V] [[\fI\-\-variable=value\fR...]] [[\fIcommit\-id\fR...]]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+irkerhook\&.py
+is a Python script intended to be called from the post\-commit hook of a version\-control repository\&. Its job is to collect information about the commit that fired the hook (and possibly preferences set by the repository owner) and ship that information to an instance of
+irkerd
+for forwarding to various announcement channels\&.
+.PP
+The proper invocation and behavior of
+irkerhook\&.py
+varies depending on which VCS (version\-control system) is calling it\&. There are four different places from which it may extract information:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Calls to VCS utilities\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+In VCSes like git that support user\-settable configuration variables, variables with the prefix "irker\&."\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+In other VCSes, a configuration file, "irker\&.conf", in the repository\*(Aqs internals directory\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 4.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  4." 4.2
+.\}
+Command\-line arguments of the form \-\-variable=value\&.
+.RE
+.PP
+The following variables are general to all supported VCSes:
+.PP
+project
+.RS 4
+The name of the project\&. Should be a relatively short identifier; will usually appear at the very beginning of a notification\&.
+.RE
+.PP
+repo
+.RS 4
+The name of the repository top\-level directory\&. If not specified, defaults to a lowercased copy of the project name\&.
+.RE
+.PP
+channels
+.RS 4
+An IRC channel URL, or comma\-separated list of same, identifying channels to which notifications are to be sent\&. If not specified, the default is the freenode #commits channel\&.
+.RE
+.PP
+server
+.RS 4
+The host on which the notification\-relaying irker daemon is expected to reside\&. Defaults to "localhost"\&.
+.RE
+.PP
+email
+.RS 4
+If set, use email for communication rather than TCP or UDP\&. The value is used as the target mail address\&.
+.RE
+.PP
+tcp
+.RS 4
+If "true", use TCP for communication; if "false", use UDP\&. Defaults to "false"\&.
+.RE
+.PP
+urlprefix
+.RS 4
+Changeset URL prefix for your repo\&. When the commit ID is appended to this, it should point at a CGI that will display the commit through cgit, gitweb or something similar\&. The defaults will probably work if you have a typical gitweb/cgit setup\&.
+.sp
+If the value of this variable is "None", generation of the URL field in commit notifications will be suppressed\&. Other magic values are "cgit", "gitweb", and "viewcvs", which expand to URL templates that will usually work with those systems\&.
+.sp
+The magic cookies "%(host)s" and %(repo)s" may occur in this URL\&. The former is expanded to the FQDN of the host on which
+irkerhook\&.py
+is running; the latter is expanded to the value of the "repo" variable\&.
+.RE
+.PP
+tinyifier
+.RS 4
+URL template pointing to a service for compressing URLs so they will take up less space in the notification line\&. If the value of this variable is "None", no compression will be attempted\&.
+.RE
+.PP
+color
+.RS 4
+If "mIRC", highlight notification fields with mIRC color codes\&. If "ANSI", highlight notification fields with ANSI color escape sequences\&. Defaults to "none" (no colors)\&. ANSI codes are supported in Chatzilla, irssi, ircle, and BitchX; mIRC codes only are recognized in mIRC, XChat, KVirc, Konversation, or weechat\&.
+.sp
+Note: if you turn this on and notifications stop appearing on your channel, you need to turn off IRC\*(Aqs color filter on that channel\&. To do this you will need op privileges; issue the command "/mode <channel> \-c" with <channel> replaced by your channel name\&. You may need to first issue the command "/msg chanserv set <channel> MLOCK +nt\-slk"\&.
+.RE
+.PP
+maxchannels
+.RS 4
+Interpreted as an integer\&. If not zero, limits the number of channels the hook will interpret from the "channels" variable\&.
+.sp
+This variable cannot be set through VCS configuration variables or
+irker\&.conf; it can only be set with a command\-line argument\&. Thus, on a forge site in which repository owners are not allowed to modify their post\-commit scripts, a site administrator can set it to prevent shotgun spamming by malicious project owners\&. Setting it to a value less than 2, however, would probably be unwise\&.
+.RE
+.PP
+cialike
+.RS 4
+If not empty and not "None" (the default), this emulates the old CIA behavior of dropping long lists of files in favor of a summary of the form (N files in M directories)\&. The value must be numeric giving a threshold value for the length of the file list in characters\&.
+.RE
+.PP
+template
+.RS 4
+Set the template used to generate notification messages\&. Only available in VCses with config variables; presently this means git or hg\&. All basic commit and extractor fields, including color switches, are available as %() substitutions\&.
+.RE
+.PP
+irkerhook\&.py will run under both python 2 and python 3, but it does not support mercurial repositories under python 3 yet\&.
+.SS "git"
+.PP
+Under git, the normal way to invoke this hook (from within the update hook) passes it a refname followed by a list of commits\&. Because
+\fBgit rev\-list\fR
+normally lists from most recent to oldest, you\*(Aqll want to use \-\-reverse to make notifications be omitted in chronological order\&. In a normal update script, the invocation should look like this
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+refname=$1
+old=$2
+new=$3
+irkerhook\&.py \-\-refname=${refname} $(git rev\-list \-\-reverse ${old}\&.\&.${new})
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+except that you\*(Aqll need an absolute path for irkerhook\&.py\&.
+.PP
+For testing purposes and backward compatibility, if you invoke
+irkerhook\&.py
+with no arguments (as in a post\-commit hook) it will behave as though it had been called like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+irkerhook\&.py \-\-refname=refs/heads/master HEAD
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+However, this will not give the right result when you push to a non\-default branch of a bare repo\&.
+.PP
+A typical way to install this hook is actually in the
+post\-receive
+hook, because it gets all the necessary details and will not abort the push on failure\&. Use the following script:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#!/bin/sh
+
+echo "sending IRC notification"
+while read old new refname; do
+    irkerhook \-\-refname=${refname} $(git rev\-list \-\-reverse ${old}\&.\&.${new})
+done
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Preferences may be set in the repo
+config
+file in an [irker] section\&. Here is an example of what that can look like:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[irker]
+    project = gpsd
+    color = ANSI
+    channels = irc://chat\&.freenode\&.net/gpsd,irc://chat\&.freenode\&.net/commits
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+You should not set the "repository" variable (an equivalent will be computed)\&. No attempt is made to interpret an
+irker\&.conf
+file\&.
+.PP
+The default value of the "project" variable is the basename of the repository directory\&. The default value of the "urlprefix" variable is "cgit"\&.
+.PP
+There is one git\-specific variable, "revformat", controlling the format of the commit identifier in a notification\&. It may have the following values:
+.PP
+raw
+.RS 4
+full hex ID of commit
+.RE
+.PP
+short
+.RS 4
+first 12 chars of hex ID
+.RE
+.PP
+describe
+.RS 4
+describe relative to last tag, falling back to short
+.RE
+.PP
+The default is \*(Aqdescribe\*(Aq\&.
+.SS "Subversion"
+.PP
+Under Subversion,
+irkerhook\&.py
+accepts a \-\-repository option with value (the absolute pathname of the Subversion repository) and a commit argument (the numeric revision level of the commit)\&. The defaults are the current working directory and HEAD, respectively\&.
+.PP
+Note, however, that you
+\fIcannot\fR
+default the repository argument inside a Subversion post\-commit hook; this is because of a limitation of Subversion, which is that getting the current directory is not reliable inside these hooks\&. Instead, the values must be the two arguments that Subversion passes to that hook as arguments\&. Thus, a typical invocation in the post\-commit script will look like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+REPO=$1
+REV=$2
+irkerhook\&.py \-\-repository=$REPO $REV
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Other \-\-variable=value settings may also be given on the command line, and will override any settings in an
+irker\&.conf
+file\&.
+.PP
+The default for the project variable is the basename of the repository\&. The default value of the "urlprefix" variable is "viewcvs"\&.
+.PP
+If an
+irker\&.conf
+file exists in the repository root directory (not the checkout directory but where internals such as the "format" file live) the hook will interpret variable settings from it\&. Here is an example of what such a file might look like:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# irkerhook variable settings for the irker project
+project = irker
+channels  = irc://chat\&.freenode/irker,irc://chat\&.freenode/commits
+tcp = false
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Don\*(Aqt set the "repository" or "commit" variables in this file; that would have unhappy results\&.
+.PP
+There are no Subversion\-specific variables\&.
+.SS "Mercurial"
+.PP
+Under Mercurial,
+irkerhook\&.py
+can be invoked in two ways: either as a Python hook (preferred) or as a script\&.
+.PP
+To call it as a Python hook, add the collowing to the "commit" or "incoming" hook declaration in your Mercurial repository:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[hooks]
+	incoming\&.irker = python:/path/to/irkerhook\&.py:hg_hook
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+When called as a script, the hook accepts a \-\-repository option with value (the absolute pathname of the Mercurial repository) and can take a commit argument (the Mercurial hash ID of the commit or a reference to it)\&. The default for the repository argument is the current directory\&. The default commit argument is \*(Aq\-1\*(Aq, designating the current tip commit\&.
+.PP
+As for git, in both cases all variables may be set in the repo
+hgrc
+file in an [irker] section\&. Command\-line variable=value arguments are accepted but not required for script invocation\&. No attempt is made to interpret an
+irker\&.conf
+file\&.
+.PP
+The default value of the "project" variable is the basename of the repository directory\&. The default value of the "urlprefix" variable is the value of the "web\&.baseurl" config value, if it exists\&.
+.SS "Filtering"
+.PP
+It is possible to filter commits before sending them to
+irkerd\&.
+.PP
+You have to specify the
+\fBfiltercmd\fR
+option, which will be the command
+irkerhook\&.py
+will run\&. This command should accept one arguments, which is a JSON representation of commit and extractor metadata (including the channels variable)\&. The command should emit to standard output a JSON representation of (possibly altered) metadata\&.
+.PP
+Below is an example filter:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#!/usr/bin/env python3
+# This is a trivial example of a metadata filter\&.
+# All it does is change the name of the commit\*(Aqs author\&.
+# 
+import sys, json
+metadata = json\&.loads(sys\&.argv[1])
+
+metadata[\*(Aqauthor\*(Aq] = "The Great and Powerful Oz"
+
+print(json\&.dumps(metadata))
+# end
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Standard error is available to the hook for progress and error messages\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+irkerhook\&.py
+takes the following options:
+.PP
+\-n
+.RS 4
+Suppress transmission to a daemon\&. Instead, dump the generated JSON request to standard output\&. Useful for debugging\&.
+.RE
+.PP
+\-V
+.RS 4
+Write the program version to stdout and terminate\&.
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBirkerd\fR(8),
+.SH "نویسنده (AUTHOR)"
+.PP
+Eric S\&. Raymond
+<esr@snark\&.thyrsus\&.com>\&. See the project page at
+\m[blue]\fBhttp://www\&.catb\&.org/~esr/irker\fR\m[]
+for updates and other resources\&.

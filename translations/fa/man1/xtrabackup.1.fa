@@ -1,0 +1,3239 @@
+.\" Man page generated from reStructuredText.
+.
+.TH "XTRABACKUP" "1" "Jun 15, 2026" "8.0" "Percona XtraBackup"
+.SH "نام (NAME)"
+xtrabackup \- Percona XtraBackup 8.0 Documentation
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.sp
+The \fIxtrabackup\fP binary is a compiled C program that is linked with the \fIInnoDB\fP
+libraries and the standard \fIMySQL\fP client libraries.
+.sp
+\fIxtrabackup\fP enables point\-in\-time backups of \fIInnoDB\fP / \fIXtraDB\fP tables
+together with the schema definitions, \fIMyISAM\fP tables, and other portions of the
+server.
+.sp
+The \fIInnoDB\fP libraries provide the functionality to apply a log to data
+files. The \fIMySQL\fP client libraries are used to parse command\-line options and
+configuration file.
+.sp
+The tool runs in either \fB\-\-backup\fP or \fB\-\-prepare\fP mode,
+corresponding to the two main functions it performs. There are several
+variations on these functions to accomplish different tasks, and there are two
+less commonly used modes, \fB\-\-stats\fP and \fB\-\-print\-param\fP\&.
+.SH OTHER TYPES OF BACKUPS
+.SS Incremental Backups
+.sp
+\fIxtrabackup\fP supports incremental backups. It copies only the data that has
+changed since the last full backup. You can perform many incremental backups
+between each full backup, so you can set up a backup process such as a full
+backup once a week and an incremental backup every day, or full backups every
+day and incremental backups every hour.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Incremental backups on the MyRocks storage engine do not determine if an earlier full backup or incremental backup contains the same files. \fBPercona XtraBackup\fP copies all of the MyRocks files each time it takes a backup.
+.UNINDENT
+.UNINDENT
+.sp
+Incremental backups work because each InnoDB page (usually 16kb in size)
+contains a log sequence number, or LSN\&. The LSN is the system
+version number for the entire database. Each page\(aqs LSN shows how
+recently it was changed. An incremental backup copies each page whose
+LSN is newer than the previous incremental or full backup\(aqs
+LSN\&. There are two algorithms in use to find the set of such pages to be
+copied. The first one, available with all the server types and versions, is to
+check the page LSN directly by reading all the data pages. The second
+one, available with \fIPercona Server for MySQL\fP, is to enable the \fI\%changed page tracking\fP
+feature on the server, which will note the pages as they are being changed. This
+information will be then written out in a compact separate so\-called bitmap
+file. The \fIxtrabackup\fP binary will use that file to read only the data pages it
+needs for the incremental backup, potentially saving many read requests. The
+latter algorithm is enabled by default if the \fIxtrabackup\fP binary finds the
+bitmap file. It is possible to specify \fB\-\-incremental\-force\-scan\fP to
+read all the pages even if the bitmap data is available.
+.sp
+Incremental backups do not actually compare the data files to the previous
+backup\(aqs data files. In fact, you can use \fB\-\-incremental\-lsn\fP to perform
+an incremental backup without even having the previous backup, if you know its
+LSN\&. Incremental backups simply read the pages and compare their
+LSN to the last backup\(aqs LSN\&. You still need a full backup to
+recover the incremental changes, however; without a full backup to act as a
+base, the incremental backups are useless.
+.SS Creating an Incremental Backup
+.sp
+To make an incremental backup, begin with a full backup as usual. The
+\fIxtrabackup\fP binary writes a file called \fBxtrabackup_checkpoints\fP into the
+backup\(aqs target directory. This file contains a line showing the \fBto_lsn\fP,
+which is the database\(aqs LSN at the end of the backup. Create the
+full backup with a command such as the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-target\-dir=/data/backups/base \-\-datadir=/var/lib/mysql/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If you look at the \fBxtrabackup_checkpoints\fP file, you should see contents
+similar to the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+backup_type = full\-backuped
+from_lsn = 0
+to_lsn = 1291135
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Now that you have a full backup, you can make an incremental backup based on
+it. Use a command such as the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-target\-dir=/data/backups/inc1 \e
+\-\-incremental\-basedir=/data/backups/base \-\-datadir=/var/lib/mysql/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The \fB/data/backups/inc1/\fP directory should now contain delta files, such
+as \fBibdata1.delta\fP and \fBtest/table1.ibd.delta\fP\&. These represent the
+changes since the \fBLSN 1291135\fP\&. If you examine the
+\fBxtrabackup_checkpoints\fP file in this directory, you should see something
+similar to the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+backup_type = incremental
+from_lsn = 1291135
+to_lsn = 1291340
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The meaning should be self\-evident. It\(aqs now possible to use this directory as
+the base for yet another incremental backup:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-target\-dir=/data/backups/inc2 \e
+\-\-incremental\-basedir=/data/backups/inc1 \-\-datadir=/var/lib/mysql/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Preparing the Incremental Backups
+.sp
+The \fB\-\-prepare\fP step for incremental backups is not the same as for
+normal backups. In normal backups, two types of operations are performed to make
+the database consistent: committed transactions are replayed from the log file
+against the data files, and uncommitted transactions are rolled back. You must
+skip the rollback of uncommitted transactions when preparing a backup, because
+transactions that were uncommitted at the time of your backup may be in
+progress, and it is likely that they will be committed in the next incremental
+backup. You should use the \fB\-\-apply\-log\-only\fP option to prevent the
+rollback phase.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+If you do not use the \fB\-\-apply\-log\-only\fP option to prevent the
+rollback phase, then your incremental backups will be useless. After
+transactions have been rolled back, further incremental backups cannot be
+applied.
+.UNINDENT
+.UNINDENT
+.sp
+Beginning with the full backup you created, you can prepare it, and then apply
+the incremental differences to it. Recall that you have the following backups:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+/data/backups/base
+/data/backups/inc1
+/data/backups/inc2
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To prepare the base backup, you need to run \fB\-\-prepare\fP as usual, but
+prevent the rollback phase:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+xtrabackup \-\-prepare \-\-apply\-log\-only \-\-target\-dir=/data/backups/base
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The output should end with some text such as the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+101107 20:49:43  InnoDB: Shutdown completed; log sequence number 1291135
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The log sequence number should match the \fBto_lsn\fP of the base backup, which
+you saw previously.
+.sp
+This backup is actually safe to restore as\-is now,
+even though the rollback phase has been skipped. If you restore it and start
+\fIMySQL\fP, \fIInnoDB\fP will detect that the rollback phase was not performed, and it
+will do that in the background, as it usually does for a crash recovery upon
+start. It will notify you that the database was not shut down normally.
+.sp
+To apply the first incremental backup to the full backup, you should use the
+following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+xtrabackup \-\-prepare \-\-apply\-log\-only \-\-target\-dir=/data/backups/base \e
+\-\-incremental\-dir=/data/backups/inc1
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This applies the delta files to the files in \fB/data/backups/base\fP, which
+rolls them forward in time to the time of the incremental backup. It then
+applies the redo log as usual to the result. The final data is in
+\fB/data/backups/base\fP, not in the incremental directory. You should see
+some output such as the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+incremental backup from 1291135 is enabled.
+xtrabackup: cd to /data/backups/base/
+xtrabackup: This target seems to be already prepared.
+xtrabackup: xtrabackup_logfile detected: size=2097152, start_lsn=(1291340)
+Applying /data/backups/inc1/ibdata1.delta ...
+Applying /data/backups/inc1/test/table1.ibd.delta ...
+\&.... snip
+101107 20:56:30  InnoDB: Shutdown completed; log sequence number 1291340
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Again, the LSN should match what you saw from your earlier inspection of the
+first incremental backup. If you restore the files from
+\fB/data/backups/base\fP, you should see the state of the database as of the
+first incremental backup.
+.sp
+Preparing the second incremental backup is a similar process: apply the deltas
+to the (modified) base backup, and you will roll its data forward in time to the
+point of the second incremental backup:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+xtrabackup \-\-prepare \-\-target\-dir=/data/backups/base \e
+\-\-incremental\-dir=/data/backups/inc2
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+\fB\-\-apply\-log\-only\fP should be used when merging all incrementals
+except the last one. That\(aqs why the previous line doesn\(aqt contain the
+\fB\-\-apply\-log\-only\fP option. Even if the \fB\-\-apply\-log\-only\fP was
+used on the last step, backup would still be consistent but in that case
+server would perform the rollback phase.
+.UNINDENT
+.UNINDENT
+.sp
+If you wish to avoid the notice that \fIInnoDB\fP was not shut down normally, when
+you applied the desired deltas to the base backup, you can run
+\fB\-\-prepare\fP again without disabling the rollback phase.
+.SS Restoring Incremental Backups
+.sp
+After preparing the incremental backups, the base directory contains the same
+data as the full backup. To restoring this backup, you can use this command:
+\fBxtrabackup \-\-copy\-back \-\-target\-dir=BASE\-DIR\fP
+.sp
+You may have to change the ownership as detailed on
+restoring_a_backup\&.
+.SS Incremental Streaming Backups Using xbstream
+.sp
+Incremental streaming backups can be performed with the \fIxbstream\fP streaming
+option. Currently backups are packed in custom \fBxbstream\fP format. With this
+feature, you need to take a BASE backup as well.
+Making a base backup.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-target\-dir=/data/backups
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+Taking a local backup.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-incremental\-lsn=LSN\-number \-\-stream=xbstream \-\-target\-dir=./ > incremental.xbstream
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+Unpacking the backup.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xbstream \-x < incremental.xbstream
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+Taking a local backup and streaming it to the remote server and unpacking it.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-incremental\-lsn=LSN\-number \-\-stream=xbstream \-\-target\-dir=./
+$ ssh user@hostname " cat \- | xbstream \-x \-C > /backup\-dir/"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Partial Backups
+.sp
+\fIxtrabackup\fP supports taking partial backups when the
+innodb_file_per_table option is enabled. There are three ways to create
+partial backups:
+.INDENT 0.0
+.IP 1. 3
+matching the tables names with a regular expression
+.IP 2. 3
+providing a list of table names in a file
+.IP 3. 3
+providing a list of databases
+.UNINDENT
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+Do not copy back the prepared backup.
+.sp
+Restoring partial backups should be done by importing the tables,
+not by using the \fI\-\-copy\-back\fP option. It is not
+recommended to run incremental backups after running a partial
+backup.
+.sp
+Although there are some scenarios where restoring can be done by
+copying back the files, this may lead to database
+inconsistencies in many cases and it is not a recommended way to
+do it.
+.UNINDENT
+.UNINDENT
+.sp
+For the purposes of this manual page, we will assume that there is a database
+named \fBtest\fP which contains tables named \fBt1\fP and \fBt2\fP\&.
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+If any of the matched or listed tables is deleted during the backup,
+\fIxtrabackup\fP will fail.
+.UNINDENT
+.UNINDENT
+.SS Creating Partial Backups
+.sp
+There are multiple ways of specifying which part of the whole data is backed up:
+.INDENT 0.0
+.IP \(bu 2
+Use the \fB\-\-tables\fP option to list the table names
+.IP \(bu 2
+Use the \fB\-\-tables\-file\fP option to list the tables in a file
+.IP \(bu 2
+Use the \fB\-\-databases\fP option to list the databases
+.IP \(bu 2
+Use the \fB\-\-databases\-file\fP option to list the databases
+.UNINDENT
+.SS The \fI\-\-tables\fP Option
+.sp
+The first method involves the xtrabackup \fI\-\-tables\fP option. The option\(aqs
+value is a regular expression that is matched against the fully\-qualified database name and table name using the \fBdatabasename.tablename\fP format.
+.sp
+To back up only tables in the \fBtest\fP database, use the following
+command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-datadir=/var/lib/mysql \-\-target\-dir=/data/backups/ \e
+\-\-tables="^test[.].*"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To back up only the \fBtest.t1\fP table, use the following command:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-datadir=/var/lib/mysql \-\-target\-dir=/data/backups/ \e
+\-\-tables="^test[.]t1"
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS The \fI\-\-tables\-file\fP Option
+.sp
+The \fB\-\-tables\-file\fP option specifies a file that can contain multiple table
+names, one table name per line in the file. Only the tables named in the file
+will be backed up. Names are matched exactly, case\-sensitive, with no pattern or
+regular expression matching. The table names must be fully\-qualified in
+\fBdatabasename.tablename\fP format.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ echo "mydatabase.mytable" > /tmp/tables.txt
+$ xtrabackup \-\-backup \-\-tables\-file=/tmp/tables.txt
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS The \fI\-\-databases\fP and \fI\-\-databases\-file\fP options
+.sp
+The \(ga \-\-databases\(ga option accepts a space\-separated list of the databases
+and tables to backup in the \fBdatabasename[.tablename]\fP format. In addition to
+this list, make sure to specify the \fBmysql\fP, \fBsys\fP, and
+.sp
+\fBperformance_schema\fP databases. These databases are required when restoring
+the databases using \fIxtrabackup \-\-copy\-back\fP\&.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Tables processed during the \-\-prepare step may also be added to the backup
+even if they are not explicitly listed by the parameter if they were created
+after the backup started.
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-databases=\(aqmysql sys performance_schema test ...\(aq
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS The \fB\-\-databases\-file\fP Option
+.sp
+The \fI\-\-databases\-file\fP option specifies a file that can contain multiple
+databases and tables in the \fBdatabasename[.tablename]\fP format, one element name per line in the file. Names are matched exactly, case\-sensitive, with no pattern or regular expression matching.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Tables processed during the \-\-prepare step may also be added to the backup
+even if they are not explicitly listed by the parameter if they were created
+after the backup started.
+.UNINDENT
+.UNINDENT
+.SS Preparing Partial Backups
+.sp
+The procedure is analogous to restoring individual tables : apply the logs and use the
+\fI\-\-export\fP option:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-prepare \-\-export \-\-target\-dir=/path/to/partial/backup
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+When you use the \fI\-\-prepare\fP option on a partial backup, you
+will see warnings about tables that don\(aqt exist. This is because these tables
+exist in the data dictionary inside InnoDB, but the corresponding \&.ibd
+files don\(aqt exist. They were not copied into the backup directory. These tables
+will be removed from the data dictionary, and when you restore the backup and
+start InnoDB, they will no longer exist and will not cause any errors or
+warnings to be printed to the log file.
+.INDENT 0.0
+.INDENT 3.5
+Could not find any file associated with the tablespace ID: 5
+.sp
+Use \-\-innodb\-directories to find the tablespace files. If that fails then use \-\-innodb\-force\-recovery=1 to ignore this and to permanently lose all changes to the missing tablespace(s).
+.UNINDENT
+.UNINDENT
+.SS Restoring Partial Backups
+.sp
+Restoring should be done by restoring individual tables in the partial backup to the server.
+.sp
+It can also be done by copying back the prepared backup to a "clean"
+datadir (in that case, make sure to include the \fBmysql\fP
+database) to the datadir you are moving the backup to. A system database can be created with the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ sudo mysql \-\-initialize \-\-user=mysql
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Once you start the server, you may see mysql complaining about missing tablespaces:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+2021\-07\-19T12:42:11.077200Z 1 [Warning] [MY\-012351] [InnoDB] Tablespace 4, name \(aqtest1/t1\(aq, file \(aq./d2/test1.ibd\(aq is missing!
+2021\-07\-19T12:42:11.077300Z 1 [Warning] [MY\-012351] [InnoDB] Tablespace 4, name \(aqtest1/t1\(aq, file \(aq./d2/test1.ibd\(aq is missing!
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+In order to clean the orphan database from the data dictionary, you must manually create the missing database directory and then \fBDROP\fP this database from the server.
+.sp
+Example of creating the missing database:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mkdir /var/lib/mysql/test1/d2
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Example of dropping the database from the server:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mysql> DROP DATABASE d2;
+Query OK, 2 rows affected (0.5 sec)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH ADVANCED FEATURES
+.SS Analyzing Table Statistics
+.sp
+The \fIxtrabackup\fP binary can analyze InnoDB data files in read\-only mode to give
+statistics about them. To do this, you should use the \fB\-\-stats\fP
+option. You can combine this with the \fB\-\-tables\fP option to limit the
+files to examine. It also uses the \fB\-\-use\-memory\fP option.
+.sp
+You can perform the analysis on a running server, with some chance of errors due
+to the data being changed during analysis. Or, you can analyze a backup copy of
+the database. Either way, to use the statistics feature, you need a clean copy
+of the database including correctly sized log files, so you need to execute with
+\fB\-\-prepare\fP twice to use this functionality on a backup.
+.sp
+The result of running on a backup might look like the following:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+<INDEX STATISTICS>
+  table: test/table1, index: PRIMARY, space id: 12, root page 3
+  estimated statistics in dictionary:
+    key vals: 25265338, leaf pages 497839, size pages 498304
+  real statistics:
+     level 2 pages: pages=1, data=5395 bytes, data/pages=32%
+     level 1 pages: pages=415, data=6471907 bytes, data/pages=95%
+        leaf pages: recs=25958413, pages=497839, data=7492026403 bytes, data/pages=91%
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This can be interpreted as follows:
+.INDENT 0.0
+.IP \(bu 2
+The first line simply shows the table and index name and its internal
+identifiers. If you see an index named \fBGEN_CLUST_INDEX\fP, that is the
+table\(aqs clustered index, automatically created because you did not explicitly
+create a \fBPRIMARY KEY\fP\&.
+.IP \(bu 2
+The estimated statistics in dictionary information is similar to the data
+that\(aqs gathered through \fBANALYZE TABLE\fP inside of \fIInnoDB\fP to be stored as
+estimated cardinality statistics and passed to the query optimizer.
+.IP \(bu 2
+The real statistics information is the result of scanning the data pages and
+computing exact information about the index.
+.IP \(bu 2
+\fBThe level <X> pages\fP: output means that the line shows information about
+pages at that level in the index tree. The larger \fB<X>\fP is, the farther it
+is from the leaf pages, which are level 0. The first line is the root page.
+.IP \(bu 2
+The \fBleaf pages\fP output shows the leaf pages, of course. This is where the
+table\(aqs data is stored.
+.IP \(bu 2
+The \fBexternal pages\fP: output (not shown) shows large external pages that
+hold values too long to fit in the row itself, such as long \fBBLOB\fP and
+\fBTEXT\fP values.
+.IP \(bu 2
+The \fBrecs\fP is the real number of records (rows) in leaf pages.
+.IP \(bu 2
+The \fBpages\fP is the page count.
+.IP \(bu 2
+The \fBdata\fP is the total size of the data in the pages, in bytes.
+.IP \(bu 2
+The \fBdata/pages\fP is calculated as (\fBdata\fP / (\fBpages\fP * \fBPAGE_SIZE\fP)) *
+100%. It will never reach 100% because of space reserved for page headers and
+footers.
+.UNINDENT
+.sp
+A more detailed example is posted as a MySQL Performance Blog \fI\%post\fP\&.
+.SS Script to Format Output
+.sp
+The following script can be used to summarize and tabulate the output of the
+statistics information:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+tabulate\-xtrabackup\-stats.pl
+
+#!/usr/bin/env perl
+use strict;
+use warnings FATAL => \(aqall\(aq;
+my $script_version = "0.1";
+
+my $PG_SIZE = 16_384; # InnoDB defaults to 16k pages, change if needed.
+my ($cur_idx, $cur_tbl);
+my (%idx_stats, %tbl_stats);
+my ($max_tbl_len, $max_idx_len) = (0, 0);
+while ( my $line = <> ) {
+   if ( my ($t, $i) = $line =~ m/table: (.*), index: (.*), space id:/ ) {
+      $t =~ s!/!.!;
+      $cur_tbl = $t;
+      $cur_idx = $i;
+      if ( length($i) > $max_idx_len ) {
+         $max_idx_len = length($i);
+      }
+      if ( length($t) > $max_tbl_len ) {
+         $max_tbl_len = length($t);
+      }
+   }
+   elsif ( my ($kv, $lp, $sp) = $line =~ m/key vals: (\ed+), \eD*(\ed+), \eD*(\ed+)/ ) {
+      @{$idx_stats{$cur_tbl}\->{$cur_idx}}{qw(est_kv est_lp est_sp)} = ($kv, $lp, $sp);
+      $tbl_stats{$cur_tbl}\->{est_kv} += $kv;
+      $tbl_stats{$cur_tbl}\->{est_lp} += $lp;
+      $tbl_stats{$cur_tbl}\->{est_sp} += $sp;
+   }
+   elsif ( my ($l, $pages, $bytes) = $line =~ m/(?:level (\ed+)|leaf) pages:.*pages=(\ed+), data=(\ed+) bytes/ ) {
+      $l ||= 0;
+      $idx_stats{$cur_tbl}\->{$cur_idx}\->{real_pages} += $pages;
+      $idx_stats{$cur_tbl}\->{$cur_idx}\->{real_bytes} += $bytes;
+      $tbl_stats{$cur_tbl}\->{real_pages} += $pages;
+      $tbl_stats{$cur_tbl}\->{real_bytes} += $bytes;
+   }
+}
+
+my $hdr_fmt = "%${max_tbl_len}s %${max_idx_len}s %9s %10s %10s\en";
+my @headers = qw(TABLE INDEX TOT_PAGES FREE_PAGES PCT_FULL);
+printf $hdr_fmt, @headers;
+
+my $row_fmt = "%${max_tbl_len}s %${max_idx_len}s %9d %10d %9.1f%%\en";
+foreach my $t ( sort keys %tbl_stats ) {
+   my $tbl = $tbl_stats{$t};
+   printf $row_fmt, $t, "", $tbl\->{est_sp}, $tbl\->{est_sp} \- $tbl\->{real_pages},
+      $tbl\->{real_bytes} / ($tbl\->{real_pages} * $PG_SIZE) * 100;
+   foreach my $i ( sort keys %{$idx_stats{$t}} ) {
+      my $idx = $idx_stats{$t}\->{$i};
+      printf $row_fmt, $t, $i, $idx\->{est_sp}, $idx\->{est_sp} \- $idx\->{real_pages},
+         $idx\->{real_bytes} / ($idx\->{real_pages} * $PG_SIZE) * 100;
+   }
+}
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+Sample Script Output
+.sp
+The output of the above Perl script, when run against the sample shown in the
+previously mentioned blog post, will appear as follows:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+          TABLE           INDEX TOT_PAGES FREE_PAGES   PCT_FULL
+art.link_out104                    832383      38561      86.8%
+art.link_out104         PRIMARY    498304         49      91.9%
+art.link_out104       domain_id     49600       6230      76.9%
+art.link_out104     domain_id_2     26495       3339      89.1%
+art.link_out104 from_message_id     28160        142      96.3%
+art.link_out104    from_site_id     38848       4874      79.4%
+art.link_out104   revert_domain    153984      19276      71.4%
+art.link_out104    site_message     36992       4651      83.4%
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The columns are the table and index, followed by the total number of pages in
+that index, the number of pages not actually occupied by data, and the number of
+bytes of real data as a percentage of the total size of the pages of real
+data. The first line in the above output, in which the \fBINDEX\fP column is
+empty, is a summary of the entire table.
+.SS Working with Binary Logs
+.sp
+The \fBxtrabackup\fP binary integrates with the \fBlog_status table\fP\&. This integration enables \fBxtrabackup\fP to print out the backup\(aqs corresponding binary log position, so that you can use this binary log position to provision a new replica or perform point\-in\-time recovery.
+.SS Finding the Binary Log Position
+.sp
+You can find the binary log position corresponding to a backup after the backup has been taken. If your backup is from a server with binary logging enabled, \fBxtrabackup\fP creates a file named \fBxtrabackup_binlog_info\fP in the target directory. This file contains the binary log file name and position of the exact point when the backup was taken.
+.sp
+The output is similar to the following during the backup stage:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+210715 14:14:59 Backup created in directory \(aq/backup/\(aq
+MySQL binlog position: filename \(aqbinlog.000002\(aq, position \(aq156\(aq
+\&. . .
+210715 14:15:00 completed OK!
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+As of Percona XtraBackup 8.0.26\-18.0, xtrabackup no longer creates the \fBxtrabackup_binlog_pos_innodb\fP file. This change is because MySQL and Percona Server no longer update the binary log information on global transaction system section of \fBibdata\fP\&. You should rely on \fBxtrabackup_binlog_info\fP regardless of the storage engine in use.
+.UNINDENT
+.UNINDENT
+.SS Point\-In\-Time Recovery
+.sp
+To perform a point\-in\-time recovery from an \fBxtrabackup\fP backup, you should prepare and restore the backup, and then replay binary logs from the point shown in the \fBxtrabackup_binlog_info\fP file.
+.sp
+A more detailed procedure is found here\&.
+.SS Setting Up a New Replication Replica
+.sp
+To set up a new replica, you should prepare the backup, and restore it to the data directory of your new replication replica. If you are using version 8.0.22 or earlier, in your \fBCHANGE MASTER TO\fP command, use the binary log filename and position shown in the \fBxtrabackup_binlog_info\fP file to start replication.
+.sp
+If you are using 8.0.23 or later, use the \fI\%CHANGE_REPLICATION_SOURCE_TO and the appropriate options\fP\&. \fBCHANGE_MASTER_TO\fP is deprecated.
+.sp
+A more detailed procedure is found in  \&../howtos/setting_up_replication\&.
+.SS Restoring Individual Tables
+.sp
+\fIPercona XtraBackup\fP can export a table that is contained in its own \fI\&.ibd\fP file. With \fIPercona XtraBackup\fP, you can export individual tables from any \fIInnoDB\fP database, and import them into \fIPercona Server for MySQL\fP with \fIXtraDB\fP or \fIMySQL\fP 8.0. The source doesn\(aqt have to be \fIXtraDB\fP or \fIMySQL\fP 8.0, but the destination does. This method only works on individual \fI\&.ibd\fP files.
+.sp
+The following example exports and imports the following table:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+CREATE TABLE export_test (
+a int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Exporting the Table
+.sp
+Created the table in \fIinnodb_file_per_table\fP mode, so
+after taking a backup as usual with the \fI\-\-backup\fP option, the
+\fI\&.ibd\fP file exists in the target directory:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ find /data/backups/mysql/ \-name export_test.*
+/data/backups/mysql/test/export_test.ibd
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+when you prepare the backup, add the \fI\-\-export\fP option to the
+command. Here is an example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-prepare \-\-export \-\-target\-dir=/data/backups/mysql/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+If you restore an encrypted InnoDB tablespace table, add the
+keyring file:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-prepare \-\-export \-\-target\-dir=/tmp/table \e
+\-\-keyring\-file\-data=/var/lib/mysql\-keyring/keyring
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+Now you should see an \fI\&.exp\fP file in the target directory:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ find /data/backups/mysql/ \-name export_test.*
+/data/backups/mysql/test/export_test.exp
+/data/backups/mysql/test/export_test.ibd
+/data/backups/mysql/test/export_test.cfg
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+These three files are the only files required to import the table into a server running
+\fIPercona Server for MySQL\fP with \fIXtraDB\fP or \fIMySQL\fP 8.0. In case the server uses \fI\%InnoDB
+Tablespace Encryption\fP
+adds an additional \fI\&.cfp\fP file which contains the transfer key and an encrypted tablespace key.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+The \fI\&.cfg\fP metadata file contains an \fIInnoDB\fP dictionary dump in a special format. This format is different from the \fI\&.exp\fP one which is
+used in \fIXtraDB\fP for the same purpose. A \fI\&.cfg\(ga\fP file is not required to import a tablespace to \fIMySQL\fP 8.0 or Percona
+Server for MySQL 8.0.
+.sp
+A tablespace is imported successfully even if the table is from
+another server, but \fIInnoDB\fP performs a schema validation if the corresponding \fI\&.cfg\fP file is located in the same directory.
+.UNINDENT
+.UNINDENT
+.SS Importing the Table
+.sp
+On the destination server running \fIPercona Server for MySQL\fP with \fIXtraDB\fP and
+\fI\%innodb_import_table_from_xtrabackup\fP
+option enabled, or \fIMySQL\fP 8.0, create a table with the same
+structure, and then perform the following steps:
+.INDENT 0.0
+.IP 1. 3
+Run the \fBALTER TABLE test\&.export_test DISCARD TABLESPACE;\fP
+command. If you see the following error, enable
+\fIinnodb_file_per_table\fP and create the table again.
+.INDENT 3.0
+.INDENT 3.5
+.IP "Error"
+.sp
+ERROR 1030 (HY000): Got error \-1 from storage engine
+.UNINDENT
+.UNINDENT
+.IP 2. 3
+Copy the exported files to the \fBtest/\fP subdirectory of the destination server\(aqs data directory
+.IP 3. 3
+Run \fBALTER TABLE test\&.export_test IMPORT TABLESPACE;\fP
+.UNINDENT
+.sp
+The table is imported, and you can run a \fBSELECT\fP to see the imported data.
+.SS LRU dump backup
+.sp
+\fIPercona XtraBackup\fP includes a saved buffer pool dump into a backup to enable
+reducing the warm up time. It restores the buffer pool state from
+\fBib_buffer_pool\fP file after restart. \fIPercona XtraBackup\fP discovers
+\fBib_buffer_pool\fP and backs it up automatically.
+[image]
+.sp
+If the buffer restore option is enabled in \fBmy.cnf\fP buffer pool will be in
+the warm state after backup is restored.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIMySQL\fP Documentation: Saving and Restoring the Buffer Pool State
+\fI\%https://dev.mysql.com/doc/refman/8.0/en/innodb\-preload\-buffer\-pool.html\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Streaming Backups
+.sp
+\fBPercona XtraBackup\fP supports streaming mode. Streaming mode sends a backup to \fBSTDOUT\fP in the \fIxbstream\fP format instead of copying the files to the backup directory.
+.sp
+This method allows you to use other programs to filter the output of the backup,
+providing greater flexibility for storage of the backup. For example,
+compression is achieved by piping the output to a compression utility. One of
+the benefits of streaming backups and using Unix pipes is that the backups can
+be automatically encrypted.
+.sp
+To use the streaming feature, you must use the \fB\-\-stream\fP,
+providing the format of the stream (\fBxbstream\fP ) and where to store
+the temporary files:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-stream=xbstream \-\-target\-dir=/tmp
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fIxtrabackup\fP uses \fIxbstream\fP to stream all of the data files to \fBSTDOUT\fP, in a
+special \fBxbstream\fP format. After it finishes streaming all of the data files
+to \fBSTDOUT\fP, it stops xtrabackup and streams the saved log file too.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B More information about \fIxbstream\fP
+xbstream_binary
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.sp
+When compression is enabled, \fIxtrabackup\fP compresses the output data, except for the meta and non\-InnoDB files which are not compressed, using the specified
+compression algorithm. The only currently supported algorithm is
+\fBquicklz\fP\&. The resulting files have the \fBqpress\fP archive format, i.e. every
+*.qp file produced by xtrabackup is essentially a one\-file qpress archive and
+can be extracted and uncompressed by the \fI\%qpress file archiver\fP which is available from Percona Software
+repositories\&.
+.sp
+Using \fIxbstream\fP as a stream option, backups can be copied and compressed in
+parallel. This option can significantly improve the speed of the backup process. In case backups
+were both compressed and encrypted, they must be decrypted before they are uncompressed.
+.TS
+center;
+|l|l|.
+_
+T{
+Task
+T}	T{
+Command
+T}
+_
+T{
+Stream the backup into an archive named \fBbackup.xbstream\fP
+T}	T{
+\fBxtrabackup \-\-backup \-\-stream=xbstream \-\-target\-dir=\&./ > backup.xbstream\fP
+T}
+_
+T{
+Stream the backup into a \fIcompressed\fP archive named \fBbackup.xbstream\fP
+T}	T{
+\fBxtrabackup \-\-backup \-\-stream=xbstream \-\-compress \-\-target\-dir=\&./ > backup.xbstream\fP
+T}
+_
+T{
+Encrypt the backup
+T}	T{
+$ xtrabackup \-\-backup \-\-stream=xbstream ./ > backup.xbstream gzip \-  | openssl des3 \-salt \-k "password" > backup.xbstream.gz.des3
+T}
+_
+T{
+Unpack the backup to the current directory
+T}	T{
+\fBxbstream \-x <  backup.xbstream\fP
+T}
+_
+T{
+Send the backup compressed directly to another host and unpack it
+T}	T{
+\fBxtrabackup \-\-backup \-\-compress \-\-stream=xbstream \-\-target\-dir=\&./ | ssh user@otherhost "xbstream \-x"\fP
+T}
+_
+T{
+Send the backup to another server using \fBnetcat\fP\&.
+T}	T{
+On the destination host:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ nc \-l 9999 | cat \- > /data/backups/backup.xbstream
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+On the source host:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-stream=xbstream ./ | nc desthost 9999
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+T}
+_
+T{
+Send the backup to another server using a one\-liner:
+T}	T{
+$ ssh \fI\%user@desthost\fP "( nc \-l 9999 > /data/backups/backup.xbstream & )" && xtrabackup \-\-backup \-\-stream=xbstream ./ |  nc desthost 9999
+T}
+_
+T{
+Throttle the throughput to 10MB/sec using the \fBpipe viewer\fP tool [1]
+T}	T{
+$ xtrabackup \-\-backup \-\-stream=xbstream ./ | pv \-q \-L10m ssh \fI\%user@desthost\fP "cat \- > /data/backups/backup.xbstream"
+T}
+_
+T{
+Checksumming the backup during the streaming:
+T}	T{
+On the destination host:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ nc \-l 9999 | tee >(sha1sum > destination_checksum) > /data/backups/backup.xbstream
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+On the source host:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-stream=xbstream ./ | tee >(sha1sum > source_checksum) | nc desthost 9999
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Compare the checksums on the source host:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat source_checksum
+65e4f916a49c1f216e0887ce54cf59bf3934dbad  \-
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Compare the checksums on the destination host:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat destination_checksum
+65e4f916a49c1f216e0887ce54cf59bf3934dbad  \-
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+T}
+_
+T{
+Parallel compression with parallel copying backup
+T}	T{
+\fBxtrabackup \-\-backup \-\-compress \-\-compress\-threads=8 \-\-stream=xbstream \-\-parallel=4 \-\-target\-dir=\&./ > backup.xbstream\fP
+T}
+_
+.TE
+.SH FOOTNOTES
+.IP [1] 5
+Install from the \fI\%official site\fP or from the distribution package (\fBapt install pv\fP)
+.sp
+Note that the streamed backup will need to be prepared before
+restoration. Streaming mode does not prepare the backup.
+.SS Encrypting Backups
+.sp
+\fIPercona XtraBackup\fP supports encrypting and decrypting local and streaming
+backups with \fIxbstream\fP option adding another layer of protection. The
+encryption is implemented using the \fBlibgcrypt\fP library from GnuPG.
+.SS Creating Encrypted Backups
+.sp
+To make an encrypted backup the following options need to be specified (options
+\fB\-\-encrypt\-key\fP and \fB\-\-encrypt\-key\-file\fP are mutually exclusive,
+i.e. just one of them needs to be provided):
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-encrypt\fP
+.IP \(bu 2
+:option:\(ga \-\-encrypt\-key\(ga
+.IP \(bu 2
+:option:\(ga \-\-encrypt\-key\-file\(ga
+.UNINDENT
+.sp
+Both the \fB\-\-encrypt\-key\fP option and
+\fB\-\-encrypt\-key\-file\fP option can be used to specify the
+encryption key. An encryption key can be generated with a command like
+\fBopenssl rand \-base64 32\fP
+.sp
+Example output of that command should look like this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+U2FsdGVkX19VPN7VM+lwNI0fePhjgnhgqmDBqbF3Bvs=
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This value then can be used as the encryption key
+.SS The \fB\-\-encrypt\-key\fP Option
+.sp
+Example of the \fIxtrabackup\fP command using the \fB\-\-encrypt\-key\fP should
+look like this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$  xtrabackup \-\-backup \-\-encrypt=AES256 \-\-encrypt\-key="U2FsdGVkX19VPN7VM+lwNI0fePhjgnhgqmDBqbF3Bvs=" \-\-target\-dir=/data/backup
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS The \fB\-\-encrypt\-key\-file\fP Option
+.sp
+Use the \fB\-\-encrypt\-key\-file\fP option as follows:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-encrypt=AES256 \-\-encrypt\-key\-file=/data/backups/keyfile \-\-target\-dir=/data/backup
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Depending on the text editor that you use to make the \fBKEYFILE\fP,
+the editor can automatically insert the CRLF (end of line)
+character. This will cause the key size to grow and thus making it
+invalid. The suggested way to create the file is by using the
+command line: \fBecho \-n "U2FsdGVkX19VPN7VM+lwNI0fePhjgnhgqmDBqbF3Bvs=" > /data/backups/keyfile\fP\&.
+.UNINDENT
+.UNINDENT
+.SS Optimizing the encryption process
+.sp
+Two new options are available for encrypted backups that can be used to speed up
+the encryption process. These are \fB\-\-encrypt\-threads\fP and
+\fB\-\-encrypt\-chunk\-size\fP\&. By using the \fB\-\-encrypt\-threads\fP option
+multiple threads can be specified to be used for encryption in parallel. Option
+\fB\-\-encrypt\-chunk\-size\fP can be used to specify the size (in bytes) of the
+working encryption buffer for each encryption thread (default is 64K).
+.SS Decrypting Encrypted Backups
+.sp
+Backups can be decrypted with xbcrypt\&. The following one\-liner can be
+used to encrypt the whole folder:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ for i in \(gafind . \-iname "*\e.xbcrypt"\(ga; do xbcrypt \-d \-\-encrypt\-key\-file=/root/secret_key \-\-encrypt\-algo=AES256 < $i > $(dirname $i)/$(basename $i .xbcrypt) && rm $i; done
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fIPercona XtraBackup\fP \fB\-\-decrypt\fP option has been implemented that can be
+used to decrypt the backups:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-decrypt=AES256 \-\-encrypt\-key="U2FsdGVkX19VPN7VM+lwNI0fePhjgnhgqmDBqbF3Bvs=" \-\-target\-dir=/data/backup/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fIPercona XtraBackup\fP doesn\(aqt automatically remove the encrypted files. In order
+to clean up the backup directory users should remove the \fB*.xbcrypt\fP
+files.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+\fB\-\-parallel\fP can be used with \fB\-\-decrypt\fP option to decrypt
+multiple files simultaneously.
+.UNINDENT
+.UNINDENT
+.sp
+When the files are decrypted, the backup can be prepared.
+.SS Preparing Encrypted Backups
+.sp
+After the backups have been decrypted, they can be prepared in the same way as
+the standard full backups with the \fB\-\-prepare\fP option:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-prepare \-\-target\-dir=/data/backup/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Restoring Encrypted Backups
+.sp
+\fIxtrabackup\fP offers the \fB\-\-copy\-back\fP option to restore a backup to the
+server\(aqs datadir:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-copy\-back \-\-target\-dir=/data/backup/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+It will copy all the data\-related files back to the server\(aqs datadir,
+determined by the server\(aqs \fBmy.cnf\fP configuration file. You should check
+the last line of the output for a success message:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+150318 11:08:13  xtrabackup: completed OK!
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBSEE ALSO:\fP
+.INDENT 0.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B GnuPG Documentation: \fBlibgcrypt\fP library
+\fI\%http://www.gnupg.org/documentation/manuals/gcrypt/\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS \fBFLUSH TABLES WITH READ LOCK\fP option
+.sp
+The \fBFLUSH TABLES WITH READ LOCK\fP option does the following with a global read lock:
+.INDENT 0.0
+.IP \(bu 2
+Closes all open tables
+.IP \(bu 2
+Locks all tables for all databases
+.UNINDENT
+.sp
+Release the lock with \fBUNLOCK TABLES\fP\&.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+\fBFLUSH TABLES WITH READ LOCK\fP does not prevent inserting rows into the log tables.
+.UNINDENT
+.UNINDENT
+.sp
+To ensure consistent backups, use the \fBFLUSH TABLES WITH READ LOCK\fP option before taking a non\-InnoDB file backup. The option does not affect long\-running queries.
+.sp
+Long\-running queries with \fBFLUSH TABLES WITH READ LOCK\fP enabled can leave the server in a read\-only mode until the queries finish. Killing the \fBFLUSH TABLES WITH READ LOCK\fP does not help if the database is in either the \fBWaiting for table flush\fP or \fBWaiting for master to send event\fP state. To return to normal operation, you must kill any long\-running queries.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+All described in this section has no effect when backup locks are
+used. \fIPercona XtraBackup\fP will use \fI\%Backup locks\fP
+where available as a lightweight alternative to \fBFLUSH TABLES WITH READ
+LOCK\fP\&. This feature is available in \fIPercona Server for MySQL\fP 5.6+.
+\fIPercona XtraBackup\fP uses this automatically to copy non\-InnoDB data to avoid blocking
+DML queries that modify InnoDB tables.
+.UNINDENT
+.UNINDENT
+.sp
+In order to prevent this from happening two things have been implemented:
+.INDENT 0.0
+.IP \(bu 2
+\fIxtrabackup\fP waits for a good moment to issue the global lock
+.IP \(bu 2
+\fIxtrabackup\fP kills all queries or only the SELECT queries which prevent the
+global lock from being acquired
+.UNINDENT
+.SS Waiting for queries to finish
+.sp
+You should issue a global lock when no long queries are running. Waiting to issue the global lock for extended period of time is not a good method. The wait can extend the time needed for
+backup to take place. The \fI\-\-ftwrl\-wait\-timeout\fP option can limit the
+waiting time. If it cannot issue the lock during this
+time, \fIxtrabackup\fP stops the option, exits with an error message, and backup is
+not be taken.
+.sp
+The default value for this option is zero (0) value which turns off the option.
+.sp
+Another possibility is to specify the type of query to wait on. In this case
+\fB\-\-ftwrl\-wait\-query\-type\fP\&. Possible values are \fBall\fP and
+\fBupdate\fP\&. When \fBall\fP is used \fIxtrabackup\fP will wait for all long running
+queries (execution time longer than allowed by \fB\-\-ftwrl\-wait\-threshold\fP)
+to finish before running the \fBFLUSH TABLES WITH READ LOCK\fP\&. When \fBupdate\fP is
+used \fIxtrabackup\fP will wait on \fBUPDATE/ALTER/REPLACE/INSERT\fP queries to
+finish.
+.sp
+The time needed for a specific query to complete is hard to predict. We assume that the long\-running queries will not finish in a timely manner. Other queries which run for a short time finish quickly. \fIxtrabackup\fP uses the value of
+\fI\-\-ftwrl\-wait\-threshold\fP option to specify the long\-running queries
+and will block a global lock. In order to use this option
+xtrabackup user should have \fBPROCESS\fP and \fBSUPER\fP privileges.
+.SS Killing the blocking queries
+.sp
+The second option is to kill all the queries which prevent from acquiring the
+global lock. In this case, all queries which run longer than \fBFLUSH TABLES WITH
+READ LOCK\fP are potential blockers. Although all queries can be killed,
+additional time can be specified for the short running queries to finish using
+the \fB\-\-kill\-long\-queries\-timeout\fP option. This option
+specifies the time for queries to complete, after the value is reached, all the
+running queries will be killed. The default value is zero, which turns this
+feature off.
+.sp
+The \fB\-\-kill\-long\-query\-type\fP option can be used to specify all or only
+\fBSELECT\fP queries that are preventing global lock from being acquired. In order
+to use this option xtrabackup user should have \fBPROCESS\fP and \fBSUPER\fP
+privileges.
+.SS Options summary
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-ftwrl\-wait\-timeout\fP (seconds) \- how long to wait for a
+good moment. Default is 0, not to wait.
+.IP \(bu 2
+\fB\-\-ftwrl\-wait\-query\-type\fP \- which long queries
+should be finished before \fBFLUSH TABLES WITH READ LOCK\fP is run. Default is
+all.
+.IP \(bu 2
+\fB\-\-ftwrl\-wait\-threshold\fP (seconds) \- how long query
+should be running before we consider it long running and potential blocker of
+global lock.
+.IP \(bu 2
+\fB\-\-kill\-long\-queries\-timeout\fP (seconds) \- how many time
+we give for queries to complete after \fBFLUSH TABLES WITH READ LOCK\fP is
+issued before start to kill. Default if \fB0\fP, not to kill.
+.IP \(bu 2
+\fB\-\-kill\-long\-query\-type\fP \- which queries should be killed once
+\fBkill\-long\-queries\-timeout\fP has expired.
+.UNINDENT
+.SS Example
+.sp
+Running the \fIxtrabackup\fP with the following options will cause \fIxtrabackup\fP
+to spend no longer than 3 minutes waiting for all queries older than 40 seconds
+to complete.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$  xtrabackup \-\-backup \-\-ftwrl\-wait\-threshold=40 \e
+\-\-ftwrl\-wait\-query\-type=all \-\-ftwrl\-wait\-timeout=180 \e
+\-\-kill\-long\-queries\-timeout=20 \-\-kill\-long\-query\-type=all \e
+\-\-target\-dir=/data/backups/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+After \fBFLUSH TABLES WITH READ LOCK\fP is issued, \fIxtrabackup\fP will wait for 20
+seconds for lock to be acquired. If lock is still not acquired after 20 seconds,
+it will kill all queries which are running longer that the \fBFLUSH TABLES WITH
+READ LOCK\fP\&.
+.SS Accelerating the backup process
+.sp
+Copying with the \fB\-\-parallel\fP and \fI\-\-compress\-threads\fP Options
+.sp
+When making a local or streaming backup with \fIxbstream\fP option, multiple files
+can be copied at the same time when using the \fB\-\-parallel\fP option. This
+option specifies the number of threads created by \fIxtrabackup\fP to copy data
+files.
+.sp
+To take advantage of this option either the multiple tablespaces option must be
+enabled (innodb_file_per_table) or the shared tablespace must be stored
+in multiple ibdata files with the innodb_data_file_path option.
+Having multiple files for the database (or splitting one into many) doesn\(aqt have
+a measurable impact on performance.
+.sp
+As this feature is implemented \fBat the file level\fP, concurrent file transfer
+can sometimes increase I/O throughput when doing a backup on highly fragmented
+data files, due to the overlap of a greater number of random read requests. You
+should consider tuning the filesystem also to obtain the maximum performance
+(e.g. checking fragmentation).
+.sp
+If the data is stored on a single file, this option will have no effect.
+.sp
+To use this feature, simply add the option to a local backup, for example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-parallel=4 \-\-target\-dir=/path/to/backup
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+By using the \fIxbstream\fP in streaming backups, you can additionally speed up the
+compression process with the \fB\-\-compress\-threads\fP option. This option
+specifies the number of threads created by \fIxtrabackup\fP for for parallel data
+compression. The default value for this option is 1.
+.sp
+To use this feature, simply add the option to a local backup, for example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-stream=xbstream \-\-compress \-\-compress\-threads=4 \-\-target\-dir=./ > backup.xbstream
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Before applying logs, compressed files will need to be uncompressed.
+.sp
+The \fB\-\-rsync\fP Option
+.sp
+In order to speed up the backup process and to minimize the time \fBFLUSH TABLES
+WITH READ LOCK\fP is blocking the writes, the option \fB\-\-rsync\fP should be
+used. When this option is specified, \fIxtrabackup\fP uses \fBrsync\fP to copy all
+non\-InnoDB files instead of spawning a separate \fBcp\fP for each file, which can
+be much faster for servers with a large number of databases or
+tables. \fIxtrabackup\fP will call the \fBrsync\fP twice, once before the \fBFLUSH
+TABLES WITH READ LOCK\fP and once during to minimize the time the read lock is
+being held. During the second \fBrsync\fP call, it will only synchronize the
+changes to non\-transactional data (if any) since the first call performed before
+the \fBFLUSH TABLES WITH READ LOCK\fP\&. Note that \fIPercona XtraBackup\fP will use
+\fI\%Backup locks\fP
+where available as a lightweight alternative to \fBFLUSH TABLES WITH READ
+LOCK\fP\&. This feature is available in \fIPercona Server for MySQL\fP 5.6+. \fIPercona XtraBackup\fP
+uses this automatically to copy non\-InnoDB data to avoid blocking DML queries
+that modify InnoDB tables.
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+This option cannot be used together with the \fB\-\-stream\fP option.
+.UNINDENT
+.UNINDENT
+.SS Point\-In\-Time recovery
+.sp
+Recovering up to particular moment in database\(aqs history can be done with
+\fIxtrabackup\fP and the binary logs of the server.
+.sp
+Note that the binary log contains the operations that modified the database from
+a point in the past. You need a full datadir as a base, and then you can
+apply a series of operations from the binary log to make the data match what it
+was at the point in time you want.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-target\-dir=/path/to/backup
+$ xtrabackup \-\-prepare \-\-target\-dir=/path/to/backup
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+For more details on these procedures, see creating_a_backup and preparing_a_backup\&.
+.sp
+Now, suppose that some time has passed, and you want to restore the database to a
+certain point in the past, having in mind that there is the constraint of the
+point where the snapshot was taken.
+.sp
+To find out what is the situation of binary logging in the server, execute the
+following queries:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mysql> SHOW BINARY LOGS;
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| Log_name         | File_size |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+| mysql\-bin.000001 |       126 |
+| mysql\-bin.000002 |      1306 |
+| mysql\-bin.000003 |       126 |
+| mysql\-bin.000004 |       497 |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+and
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+mysql> SHOW MASTER STATUS;
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| File             | Position | Binlog_Do_DB | Binlog_Ignore_DB |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+| mysql\-bin.000004 |      497 |              |                  |
++\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-+\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+The first query will tell you which files contain the binary log and the second
+one which file is currently being used to record changes, and the current
+position within it. Those files are stored usually in the datadir
+(unless other location is specified when the server is started with the
+\fB\-\-log\-bin=\fP option).
+.sp
+To find out the position of the snapshot taken, see the
+\fBxtrabackup_binlog_info\fP at the backup\(aqs directory:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cat /path/to/backup/xtrabackup_binlog_info
+mysql\-bin.000003      57
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+This will tell you which file was used at moment of the backup for the binary
+log and its position. That position will be the effective one when you restore
+the backup:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-copy\-back \-\-target\-dir=/path/to/backup
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+As the restoration will not affect the binary log files (you may need to adjust
+file permissions, see restoring_a_backup), the next step is
+extracting the queries from the binary log with \fBmysqlbinlog\fP starting
+from the position of the snapshot and redirecting it to a file
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mysqlbinlog /path/to/datadir/mysql\-bin.000003 /path/to/datadir/mysql\-bin.000004 \e
+    \-\-start\-position=57 > mybinlog.sql
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Note that if you have multiple files for the binary log, as in the example, you
+have to extract the queries with one process, as shown above.
+.sp
+Inspect the file with the queries to determine which position or date
+corresponds to the point\-in\-time wanted. Once determined, pipe it to the
+server. Assuming the point is \fB11\-12\-25 01:00:00\fP:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ mysqlbinlog /path/to/datadir/mysql\-bin.000003 /path/to/datadir/mysql\-bin.000004 \e
+    \-\-start\-position=57 \-\-stop\-datetime="11\-12\-25 01:00:00" | mysql \-u root \-p
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+and the database will be rolled forward up to that Point\-In\-Time.
+.SS Making Backups in Replication Environments
+.sp
+There are options specific to back up from a replication replica.
+.SS The \fB\-\-slave\-info\fP Option
+.sp
+This option is useful when backing up a replication replica server. It prints the
+binary log position and name of the source server. It also writes this
+information to the \fBxtrabackup_slave_info\fP file as a \fBCHANGE MASTER\fP
+statement.
+.sp
+This option is useful for setting up a new replica for this source.
+You can start a replica server with this backup and issue the statement saved in the
+\fBxtrabackup_slave_info\fP file. More details of this procedure can be found
+in replication_howto\&.
+.SS The \fB\-\-safe\-slave\-backup\fP Option
+.sp
+In order to assure a consistent replication state, this option stops the replication
+SQL thread and waits to start backing up until \fBSlave_open_temp_tables\fP in
+\fBSHOW STATUS\fP is zero. If there are no open temporary tables, the backup will
+take place, otherwise the SQL thread will be started and stopped until there are
+no open temporary tables. The backup will fail if \fBSlave_open_temp_tables\fP
+does not become zero after \fB\-\-safe\-slave\-backup\-timeout\fP
+seconds (defaults to 300 seconds). The replication SQL thread will be restarted when
+the backup finishes.
+.sp
+Using this option is always recommended when taking backups from a replica server.
+.sp
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+Make sure your replica is a true replica of the source before using it as a
+source for backup. A good tool to validate a replica is \fI\%pt\-table\-checksum\fP\&.
+.UNINDENT
+.UNINDENT
+.SS Store backup history on the server
+.sp
+\fIPercona XtraBackup\fP supports storing the backups history on the server. This
+feature was implemented in \fIPercona XtraBackup\fP 2.2. Storing backup history on
+the server was implemented to provide users with additional information about
+backups that are being taken. Backup history information will be stored in the
+\fI\%PERCONA_SCHEMA.XTRABACKUP_HISTORY\fP table.
+.sp
+To use this feature the following options are available:
+.INDENT 0.0
+.IP \(bu 2
+\fB\-\-history\fP =<name> : This option enables the history
+feature and allows the user to specify a backup series name that will be
+placed within the history record.
+.IP \(bu 2
+\fB\-\-incremental\-history\-name\fP =<name> : This option allows an
+incremental backup to be made based on a specific history series by
+name. \fIxtrabackup\fP will search the history table looking for the most recent
+(highest \fBto_lsn\fP) backup in the series and take the \fBto_lsn\fP value to use
+as it\(aqs starting lsn. This is mutually exclusive with
+\fB\-\-incremental\-history\-uuid\fP, \fB\-\-incremental\-basedir\fP and
+\fB\-\-incremental\-lsn\fP options. If no valid LSN can be found
+(no series by that name) \fIxtrabackup\fP will return with an error.
+.IP \(bu 2
+\fB\-\-incremental\-history\-uuid\fP =<uuid> : Allows an incremental backup to
+be made based on a specific history record identified by UUID. \fIxtrabackup\fP
+will search the history table looking for the record matching UUID and take
+the \fBto_lsn\fP value to use as it\(aqs starting LSN. This options is mutually
+exclusive with \fB\-\-incremental\-basedir\fP, \fB\-\-incremental\-lsn\fP
+and \fB\-\-incremental\-history\-name\fP options. If no valid LSN can be found
+(no record by that UUID or missing \fBto_lsn\fP), \fIxtrabackup\fP will return
+with an error.
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Backup that\(aqs currently being performed will \fBNOT\fP exist in the
+xtrabackup_history table within the resulting backup set as the record will
+not be added to that table until after the backup has been taken.
+.UNINDENT
+.UNINDENT
+.sp
+If you want access to backup history outside of your backup set in the case of
+some catastrophic event, you will need to either perform a \fBmysqldump\fP,
+partial backup or \fBSELECT\fP * on the history table after \fIxtrabackup\fP
+completes and store the results with you backup set.
+.sp
+For the necessary privileges, see pxb.privilege\&.
+PERCONA_SCHEMA.XTRABACKUP_HISTORY table
+.sp
+This table contains the information about the previous server
+backups. Information about the backups will only be written if the backup was
+taken with \fB\-\-history\fP option.
+.TS
+center;
+|l|l|.
+_
+T{
+Column Name
+T}	T{
+Description
+T}
+_
+T{
+uuid
+T}	T{
+Unique backup id
+T}
+_
+T{
+name
+T}	T{
+User provided name of backup series. There may be multiple entries with the same name used to identify related backups in a series.
+T}
+_
+T{
+tool_name
+T}	T{
+Name of tool used to take backup
+T}
+_
+T{
+tool_command
+T}	T{
+Exact command line given to the tool with \-\-password and \-\-encryption_key obfuscated
+T}
+_
+T{
+tool_version
+T}	T{
+Version of tool used to take backup
+T}
+_
+T{
+ibbackup_version
+T}	T{
+Version of the xtrabackup binary used to take backup
+T}
+_
+T{
+server_version
+T}	T{
+Server version on which backup was taken
+T}
+_
+T{
+start_time
+T}	T{
+Time at the start of the backup
+T}
+_
+T{
+end_time
+T}	T{
+Time at the end of the backup
+T}
+_
+T{
+lock_time
+T}	T{
+Amount of time, in seconds, spent calling and holding locks for \fBFLUSH TABLES WITH READ LOCK\fP
+T}
+_
+T{
+binlog_pos
+T}	T{
+Binlog file and position at end of \fBFLUSH TABLES WITH READ LOCK\fP
+T}
+_
+T{
+innodb_from_lsn
+T}	T{
+LSN at beginning of backup which can be used to determine prior backups
+T}
+_
+T{
+innodb_to_lsn
+T}	T{
+LSN at end of backup which can be used as the starting lsn for the next incremental
+T}
+_
+T{
+partial
+T}	T{
+Is this a partial backup, if \fBN\fP that means that it\(aqs the full backup
+T}
+_
+T{
+incremental
+T}	T{
+Is this an incremental backup
+T}
+_
+T{
+format
+T}	T{
+Description of result format (\fBxbstream\fP)
+T}
+_
+T{
+compact
+T}	T{
+Is this a compact backup
+T}
+_
+T{
+compressed
+T}	T{
+Is this a compressed backup
+T}
+_
+T{
+encrypted
+T}	T{
+Is this an encrypted backup
+T}
+_
+.TE
+Limitations.INDENT 0.0
+.IP \(bu 2
+\fB\-\-history\fP option must be specified only on the command
+line and not within a configuration file in order to be effective.
+.IP \(bu 2
+\fB\-\-incremental\-history\-name\fP and \fB\-\-incremental\-history\-uuid\fP
+options must be specified only on the command line and not within
+a configuration file in order to be effective.
+.UNINDENT
+.SH IMPLEMENTATION
+.SS Implementation Details
+.sp
+This page contains notes on various internal aspects of the \fIxtrabackup\fP tool\(aqs
+operation.
+.SS File Permissions
+.sp
+\fIxtrabackup\fP opens the source data files in read\-write mode, although it does
+not modify the files. This means that you must run \fIxtrabackup\fP as a user who
+has permission to write the data files. The reason for opening the files in
+read\-write mode is that \fIxtrabackup\fP uses the embedded \fIInnoDB\fP libraries to
+open and read the files, and \fIInnoDB\fP opens them in read\-write mode because it
+normally assumes it is going to write to them.
+.SS Tuning the OS Buffers
+.sp
+Because \fIxtrabackup\fP reads large amounts of data from the filesystem, it uses
+\fBposix_fadvise()\fP where possible, to instruct the operating system not to try
+to cache the blocks it reads from disk. Without this hint, the operating system
+would prefer to cache the blocks, assuming that \fBxtrabackup\fP is likely to need
+them again, which is not the case. Caching such large files can place pressure
+on the operating system\(aqs virtual memory and cause other processes, such as the
+database server, to be swapped out. The \fBxtrabackup\fP tool avoids this with the
+following hint on both the source and destination files:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+posix_fadvise(file, 0, 0, POSIX_FADV_DONTNEED)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+In addition, xtrabackup asks the operating system to perform more aggressive
+read\-ahead optimizations on the source files:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+posix_fadvise(file, 0, 0, POSIX_FADV_SEQUENTIAL)
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Copying Data Files
+.sp
+When copying the data files to the target directory, \fIxtrabackup\fP reads and
+writes 1 MB of data at a time. This is not configurable. When copying the log
+file, \fIxtrabackup\fP reads and writes 512 bytes at a time. This is also not
+possible to configure, and matches InnoDB\(aqs behavior (workaround exists in
+\fIPercona Server for MySQL\fP because it has an option to tune
+\fBinnodb_log_block_size\fP for \fIXtraDB\fP, and in that case \fIPercona XtraBackup\fP will match the tuning).
+.sp
+After reading from the files, \fBxtrabackup\fP iterates over the 1MB buffer a page
+at a time, and checks for page corruption on each page with InnoDB\(aqs
+\fBbuf_page_is_corrupted()\fP function. If the page is corrupt, it re\-reads and
+retries up to 10 times for each page. It skips this check on the doublewrite
+buffer.
+.SS \fIxtrabackup\fP Exit Codes
+.sp
+The \fIxtrabackup\fP binary exits with the traditional success value of 0 after a backup when no error occurs. If an error occurs during the backup, the exit value is 1.
+.sp
+In certain cases, the exit value can be something other than 0 or 1, due to the command\-line option code included from the \fIMySQL\fP libraries. An unknown command\-line option, for example, will cause an exit code of 255.
+.SH REFERENCES
+.SS The \fBxtrabackup\fP Option Reference
+.sp
+This page documents all of the command\-line options for the
+\fBxtrabackup\fP binary.
+.SS Modes of operation
+.sp
+You invoke \fIxtrabackup\fP in one of the following modes:
+.INDENT 0.0
+.IP \(bu 2
+\fI\%\-\-backup\fP mode to make a backup in a target directory
+.IP \(bu 2
+\fI\%\-\-prepare\fP mode to restore data from a backup (created in \fI\%\-\-backup\fP mode)
+.IP \(bu 2
+\fI\%\-\-copy\-back\fP to copy data from a backup to the location
+that contained the original data; to move data instead of copying use
+the alternate \fI\%\-\-move\-back\fP mode.
+.IP \(bu 2
+\fI\%\-\-stats\fP mode to scan the specified data files and print out index statistics.
+.UNINDENT
+.sp
+When you intend to run \fIxtrabackup\fP in any of these modes, use the following syntax:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup [\-\-defaults\-file=#] \-\-backup|\-\-prepare|\-\-copy\-back|\-\-stats [OPTIONS]
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+For example, the \fI\%\-\-prepare\fP mode is applied as follows:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-prepare \-\-target\-dir=/data/backup/mysql/
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+For all modes, the default options are read from the \fBxtrabackup\fP and
+\fBmysqld\fP configuration groups from the following files in the given order:
+.INDENT 0.0
+.IP 1. 3
+\fB/etc/my.cnf\fP
+.IP 2. 3
+\fB/etc/mysql/my.cnf\fP
+.IP 3. 3
+\fB/usr/etc/my.cnf\fP
+.IP 4. 3
+\fB~/.my.cnf\fP\&.
+.UNINDENT
+.sp
+As the first parameter to \fIxtrabackup\fP (in place of the \fI\%\-\-defaults\-file\fP,
+you may supply one of the following:
+.INDENT 0.0
+.IP \(bu 2
+\fI\%\-\-print\-defaults\fP to have \fIxtrabackup\fP print the argument list and exit.
+.IP \(bu 2
+\fI\%\-\-no\-defaults\fP to forbid reading options from any file but the login file.
+.IP \(bu 2
+\fI\%\-\-defaults\-file\fP  to read the default options from the given file.
+.IP \(bu 2
+\fI\%\-\-defaults\-extra\-file\fP to read the specified additional file after
+the global files have been read.
+.IP \(bu 2
+\fI\%\-\-defaults\-group\-suffix\fP to read the configuration groups with the
+given suffix. The effective group name is constructed by concatenating the default
+configuration groups (\fBxtrabackup\fP and \fBmysqld\fP) with the given suffix.
+.IP \(bu 2
+\fI\%\-\-login\-path\fP to read the given path from the login file.
+.UNINDENT
+InnoDB Options
+.sp
+There is a large group of InnoDB options that are normally read from the
+\fBmy.cnf\fP configuration file, so that \fIxtrabackup\fP boots up its embedded
+InnoDB in the same configuration as your current server. You normally do not
+need to specify them explicitly. These options have the same behavior in InnoDB
+and XtraDB. See \fI\%\-\-innodb\-miscellaneous\fP for more information.
+.SS Options
+.INDENT 0.0
+.TP
+.B \-\-apply\-log\-only
+This option causes only the redo stage to be performed when preparing a
+backup. It is very important for incremental backups.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-backup
+Make a backup and place it in \fI\%\-\-target\-dir\fP\&. See
+Creating a backup\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-backup\-lock\-timeout
+The timeout in seconds for attempts to acquire metadata locks.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-backup\-lock\-retry\-count
+The number of attempts to acquire metadata locks.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-backup\-locks
+This option controls if backup locks should be used instead of \fBFLUSH TABLES
+WITH READ LOCK\fP on the backup stage. The option has no effect when backup
+locks are not supported by the server. This option is enabled by default,
+disable with \fI\%\-\-no\-backup\-locks\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-check\-privileges
+This option checks if \fIPercona XtraBackup\fP has all required privileges.
+If a missing privilege is required for the current operation,
+it will terminate and print out an error message.
+If a missing privilege is not required for the current operation,
+but may be necessary for some other XtraBackup operation,
+the process is not aborted and a warning is printed.
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+xtrabackup: Error: missing required privilege LOCK TABLES on *.*
+xtrabackup: Warning: missing required privilege REPLICATION CLIENT on *.*
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-close\-files
+Do not keep files opened. When \fIxtrabackup\fP opens tablespace it normally
+doesn\(aqt close its file handle in order to handle the DDL operations
+correctly. However, if the number of tablespaces is really huge and can not
+fit into any limit, there is an option to close file handles once they are
+no longer accessed. \fIPercona XtraBackup\fP can produce inconsistent backups
+with this option enabled. Use at your own risk.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-compress
+This option tells \fIxtrabackup\fP to compress all output data, including the
+transaction log file and meta data files, using either the \fBquicklz\fP or
+\fBlz4\fP compression algorithm. \fBquicklz\fP is chosen by default.
+.sp
+When using \fB\-\-compress=quicklz\fP or \fB\-\-compress\fP, the resulting files have
+the qpress archive format, i.e. every \fB*.qp\fP file produced by \fIxtrabackup\fP is
+essentially a one\-file qpress archive and can be extracted and uncompressed
+by the \fI\%qpress\fP file archiver.
+.sp
+\fB\-\-compress=lz4\fP produces \fB*.lz4\fP files. You can extract the contents of
+these files by using a program such as \fBlz4\fP\&.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B QuickLZ
+\fI\%http://www.quicklz.com\fP
+.TP
+.B LZ4
+\fI\%https://lz4.github.io/lz4/\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-compress\-chunk\-size=#
+Size of working buffer(s) for compression threads in bytes. The default
+value is 64K.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-compress\-threads=#
+This option specifies the number of worker threads used by \fIxtrabackup\fP for
+parallel data compression. This option defaults to \fB1\fP\&. Parallel
+compression (\fI\%\-\-compress\-threads\fP) can be used together
+with parallel file copying (\fI\%\-\-parallel\fP). For example,
+\fB\-\-parallel=4 \-\-compress \-\-compress\-threads=2\fP will create 4 I/O threads
+that will read the data and pipe it to 2 compression threads.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-copy\-back
+Copy all the files in a previously made backup from the backup directory to
+their original locations. This option will not copy over existing files
+unless \fI\%\-\-force\-non\-empty\-directories\fP option is
+specified.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-core\-file
+Write core on fatal signals.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-databases=#
+This option specifies a list of databases and tables that should be backed
+up. The option accepts the list of the form \fB"databasename1[.table_name1]
+databasename2[.table_name2] . . ."\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-databases\-exclude=name
+Excluding databases based on name, Operates the same way
+as \fI\%\-\-databases\fP, but matched names are excluded from
+backup. Note that this option has a higher priority than
+\fI\%\-\-databases\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-databases\-file=#
+This option specifies the path to the file containing the list of databases
+and tables that should be backed up. The file can contain the list elements
+of the form \fBdatabasename1[.table_name1]\fP, one element per line.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-datadir=DIRECTORY
+The source directory for the backup. This should be the same as the datadir
+for your \fIMySQL\fP server, so it should be read from \fBmy.cnf\fP if that
+exists; otherwise you must specify it on the command line.
+.sp
+When combined with the \fI\%\-\-copy\-back\fP or
+\fI\%\-\-move\-back\fP option, \fI\%\-\-datadir\fP
+refers to the destination directory.
+.sp
+Once connected to the server, in order to perform a backup you will need
+\fBREAD\fP and \fBEXECUTE\fP permissions at a filesystem level in the
+server\(aqs datadir\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-sleep\-before\-unlock=#
+This is a debug\-only option used by the \fIxtrabackup\fP test suite.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-debug\-sync=name
+The debug sync point. This option is only used by the \fIxtrabackup\fP test suite.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-decompress
+Decompresses all files with the \fB\&.qp\fP extension in a backup previously
+made with the \fI\%\-\-compress\fP option. The
+\fI\%\-\-parallel\fP option will allow multiple files to be
+decrypted simultaneously. In order to decompress, the qpress utility MUST be
+installed and accessible within the path. \fIPercona XtraBackup\fP does not
+automatically remove the compressed files. In order to clean up the backup
+directory users should use \fI\%\-\-remove\-original\fP option.
+.sp
+The \fI\%\-\-decompress\fP option may be used with \fIxbstream\fP to
+decompress individual qpress files.
+.sp
+If you used the \fBlz4\fP compression algorithm to compress the files
+(\fB\-\-compress=lz4\fP), change the \fI\%\-\-decompress\fP parameter
+accordingly: \fB\-\-decompress=lz4\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-decompress\-threads=#
+Force \fIxbstream\fP to use the specified number of threads for
+decompressing.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-decrypt=ENCRYPTION\-ALGORITHM
+Decrypts all files with the \fB\&.xbcrypt\fP extension in a backup
+previously made with \fI\%\-\-encrypt\fP option. The
+\fI\%\-\-parallel\fP option will allow multiple files to be
+decrypted simultaneously. \fIPercona XtraBackup\fP doesn\(aqt
+automatically remove the encrypted files. In order to clean up the backup
+directory users should use \fI\%\-\-remove\-original\fP option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-defaults\-extra\-file=[MY.CNF]
+Read this file after the global files are read. Must be given as the first
+option on the command\-line.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-defaults\-file=[MY.CNF]
+Only read default options from the given file. Must be given as the first
+option on the command\-line. Must be a real file; it cannot be a symbolic
+link.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-defaults\-group=GROUP\-NAME
+This option is to set the group which should be read from the configuration
+file. This is used by \fIxtrabackup\fP if you use the
+\fI\%\-\-defaults\-group\fP option. It is needed for
+\fBmysqld_multi\fP deployments.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-defaults\-group\-suffix=#
+Also reads groups with concat(group, suffix).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dump\-innodb\-buffer\-pool
+This option controls whether or not a new dump of buffer pool
+content should be done.
+.sp
+With \fB\-\-dump\-innodb\-buffer\-pool\fP, \fIxtrabackup\fP
+makes a request to the server to start the buffer pool dump (it
+takes some time to complete and is done in background) at the
+beginning of a backup provided the status variable
+\fBinnodb_buffer_pool_dump_status\fP reports that the dump has been
+completed.
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ xtrabackup \-\-backup \-\-dump\-innodb\-buffer\-pool \-\-target\-dir=/home/user/backup
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+By default, this option is set to \fIOFF\fP\&.
+.sp
+If \fBinnodb_buffer_pool_dump_status\fP reports that there is running
+dump of buffer pool, \fIxtrabackup\fP waits for the dump to complete
+using the value of \fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP
+.sp
+The file \fBib_buffer_pool\fP stores tablespace ID and page ID
+data used to warm up the buffer pool sooner.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIMySQL\fP Documentation: Saving and Restoring the Buffer Pool State
+\fI\%https://dev.mysql.com/doc/refman/5.7/en/innodb\-preload\-buffer\-pool.html\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dump\-innodb\-buffer\-pool\-timeout
+This option contains the number of seconds that \fIxtrabackup\fP should
+monitor the value of \fBinnodb_buffer_pool_dump_status\fP to
+determine if buffer pool dump has completed.
+.sp
+This option is used in combination with
+\fI\%\-\-dump\-innodb\-buffer\-pool\fP\&. By default, it is set to \fI10\fP
+seconds.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dump\-innodb\-buffer\-pool\-pct
+This option contains the percentage of the most recently used buffer pool
+pages to dump.
+.sp
+This option is effective if \fI\%\-\-dump\-innodb\-buffer\-pool\fP option is set
+to \fION\fP\&. If this option contains a value, \fIxtrabackup\fP sets the \fIMySQL\fP
+system variable \fBinnodb_buffer_pool_dump_pct\fP\&. As soon as the buffer pool
+dump completes or it is stopped (see
+\fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP), the value of the \fIMySQL\fP system
+variable is restored.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B Changing the timeout for buffer pool dump
+\fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP
+.TP
+.B \fIMySQL\fP Documentation: innodb_buffer_pool_dump_pct system variable
+\fI\%https://dev.mysql.com/doc/refman/8.0/en/innodb\-parameters.html#sysvar_innodb_buffer_pool_dump_pct\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-encrypt=ENCRYPTION_ALGORITHM
+This option instructs xtrabackup to encrypt backup copies of InnoDB data
+files using the algorithm specified in the ENCRYPTION_ALGORITHM. Currently
+supported algorithms are: \fBAES128\fP, \fBAES192\fP and \fBAES256\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-encrypt\-key=ENCRYPTION_KEY
+A proper length encryption key to use. It is not recommended to use this
+option where there is uncontrolled access to the machine as the command line
+and thus the key can be viewed as part of the process info.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-encrypt\-key\-file=ENCRYPTION_KEY_FILE
+The name of a file where the raw key of the appropriate length can be read
+from. The file must be a simple binary (or text) file that contains exactly
+the key to be used.
+.sp
+It is passed directly to the xtrabackup child process. See the
+\fBxtrabackup\fP documentation for more details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-encrypt\-threads=#
+This option specifies the number of worker threads that will be used for
+parallel encryption/decryption.
+See the \fBxtrabackup\fP documentation for more details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-encrypt\-chunk\-size=#
+This option specifies the size of the internal working buffer for each
+encryption thread, measured in bytes. It is passed directly to the
+xtrabackup child process. See the \fBxtrabackup\fP documentation for more details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-export
+Create files necessary for exporting tables. See Restoring Individual
+Tables\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-extra\-lsndir=DIRECTORY
+(for \-\-backup): save an extra copy of the \fBxtrabackup_checkpoints\fP
+and \fBxtrabackup_info\fP files in this directory.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-force\-non\-empty\-directories
+When specified, it makes \fI\%\-\-copy\-back\fP and
+\fI\%\-\-move\-back\fP option transfer files to non\-empty
+directories. No existing files will be overwritten. If files that need to
+be copied/moved from the backup directory already exist in the destination
+directory, it will still fail with an error.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ftwrl\-wait\-timeout=SECONDS
+This option specifies time in seconds that xtrabackup should wait for
+queries that would block \fBFLUSH TABLES WITH READ LOCK\fP before running it.
+If there are still such queries when the timeout expires, xtrabackup
+terminates with an error. Default is \fB0\fP, in which case it does not wait
+for queries to complete and starts \fBFLUSH TABLES WITH READ LOCK\fP
+immediately. Where supported \fIxtrabackup\fP will
+automatically use \fI\%Backup Locks\fP
+as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
+non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ftwrl\-wait\-threshold=SECONDS
+This option specifies the query run time threshold which is used by
+xtrabackup to detect long\-running queries with a non\-zero value of
+\fI\%\-\-ftwrl\-wait\-timeout\fP\&. \fBFLUSH TABLES WITH READ LOCK\fP
+is not started until such long\-running queries exist. This option has no
+effect if \fI\%\-\-ftwrl\-wait\-timeout\fP is \fB0\fP\&. Default value
+is \fB60\fP seconds. Where supported xtrabackup will
+automatically use \fI\%Backup Locks\fP
+as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
+non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ftwrl\-wait\-query\-type=all|update
+This option specifies which types of queries are allowed to complete before
+xtrabackup will issue the global lock. Default is \fBall\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-galera\-info
+This option creates the \fBxtrabackup_galera_info\fP file which contains
+the local node state at the time of the backup. Option should be used when
+performing the backup of \fIPercona XtraDB Cluster\fP\&. It has no effect when
+backup locks are used to create the backup.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-generate\-new\-master\-key
+Generate a new master key when doing a copy\-back.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-generate\-transition\-key
+\fIxtrabackup\fP needs to access the same keyring file or vault server
+during \fIprepare\fP and \fIcopy\-back\fP but it should not depend on whether the
+server keys have been purged.
+.sp
+\fI\%\-\-generate\-transition\-key\fP creates and adds to the keyring
+a transition key for \fIxtrabackup\fP to use if the master key used for
+encryption is not found because it has been rotated and purged.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-get\-server\-public\-key
+Get the server public key
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+\fIMySQL\fP Documentation: The \-\-get\-server\-public\-key Option
+.INDENT 0.0
+.INDENT 3.5
+\fI\%https://dev.mysql.com/doc/refman/5.7/en/connection\-options.html#option_general_get\-server\-public\-key\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-help
+When run with this option or without any options \fIxtrabackup\fP displays
+information about how to run the program on the command line along with all
+supported options and variables with default values where appropriate.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-history=NAME
+This option enables the tracking of backup history in the
+\fBPERCONA_SCHEMA.xtrabackup_history\fP table. An optional history series name
+may be specified that will be placed with the history record for the current
+backup being taken.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-host=HOST
+This option accepts a string argument that specifies the host to use when
+connecting to the database server with TCP/IP. It is passed to the mysql
+child process without alteration. See \fBmysql \-\-help\fP for details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-incremental
+This option tells \fIxtrabackup\fP to create an incremental backup. It is passed
+to the \fIxtrabackup\fP child process. When this option is specified, either
+\fI\%\-\-incremental\-lsn\fP or \fI\%\-\-incremental\-basedir\fP can also be
+given. If neither option is given, option \fI\%\-\-incremental\-basedir\fP is
+passed to \fBxtrabackup\fP by default, set to the first timestamped
+backup directory in the backup base directory.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B More information about incremental backups
+See section xb_incremental
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-incremental\-basedir=DIRECTORY
+When creating an incremental backup, this is the directory containing the
+full backup that is the base dataset for the incremental backups.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-incremental\-dir=DIRECTORY
+When preparing an incremental backup, this is the directory where the
+incremental backup is combined with the full backup to make a new full
+backup.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-incremental\-force\-scan
+When creating an incremental backup, force a full scan of the data pages in
+the instance being backuped even if the complete changed page bitmap data is
+available.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-incremental\-history\-name=name
+This option specifies the name of the backup series stored in the
+\fBPERCONA_SCHEMA.xtrabackup_history\fP history record to base an incremental
+backup on. \fIxtrabackup\fP will search the history table looking for the most
+recent (highest \fBinnodb_to_lsn\fP), successful backup in the series and take
+the to_lsn value to use as the starting \fBlsn\fP for the incremental
+backup. This will be mutually exclusive with
+\fI\%\-\-incremental\-history\-uuid\fP, \fI\%\-\-incremental\-basedir\fP and
+\fI\%\-\-incremental\-lsn\fP\&. If no valid lsn can be found (no series by that
+name, no successful backups by that name) \fIxtrabackup\fP will return with an
+error. It is used with the \fI\%\-\-incremental\fP option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-incremental\-history\-uuid=name
+This option specifies the \fIUUID\fP of the specific history record stored in the
+\fBPERCONA_SCHEMA.xtrabackup_history\fP to base an incremental backup on.
+\fI\%\-\-incremental\-history\-name\fP, \fI\%\-\-incremental\-basedir\fP and
+\fI\%\-\-incremental\-lsn\fP\&. If no valid lsn can be found (no success record
+with that \fIUUID\fP) \fIxtrabackup\fP will return with an error. It is used with
+the \-\-incremental option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-incremental\-lsn=LSN
+When creating an incremental backup, you can specify the log sequence number
+(LSN) instead of specifying
+\fI\%\-\-incremental\-basedir\fP\&. For databases created in 5.1 and
+later, specify the LSN as a single 64\-bit integer. \fBATTENTION\fP: If
+a wrong LSN value is specified (a user  error which \fIPercona XtraBackup\fP is
+unable to detect), the backup will be unusable. Be careful!
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-innodb[=name]
+This option is ignored for MySQL option compatibility.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-innodb\-miscellaneous
+There is a large group of InnoDB options that are normally read from the
+\fBmy.cnf\fP configuration file, so that \fIxtrabackup\fP boots up its
+embedded InnoDB in the same configuration as your current server. You
+normally do not need to specify these explicitly. These options have the
+same behavior in InnoDB and XtraDB:
+.INDENT 7.0
+.INDENT 2.0
+.IP \(bu 2
+\-\-innodb\-adaptive\-hash\-index
+.IP \(bu 2
+\-\-innodb\-additional\-mem\-pool\-size
+.IP \(bu 2
+\-\-innodb\-autoextend\-increment
+.IP \(bu 2
+\-\-innodb\-buffer\-pool\-size
+.IP \(bu 2
+\-\-innodb\-buffer\-pool\-filename
+.IP \(bu 2
+\-\-innodb\-checksum\-algorithm
+.IP \(bu 2
+\-\-innodb\-checksums
+.IP \(bu 2
+\-\-innodb\-data\-file\-path
+.IP \(bu 2
+\-\-innodb\-data\-home\-dir
+.IP \(bu 2
+\-\-innodb\-directories
+.IP \(bu 2
+\-\-innodb\-doublewrite\-file
+.IP \(bu 2
+\-\-innodb\-doublewrite
+.IP \(bu 2
+\-\-innodb\-extra\-undoslots
+.IP \(bu 2
+\-\-innodb\-fast\-checksum
+.IP \(bu 2
+\-\-innodb\-file\-io\-threads
+.IP \(bu 2
+\-\-innodb\-file\-per\-table
+.IP \(bu 2
+\-\-innodb\-flush\-log\-at\-trx\-commit
+.IP \(bu 2
+\-\-innodb\-flush\-method
+.UNINDENT
+.INDENT 2.0
+.IP \(bu 2
+\-\-innodb\-io\-capacity
+.IP \(bu 2
+\-\-innodb\-lock\-wait\-timeout
+.IP \(bu 2
+\-\-innodb\-log\-block\-size
+.IP \(bu 2
+\-\-innodb\-log\-buffer\-size
+.IP \(bu 2
+\-\-innodb\-log\-checksums
+.IP \(bu 2
+\-\-innodb\-log\-files\-in\-group
+.IP \(bu 2
+\-\-innodb\-log\-file\-size
+.IP \(bu 2
+\-\-innodb\-log\-group\-home\-dir
+.IP \(bu 2
+\-\-innodb\-max\-dirty\-pages\-pct
+.IP \(bu 2
+\-\-innodb\-open\-files
+.IP \(bu 2
+\-\-innodb\-page\-size
+.IP \(bu 2
+\-\-innodb\-read\-io\-threads
+.IP \(bu 2
+\-\-innodb\-redo\-log\-encrypt
+.IP \(bu 2
+\-\-innodb\-undo\-directory
+.IP \(bu 2
+\-\-innodb\-undo\-log\-encrypt
+.IP \(bu 2
+\-\-innodb\-undo\-tablespaces\(ga
+.IP \(bu 2
+\-\-innodb\-use\-native\-aio
+.IP \(bu 2
+\-\-innodb\-write\-io\-threads
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-keyring\-file\-data=FILENAME
+The path to the keyring file. Combine this option with
+\fI\%\-\-xtrabackup\-plugin\-dir\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-kill\-long\-queries\-timeout=SECONDS
+This option specifies the number of seconds \fIxtrabackup\fP waits between
+starting \fBFLUSH TABLES WITH READ LOCK\fP and killing those queries that block
+it. Default is 0 seconds, which means \fIxtrabackup\fP will not attempt to kill
+any queries. In order to use this option xtrabackup user should have the
+\fBPROCESS\fP and \fBSUPER\fP privileges. Where supported, \fIxtrabackup\fP
+automatically uses \fI\%Backup Locks\fP
+as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
+non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-kill\-long\-query\-type=all|select
+This option specifies which types of queries should be killed to unblock the
+global lock. Default is "select".
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-lock\-ddl
+Issue \fBLOCK TABLES FOR BACKUP\fP if it is supported by server (otherwise use
+\fBLOCK INSTANCE FOR BACKUP\fP) at the beginning of the backup to block all DDL
+operations.
+.sp
+\fBNOTE:\fP
+.INDENT 7.0
+.INDENT 3.5
+Prior to \fIPercona XtraBackup\fP 8.0.22\-15.0, using a \fIsafe\-slave\-backup\fP stops the SQL replica thread
+after the InnoDB tables and before the non\-InnoDB tables are backed up.
+.sp
+As of \fIPercona XtraBackup\fP 8.0.22\-15.0, using a \fIsafe\-slave\-backup\fP option stops the SQL
+replica thread before copying the InnoDB files.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-lock\-ddl\-per\-table
+Lock DDL for each table before xtrabackup starts to copy
+it and until the backup is completed.
+.sp
+\fBNOTE:\fP
+.INDENT 7.0
+.INDENT 3.5
+As of \fIPercona XtraBackup\fP 8.0.15, the \fI\-\-lock\-ddl\-per\-table\fP option is deprecated. Use the \fI\-\-lock\-ddl\fP option instead.
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-lock\-ddl\-timeout
+If \fBLOCK TABLES FOR BACKUP\fP or \fBLOCK INSTANCE FOR BACKUP\fP does not return
+within given timeout, abort the backup.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-log
+This option is ignored for \fIMySQL\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-log\-bin
+The base name for the log sequence.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-log\-bin\-index=name
+File that holds the names for binary log files.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-log\-copy\-interval=#
+This option specifies the time interval between checks done by the log
+copying thread in milliseconds (default is 1 second).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-login\-path
+Read the given path from the login file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-move\-back
+Move all the files in a previously made backup from the backup directory to
+their original locations. As this option removes backup files, it must be
+used with caution.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-backup\-locks
+Explicity disables the \fI\%\-\-backup\-locks\fP option which is enabled by
+default.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-defaults
+The default options are only read from the login file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-lock
+Use this option to disable table lock with \fBFLUSH TABLES WITH READ
+LOCK\fP\&. Use it only if ALL your tables are InnoDB and you \fBDO NOT CARE\fP
+about the binary log position of the backup. This option shouldn\(aqt be used if
+there are any \fBDDL\fP statements being executed or if any updates are
+happening on non\-InnoDB tables (this includes the system MyISAM tables in the
+\fImysql\fP database), otherwise it could lead to an inconsistent backup. Where
+supported \fIxtrabackup\fP will automatically use \fI\%Backup Locks\fP
+as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
+non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.  If
+you are considering to use this because your backups are failing to acquire
+the lock, this could be because of incoming replication events are preventing
+the lock from succeeding. Please try using \fI\%\-\-safe\-slave\-backup\fP to
+momentarily stop the replication replica thread, this may help the backup to
+succeed and you do not need to use this option.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-server\-version\-check
+Implemented in \fIPercona XtraBackup\fP 8.0.21.
+.sp
+The \fB\-\-no\-server\-version\-check\fP option disables the server version check.
+.sp
+The default behavior runs a check that compares the source system version to the \fIPercona XtraBackup\fP version. If the source system version is higher than the XtraBackup version, the backup is aborted with a message.
+.sp
+Adding the option overrides this check, and the backup proceeds, but there may be issues with the backup.
+.sp
+See comparison for more information.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-version\-check
+This option disables the version check. If you do not pass this option, the
+automatic version check is enabled implicitly when \fIxtrabackup\fP runs
+in the \fB\-\-backup\fP mode. To disable the version check, you should pass
+explicitly the \fB\-\-no\-version\-check\fP option when invoking \fIxtrabackup\fP\&.
+.sp
+When the automatic version check is enabled, \fIxtrabackup\fP performs a
+version check against the server on the backup stage after creating a server
+connection. \fIxtrabackup\fP sends the following information to the server:
+.INDENT 7.0
+.IP \(bu 2
+MySQL flavour and version
+.IP \(bu 2
+Operating system name
+.IP \(bu 2
+Percona Toolkit version
+.IP \(bu 2
+Perl version
+.UNINDENT
+.sp
+Each piece of information has a unique identifier. This is a MD5 hash value
+that Percona Toolkit uses to obtain statistics about how it is used. This is
+a random UUID; no client information is either collected or stored.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-open\-files\-limit=#
+The maximum number of file descriptors to reserve with setrlimit().
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-parallel=#
+This option specifies the number of threads to use to copy multiple data
+files concurrently when creating a backup. The default value is 1 (i.e., no
+concurrent transfer). In \fIPercona XtraBackup\fP 2.3.10 and newer, this option
+can be used with the \fI\%\-\-copy\-back\fP option to copy the user
+data files in parallel (redo logs and system tablespaces are copied in the
+main thread).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-password=PASSWORD
+This option specifies the password to use when connecting to the database.
+It accepts a string argument. See \fBmysql \-\-help\fP for details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-plugin\-load
+List of plugins to load.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-port=PORT
+This option accepts a string argument that specifies the port to use when
+connecting to the database server with TCP/IP. It is passed to the
+\fBmysql\fP child process without alteration. See \fBmysql
+\-\-help\fP for details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-prepare
+Makes \fBxtrabackup\fP perform a recovery on a backup created with
+\fI\%\-\-backup\fP, so that it is ready to use. See
+preparing a backup\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-defaults
+Print the program argument list and exit. Must be given as the first option
+on the command\-line.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-print\-param
+Makes \fBxtrabackup\fP print out parameters that can be used for
+copying the data files back to their original locations to restore them.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-read\-buffer\-size
+Set the datafile read buffer size, given value is scaled up to page size. Default
+is 10Mb.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rebuild\-indexes
+Rebuilds indexes in a compact backup. This option only has effect when the
+\fI\%\-\-prepare\fP and \fI\%\-\-rebuild\-threads\fP options are provided.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rebuild\-threads=#
+Uses the given number of threads to rebuild indexes in a compact backup. This
+option only has effect with the \fI\%\-\-prepare\fP and
+\fI\%\-\-rebuild\-indexes\fP options.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-remove\-original
+Implemented in \fIPercona XtraBackup\fP 2.4.6, this option when specified will
+remove \fB\&.qp\fP, \fB\&.xbcrypt\fP and \fB\&.qp.xbcrypt\fP files after
+decryption and decompression.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rocksdb\-datadir
+RocksDB data directory
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rocksdb\-wal\-dir
+RocksDB WAL directory.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rocksdb\-checkpoint\-max\-age
+The checkpoint cannot be older than this number of seconds when the backup
+completes.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rocksdb\-checkpoint\-max\-count
+Complete the backup even if the checkpoint age requirement has not been met after
+this number of checkpoints.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rollback\-prepared\-trx
+Force rollback prepared InnoDB transactions.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-rsync
+Uses the \fBrsync\fP utility to optimize local file transfers. When this
+option is specified, \fIxtrabackup\fP uses \fBrsync\fP to copy
+all non\-InnoDB files instead of spawning a separate \fBcp\fP for each
+file, which can be much faster for servers with a large number of databases
+or tables.  This option cannot be used together with \fI\%\-\-stream\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-safe\-slave\-backup
+When specified, xtrabackup will stop the replica SQL thread just before
+running \fBFLUSH TABLES WITH READ LOCK\fP and wait to start backup until
+\fBSlave_open_temp_tables\fP in \fBSHOW STATUS\fP is zero. If there are no open
+temporary tables, the backup will take place, otherwise the SQL thread will
+be started and stopped until there are no open temporary tables. The backup
+will fail if \fBSlave_open_temp_tables\fP does not become zero after
+\fI\%\-\-safe\-slave\-backup\-timeout\fP seconds. The replication SQL
+thread will be restarted when the backup finishes. This option is
+implemented in order to deal with \fI\%replicating temporary tables\fP
+and isn\(aqt neccessary with Row\-Based\-Replication.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-safe\-slave\-backup\-timeout=SECONDS
+How many seconds \fI\%\-\-safe\-slave\-backup\fP should wait for
+\fBSlave_open_temp_tables\fP to become zero. Defaults to 300 seconds.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-secure\-auth
+Refuse client connecting to server if it uses old (pre\-4.1.1) protocol.
+(Enabled by default; use \-\-skip\-secure\-auth to disable.)
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-server\-id=#
+The server instance being backed up.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-server\-public\-key\-path
+The file path to the server public RSA key in the PEM format.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIMySQL\fP Documentation: The \-\-server\-public\-key\-path Option
+\fI\%https://dev.mysql.com/doc/refman/8.0/en/connection\-options.html#option_general_server\-public\-key\-path\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-skip\-tables\-compatibility\-check
+See \fI\%\-\-tables\-compatibility\-check\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-slave\-info
+This option is useful when backing up a replication replica server. It prints
+the binary log position of the source server. It also writes the binary log
+coordinates to the \fBxtrabackup_slave_info\fP file as a \fBCHANGE MASTER\fP
+command. A new replica for this source can be set up by starting a replica server
+on this backup and issuing a \fBCHANGE MASTER\fP command with the binary log
+position saved in the \fBxtrabackup_slave_info\fP file.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-socket
+This option accepts a string argument that specifies the socket to use when
+connecting to the local database server with a UNIX domain socket. It is
+passed to the mysql child process without alteration. See \fBmysql
+\-\-help\fP for details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl
+Enable secure connection. More information can be found in \fI\%\-\-ssl\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-ca
+Path of the file which contains list of trusted SSL CAs. More information
+can be found in \fI\%\-\-ssl\-ca\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-capath
+Directory path that contains trusted SSL CA certificates in PEM format. More
+information can be found in \fI\%\-\-ssl\-capath\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-cert
+Path of the file which contains X509 certificate in PEM format. More
+information can be found in \fI\%\-\-ssl\-cert\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-cipher
+List of permitted ciphers to use for connection encryption. More information
+can be found in \fI\%\-\-ssl\-cipher\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-crl
+Path of the file that contains certificate revocation lists. More
+information can be found in \fI\%\-\-ssl\-crl\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-crlpath
+Path of directory that contains certificate revocation list files. More
+information can be found in \fI\%\-\-ssl\-crlpath\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-fips\-mode
+SSL FIPS mode (applies only for OpenSSL); permitted values are: \fIOFF\fP, \fION\fP,
+\fISTRICT\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-key
+Path of file that contains X509 key in PEM format. More information can be
+found in \fI\%\-\-ssl\-key\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-mode
+Security state of connection to server. More information can be found in
+\fI\%\-\-ssl\-mode\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-ssl\-verify\-server\-cert
+Verify server certificate Common Name value against host name used when
+connecting to server. More information can be found in
+\fI\%\-\-ssl\-verify\-server\-cert\fP
+MySQL server documentation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stats
+Causes \fBxtrabackup\fP to scan the specified data files and print out
+index statistics.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-stream=FORMAT
+Stream all backup files to the standard output in the specified format.
+Currently, this option only supports the \fIxbstream\fP format.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-strict
+If this option is specified, \fIxtrabackup\fP fails with an error when invalid
+parameters are passed.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-tables=name
+A regular expression against which the full tablename, in
+\fBdatabasename.tablename\fP format, is matched. If the name matches, the
+table is backed up. See partial backups\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-tables\-compatibility\-check
+Enables the engine compatibility warning. The default value is
+ON. To disable the engine compatibility warning use
+\fI\%\-\-skip\-tables\-compatibility\-check\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-tables\-exclude=name
+Filtering by regexp for table names. Operates the same
+way as \fI\%\-\-tables\fP, but matched names are excluded from
+backup. Note that this option has a higher priority than
+\fI\%\-\-tables\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-tables\-file=name
+A file containing one table name per line, in databasename.tablename format.
+The backup will be limited to the specified tables.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-target\-dir=DIRECTORY
+This option specifies the destination directory for the backup. If the
+directory does not exist, \fBxtrabackup\fP creates it. If the directory
+does exist and is empty, \fBxtrabackup\fP will succeed.
+\fBxtrabackup\fP will not overwrite existing files, however; it will
+fail with operating system error 17, \fBfile exists\fP\&.
+.sp
+If this option is a relative path, it is interpreted as being relative to
+the current working directory from which \fBxtrabackup\fP is executed.
+.sp
+In order to perform a backup, you need \fBREAD\fP, \fBWRITE\fP, and \fBEXECUTE\fP
+permissions at a filesystem level for the directory that you supply as the
+value of \fI\%\-\-target\-dir\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-innodb\-temp\-tablespaces\-dir=DIRECTORY
+Directory where temp tablespace files live, this path can be absolute.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-throttle=#
+This option limits the number of chunks copied per second. The chunk size is
+\fI10 MB\fP\&. To limit the bandwidth to \fI10 MB/s\fP, set the option to \fI1\fP:
+\fI\-\-throttle=1\fP\&.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B More information about how to throttle a backup
+throttling_backups
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-tls\-ciphersuites
+TLS v1.3 cipher to use.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-tls\-version
+TLS version to use, permitted values are: \fITLSv1\fP, \fITLSv1.1\fP,
+\fITLSv1.2\fP, \fITLSv1.3\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-tmpdir=name
+Specify the directory that will be used to store temporary files during the
+backup
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-transition\-key=name
+This option is used to enable processing the backup without accessing the
+keyring vault server. In this case, \fBxtrabackup\fP derives the AES
+encryption key from the specified passphrase and uses it to encrypt
+tablespace keys of tablespaces being backed up.
+.sp
+If \fI\%\-\-transition\-key\fP does not have any
+value, \fBxtrabackup\fP will ask for it. The same passphrase should be
+specified for the \fI\%\-\-prepare\fP command.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-use\-memory
+This option affects how much memory is allocated for preparing a backup with
+\fI\%\-\-prepare\fP, or analyzing statistics with
+\fI\%\-\-stats\fP\&. Its purpose is similar
+to innodb_buffer_pool_size\&. It does not do the same thing as the
+similarly named option in Oracle\(aqs InnoDB Hot Backup tool.
+The default value is 100MB, and if you have enough available memory, 1GB to
+2GB is a good recommended value. Multiples are supported providing the unit
+(e.g. 1MB, 1M, 1GB, 1G).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-user=USERNAME
+This option specifies the MySQL username used when connecting to the server,
+if that\(aqs not the current user. The option accepts a string argument. See
+mysql \-\-help for details.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v
+See \fI\%\-\-version\fP
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-version
+This option prints \fIxtrabackup\fP version and exits.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-xtrabackup\-plugin\-dir=DIRNAME
+The absolute path to the directory that contains the \fBkeyring\fP plugin.
+.sp
+\fBSEE ALSO:\fP
+.INDENT 7.0
+.INDENT 3.5
+.INDENT 0.0
+.TP
+.B \fIPercona Server for MySQL\fP Documentation: keyring_vault plugin with Data at Rest Encryption
+\fI\%https://www.percona.com/doc/percona\-server/LATEST/management/data_at_rest_encryption.html#keyring\-vault\-plugin\fP
+.TP
+.B \fIMySQL\fP Documentation: Using the keyring_file File\-Based Plugin
+\fI\%https://dev.mysql.com/doc/refman/5.7/en/keyring\-file\-plugin.html\fP
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH "نویسنده (AUTHOR)"
+Percona LLC and/or its affiliates
+.SH "حق نشر (COPYRIGHT)"
+2009-2022, Percona LLC and/or its affiliates
+.\" Generated by docutils manpage writer.
+.

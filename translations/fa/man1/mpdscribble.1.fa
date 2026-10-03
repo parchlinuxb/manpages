@@ -1,0 +1,215 @@
+.\" Process this file with
+.\" groff -man -Tascii foo.1
+.\"
+.TH mpdscribble 1 "JANUARY 2009" Linux "User Manuals"
+.SH "نام (NAME)"
+mpdscribble \- A Music Player Daemon (MPD) client which submits
+information about tracks being played to a scrobbler (e.g. last.fm).
+.SH "خلاصه دستور (SYNOPSIS)"
+.B mpdscribble [options] 
+.SH "توضیحات (DESCRIPTION)"
+.B mpdscribble
+is a client for MPD, the Music Player Daemon. mpdscribble connects to
+an MPD running on the local network and works in parallel with other
+MPD clients on the network.
+
+By default it will get the hostname and port for mpd from the MPD_HOST 
+and MPD_PORT environment variables. mpdscribble will use localhost:6600 
+if those are not set. The hostname and port can also be specified in the
+configuration file or on the command line. 
+
+$ mpdscribble \-\-host myhost \-\-port=12345
+
+Values specified on the command line override values from the configuration 
+file or environment variables.
+
+If you want to use mpdscribble with a password-protected MPD, set the 
+environment variable MPD_HOST to password@host, or specify the host in the
+configuration file similarly.
+
+On submission failure, mpdscribble waits for some time then retries. Sending a
+USR1 signal to a running mpdscribble process makes it submit immediately.
+
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B \-\-help
+Display help and exit.
+.TP
+.B \-\-version
+Display version information and exit.
+.TP
+.B \-\-no-daemon
+Don't daemonize mpdscribble, run it in foreground.
+.TP
+.B \-\-pidfile FILE
+Write the process id to this file.
+.TP
+.B \-\-daemon-user USERNAME
+Change to this system user after daemonization.
+.TP
+.B \-\-log FILE
+Specify log file.  The special value "syslog" makes mpdscribble use
+the local syslog daemon (which is the default).  "-" means log to
+stderr.
+.TP
+.B \-\-conf FILE
+Read configuration options from file. /etc/mpdscribble.conf
+is used by default (if \-\-sysconfdir=/etc).
+.TP
+.B \-\-host [PASSWORD@]HOSTNAME
+Specify host protected by password. 
+To connect via Unix Domain Socket, specify an absolute path here.
+.TP
+.B \-\-port PORT
+Specify which port the MPD listens on.
+.TP
+.B \-\-proxy URL
+HTTP proxy URL.
+.TP
+.B \-\-verbose LEVEL
+Specify how verbosely mpdscribble should log.  Possible values are 0
+to 3, defaulting to 1.
+.SH "پیکربندی (CONFIGURATION)"
+mpdscribble looks for its configuration file in the following order:
+$XDG_CONFIG_HOME/mpdscribble/mpdscribble.conf, ~/.config/mpdscribble/mpdscribble.conf, ~/.mpdscribble/mpdscribble.conf, /etc/mpdscribble.conf
+(if \-\-sysconfdir=/etc)
+but this can be overridden by specifying an alternate configuration
+file using the command line option
+\-\-conf.
+
+Supported configuration options:
+.TP
+.B pidfile = FILE
+Write the process id to this file.
+.TP
+.B log = FILE
+The file to which mpdscribble should output debugging information.
+The special value "syslog" makes mpdscribble use the local syslog
+daemon (which is the default).  "-" means log to stderr.
+.TP
+.B host = [PASSWORD@]HOSTNAME
+The host running MPD, possibly protected by a password.
+To connect via Unix Domain Socket, specify an absolute path here.
+.TP
+.B port = PORT
+The port that the MPD listens on and mpdscribble should try to connect to.
+.TP
+.B proxy = URL
+HTTP proxy URL.
+.TP
+.B verbose = 0, 1, 2, 3
+How verbose mpdscribble's logging should be.  Default is 1.  "0" means
+log only critical errors (e.g. "out of memory"); "1" also logs
+non-critical errors (e.g. "server unreachable"); "2" logs
+informational messages (e.g. "new song"); "3" prints a lot of
+debugging messages.
+.SH SCROBBLERS
+These options are followed by at least one scrobbler section (choose a
+unique section name like "libre.fm" which only appears in the log
+file; the name "mpdscribble" is reserved).
+.TP
+.B file = PATH
+Log to a file instead of submitting the songs to an AudioScrobbler
+server.
+.TP
+.B url = URL
+The handshake URL of the scrobbler.  Example:
+"https://post.audioscrobbler.com", "http://turtle.libre.fm"
+.TP
+.B username = USERNAME
+Your audioscrobbler username.
+.TP
+.B password = MD5SUM
+Your Last.fm password, either cleartext or its MD5 sum.
+.TP
+.B journal = FILE
+The file where mpdscribble should store its journal in case you do not
+have a connection to the scrobbler.  This option used to be called
+"cache".  It is optional.
+.TP
+.B ignore = FILE
+Include an ignore file for this scrobbler to exclude tracks from scrobbling.
+
+.SH IGNORE FILE FORMAT
+Tracks can be ignored by listing them in an \fBignore file\fP.
+Each line in the file specifies a pattern to match tracks you wish to exclude from scrobbling.
+The format is simple and flexible, allowing you to match by artist, album, title, track number or a combination of these fields.
+.SS File Format
+A tag match is specified as tagname="value", where tagname is replaced with one of the supported tags (artist, album, title, track).
+Values \fBmust\fP be quoted and spaces are not allowed surrounding the equal sign.
+
+Each line consists of one or more tag matches separated by spaces:
+.nf
+.in +4
+tag1="value1" tag2="value2" ...
+.in
+.fi
+
+Tags can appear in any order and blank lines are ignored.
+
+A backslash (\e) is interpreted as escape character and may be used to escape literal double quotes within a value.
+To write a literal backslash, use a double backslash (\e\e).
+
+Each line is limited to 4096 characters including the newline character.
+Superflous characters are silently ignored.
+
+.SS Examples
+If a tag is omitted, any value for that field is matched:
+.TP
+.B title="Bohemian Rhapsody"
+Matches any track titled \fIBohemian Rhapsody\fP.
+.TP
+.B artist="Queen"
+Matches any track by \fIQueen\fP, regardless of album or title.
+.TP
+.B artist="Queen" album="A Night at the Opera"
+Matches any track by \fIQueen\fP from \fIA Night at the Opera\fP, regardless of title.
+.TP
+.B artist="Queen" album="A Night at the Opera" title="Bohemian Rhapsody"
+Matches a specific track by \fIQueen\fP, from \fIA Night at the Opera\fP, titled \fIBohemian Rhapsody\fP.
+.TP
+.B artist="Queen" album="A Night at the Opera" track="01"
+Matches the first track on the album \fIA Night at the Opera\fP by \fIQueen\fP.
+Note that track tags are interpreted as text and not numbers, meaning "01" is not the same as "1".
+.TP
+.B artist="Clark \e"Plazmataz\e" Powell"
+Matches tracks by \fIClark "Plazmataz" Powell\fP.
+
+
+.SH "فایل‌ها (FILES)"
+.I /etc/mpdscribble.conf
+.RS
+The system wide configuration file. 
+.RE
+
+.I ~/.config/mpdscribble/mpdscribble.conf
+.RS
+Per user configuration file. 
+.RE
+
+.I /var/cache/mpdscribble/mpdscribble.cache
+.RS
+The system wide Last.fm cache file.
+.RE
+
+.I ~/.cache/mpdscribble/mpdscribble.cache
+.RS
+Per user Last.fm cache file.
+.RE
+
+.I /var/log/mpdscribble/mpdscribble.log
+.RS
+The system wide log file. 
+.RE
+
+.RE
+.SH "اشکالات (BUGS)"
+File permissions on cache/log file may be insecure by default.
+
+Please report new bugs to the MPD bug tracker:
+http://www.musicpd.org/mantis
+
+.SH "همچنین ببینید (SEE ALSO)"
+.BR mpd (1),
+.BR mpc (1)
+

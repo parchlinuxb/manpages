@@ -1,0 +1,206 @@
+.\"	$NetBSD$
+.\"
+.\" Copyright (c) by Aleksey Cheusov (vle@gmx.net)
+.\" Absolutely no warranty.
+.\"
+.\" ------------------------------------------------------------------
+.de VS \" Verbatim Start
+.ft CW
+.nf
+.ne \\$1
+..
+.de VE \" Verbatim End
+.ft R
+.fi
+..
+.\" ------------------------------------------------------------------
+.TH MKC_CHECK_DECL 1 "Dec 2, 2023" "" ""
+.SH "نام (NAME)"
+mkc_check_decl \- checks for define, variable, function, type, member or
+function prototype.
+.SH "خلاصه دستور (SYNOPSIS)"
+.BI mkc_check_decl " [OPTIONS] <check_type> <what> [headers...]"
+.SH "توضیحات (DESCRIPTION)"
+.I check_type
+is either
+.IR " define" , " variable" , " func[0-9]" , " funcordefine[0-9]" , " type" , " member " or
+.IR " prototype" .
+Depending on its value
+.B mkc_check_decl
+checks respectively for define, variable, function with the specified number
+of arguments (or equivalent define in case of funcordefine[0-9]),
+data type, member of structure or a function prototype
+in the specified
+.I headers
+by compiling a test program.
+.I headers
+is either a single header file or a list of headers, separated by comma.
+As a result
+.B mkc_check_decl
+prints either 1 (success) or 0 (failure) to stdout.
+By default, temporary and cache files
+.RI _mkc_ <check_type> _ <what> _ <lheader_h> .{c,err,res}
+are created under
+.B MKC_CACHEDIR
+directory. Here,
+.I lheader_h
+is the last header from comma-separated list
+.IR headers .
+.SH "گزینه‌ها (OPTIONS)"
+.TP
+.B "-h"
+Display help message.
+.TP
+.BI -d
+Delete cache and temporary files.
+.TP
+.BI -D
+Delete cache files.
+.SH "محیط (ENVIRONMENT)"
+.TP
+.B CC
+Compiler. By default
+.I cc
+is used.
+.TP
+.B CPPFLAGS, CFLAGS
+Options passed to the compiler, for example -I for additional directories
+that contain header files.
+.TP
+.B MKC_VERBOSE
+If set to 1, verbose messages are output to stderr.
+.TP
+.B MKC_SHOW_CACHED
+If set to 1 and MKC_VERBOSE is set to 1, cached results
+are output to stderr.
+.TP
+.B MKC_COMMON_HEADERS
+List of header files to add to .c test program.
+.TP
+.B MKC_CACHEDIR
+Directory where temporary and cache files are created.
+If unset they are created in a current directory.
+.TP
+.B MKC_NOCACHE
+All results are cached unless MKC_NOCACHE variable is set
+to 1.
+.TP
+.B MKC_DELETE_TMPFILES
+If set to 1, temporary files are removed.
+.SH "مثال‌ها (EXAMPLES)"
+.VS
+   mkc_check_decl define __GNUC__
+   mkc_check_decl define RTLD_LAZY dlfcn.h
+   mkc_check_decl define FTS_W sys/types.h,sys/stat.h,fts.h
+   mkc_check_decl variable sys_errlist errno.h
+   mkc_check_decl variable __malloc_hook malloc.h
+   mkc_check_decl func3 poll poll.h
+   mkc_check_decl func2 fgetln stdio.h
+   mkc_check_decl type mbstate_t wchar.h
+   mkc_check_decl type long-long
+   mkc_check_decl member tm.tm_isdst time.h
+   mkc_check_decl member ifreq.ifr_addr.sa_len net/if.h
+   mkc_check_decl member struct-stat.st_mtimespec sys/stat.h
+   mkc_check_decl prototype 'int connect(int,const struct sockaddr*,socklen_t)' sys/socket.h
+   mkc_check_decl prototype 'int connect(int,struct sockaddr*,socklen_t)' sys/socket.h
+.VE
+.SH C FILE CONTENT
+.TP
+.B define
+.VS
+#include <header1.h>
+ ...
+#include <headerN.h>
+
+#if defined(WHAT)
+int func(void)
+{
+   return 0;
+}
+#else
+#error "WHAT is not a define"
+#endif
+.VE
+.TP
+.B variable
+.VS
+#include <header1.h>
+ ...
+#include <headerN.h>
+
+int func(void)
+{
+   return sizeof ((WHAT)) && (&WHAT != 0);
+}
+.VE
+.TP
+.BR func3 " (example for function with 3 arguments)"
+.VS
+#include <header1.h>
+ ...
+#include <headerN.h>
+
+void func (void)
+{
+   if (WHAT) return;
+   WHAT(0,0,0);
+}
+.VE
+.TP
+.BR funcordefine3 " (example for function/define with 3 arguments)"
+.VS
+#include <header1.h>
+ ...
+#include <headerN.h>
+
+void func (void)
+{
+   WHAT(0,0,0);
+}
+.VE
+.TP
+.B type
+.VS
+#include <header1.h>
+ ...
+#include <headerN.h>
+
+int func(void)
+{
+   return sizeof (WHAT);
+}
+.VE
+.TP
+.B member " (example for struct stat.st_mtimespec)"
+.VS
+#include <sys/stat.h>
+int func(void)
+{
+   struct_stat var;
+   return sizeof (var.st_mtimespec);
+}
+.VE
+.TP
+.BR prototype " (example for void ttt(int,char**) function)"
+.VS
+#include <header1.h>
+ ...
+#include <headerN.h>
+
+void func (void);
+void func2 (void);
+
+void func (void)
+{
+   if (ttt) return;
+}
+
+void ttt(int, char**);
+
+void func2 (void)
+{
+   if (ttt) return;
+}
+.VE
+.SH "نویسنده (AUTHOR)"
+Aleksey Cheusov <vle@gmx.net>

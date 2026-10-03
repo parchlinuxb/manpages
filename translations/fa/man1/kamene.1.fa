@@ -1,0 +1,180 @@
+.TH KAMENE 1 "December 2, 2016"
+.SH "نام (NAME)"
+kamene \- Interactive packet manipulation tool
+.SH "خلاصه دستور (SYNOPSIS)"
+.B kamene
+.RI [ options ]
+.SH "توضیحات (DESCRIPTION)"
+This manual page documents briefly the
+.B kamene
+tool.
+.PP
+\fBkamene\fP is a powerful interactive packet manipulation tool, 
+packet generator, network scanner, network discovery, packet sniffer,
+etc. It can for the moment replace hping, parts of nmap, arpspoof, arp-sk,
+arping, tcpdump, tshark, p0f, ...
+.PP
+\fBkamene\fP uses the python interpreter as a command board. That means that 
+you can use directly python language (assign variables, use loops, 
+define functions, etc.) If you give a file as parameter when you run 
+\fBkamene\fP, your session (variables, functions, instances, ...) will be saved 
+when you leave the interpretor, and restored the next time you launch
+\fBkamene\fP. 
+.PP
+The idea is simple. Those kind of tools do two things : sending packets 
+and receiving answers. That's what \fBkamene\fP does : you define a set of 
+packets, it sends them, receives answers, matches requests with answers 
+and returns a list of packet couples (request, answer) and a list of 
+unmatched packets. This has the big advantage over tools like nmap or 
+hping that an answer is not reduced to (open/closed/filtered), but is 
+the whole packet. 
+.PP
+On top of this can be build more high level functions, for example one 
+that does traceroutes and give as a result only the start TTL of the 
+request and the source IP of the answer. One that pings a whole network 
+and gives the list of machines answering. One that does a portscan and 
+returns a LaTeX report. 
+
+.SH "گزینه‌ها (OPTIONS)"
+Options for kamene are:
+.TP
+\fB\-h\fR
+display usage
+.TP
+\fB\-d\fR
+increase log verbosity. Can be used many times.
+.TP
+\fB\-s\fR FILE
+use FILE to save/load session values (variables, functions, instances, ...) 
+.TP
+\fB\-p\fR PRESTART_FILE 
+use PRESTART_FILE instead of $HOME/.kamene_prestart.py as pre-startup file
+.TP
+\fB\-P\fR
+do not run prestart file
+.TP
+\fB\-c\fR STARTUP_FILE 
+use STARTUP_FILE instead of $HOME/.kamene_startup.py as startup file
+.TP
+\fB\-C\fR
+do not run startup file
+
+.SH COMMANDS
+Only the vital commands to begin are listed here for the moment.
+.TP
+\fBls()\fR
+lists supported protocol layers. If a protocol layer is given as parameter, lists its fields and types of fields.
+.TP
+\fBlsc()\fR
+lists some user commands. If a command is given as parameter, its documentation is displayed.
+.TP
+\fBconf\fR
+this object contains the configuration. 
+
+.SH "فایل‌ها (FILES)"
+\fB$HOME/.kamene_prestart.py\fR
+This file is run before kamene core is loaded. Only the \fb\conf\fP object 
+is available. This file can be used to manipulate \fBconf.load_layers\fP 
+list to choose which layers will be loaded:
+
+.nf
+conf.load_layers.remove("bluetooth")
+conf.load_layers.append("new_layer")
+.fi
+
+\fB$HOME/.kamene_startup.py\fR
+This file is run after kamene is loaded. It can be used to configure
+some of the kamene behaviors:
+
+.nf
+conf.prog.pdfreader="xpdf"
+split_layers(UDP,DNS)
+.fi
+
+.SH "مثال‌ها (EXAMPLES)"
+
+More verbose examples are available at
+https://phaethon.github.io/kamene/
+Just run \fBkamene\fP and try the following commands in the interpreter.
+
+.LP
+Packet sniffing and dissection (with a bpf filter or thetereal-like output):
+.nf
+a=sniff(filter="tcp port 110")
+a=sniff(prn = lambda x: x.display) 
+.fi
+
+.LP
+Sniffed packet reemission:
+.nf
+a=sniff(filter="tcp port 110")
+sendp(a)
+.fi
+
+.LP
+Pcap file packet reemission:
+.nf
+sendp(rdpcap("file.cap"))
+.fi
+
+.LP
+Manual TCP traceroute:
+.nf
+sr(IP(dst="www.google.com", ttl=(1,30))/TCP(seq=RandInt(), sport=RandShort(), dport=dport)
+.fi
+
+.LP
+Protocol scan:
+.nf
+sr(IP(dst="172.16.1.28", proto=(1,254)))
+.fi
+
+.LP
+ARP ping:
+.nf
+srp(Ether(dst="ff:ff:ff:ff:ff:ff")/ARP(pdst="172.16.1.1/24"))
+.fi
+
+.LP
+ACK scan:
+.nf
+sr(IP(dst="172.16.1.28")/TCP(dport=(1,1024), flags="A"))
+.fi
+
+.LP
+ARP cache poisonning:
+.nf
+sendp(Ether(dst=tmac)/ARP(op="who-has", psrc=victim, pdst=target))
+.fi
+
+.LP
+Reporting:
+.nf
+report_ports("192.168.2.34", (20,30))
+.fi
+
+.SH "همچنین ببینید (SEE ALSO)"
+
+.nf
+http://github.com/phaethon/kamene
+.fi
+
+.SH "اشکالات (BUGS)"
+Does not give the right source IP for routes that use interface aliases.
+
+May miss packets under heavy load.
+
+Session saving is limited by Python ability to marshal objects. As a 
+consequence, lambda functions and generators can't be saved, which seriously
+reduce usefulness of this feature. 
+
+BPF filters don't work on Point-to-point interfaces.
+
+
+.SH "نویسنده (AUTHOR)"
+Original scapy author is Philippe Biondi <phil@secdev.org>
+
+Porting to python3 and further improvements by Eriks Dobelis and community.
+.PP
+This manual page was written by Alberto Gonzalez Iniesta <agi@agi.as>,
+Philippe Biondi, and Eriks Dobelis.

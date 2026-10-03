@@ -1,0 +1,2154 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.23 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "virt-install" "1" "" "" "Virtualization Support"
+.SH "نام (NAME)"
+virt-install \- provision new virtual machines
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBvirt\-install\fP [OPTION]...
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBvirt\-install\fP is a command line tool for creating new KVM, Xen, or Linux
+container guests using the \fBlibvirt\fP hypervisor management library.
+See the EXAMPLES section at the end of this document to quickly get started.
+.sp
+\fBvirt\-install\fP tool supports graphical installations using (for example)
+VNC or SPICE, as well as text mode installs over serial console. The guest
+can be configured to use one or more virtual disks, network interfaces,
+audio devices, physical USB or PCI devices, among others.
+.sp
+The installation media can be local ISO or CDROM media, or a distro install
+tree hosted remotely over HTTP, FTP, or in a local directory. In the install
+tree case \fBvirt\-install\fP will fetch the minimal files
+necessary to kick off the installation process, allowing the guest
+to fetch the rest of the OS distribution as needed. PXE booting, and importing
+an existing disk image (thus skipping the install phase) are also supported.
+.sp
+Given suitable command line arguments, \fBvirt\-install\fP is capable of running
+completely unattended, with the guest \(aqkickstarting\(aq itself too. This allows
+for easy automation of guest installs. This can be done manually, or more
+simply with the \-\-unattended option.
+.sp
+Many arguments have sub options, specified like opt1=foo,opt2=bar, etc. Try
+\-\-option=? to see a complete list of sub options associated with that
+argument, example: virt\-install \-\-disk=?
+.sp
+Most options are not required. If a suitable \-\-osinfo value is specified
+or detected, all defaults will be filled in and reported in the terminal
+output. Otherwise, minimum required options are \-\-memory,
+guest storage (\-\-disk or \-\-filesystem), and an install method choice.
+.SH CONNECTING TO LIBVIRT
+.SS \fB\-\-connect\fP
+.sp
+\fBSyntax:\fP \fB\-\-connect\fP URI
+.sp
+Connect to a non\-default hypervisor. If this isn\(aqt specified, libvirt
+will try and choose the most suitable default.
+.sp
+Some valid options here are:
+.INDENT 0.0
+.TP
+.B qemu:///system
+For creating KVM and QEMU guests to be run by the system libvirtd instance.
+This is the default mode that virt\-manager uses, and what most KVM users
+want.
+.TP
+.B qemu:///session
+For creating KVM and QEMU guests for libvirtd running as the regular user.
+.TP
+.B xen:///
+For connecting to Xen.
+.TP
+.B lxc:///
+For creating linux containers
+.UNINDENT
+.SH GENERAL OPTIONS
+.sp
+General configuration parameters that apply to all types of guest installs.
+.SS \fB\-n\fP, \fB\-\-name\fP
+.sp
+\fBSyntax:\fP \fB\-n\fP, \fB\-\-name\fP NAME
+.sp
+Name of the new guest virtual machine instance. This must be unique amongst
+all guests known to the hypervisor on the connection, including those not
+currently active. To re\-define an existing guest, use the \fBvirsh(1)\fP tool
+to shut it down (\(aqvirsh shutdown\(aq) & delete (\(aqvirsh undefine\(aq) it prior to
+running \fBvirt\-install\fP\&.
+.SS \fB\-\-memory\fP
+.sp
+\fBSyntax:\fP \fB\-\-memory\fP OPTIONS
+.sp
+Memory to allocate for the guest, in MiB. This deprecates the \-r/\-\-ram option.
+Sub options are available, like \(aqmemory\(aq, \(aqcurrentMemory\(aq, \(aqmaxMemory\(aq
+and \(aqmaxMemory.slots\(aq, which all map to the identically named XML values.
+.sp
+Back compat values \(aqmemory\(aq maps to the <currentMemory> element, and maxmemory
+maps to the <memory> element.
+.sp
+To configure memory modules which can be hotunplugged see \fB\-\-memdev\fP description.
+.sp
+Use \-\-memory=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:memory-allocation>
+.SS \fB\-\-memorybacking\fP
+.sp
+\fBSyntax:\fP \fB\-\-memorybacking\fP OPTIONS
+.sp
+This option will influence how virtual memory pages are backed by host pages.
+.sp
+Use \-\-memorybacking=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:memory-backing>
+.SS \fB\-\-arch\fP
+.sp
+\fBSyntax:\fP \fB\-\-arch\fP ARCH
+.sp
+Request a non\-native CPU architecture for the guest virtual machine.
+If omitted, the host CPU architecture will be used in the guest.
+.SS \fB\-\-machine\fP
+.sp
+\fBSyntax:\fP \fB\-\-machine\fP MACHINE
+.sp
+The machine type to emulate. This will typically not need to be specified
+for Xen or KVM, but is useful for choosing machine types of more exotic
+architectures.
+.SS \fB\-\-metadata\fP
+.sp
+\fBSyntax:\fP \fB\-\-metadata\fP OPT=VAL,[...]
+.sp
+Specify metadata values for the guest. Possible options include name, uuid,
+title, and description. This option deprecates \-u/\-\-uuid and \-\-description.
+.sp
+Use \-\-metadata=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:general-metadata>
+.SS \fB\-\-events\fP
+.sp
+\fBSyntax:\fP \fB\-\-events\fP OPT=VAL,[...]
+.sp
+Specify events values for the guest. Possible options include
+on_poweroff, on_reboot, and on_crash.
+.sp
+Use \-\-events=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:events-configuration>
+.SS \fB\-\-resource\fP
+.sp
+\fBSyntax:\fP \fB\-\-resource\fP OPT=VAL,[...]
+.sp
+Specify resource partitioning for the guest.
+.sp
+Use \-\-resource=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:resource-partitioning>
+.SS \fB\-\-sysinfo\fP
+.sp
+\fBSyntax:\fP \fB\-\-sysinfo\fP OPT=VAL,[...]
+.sp
+Configure sysinfo/SMBIOS values exposed to the VM OS. Examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-sysinfo host\fP
+Special type that exposes the host\(aqs SMBIOS info into the VM.
+.TP
+.B \fB\-\-sysinfo emulate\fP
+Special type where hypervisor will generate SMBIOS info into the VM.
+.TP
+.B \fB\-\-sysinfo bios.vendor=custom\fP or \fB\-\-sysinfo smbios,bios.vendor=custom\fP
+The default type is \fBsmbios\fP and allows users to specify SMBIOS info manually.
+.UNINDENT
+.sp
+Use \-\-sysinfo=? to see a list of all available sub options.
+.sp
+Complete details at
+\%<https://\:libvirt\:.org/\:formatdomain\:.html#\:operating-system-booting> and
+\%<https://\:libvirt\:.org/\:formatdomain\:.html#\:smbios-system-information> for \fBsmbios\fP
+XML element.
+.SS \fB\-\-xml\fP
+.sp
+\fBSyntax:\fP \fB\-\-xml\fP ARGS
+.sp
+Make direct edits to the generated XML using XPath syntax. Take an example like
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+virt\-install \-\-xml ./@foo=bar \-\-xml ./newelement/subelement=1
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This will alter the generated XML to contain:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+<domain foo=\(aqbar\(aq ...>
+  ...
+  <newelement>
+    <subelement>1</subelement>
+  </newelement>
+</domain>
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \-\-xml option has 4 sub options:
+.INDENT 0.0
+.TP
+.B \-\-xml xpath.set=XPATH[=VALUE]
+The default behavior if no explicit suboption is set. Takes the form XPATH=VALUE
+unless paired with \fBxpath.value\fP . See below for how value is interpreted.
+.TP
+.B \-\-xml xpath.value=VALUE
+\fBxpath.set\fP will be interpreted only as the XPath string, and \fBxpath.value\fP will
+be used as the value to set. May help sidestep problems if the string you need to
+set contains a \(aq=\(aq equals sign.
+.sp
+If value is empty, it\(aqs treated as unsetting that particular node.
+.TP
+.B \-\-xml xpath.create=XPATH
+Create the node as an empty element. Needed for boolean elements like <readonly/>
+.TP
+.B \-\-xml xpath.delete=XPATH
+Delete the entire node specified by the xpath, and all its children
+.UNINDENT
+.SS \fBxpath subarguments\fP
+.sp
+Similar to the \fB\-\-xml\fP option, most top level options have \fBxpath.*\fP
+suboptions. For example, \fB\-\-disk xpath1.set=./@foo=bar,xpath2.create=./newelement\fP
+would generate XML alterations like
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+<disk foo=\(dqbar\(dq>
+  <newelements/>
+</disk>
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+This is useful for setting XML options per device, when virt\-install does not
+support those options yet.
+.SS \fB\-\-qemu\-commandline\fP
+.sp
+\fBSyntax:\fP \fB\-\-qemu\-commandline\fP ARGS
+.sp
+Pass options directly to the qemu emulator. Only works for the libvirt
+qemu driver. The option can take a string of arguments, for example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-qemu\-commandline=\(dq\-display gtk,gl=on\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Environment variables are specified with \(aqenv\(aq, for example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-qemu\-commandline=env=DISPLAY=:0.1
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Complete details about the libvirt feature:
+\%<https://\:libvirt\:.org/\:drvqemu\:.html#\:pass-through-of-arbitrary-qemu-commands>
+.SS \fB\-\-vcpus\fP
+.sp
+\fBSyntax:\fP \fB\-\-vcpus\fP OPTIONS
+.sp
+Number of virtual cpus to configure for the guest. If \(aqmaxvcpus\(aq is specified,
+the guest will be able to hotplug up to MAX vcpus while the guest is running,
+but will startup with VCPUS.
+.sp
+CPU topology can additionally be specified with sockets, dies, cores, and threads.
+If values are omitted, the rest will be autofilled preferring cores over sockets
+over threads. Cores are preferred because this matches the characteristics of
+modern real world silicon and thus a better fit for what guest OS will be
+expecting to deal with.
+.sp
+\(aqcpuset\(aq sets which physical cpus the guest can use. \fBCPUSET\fP is a comma
+separated list of numbers, which can also be specified in ranges or cpus
+to exclude. Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+0,2,3,5     : Use processors 0,2,3 and 5
+1\-5,^3,8    : Use processors 1,2,4,5 and 8
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If the value \(aqauto\(aq is passed, virt\-install attempts to automatically determine
+an optimal cpu pinning using NUMA data, if available.
+.sp
+Use \-\-vcpus=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:cpu-allocation>
+.SS \fB\-\-numatune\fP
+.sp
+\fBSyntax:\fP \fB\-\-numatune\fP OPTIONS
+.sp
+Tune NUMA policy for the domain process. Example invocations
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-numatune 1,2,3,4\-7
+\-\-numatune 1\-3,5,memory.mode=preferred
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Specifies the numa nodes to allocate memory from. This has the same syntax
+as \fB\-\-vcpus cpuset=\fP option. mode can be one of \(aqinterleave\(aq, \(aqpreferred\(aq, or
+\(aqstrict\(aq (the default). See \(aqman 8 numactl\(aq for information about each
+mode.
+.sp
+Use \-\-numatune=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:numa-node-tuning>
+.SS \fB\-\-memtune\fP
+.sp
+\fBSyntax:\fP \fB\-\-memtune\fP OPTIONS
+.sp
+Tune memory policy for the domain process. Example invocations
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-memtune 1000
+\-\-memtune hard_limit=100,soft_limit=60,swap_hard_limit=150,min_guarantee=80
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \-\-memtune=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:memory-tuning>
+.SS \fB\-\-blkiotune\fP
+.sp
+\fBSyntax:\fP \fB\-\-blkiotune\fP OPTIONS
+.sp
+Tune blkio policy for the domain process. Example invocations
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-blkiotune 100
+\-\-blkiotune weight=100,device.path=/dev/sdc,device.weight=200
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \-\-blkiotune=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:block-i-o-tuning>
+.SS \fB\-\-cpu\fP
+.sp
+\fBSyntax:\fP \fB\-\-cpu\fP MODEL[,+feature][,\-feature][,match=MATCH][,vendor=VENDOR],...
+.sp
+Configure the CPU model and CPU features exposed to the guest. The only
+required value is MODEL, which is a valid CPU model as known to libvirt.
+.sp
+Libvirt\(aqs feature policy values force, require, optional, disable, or forbid,
+or with the shorthand \(aq+feature\(aq and \(aq\-feature\(aq, which equal \(aqforce=feature\(aq
+and \(aqdisable=feature\(aq respectively.
+.sp
+If exact CPU model is specified virt\-install will automatically copy CPU
+features available on the host to mitigate recent CPU speculative execution
+side channel and Microarchitectural Store Buffer Data security vulnerabilities.
+This however will have some impact on performance and will break migration
+to hosts without security patches. In order to control this behavior there
+is a \fBsecure\fP parameter. Possible values are \fBon\fP and \fBoff\fP, with \fBon\fP
+as the default. It is highly recommended to leave this enabled and ensure all
+virtualization hosts have fully up to date microcode, kernel & virtualization
+software installed.
+.sp
+Some examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-cpu core2duo,+x2apic,disable=vmx\fP
+Expose the core2duo CPU model, force enable x2apic, but do not expose vmx
+.TP
+.B \fB\-\-cpu host\-model\fP
+Expose the host CPUs configuration to the guest. This enables the guest to
+take advantage of many of the host CPUs features (better performance), but
+may cause issues if migrating the guest to a host without an identical CPU.
+.TP
+.B \fB\-\-cpu numa.cell0.memory=1234,numa.cell0.cpus=0\-3,numa.cell1.memory=5678,numa.cell1.cpus=4\-7\fP
+Example of specifying two NUMA cells. This will generate XML like:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+<cpu>
+  <numa>
+    <cell cpus=\(dq0\-3\(dq memory=\(dq1234\(dq/>
+    <cell cpus=\(dq4\-7\(dq memory=\(dq5678\(dq/>
+  </numa>
+</cpu>
+.EE
+.UNINDENT
+.UNINDENT
+.TP
+.B \fB\-\-cpu host\-passthrough,cache.mode=passthrough\fP
+Example of passing through the host cpu\(aqs cache information.
+.TP
+.B \fB\-\-cpu maximum\fP
+Expose the most feature\-rich CPU possible. Useful when running a foreign
+architecture guest, for example a riscv64 guest on an x86_64 host. Not
+recommended when using KVM to run a same\-architecture guest.
+.UNINDENT
+.sp
+Use \-\-cpu=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:cpu-model-and-topology>
+.SS \fB\-\-cputune\fP
+.sp
+\fBSyntax:\fP \fB\-\-cputune\fP OPTIONS
+.sp
+Tune CPU parameters for the guest.
+.sp
+Configure which of the host\(aqs physical CPUs the domain VCPU will be pinned to.
+Example invocation
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-cputune vcpupin0.vcpu=0,vcpupin0.cpuset=0\-3,vcpupin1.vcpu=1,vcpupin1.cpuset=4\-7
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \-\-cputune=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:cpu-tuning>
+.SS \fB\-\-security\fP, \fB\-\-seclabel\fP
+.sp
+\fBSyntax:\fP \fB\-\-security\fP, \fB\-\-seclabel\fP type=TYPE[,label=LABEL][,relabel=yes|no],...
+.sp
+Configure domain seclabel domain settings. Type can be either \(aqstatic\(aq or
+\(aqdynamic\(aq. \(aqstatic\(aq configuration requires a security LABEL. Specifying
+LABEL without TYPE implies static configuration.
+.sp
+Use \-\-security=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:security-label>
+.SS \fB\-\-keywrap\fP
+.sp
+\fBSyntax:\fP \fB\-\-keywrap\fP OPTIONS
+.sp
+Specify domain <keywrap> XML, used for S390 cryptographic key management operations.
+.sp
+Use \-\-keywrap=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:key-wrap>
+.SS \fB\-\-iothreads\fP
+.sp
+\fBSyntax:\fP \fB\-\-iothreads\fP OPTIONS
+.sp
+Specify domain <iothreads> and/or <iothreadids> XML.
+For example, to configure \fB<iothreads>4</iothreads>\fP, use \fB\-\-iothreads 4\fP
+.sp
+Use \-\-iothreads=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:iothreads-allocation>
+.SS \fB\-\-features\fP
+.sp
+\fBSyntax:\fP \fB\-\-features\fP FEAT=on|off,...
+.sp
+Set elements in the guests <features> XML on or off. Examples include acpi,
+apic, eoi, privnet, and hyperv features. Some examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-features apic.eoi=on\fP
+Enable APIC PV EOI
+.TP
+.B \fB\-\-features hyperv.vapic.state=on,hyperv.spinlocks.state=off\fP
+Enable hyperv VAPIC, but disable spinlocks
+.TP
+.B \fB\-\-features kvm.hidden.state=on\fP
+Allow the KVM hypervisor signature to be hidden from the guest
+.TP
+.B \fB\-\-features pvspinlock=on\fP
+Notify the guest that the host supports paravirtual spinlocks for
+example by exposing the pvticketlocks mechanism.
+.TP
+.B \fB\-\-features gic.version=2\fP
+This is relevant only for ARM architectures. Possible values are \(dqhost\(dq or
+version number.
+.TP
+.B \fB\-\-features smm.state=on\fP
+This enables System Management Mode of hypervisor. Some UEFI firmwares may
+require this feature to be present. (QEMU supports SMM only with q35 machine
+type.)
+.UNINDENT
+.sp
+Use \-\-features=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:hypervisor-features>
+.SS \fB\-\-clock\fP
+.sp
+\fBSyntax:\fP \fB\-\-clock\fP offset=OFFSET,TIMER_OPT=VAL,...
+.sp
+Configure the guest\(aqs <clock> XML. Some supported options:
+.INDENT 0.0
+.TP
+.B \fB\-\-clock offset=OFFSET\fP
+Set the clock offset, ex. \(aqutc\(aq or \(aqlocaltime\(aq
+.TP
+.B \fB\-\-clock TIMER_present=no\fP
+Disable a boolean timer. TIMER here might be hpet, kvmclock, etc.
+.TP
+.B \fB\-\-clock TIMER_tickpolicy=VAL\fP
+Set a timer\(aqs tickpolicy value. TIMER here might be rtc, pit, etc. VAL
+might be catchup, delay, etc. Refer to the libvirt docs for all values.
+.UNINDENT
+.sp
+Use \-\-clock=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:time-keeping>
+.SS \fB\-\-pm\fP
+.sp
+\fBSyntax:\fP \fB\-\-pm\fP OPTIONS
+.sp
+Configure guest power management features. Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-pm suspend_to_memi.enabled=on,suspend_to_disk.enabled=off
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \-\-pm=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:power-management>
+.SS \fB\-\-launchSecurity\fP
+.sp
+\fBSyntax:\fP \fB\-\-launchSecurity\fP TYPE[,OPTS]
+.sp
+Enable launch security for the guest, e.g. AMD SEV. Example invocations:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# This will use a default policy 0x03
+# No dhCert provided, so no data can be exchanged with the SEV firmware
+\-\-launchSecurity sev
+
+# Explicit policy 0x01 \- disables debugging, allows guest key sharing
+\-\-launchSecurity sev,policy=0x01
+
+# Provide the session blob obtained from the SEV firmware
+# Provide dhCert to open a secure communication channel with SEV firmware
+\-\-launchSecurity sev,session=BASE64SESSIONSTRING,dhCert=BASE64DHCERTSTRING
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+SEV has further implications on usage of virtio devices, so refer to EXAMPLES
+section to see a full invocation of virt\-install with \-\-launchSecurity.
+.sp
+Use \-\-launchSecurity=? to see a list of all available sub options. Complete
+details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:launch-security>
+.SH INSTALLATION OPTIONS
+.SS \fB\-c\fP, \fB\-\-cdrom\fP
+.sp
+\fBSyntax:\fP \fB\-\-cdrom\fP PATH
+.sp
+ISO file or CDROM device to use for VM install media. After install,
+the virtual CDROM device will remain attached to the VM, but with
+the ISO or host path media ejected.
+.SS \fB\-l\fP, \fB\-\-location\fP
+.sp
+\fBSyntax:\fP \fB\-l\fP, \fB\-\-location\fP OPTIONS
+.sp
+Distribution tree installation source. virt\-install can recognize
+certain distribution trees and fetches a bootable kernel/initrd pair to
+launch the install.
+.sp
+\-\-location allows things like \-\-extra\-args for kernel arguments,
+and using \-\-initrd\-inject. If you want to use those options with CDROM media,
+you can pass the ISO to \-\-location as well which works for some, but not
+all, CDROM media.
+.sp
+The \fBLOCATION\fP can take one of the following forms:
+.INDENT 0.0
+.TP
+.B \%<https://\:host/\:path>
+An HTTP server location containing an installable distribution image.
+.TP
+.B \%<ftp://\:host/\:path>
+An FTP server location containing an installable distribution image.
+.TP
+.B ISO
+Extract files directly from the ISO path
+.TP
+.B DIRECTORY
+Path to a local directory containing an installable distribution image.
+Note that the directory will not be accessible by the guest after initial
+boot, so the OS installer will need another way to access the rest of the
+install media.
+.UNINDENT
+.sp
+Some distro specific url samples:
+.INDENT 0.0
+.TP
+.B Fedora/Red Hat Based
+\%<https://\:download\:.fedoraproject\:.org/\:pub/\:fedora/\:linux/\:releases/\:29/\:Server/\:x86_64/os>
+.TP
+.B Debian
+\%<https://\:debian\:.osuosl\:.org/\:debian/\:dists/\:stable/\:main/\:installer-amd64>
+.TP
+.B Ubuntu
+\%<https://\:us\:.archive\:.ubuntu\:.com/\:ubuntu/\:dists/\:wily/\:main/\:installer-amd64>
+.TP
+.B Suse
+\%<https://\:download\:.opensuse\:.org/\:pub/\:opensuse/\:distribution/\:leap/\:42\:.3/\:repo/\:oss>
+.UNINDENT
+.sp
+Additionally, \-\-location can take \(aqkernel\(aq and \(aqinitrd\(aq sub options. These paths
+relative to the specified location URL/ISO that allow selecting specific files
+for kernel/initrd within the install tree. This can be useful if virt\-install/
+libosinfo doesn\(aqt know where to find the kernel in the specified \-\-location.
+.sp
+For example, if you have an ISO that libosinfo doesn\(aqt know about called
+my\-unknown.iso, with a kernel at \(aqkernel/fookernel\(aq and initrd at
+\(aqkernel/fooinitrd\(aq, you can make this work with:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-location my\-unknown.iso,kernel=kernel/fookernel,initrd=kernel/fooinitrd
+.EE
+.UNINDENT
+.UNINDENT
+.SS \fB\-\-pxe\fP
+.sp
+Install from PXE. This just tells the VM to boot off the network
+for the first boot.
+.SS \fB\-\-import\fP
+.sp
+Skip the OS installation process, and build a guest around an existing
+disk image. The device used for booting is the first device specified via
+\fB\-\-disk\fP or \fB\-\-filesystem\fP\&.
+.SS \fB\-x\fP, \fB\-\-extra\-args\fP
+.sp
+\fBSyntax:\fP \fB\-x\fP, \fB\-\-extra\-args\fP KERNELARGS
+.sp
+Additional kernel command line arguments to pass to the installer when
+performing a guest install from \fB\-\-location\fP\&. One common usage is specifying
+an anaconda kickstart file for automated installs, such as
+\-\-extra\-args \(dqks=https://myserver/my.ks\(dq
+.SS \fB\-\-initrd\-inject\fP
+.sp
+\fBSyntax:\fP \fB\-\-initrd\-inject\fP PATH
+.sp
+Add PATH to the root of the initrd fetched with \fB\-\-location\fP\&. This can be
+used to run an automated install without requiring a network hosted kickstart
+file: \fB\-\-initrd\-inject=/path/to/my.ks \-\-extra\-args \(dqks=file:/my.ks\(dq\fP
+.SS \fB\-\-install\fP
+.sp
+This is a larger entry point for various types of install operations. The
+command has multiple subarguments, similar to \-\-disk and friends. This
+option is strictly for VM install operations, essentially configuring the
+first boot.
+.sp
+The simplest usage to ex: install fedora29 is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-install fedora29
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+And virt\-install will fetch a \-\-location URL from libosinfo, and populate
+defaults from there.
+.sp
+Available suboptions:
+.INDENT 0.0
+.TP
+.B \fBos=\fP
+This is os install option described above. The explicit way to specify that
+would be \fB\-\-install os=fedora29\fP . os= is the default option if none is
+specified
+.TP
+.B \fBkernel=\fP, \fBinitrd=\fP
+Specify a kernel and initrd pair to use as install media. They are copied
+into a temporary location before booting the VM, so they can be combined
+with \-\-initrd\-inject and your source media will not be altered. Media
+will be uploaded to a remote connection if required.
+.sp
+Example case using local filesystem paths:
+\fB\-\-install kernel=/path/to/kernel,initrd=/path/to/initrd\fP
+.sp
+Example using network paths. Kernel/initrd will be downloaded locally first,
+then passed to the VM as local filesystem paths:
+\fB\-\-install kernel=https://127.0.0.1/tree/kernel,initrd=https://127.0.0.1/tree/initrd\fP
+.sp
+Note, these are just for install time booting. If you want to set the kernel
+used for permanent VM booting, use the \fB\-\-boot\fP option.
+.TP
+.B \fBkernel_args=\fP, \fBkernel_args_overwrite=yes|no\fP
+Specify install time kernel arguments (libvirt <cmdline> XML). These can
+be combine with ex: kernel/initrd options, or \fB\-\-location\fP media. By
+default, kernel_args is just like \-\-extra\-args, and will _append_ to
+the arguments that virt\-install will try to set by default for most
+\-\-location installs. If you want to override the virt\-install default,
+additionally specify kernel_args_overwrite=yes
+.TP
+.B \fBbootdev=\fP
+Specify the install bootdev (hd, cdrom, floppy, network) to boot off of
+for the install phase. This maps to libvirt <os><boot dev=X> XML.
+.sp
+If you want to install off a cdrom or network, it\(aqs probably simpler
+and more backwards compatible to just use \fB\-\-cdrom\fP or \fB\-\-pxe\fP , but
+this options gives fine grained control over the install process if
+needed.
+.TP
+.B \fBno_install=yes|no\fP
+Tell virt\-install that there isn\(aqt actually any install happening,
+and you just want to create the VM. \fB\-\-import\fP is just an alias
+for this, as is specifying \fB\-\-boot\fP without any other install
+options. The deprecated \fB\-\-live\fP option is the same as
+\(aq\-\-cdrom $ISO \-\-install no_install=yes\(aq
+.UNINDENT
+.SS \fB\-\-reinstall DOMAIN\fP
+.sp
+Reinstall an existing VM. DOMAIN can be a VM name, UUID, or ID number.
+virt\-install will fetch the domain XML from libvirt, apply the specified
+install config changes, boot the VM for the install process, and then
+revert to roughly the same starting XML.
+.sp
+Only install related options are processed, all other VM configuration
+options like \-\-name, \-\-disk, etc. are completely ignored.
+.sp
+If \-\-reinstall is used with \-\-cdrom, an existing CDROM attached to
+the VM will be used if one is available, otherwise a permanent CDROM
+device will be added.
+.SS \fB\-\-unattended\fP
+.sp
+\fBSyntax:\fP \fB\-\-unattended\fP [OPTIONS]
+.sp
+Perform an unattended install using libosinfo\(aqs install script support.
+This is essentially a database of auto install scripts for various
+distros: Red Hat kickstarts, Debian installer scripting, Windows
+unattended installs, and potentially others. The simplest invocation
+is to combine it with \-\-install like:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-install fedora29 \-\-unattended
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A Windows install will look like
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-cdrom /path/to/my/windows.iso \-\-unattended
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Sub options are:
+.INDENT 0.0
+.TP
+.B \fBprofile=\fP
+Choose which libosinfo unattended profile to use. Most distros have
+a \(aqdesktop\(aq and a \(aqjeos\(aq profile. virt\-install will default to \(aqdesktop\(aq
+if this is unspecified.
+.TP
+.B \fBadmin\-password\-file=\fP
+A file used to set the VM OS admin/root password from. This option can
+be used either as \(dqadmin\-password\-file=/path/to/password\-file\(dq or as
+\(dqadmin\-password\-file=/dev/fd/n\(dq, being n the file descriptor of the
+password\-file.
+Note that only the first line of the file will be considered, including
+any whitespace characters and excluding new\-line.
+.TP
+.B \fBuser\-login=\fP
+The user login name to be used in th VM. virt\-install will default to your
+current host username if this is unspecified.
+Note that when running virt\-install as \(dqroot\(dq, this option must be specified.
+.TP
+.B \fBuser\-password\-file=\fP
+A file used to set the VM user password. This option can be used either as
+\(dquser\-password\-file=/path/to/password\-file\(dq or as
+\(dquser\-password\-file=/dev/fd/n\(dq, being n the file descriptor of the
+password\-file. The username is either the user\-login specified or your current
+host username.
+Note that only the first line of the file will be considered, including
+any whitespace characters and excluding new\-line.
+.TP
+.B \fBproduct\-key=\fP
+Set a Windows product key
+.UNINDENT
+.SS \fB\-\-cloud\-init\fP
+.sp
+Pass cloud\-init metadata to the VM. A cloud\-init NoCloud ISO file is generated,
+and attached to the VM as a CDROM device. The device is only attached for the
+first boot. This option is particularly useful for distro cloud images, which
+have locked login accounts by default; \-\-cloud\-init provides the means to
+initialize those login accounts, like setting a root password.
+.sp
+The simplest invocation is just plain \fB\-\-cloud\-init\fP with no suboptions;
+this maps to \fB\-\-cloud\-init root\-password\-generate=on,disable=on\fP\&. See those
+suboptions for explanation of how they work.
+.sp
+Use \-\-cloud\-init=? to see a list of all available sub options.
+.sp
+Sub options are:
+.INDENT 0.0
+.TP
+.B \fBroot\-password\-generate=on\fP
+Generate a new root password for the VM. When used, virt\-install will
+print the generated password to the console, and pause for 10 seconds
+to give the user a chance to notice it and copy it.
+.TP
+.B \fBdisable=on\fP
+Disable cloud\-init in the VM for subsequent boots. Without this,
+cloud\-init may reset auth on each boot.
+.TP
+.B \fBroot\-password\-file=\fP
+A file used to set the VM root password from. This option can
+be used either as \(dqroot\-password\-file=/path/to/password\-file\(dq or as
+\(dqroot\-password\-file=/dev/fd/n\(dq, being n the file descriptor of the
+password\-file.
+Note that only the first line of the file will be considered, including
+any whitespace characters and excluding new\-line.
+.TP
+.B \fBmeta\-data=\fP
+Specify a cloud\-init meta\-data file to add directly to the iso. All other
+meta\-data configuration options on the \-\-cloud\-init command line are ignored.
+Can be path to local file or URL.
+.TP
+.B \fBuser\-data=\fP
+Specify a cloud\-init user\-data file to add directly to the iso. All other
+user\-data configuration options on the \-\-cloud\-init command line are ignored.
+Can be path to local file or URL.
+.TP
+.B \fBroot\-ssh\-key=\fP
+Specify a public key to inject into the guest, providing ssh access to the
+root account. Example: root\-ssh\-key=/home/user/.ssh/id_rsa.pub
+.TP
+.B \fBclouduser\-ssh\-key\fP
+Specify a public key to inject into the guest, providing ssh access to
+the default cloud\-init user account. The account name is different per
+distro cloud image. Some common ones are documented here:
+\%<https://\:docs\:.openstack\:.org/\:image-guide/\:obtain-images\:.html>
+.TP
+.B \fBnetwork\-config=\fP
+Specify a cloud\-init network\-config file to add directly to the iso.
+Can be path to local file or URL.
+.UNINDENT
+.SS \fB\-\-boot\fP
+.sp
+\fBSyntax:\fP \fB\-\-boot\fP BOOTOPTS
+.sp
+Optionally specify the post\-install VM boot configuration. This option allows
+specifying a boot device order, permanently booting off kernel/initrd with
+option kernel arguments, and enabling a BIOS boot menu (requires libvirt
+0.8.3 or later)
+.sp
+\-\-boot can be specified in addition to other install options
+(such as \-\-location, \-\-cdrom, etc.) or can be specified on its own. In
+the latter case, behavior is similar to the \-\-import install option: there
+is no \(aqinstall\(aq phase, the guest is just created and launched as specified.
+.sp
+Some examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-boot cdrom,fd,hd,network\fP
+Set the boot device priority as first cdrom, first floppy, first harddisk,
+network PXE boot.
+Note: s390x guests only support one boot device, so everything except
+the first device type will be ignored.
+.TP
+.B \fB\-\-boot kernel=KERNEL,initrd=INITRD,kernel_args=\(dqconsole=/dev/ttyS0\(dq\fP
+Have guest permanently boot off a local kernel/initrd pair, with the
+specified kernel options.
+.TP
+.B \fB\-\-boot kernel=KERNEL,initrd=INITRD,dtb=DTB\fP
+Have guest permanently boot off a local kernel/initrd pair with an
+external device tree binary. DTB can be required for some non\-x86
+configurations like ARM or PPC
+.TP
+.B \fB\-\-boot loader=BIOSPATH\fP
+Use BIOSPATH as the virtual machine BIOS.
+.TP
+.B \fB\-\-boot bootmenu.enable=on,bios.useserial=on\fP
+Enable the bios boot menu, and enable sending bios text output over
+serial console.
+.TP
+.B \fB\-\-boot init=INITPATH\fP
+Path to a binary that the container guest will init. If a root \fB\-\-filesystem\fP
+has been specified, virt\-install will default to /sbin/init, otherwise
+will default to /bin/sh.
+.TP
+.B \fB\-\-boot uefi\fP, \fB\-\-boot uefi=on\fP
+Configure the VM to boot from UEFI. In order for virt\-install to know the
+correct UEFI parameters, libvirt needs to be advertising known UEFI binaries
+via domcapabilities XML, so this will likely only work if using properly
+configured distro packages. This is the recommended UEFI setup.
+.TP
+.B \fB\-\-boot uefi=off\fP
+Do not use UEFI if the VM would normally default to it.
+.TP
+.B \fB\-\-boot uefi,firmware.feature0.name=secure\-boot,firmware.feature0.enabled=yes,firmware.feature1.name=enrolled\-keys,firmware.feature1.enabled=yes\fP
+Configure the VM to boot from UEFI with Secure Boot support enabled.
+Only signed operating systems will be able to boot with this configuration.
+.TP
+.B \fB\-\-boot uefi,firmware.feature0.name=secure\-boot,firmware.feature0.enabled=no\fP
+Configure the VM to boot from UEFI with Secure Boot support disabled.
+This configuration allows both signed and unsigned operating systems to
+run.
+.sp
+Additional information about the \fBsecure\-boot\fP and
+\fBenrolled\-keys\fP firmware features and how they can be used to
+influence firmware selection is available at
+\%<https://\:libvirt\:.org/\:kbase/\:secureboot\:.html>
+.TP
+.B \fB\-\-boot loader=/.../OVMF_CODE.fd,loader.readonly=yes,loader.type=pflash,nvram.template=/.../OVMF_VARS.fd,loader_secure=no\fP
+Specify that the virtual machine use the custom OVMF binary as boot firmware,
+mapped as a virtual flash chip. In addition, request that libvirt instantiate
+the VM\-specific UEFI varstore from the custom \(dq/.../OVMF_VARS.fd\(dq varstore
+template. This setup is not recommended, and should only be used if
+\-\-boot uefi doesn\(aqt know about your UEFI binaries.
+.UNINDENT
+.sp
+Use \-\-boot=? to see a list of all available sub options.
+Complete details at
+\%<https://\:libvirt\:.org/\:formatdomain\:.html#\:operating-system-booting>
+.SS \fB\-\-idmap\fP
+.sp
+\fBSyntax:\fP \fB\-\-idmap\fP OPTIONS
+.sp
+If the guest configuration declares a UID or GID mapping,
+the \(aquser\(aq namespace will be enabled to apply these.
+A suitably configured UID/GID mapping is a pre\-requisite to
+make containers secure, in the absence of sVirt confinement.
+.sp
+\-\-idmap can be specified to enable user namespace for LXC containers. Example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-idmap uid.start=0,uid.target=1000,uid.count=10,gid.start=0,gid.target=1000,gid.count=10
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \-\-idmap=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:container-boot>
+.SH GUEST OS OPTIONS
+.SS \fB\-\-osinfo\fP, \fB\-\-os\-variant\fP
+.sp
+\fBSyntax:\fP \fB\-\-osinfo\fP [OSNAME|OPT1=VAL1,...]
+.sp
+Optimize the guest configuration for a specific operating system.
+For most cases, an OS must be specified or detected from the install
+media so performance critical features like virtio can be enabled.
+.sp
+The simplest usage is \fB\-\-osinfo OSNAME\fP or \fB\-\-os\-variant OSNAME\fP,
+for example \fB\-\-osinfo fedora32\fP\&. The supported suboptions are:
+.INDENT 0.0
+.TP
+.B \fBname=\fP, \fBshort\-id=\fP
+The OS name/short\-id from libosinfo. Examples: \fBfedora32\fP, \fBwin10\fP
+.TP
+.B \fBid=\fP
+The full URL style libosinfo ID. For example, \fBname=win10\fP is
+the same as \fBid=http://microsoft.com/win/10\fP
+.TP
+.B \fBdetect=on|off\fP
+Whether virt\-install should attempt OS detection from the specified
+install media. Detection is presently only attempted for URL and
+CDROM installs, and is not 100% reliable.
+.TP
+.B \fBrequire=on|off\fP
+If \fBon\fP, virt\-install errors if no OS value is set or detected.
+.UNINDENT
+.sp
+Some interesting examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-osinfo detect=on,require=on\fP
+This tells virt\-install to attempt detection from install media,
+but explicitly fail if that does not succeed. This will ensure
+your virt\-install invocations don\(aqt fallback to a poorly performing
+config
+.TP
+.B \fB\-\-osinfo detect=on,name=OSNAME\fP
+Attempt OS detection from install media, but if that fails, use
+OSNAME as a fallback.
+.UNINDENT
+.sp
+If any manual \fB\-\-osinfo\fP value is specified, the default is
+all other settings off or unset.
+.sp
+By default, virt\-install will always attempt \fB\-\-osinfo detect=on\fP
+for appropriate install media. If no OS is detected, we will fail
+in most common cases. This fatal error was added in 2022. You can
+work around this by using the fallback example
+above, or disabling the \fBrequire\fP option. If you just need to get back
+to the old non\-fatal behavior ASAP, set the environment variable
+VIRTINSTALL_OSINFO_DISABLE_REQUIRE=1.
+.sp
+Use the command \fBvirt\-install \-\-osinfo list\fP to get the list of the
+accepted OS variants. See \fBosinfo\-query os\fP for even more output.
+.sp
+Note: \fB\-\-osinfo\fP and \fB\-\-os\-variant\fP are aliases for one another.
+\fB\-\-osinfo\fP is the preferred new style naming.
+.SH STORAGE OPTIONS
+.SS \fB\-\-disk\fP
+.sp
+\fBSyntax:\fP \fB\-\-disk\fP OPTIONS
+.sp
+Specifies media to use as storage for the guest, with various options. The
+general format of a disk string is
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-disk opt1=val1,opt2=val2,...
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The simplest invocation to create a new 10G disk image and associated disk device:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-disk size=10
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+virt\-install will generate a path name, and place it in the default image location for the hypervisor. To specify media, the command can either be:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-disk /some/storage/path[,opt1=val1]...
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+or explicitly specify one of the following arguments:
+.INDENT 0.0
+.TP
+.B \fBpath\fP
+A path to some storage media to use, existing or not. Existing media can be
+a file or block device.
+.sp
+Specifying a non\-existent path implies attempting to create the new storage,
+and will require specifying a \(aqsize\(aq value. Even for remote hosts, virt\-install
+will try to use libvirt storage APIs to automatically create the given path.
+.sp
+If the hypervisor supports it, \fBpath\fP can also be a network URL, like
+\%<https://\:example\:.com/\:some-disk\:.img> . For network paths, they hypervisor will
+directly access the storage, nothing is downloaded locally.
+.TP
+.B \fBpool\fP
+An existing libvirt storage pool name to create new storage on. Requires
+specifying a \(aqsize\(aq value.
+.TP
+.B \fBvol\fP
+An existing libvirt storage volume to use. This is specified as
+\(aqpoolname/volname\(aq.
+.UNINDENT
+.sp
+Options that apply to storage creation:
+.INDENT 0.0
+.TP
+.B \fBsize\fP
+size (in GiB) to use if creating new storage
+.TP
+.B \fBsparse\fP
+whether to skip fully allocating newly created storage. Value is \(aqyes\(aq or
+\(aqno\(aq. Default is \(aqyes\(aq (do not fully allocate) unless it isn\(aqt
+supported by the underlying storage type.
+.sp
+The initial time taken to fully\-allocate the guest virtual disk (sparse=no)
+will be usually balanced by faster install times inside the guest. Thus
+use of this option is recommended to ensure consistently high performance
+and to avoid I/O errors in the guest should the host filesystem fill up.
+.TP
+.B \fBformat\fP
+Disk image format. For file volumes, this can be \(aqraw\(aq, \(aqqcow2\(aq, \(aqvmdk\(aq, etc.
+See format types in \%<https://\:libvirt\:.org/\:storage\:.html> for possible values.
+This is often mapped to the \fBdriver_type\fP value as well.
+.sp
+If not specified when creating file images, this will default to \(aqqcow2\(aq.
+.sp
+If creating storage, this will be the format of the new image.
+If using an existing image, this overrides libvirt\(aqs format auto\-detection.
+.TP
+.B \fBbacking_store\fP
+Path to a disk to use as the backing store for the newly created image.
+.TP
+.B \fBbacking_format\fP
+Disk image format of \fBbacking_store\fP
+.UNINDENT
+.sp
+Some example device configuration suboptions:
+.INDENT 0.0
+.TP
+.B \fBdevice\fP
+Disk device type. Example values are be \(aqcdrom\(aq, \(aqdisk\(aq, \(aqlun\(aq or \(aqfloppy\(aq.
+The default is \(aqdisk\(aq.
+.TP
+.B \fBboot.order\fP
+Guest installation with multiple disks will need this parameter to boot
+correctly after being installed. A boot.order parameter will take values 1,2,3,...
+Devices with lower value has higher priority.
+This option applies to other bootable device types as well.
+.TP
+.B \fBtarget.bus** or *bus\fP
+Disk bus type. Example values are be \(aqide\(aq, \(aqsata\(aq, \(aqscsi\(aq, \(aqusb\(aq, \(aqvirtio\(aq or \(aqxen\(aq.
+The default is hypervisor dependent since not all hypervisors support all
+bus types.
+.TP
+.B \fBreadonly\fP
+Set drive as readonly (takes \(aqon\(aq or \(aqoff\(aq)
+.TP
+.B \fBshareable\fP
+Set drive as shareable (takes \(aqon\(aq or \(aqoff\(aq)
+.TP
+.B \fBcache\fP
+The cache mode to be used. The host pagecache provides cache memory.
+The cache value can be \(aqnone\(aq, \(aqwritethrough\(aq, \(aqdirectsync\(aq, \(aqunsafe\(aq
+or \(aqwriteback\(aq.
+\(aqwritethrough\(aq provides read caching. \(aqwriteback\(aq provides
+read and write caching. \(aqdirectsync\(aq bypasses the host page
+cache. \(aqunsafe\(aq may cache all content and ignore flush requests from
+the guest.
+.TP
+.B \fBdriver.discard\fP
+Whether discard (also known as \(dqtrim\(dq or \(dqunmap\(dq) requests are ignored
+or passed to the filesystem. The value can be either \(dqunmap\(dq (allow
+the discard request to be passed) or \(dqignore\(dq (ignore the discard
+request). Since 1.0.6 (QEMU and KVM only)
+.TP
+.B \fBdriver.name\fP
+Driver name the hypervisor should use when accessing the specified
+storage. Typically does not need to be set by the user.
+.TP
+.B \fBdriver.type\fP
+Driver format/type the hypervisor should use when accessing the specified
+storage. Typically does not need to be set by the user.
+.TP
+.B \fBdriver.io\fP
+Disk IO backend. Can be either \(dqthreads\(dq, \(dqnative\(dq or \(dqio_uring\(dq.
+.TP
+.B \fBdriver.error_policy\fP
+How guest should react if a write error is encountered. Can be one of
+\(dqstop\(dq, \(dqignore\(dq, or \(dqenospace\(dq
+.TP
+.B \fBserial\fP
+Serial number of the emulated disk device. This is used in linux guests
+to set /dev/disk/by\-id symlinks. An example serial number might be:
+WD\-WMAP9A966149
+.TP
+.B \fBsource.startupPolicy\fP
+It defines what to do with the disk if the source file is not accessible.
+.TP
+.B \fBsnapshot\fP
+Defines default behavior of the disk during disk snapshots.
+.UNINDENT
+.sp
+See the examples section for some uses. This option deprecates \-f/\-\-file,
+\-s/\-\-file\-size, \-\-nonsparse, and \-\-nodisks.
+.sp
+Use \-\-disk=? to see a list of all available sub options.
+Complete details at
+\%<https://\:libvirt\:.org/\:formatdomain\:.html#\:hard-drives-floppy-disks-cdroms>
+.SS \fB\-\-filesystem\fP
+.sp
+Specifies a directory on the host to export to the guest. The most simple
+invocation is:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-filesystem /source/on/host,/target/point/in/guest
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Which will work for recent QEMU and linux guest OS or LXC containers. For
+QEMU, the target point is just a mounting hint in sysfs, so will not be
+automatically mounted.
+.sp
+Some example suboptions:
+.INDENT 0.0
+.TP
+.B \fBtype\fP
+The type or the source directory. Valid values are \(aqmount\(aq (the default) or
+\(aqtemplate\(aq for OpenVZ templates.
+.TP
+.B \fBaccessmode\fP or \fBmode\fP
+The access mode for the source directory from the guest OS. Only used with
+QEMU and type=mount. Valid modes are \(aqmapped\(aq (the default), \(aqpassthrough\(aq,
+or \(aqsquash\(aq. See libvirt domain XML documentation for more info.
+.TP
+.B \fBsource\fP
+The directory on the host to share.
+.TP
+.B \fBtarget\fP
+The mount location to use in the guest.
+.UNINDENT
+.sp
+Use \-\-filesystem=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:filesystems>
+.SH NETWORKING OPTIONS
+.SS \fB\-w\fP, \fB\-\-network\fP
+.sp
+\fBSyntax:\fP \fB\-w\fP, \fB\-\-network\fP OPTIONS
+.sp
+Connect the guest to the host network. Examples for specifying the network type:
+.INDENT 0.0
+.TP
+.B \fBbridge=BRIDGE\fP
+Connect to a bridge device in the host called \fBBRIDGE\fP\&. Use this option if
+the host has static networking config & the guest requires full outbound
+and inbound connectivity to/from the LAN. Also use this if live migration
+will be used with this guest.
+.TP
+.B \fBnetwork=NAME\fP
+Connect to a virtual network in the host called \fBNAME\fP\&. Virtual networks
+can be listed, created, deleted using the \fBvirsh\fP command line tool. In
+an unmodified install of \fBlibvirt\fP there is usually a virtual network
+with a name of \fBdefault\fP\&. Use a virtual network if the host has dynamic
+networking (e.g. NetworkManager), or using wireless. The guest will be
+NATed to the LAN by whichever connection is active.
+.TP
+.B \fBtype=direct,source=IFACE[,source.mode=MODE]\fP
+Direct connect to host interface IFACE using macvtap.
+.TP
+.B \fBuser\fP
+Connect to the LAN using SLIRP. Only use this if running a QEMU guest as
+an unprivileged user. This provides a very limited form of NAT.
+.TP
+.B \fBnone\fP
+Tell virt\-install not to add any default network interface.
+.UNINDENT
+.sp
+If \fB\-\-network\fP is omitted a single NIC will be created in the guest. If
+there is a bridge device in the host with a physical interface attached,
+that will be used for connectivity. Failing that, the virtual network
+called \fBdefault\fP will be used. This option can be specified multiple
+times to setup more than one NIC.
+.sp
+Some example suboptions:
+.INDENT 0.0
+.TP
+.B \fBmodel.type\fP or \fBmodel\fP
+Network device model as seen by the guest. Value can be any nic model supported
+by the hypervisor, e.g.: \(aqe1000\(aq, \(aqrtl8139\(aq, \(aqvirtio\(aq, ...
+.TP
+.B \fBmac.address\fP or \fBmac\fP
+Fixed MAC address for the guest; If this parameter is omitted, or the value
+\fBRANDOM\fP is specified a suitable address will be randomly generated. For
+Xen virtual machines it is required that the first 3 pairs in the MAC address
+be the sequence \(aq00:16:3e\(aq, while for QEMU or KVM virtual machines it must
+be \(aq52:54:00\(aq.
+.TP
+.B \fBfilterref.filter\fP
+Controlling firewall and network filtering in libvirt. Value can be any nwfilter
+defined by the \fBvirsh\fP \(aqnwfilter\(aq subcommands. Available filters can be listed
+by running \(aqvirsh nwfilter\-list\(aq, e.g.: \(aqclean\-traffic\(aq, \(aqno\-mac\-spoofing\(aq, ...
+.TP
+.B \fBvirtualport.*\fP options
+Configure the device virtual port profile. This is used for 802.Qbg, 802.Qbh,
+midonet, and openvswitch config.
+.sp
+Use \-\-network=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:network-interfaces>
+.sp
+This option deprecates \-m/\-\-mac, \-b/\-\-bridge, and \-\-nonetworks
+.TP
+.B \fBhostdev=HOSTDEV\fP
+Use the referenced nodedev device as the source for \fBtype=hostdev\fP
+as described here: \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:pci-passthrough>
+.sp
+For \fBHOSTDEV\fP format, see \fB\-\-hostdev\fP documentation
+.TP
+.B \fBportForward=[ADDRESS:]HOSTPORT[:GUESTPORT][/PROTO]\fP
+Simpler option for specifying port forwarding with
+\fB\-\-network passt\fP networks. Roughly matches \fBpodman run \-p\fP
+syntax. HOSTPORT can be a represented as a range like \fB7000\-8000\fP, but
+GUESTPORT can only be a single port. If GUESTPORT is not provided, host
+and guest ports are assumed to match.
+.sp
+Examples:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+\-\-network passt,portForward=8080:80 \e
+\-\-network passt,portForward0=7000\-8000/udp,portForward1=127.0.0.1:2222:22 \e
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SH GRAPHICS OPTIONS
+.sp
+If no graphics option is specified, \fBvirt\-install\fP will try to select
+the appropriate graphics if the DISPLAY environment variable is set,
+otherwise \(aq\-\-graphics none\(aq is used.
+.SS \fB\-\-graphics\fP
+.sp
+\fBSyntax:\fP \fB\-\-graphics\fP TYPE,opt1=arg1,opt2=arg2,...
+.sp
+Specifies the graphical display configuration. This does not configure any
+virtual hardware, just how the guest\(aqs graphical display can be accessed.
+Typically the user does not need to specify this option, virt\-install will
+try and choose a useful default, and launch a suitable connection.
+.sp
+General format of a graphical string is
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-graphics TYPE,opt1=arg1,opt2=arg2,...
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+For example:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-graphics vnc,password=foobar
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Some supported TYPE values:
+.INDENT 0.0
+.TP
+.B \fBvnc\fP
+Setup a virtual console in the guest and export it as a VNC server in
+the host. Unless the \fBport\fP parameter is also provided, the VNC
+server will run on the first free port number at 5900 or above. The
+actual VNC display allocated can be obtained using the \fBvncdisplay\fP
+command to \fBvirsh\fP (or virt\-viewer(1) can be used which handles this
+detail for the use).
+.TP
+.B \fBspice\fP
+Export the guest\(aqs console using the Spice protocol. Spice allows advanced
+features like audio and USB device streaming, as well as improved graphical
+performance.
+.sp
+Using spice graphic type will work as if those arguments were given:
+.INDENT 7.0
+.INDENT 3.5
+.sp
+.EX
+\-\-video qxl \-\-channel spicevmc
+.EE
+.UNINDENT
+.UNINDENT
+.TP
+.B \fBnone\fP
+No graphical console will be allocated for the guest. Guests will likely
+need to have a text console configured on the first
+serial port in the guest (this can be done via the \-\-extra\-args option). The
+command \(aqvirsh console NAME\(aq can be used to connect to the serial device.
+.UNINDENT
+.sp
+Some supported suboptions:
+.INDENT 0.0
+.TP
+.B \fBport\fP
+Request a permanent, statically assigned port number for the guest
+console. This is used by \(aqvnc\(aq and \(aqspice\(aq
+.TP
+.B \fBtlsPort\fP
+Specify the spice tlsport.
+.TP
+.B \fBwebsocket\fP
+Request a VNC WebSocket port for the guest console.
+.sp
+If \-1 is specified, the WebSocket port is auto\-allocated.
+.sp
+This is used by \(aqvnc\(aq and \(aqspice\(aq
+.TP
+.B \fBlisten\fP
+Address to listen on for VNC/Spice connections. Default is typically 127.0.0.1
+(localhost only), but some hypervisors allow changing this globally (for
+example, the qemu driver default can be changed in /etc/libvirt/qemu.conf).
+Use 0.0.0.0 to allow access from other machines.
+.sp
+Use \(aqnone\(aq to specify that the display server should not listen on any
+port. The display server can be accessed only locally through
+libvirt unix socket (virt\-viewer with \-\-attach for instance).
+.sp
+Use \(aqsocket\(aq to have the VM listen on a libvirt generated unix socket
+path on the host filesystem.
+.sp
+This is used by \(aqvnc\(aq and \(aqspice\(aq
+.TP
+.B \fBpassword\fP
+Request a console password, required at connection time. Beware, this info may
+end up in virt\-install log files, so don\(aqt use an important password. This
+is used by \(aqvnc\(aq and \(aqspice\(aq
+.TP
+.B \fBgl.enable\fP
+Whether to use OpenGL accelerated rendering. Value is \(aqyes\(aq or \(aqno\(aq. This is
+used by \(aqspice\(aq.
+.TP
+.B \fBgl.rendernode\fP
+DRM render node path to use. This is used when \(aqgl\(aq is enabled.
+.UNINDENT
+.sp
+Use \-\-graphics=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:graphical-framebuffers>
+.sp
+This deprecates the following options:
+\-\-vnc, \-\-vncport, \-\-vnclisten, \-k/\-\-keymap, \-\-sdl, \-\-nographics
+.SS \fB\-\-autoconsole\fP
+.sp
+\fBSyntax:\fP \fB\-\-autoconsole\fP OPTIONS
+.sp
+Configure what interactive console virt\-install will launch for the VM. This
+option is not required; the default behavior is adaptive and dependent on
+how the VM is configured. But you can use this option to override the default
+choice.
+.INDENT 0.0
+.TP
+.B \fB\-\-autoconsole graphical\fP
+Use the graphical virt\-viewer(1) as the interactive console
+.TP
+.B \fB\-\-autoconsole text\fP
+Use the text mode \fBvirsh console\fP as the interactive console.
+.TP
+.B \fB\-\-autoconsole none\fP
+This is the same as \fB\-\-noautoconsole\fP
+.TP
+.B \fB\-\-noautoconsole\fP
+Don\(aqt automatically try to connect to the guest console. Same as
+\fB\-\-autoconsole none\fP
+.UNINDENT
+.sp
+Note, virt\-install exits quickly when this option is specified. If your
+command requested a multistep install, like \-\-cdrom or \-\-location, after
+the install phase is complete the VM will be shutoff, regardless of
+whether a reboot was requested in the VM. If you want the VM to be
+rebooted, virt\-install must remain running. You can use \(aq\-\-wait\(aq to keep
+virt\-install alive even if \-\-noautoconsole is specified.
+.SH VIRTUALIZATION OPTIONS
+.sp
+Options to override the default virtualization type choices.
+.SS \fB\-v\fP, \fB\-\-hvm\fP
+.sp
+Request the use of full virtualization, if both para & full virtualization are
+available on the host. This parameter may not be available if connecting to a
+Xen hypervisor on a machine without hardware virtualization support. This
+parameter is implied if connecting to a QEMU based hypervisor.
+.SS \fB\-p\fP, \fB\-\-paravirt\fP
+.sp
+This guest should be a paravirtualized guest. If the host supports both
+para & full virtualization, and neither this parameter nor the \fB\-\-hvm\fP
+are specified, this will be assumed.
+.SS \fB\-\-container\fP
+.sp
+This guest should be a container type guest. This option is only required
+if the hypervisor supports other guest types as well (so for example this
+option is the default behavior for LXC and OpenVZ, but is provided for
+completeness).
+.SS \fB\-\-virt\-type\fP
+.sp
+The hypervisor to install on. Example choices are kvm, qemu, or xen.
+Available options are listed via \(aqvirsh capabilities\(aq in the <domain> tags.
+.sp
+This deprecates the \-\-accelerate option, which is now the default behavior.
+To install a plain QEMU guest, use \(aq\-\-virt\-type qemu\(aq
+.SH DEVICE OPTIONS
+.sp
+All devices have a set of \fBaddress.*\fP options for configuring the
+particulars of the device\(aqs address on its parent controller or bus.
+See \fBhttps://libvirt.org/formatdomain.html#device\-addresses\fP for details.
+.SS \fB\-\-controller\fP
+.sp
+\fBSyntax:\fP \fB\-\-controller\fP OPTIONS
+.sp
+Attach a controller device to the guest.
+.sp
+Some example invocations:
+.INDENT 0.0
+.TP
+.B \fB\-\-controller usb2\fP
+Add a full USB2 controller setup
+.TP
+.B \fB\-\-controller usb3\fP
+Add a USB3 controller
+.TP
+.B \fB\-\-controller type=usb,model=none\fP
+Disable USB entirely
+.TP
+.B \fB\-\-controller type=scsi,model=virtio\-scsi\fP
+Add a VirtIO SCSI controller
+.TP
+.B \fB\-\-controller num_pcie_root_ports=NUM\fP
+Control the number of default \fBpcie\-root\-port\fP controller devices
+we add to the new VM by default, if the VM will use PCIe by default.
+.UNINDENT
+.sp
+Use \-\-controller=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:controllers>
+.SS \fB\-\-input\fP
+.sp
+\fBSyntax:\fP \fB\-\-input\fP OPTIONS
+.sp
+Attach an input device to the guest. Example input device types are mouse, tablet, or keyboard.
+.sp
+Use \-\-input=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:input-devices>
+.SS \fB\-\-hostdev\fP, \fB\-\-host\-device\fP
+.sp
+\fBSyntax:\fP \fB\-\-hostdev\fP, \fB\-\-host\-device\fP OPTIONS
+.sp
+Attach a physical host device to the guest. Some example values for HOSTDEV:
+.INDENT 0.0
+.TP
+.B \fB\-\-hostdev pci_0000_00_1b_0\fP
+A node device name via libvirt, as shown by \(aqvirsh nodedev\-list\(aq
+.TP
+.B \fB\-\-hostdev 001.003\fP
+USB by bus, device (via lsusb).
+.TP
+.B \fB\-\-hostdev 0x1234:0x5678\fP
+USB by vendor, product (via lsusb).
+.TP
+.B \fB\-\-hostdev 1f.01.02\fP
+PCI device (via lspci).
+.TP
+.B \fB\-\-hostdev wlan0,type=net\fP
+Network device (in LXC container).
+.TP
+.B \fB\-\-hostdev /dev/net/tun,type=misc\fP
+Character device (in LXC container).
+.TP
+.B \fB\-\-hostdev /dev/sdf,type=storage\fP
+Block device (in LXC container).
+.UNINDENT
+.sp
+Use \-\-hostdev=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:host-device-assignment>
+.SS \fB\-\-sound\fP
+.sp
+\fBSyntax:\fP \fB\-\-sound\fP MODEL
+.sp
+Attach a virtual audio device to the guest. MODEL specifies the emulated
+sound card model. Possible values are ich6, ich9, ac97, es1370, sb16, pcspk,
+or default. \(aqdefault\(aq will try to pick the best model that the specified
+OS supports.
+.sp
+This deprecates the old \-\-soundhw option.
+Use \-\-sound=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:sound-devices>
+.SS \fB\-\-audio\fP
+.sp
+Configure host audio output for the guest\(aqs \fI\-\-sound\fP hardware.
+.sp
+Use \-\-audio=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:audio-backends>
+.SS \fB\-\-watchdog\fP
+.sp
+\fBSyntax:\fP \fB\-\-watchdog\fP MODEL[,action=ACTION]
+.sp
+Attach a virtual hardware watchdog device to the guest. This requires a
+daemon and device driver in the guest. The watchdog fires a signal when
+the virtual machine appears to hung. ACTION specifies what libvirt will do
+when the watchdog fires. Values are
+.INDENT 0.0
+.TP
+.B \fBreset\fP
+Forcefully reset the guest (the default)
+.TP
+.B \fBpoweroff\fP
+Forcefully power off the guest
+.TP
+.B \fBpause\fP
+Pause the guest
+.TP
+.B \fBnone\fP
+Do nothing
+.TP
+.B \fBshutdown\fP
+Gracefully shutdown the guest (not recommended, since a hung guest probably
+won\(aqt respond to a graceful shutdown)
+.UNINDENT
+.sp
+MODEL is the emulated device model: either i6300esb (the default) or ib700.
+Some examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-watchdog default\fP
+Use the recommended settings
+.TP
+.B \fB\-\-watchdog i6300esb,action=poweroff\fP
+Use the i6300esb with the \(aqpoweroff\(aq action
+.UNINDENT
+.sp
+Use \-\-watchdog=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:watchdog-devices>
+.SS \fB\-\-serial\fP
+.sp
+\fBSyntax:\fP \fB\-\-serial\fP OPTIONS
+.sp
+Specifies a serial device to attach to the guest, with various options. The
+general format of a serial string is
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-serial type,opt1=val1,opt2=val2,...
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\-\-serial and \-\-parallel devices share all the same options, unless otherwise
+noted. Some of the types of character device redirection are:
+.INDENT 0.0
+.TP
+.B \fB\-\-serial pty\fP
+Pseudo TTY. The allocated pty will be listed in the running guests XML
+description.
+.TP
+.B \fB\-\-serial dev,path=HOSTPATH\fP
+Host device. For serial devices, this could be /dev/ttyS0. For parallel
+devices, this could be /dev/parport0.
+.TP
+.B \fB\-\-serial file,path=FILENAME\fP
+Write output to FILENAME.
+.TP
+.B \fB\-\-serial tcp,host=HOST:PORT,source.mode=MODE,protocol.type=PROTOCOL\fP
+TCP net console. MODE is either \(aqbind\(aq (wait for connections on HOST:PORT)
+or \(aqconnect\(aq (send output to HOST:PORT), default is \(aqbind\(aq. HOST defaults
+to \(aq127.0.0.1\(aq, but PORT is required. PROTOCOL can be either \(aqraw\(aq or \(aqtelnet\(aq
+(default \(aqraw\(aq). If \(aqtelnet\(aq, the port acts like a telnet server or client.
+Some examples:
+.sp
+Wait for connections on any address, port 4567:
+.sp
+\-\-serial tcp,host=0.0.0.0:4567
+.sp
+Connect to localhost, port 1234:
+.sp
+\-\-serial tcp,host=:1234,source.mode=connect
+.sp
+Wait for telnet connection on localhost, port 2222. The user could then
+connect interactively to this console via \(aqtelnet localhost 2222\(aq:
+.sp
+\-\-serial tcp,host=:2222,source.mode=bind,source.protocol=telnet
+.TP
+.B \fB\-\-serial udp,host=CONNECT_HOST:PORT,bind_host=BIND_HOST:BIND_PORT\fP
+UDP net console. HOST:PORT is the destination to send output to (default
+HOST is \(aq127.0.0.1\(aq, PORT is required). BIND_HOST:BIND_PORT is the optional
+local address to bind to (default BIND_HOST is 127.0.0.1, but is only set if
+BIND_PORT is specified). Some examples:
+.sp
+Send output to default syslog port (may need to edit /etc/rsyslog.conf
+accordingly):
+.sp
+\-\-serial udp,host=:514
+.sp
+Send output to remote host 192.168.10.20, port 4444 (this output can be
+read on the remote host using \(aqnc \-u \-l 4444\(aq):
+.sp
+\-\-serial udp,host=192.168.10.20:4444
+.TP
+.B \fB\-\-serial unix,path=UNIXPATH,mode=MODE\fP
+Unix socket, see unix(7). MODE has similar behavior and defaults as
+\-\-serial tcp,mode=MODE
+.UNINDENT
+.sp
+Use \-\-serial=? to see a list of all available sub options.
+Complete details at
+\%<https://\:libvirt\:.org/\:formatdomain\:.html#\:consoles-serial-parallel-channel-devices>
+.SS \fB\-\-parallel\fP
+.sp
+\fBSyntax:\fP \fB\-\-parallel\fP OPTIONS
+.sp
+Specify a parallel device. The format and options are largely identical
+to \fBserial\fP
+.sp
+Use \-\-parallel=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:parallel-port>
+.SS \fB\-\-channel\fP
+.sp
+Specifies a communication channel device to connect the guest and host
+machine. This option uses the same options as \-\-serial and \-\-parallel
+for specifying the host/source end of the channel. Extra \(aqtarget\(aq options
+are used to specify how the guest machine sees the channel.
+.sp
+Some of the types of character device redirection are:
+.INDENT 0.0
+.TP
+.B \fB\-\-channel SOURCE,target.type=guestfwd,target.address=HOST:PORT\fP
+Communication channel using QEMU usermode networking stack. The guest can
+connect to the channel using the specified HOST:PORT combination.
+.TP
+.B \fB\-\-channel SOURCE,target.type=virtio[,target.name=NAME]\fP
+Communication channel using virtio serial (requires 2.6.34 or later host and
+guest). Each instance of a virtio \-\-channel line is exposed in the
+guest as /dev/vport0p1, /dev/vport0p2, etc. NAME is optional metadata, and
+can be any string, such as org.linux\-kvm.virtioport1.
+If specified, this will be exposed in the guest at
+/sys/class/virtio\-ports/vport0p1/NAME
+.TP
+.B \fB\-\-channel spicevmc,target.type=virtio[,target.name=NAME]\fP
+Communication channel for QEMU spice agent, using virtio serial
+(requires 2.6.34 or later host and guest). NAME is optional metadata,
+and can be any string, such as the default com.redhat.spice.0 that
+specifies how the guest will see the channel.
+.TP
+.B \fB\-\-channel qemu\-vdagent,target.type=virtio[,target.name=NAME]\fP
+Communication channel for QEMU vd agent, using virtio serial (requires
+2.6.34 or later host and guest). This allows copy/paste functionality with
+VNC guests. Note that the guest clipboard integration is implemented via
+spice\-vdagent, which must be running even when the guest does not use spice
+graphics. NAME is optional metadata that specifies how the guest will see
+the channel, and should be left as the default com.redhat.spice.0 unless you
+know what you are doing.
+.UNINDENT
+.sp
+Use \-\-channel=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:channel>
+.SS \fB\-\-console\fP
+.sp
+Connect a text console between the guest and host. Certain guest and
+hypervisor combinations can automatically set up a getty in the guest, so
+an out of the box text login can be provided (target_type=xen for xen
+paravirt guests, and possibly target_type=virtio in the future).
+.sp
+Example:
+.INDENT 0.0
+.TP
+.B \fB\-\-console pty,target.type=virtio\fP
+Connect a virtio console to the guest, redirected to a PTY on the host.
+For supported guests, this exposes /dev/hvc0 in the guest. See
+\%<https://\:fedoraproject\:.org/\:wiki/\:Features/\:VirtioSerial> for more info. virtio
+console requires libvirt 0.8.3 or later.
+.UNINDENT
+.sp
+Use \-\-console=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:console>
+.SS \fB\-\-video\fP
+.sp
+\fBSyntax:\fP \fB\-\-video\fP OPTIONS
+.sp
+Specify what video device model will be attached to the guest. Valid values
+for VIDEO are hypervisor specific, but some options for recent kvm are
+cirrus, vga, qxl, virtio, or vmvga (vmware).
+Use \-\-video=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:video-devices>
+.SS \fB\-\-smartcard\fP
+.sp
+\fBSyntax:\fP \fB\-\-smartcard\fP MODE[,OPTIONS]
+.sp
+Configure a virtual smartcard device.
+.sp
+Example MODE values are \fBhost\fP, \fBhost\-certificates\fP, or \fBpassthrough\fP\&.
+Example suboptions include:
+.INDENT 0.0
+.TP
+.B \fBtype\fP
+Character device type to connect to on the host. This is only applicable
+for \fBpassthrough\fP mode.
+.UNINDENT
+.sp
+An example invocation:
+.INDENT 0.0
+.TP
+.B \fB\-\-smartcard passthrough,type=spicevmc\fP
+Use the smartcard channel of a SPICE graphics device to pass smartcard info
+to the guest
+.UNINDENT
+.sp
+Use \-\-smartcard=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:smartcard-devices>
+.SS \fB\-\-redirdev\fP
+.sp
+\fBSyntax:\fP \fB\-\-redirdev\fP BUS[,OPTIONS]
+.sp
+Add a redirected device. Example suboptions:
+.INDENT 0.0
+.TP
+.B \fBtype\fP
+The redirection type, currently supported is \fBtcp\fP or \fBspicevmc\fP .
+.TP
+.B \fBserver\fP
+The TCP server connection details, of the form \(aqserver:port\(aq.
+.UNINDENT
+.sp
+Examples invocations:
+.INDENT 0.0
+.TP
+.B \fB\-\-redirdev usb,type=tcp,server=localhost:4000\fP
+Add a USB redirected device provided by the TCP server on \(aqlocalhost\(aq
+port 4000.
+.TP
+.B \fB\-\-redirdev usb,type=spicevmc\fP
+Add a USB device redirected via a dedicated Spice channel.
+.UNINDENT
+.sp
+Use \-\-redirdev=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:redirected-devices>
+.SS \fB\-\-memballoon\fP
+.sp
+\fBSyntax:\fP \fB\-\-memballoon\fP MODEL[,OPTIONS]
+.sp
+Attach a virtual memory balloon device to the guest. If the memballoon device
+needs to be explicitly disabled, MODEL=\(aqnone\(aq is used.
+.sp
+MODEL is the type of memballoon device provided. The value can be \(aqvirtio\(aq,
+\(aqxen\(aq or \(aqnone\(aq. Some examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-memballoon virtio\fP
+Explicitly create a \(aqvirtio\(aq memballoon device
+.TP
+.B \fB\-\-memballoon none\fP
+Disable the memballoon device
+.UNINDENT
+.sp
+Use \-\-memballoon=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:memory-balloon-device>
+.SS \fB\-\-tpm\fP
+.sp
+\fBSyntax:\fP \fB\-\-tpm\fP TYPE[,OPTIONS]
+.sp
+Configure a virtual TPM device. Examples:
+.INDENT 0.0
+.TP
+.B \fB\-\-tpm /dev/tpm\fP
+Convenience option for passing through the hosts TPM.
+.TP
+.B \fB\-\-tpm emulator\fP
+Request an emulated TPM device.
+.TP
+.B \fB\-\-tpm default\fP
+Request virt\-install to fill in a modern recommended default.
+.TP
+.B \fB\-\-tpm none\fP
+Request virt\-install to disable TPM device.
+.UNINDENT
+.sp
+Use \-\-tpm=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:tpm-device>
+.SS \fB\-\-rng\fP
+.sp
+\fBSyntax:\fP \fB\-\-rng\fP TYPE[,OPTIONS]
+.sp
+Configure a virtual RNG device.
+.sp
+Example TYPE values include \fBrandom\fP, \fBegd\fP or \fBbuiltin\fP\&.
+.sp
+Example invocations:
+.INDENT 0.0
+.TP
+.B \fB\-\-rng /dev/urandom\fP
+Use the /dev/urandom device to get entropy data, this form implicitly uses the
+\(dqrandom\(dq model.
+.TP
+.B \fB\-\-rng builtin\fP
+Use the builtin rng device to get entropy data.
+.TP
+.B \fB\-\-rng egd,backend.source.host=localhost,backend.source.service=8000,backend.type=tcp\fP
+Connect to localhost to the TCP port 8000 to get entropy data.
+.UNINDENT
+.sp
+Use \-\-rng=? to see a list of all available sub options.
+Complete details at
+\%<https://\:libvirt\:.org/\:formatdomain\:.html#\:random-number-generator-device>
+.SS \fB\-\-panic\fP
+.sp
+\fBSyntax:\fP \fB\-\-panic\fP MODEL[,OPTS]
+.sp
+Attach a panic notifier device to the guest.
+For the recommended settings, use: \fB\-\-panic default\fP
+.sp
+Use \-\-panic=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:panic-device>
+.SS \fB\-\-shmem\fP
+.sp
+\fBSyntax:\fP \fB\-\-shmem\fP NAME[,OPTS]
+.sp
+Attach a shared memory device to the guest. The name must not contain \fB/\fP and must
+not be directory\-specific to \fB\&.\fP or \fB\&..\fP
+.sp
+Use \-\-shmem=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:shared-memory-device>
+.SS \fB\-\-memdev\fP
+.sp
+\fBSyntax:\fP \fB\-\-memdev\fP OPTS
+.sp
+Add a memory module to a guest which can be hotunplugged. To add a memdev you need
+to configure hotplugmemory and NUMA for a guest.
+.sp
+Use \-\-memdev=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:memory-devices>
+.SS \fB\-\-vsock\fP
+.sp
+\fBSyntax:\fP \fB\-\-vsock\fP OPTS
+.sp
+Configure a vsock host/guest interface. A typical configuration would be
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+\-\-vsock cid.auto=yes
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \-\-vsock=? to see a list of all available sub options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:vsock>
+.SS \fB\-\-iommu\fP
+.sp
+\fBSyntax:\fP \fB\-\-iommu\fP MODEL[,OPTS]
+.sp
+Add an IOMMU device to the guest.
+.sp
+Use \-\-iommu=? to see a list of all available options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:iommu-devices>
+.SS \fB\-\-pstore\fP
+.sp
+\fBSyntax:\fP \fB\-\-pstore\fP OPT=VAL,[...]
+.sp
+Add a pstore device to a guest for storing oops/panic logs before it crashes.
+.sp
+Use \-\-pstore=? to see a list of all available options.
+Complete details at \%<https://\:libvirt\:.org/\:formatdomain\:.html#\:pstore>
+.SH MISCELLANEOUS OPTIONS
+.SS \fB\-h\fP, \fB\-\-help\fP
+.sp
+Show the help message and exit
+.SS \fB\-\-version\fP
+.sp
+Show program\(aqs version number and exit
+.SS \fB\-\-autostart\fP
+.sp
+Set the autostart flag for a domain. This causes the domain to be started
+on host boot up.
+.SS \fB\-\-transient\fP
+.sp
+Use \-\-import or \-\-boot and \-\-transient if you want a transient libvirt
+VM.  These VMs exist only until the domain is shut down or the host
+server is restarted.  Libvirt forgets the XML configuration of the VM
+after either of these events.  Note that the VM\(aqs disks will not be
+deleted.  See:
+\%<https://\:wiki\:.libvirt\:.org/\:page/\:VM_lifecycle#\:Transient_guest_domains_vs_Persistent_guest_domains>
+.SS \fB\-\-destroy\-on\-exit\fP
+.sp
+When the VM console window is exited, destroy (force poweroff) the VM.
+If you combine this with \-\-transient, this makes the virt\-install command
+work similar to qemu, where the VM is shutdown when the console window
+is closed by the user.
+.SS \fB\-\-print\-xml\fP
+.sp
+\fBSyntax:\fP \fB\-\-print\-xml\fP [STEP]
+.sp
+Print the generated XML of the guest, instead of defining it. By default this
+WILL do storage creation (can be disabled with \-\-dry\-run). This option implies \-\-quiet.
+.sp
+If the VM install has multiple phases, by default this will print all
+generated XML. If you want to print a particular step, use \-\-print\-xml 2
+(for the second phase XML).
+.SS \fB\-\-noreboot\fP
+.sp
+Prevent the domain from automatically rebooting after the install has
+completed.
+.SS \fB\-\-wait\fP
+.sp
+\fBSyntax:\fP \fB\-\-wait\fP WAIT
+.sp
+Configure how virt\-install will wait for the install to complete.
+Without this option, virt\-install will wait for the console to close (not
+necessarily indicating the guest has shutdown), or in the case of
+\-\-noautoconsole, simply kick off the install and exit.
+.sp
+Bare \(aq\-\-wait\(aq or any negative value will make virt\-install wait indefinitely.
+Any positive number is the number of minutes virt\-install will wait. If the
+time limit is exceeded, virt\-install simply exits, leaving the virtual machine
+in its current state.
+.SS \fB\-\-dry\-run\fP
+.sp
+Proceed through the guest creation process, but do NOT create storage devices,
+change host device configuration, or actually teach libvirt about the guest.
+virt\-install may still fetch install media, since this is required to
+properly detect the OS to install.
+.SS \fB\-\-check\fP
+.sp
+Enable or disable some validation checks. Some examples are warning about using a disk that\(aqs already assigned to another VM (\-\-check path_in_use=on|off), or warning about potentially running out of space during disk allocation (\-\-check disk_size=on|off). Most checks are performed by default.
+.SS \fB\-q\fP, \fB\-\-quiet\fP
+.sp
+Only print fatal error messages.
+.SS \fB\-d\fP, \fB\-\-debug\fP
+.sp
+Print debugging information to the terminal when running the install process.
+The debugging information is also stored in
+\fB~/.cache/virt\-manager/virt\-install.log\fP even if this parameter is omitted.
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+The simplest invocation to interactively install a Fedora 29 KVM VM
+with recommended defaults. virt\-viewer(1) will be launched to
+graphically interact with the VM install
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# sudo virt\-install \-\-install fedora29
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Similar, but use libosinfo\(aqs unattended install support, which will
+perform the fedora29 install automatically without user intervention:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# sudo virt\-install \-\-install fedora29 \-\-unattended
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Install a Windows 10 VM, using 40GiB storage in the default location
+and 4096MiB of ram, and ensure we are connecting to the system libvirtd
+instance:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-install \e
+   \-\-connect qemu:///system \e
+   \-\-name my\-win10\-vm \e
+   \-\-memory 4096 \e
+   \-\-disk size=40 \e
+   \-\-osinfo win10 \e
+   \-\-cdrom /path/to/my/win10.iso
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Install a CentOS 7 KVM from a URL, with recommended device defaults and
+default required storage, but specifically request VNC graphics instead
+of the default SPICE, and request 8 virtual CPUs and 8192 MiB of memory:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-install \e
+    \-\-connect qemu:///system \e
+    \-\-memory 8192 \e
+    \-\-vcpus 8 \e
+    \-\-graphics vnc \e
+    \-\-osinfo centos7.0 \e
+    \-\-location http://mirror.centos.org/centos\-7/7/os/x86_64/
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Create a VM around an existing debian9 disk image:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-install \e
+    \-\-import \e
+    \-\-memory 512 \e
+    \-\-disk /home/user/VMs/my\-debian9.img \e
+    \-\-osinfo debian9
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Start serial QEMU ARM VM, which requires specifying a manual kernel.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-install \e
+    \-\-name armtest \e
+    \-\-memory 1024 \e
+    \-\-arch armv7l \-\-machine vexpress\-a9 \e
+    \-\-disk /home/user/VMs/myarmdisk.img \e
+    \-\-boot kernel=/tmp/my\-arm\-kernel,initrd=/tmp/my\-arm\-initrd,dtb=/tmp/my\-arm\-dtb,kernel_args=\(dqconsole=ttyAMA0 rw root=/dev/mmcblk0p3\(dq \e
+    \-\-graphics none
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Start an SEV launch security VM with 4GB RAM, 4GB+256MiB of hard_limit, with a
+couple of virtio devices:
+.sp
+Note: The IOMMU flag needs to be turned on with driver.iommu for virtio
+devices. Usage of \-\-memtune is currently required because of SEV limitations,
+refer to libvirt docs for a detailed explanation.
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# virt\-install \e
+    \-\-name foo \e
+    \-\-memory 4096 \e
+    \-\-boot uefi \e
+    \-\-machine q35 \e
+    \-\-memtune hard_limit=4563402 \e
+    \-\-disk size=15,target.bus=scsi \e
+    \-\-import \e
+    \-\-controller type=scsi,model=virtio\-scsi,driver.iommu=on \e
+    \-\-controller type=virtio\-serial,driver.iommu=on \e
+    \-\-network network=default,model=virtio,driver.iommu=on \e
+    \-\-rng /dev/random,driver.iommu=on \e
+    \-\-memballoon driver.iommu=on \e
+    \-\-launchSecurity sev
+.EE
+.UNINDENT
+.UNINDENT
+.SH "اشکالات (BUGS)"
+.sp
+Please see \%<https://\:virt-manager\:.org/\:bugs>
+.SH "حق نشر (COPYRIGHT)"
+.sp
+Copyright (C) Red Hat, Inc, and various contributors.
+This is free software. You may redistribute copies of it under the terms of
+the GNU General Public License \%<https://\:www\:.gnu\:.org/\:licenses/\:gpl\:.html>\&. There
+is NO WARRANTY, to the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+\fBvirsh(1)\fP, \fBvirt\-clone(1)\fP, \fBvirt\-manager(1)\fP, the project website \%<https://\:virt-manager\:.org>
+.\" End of generated man page.

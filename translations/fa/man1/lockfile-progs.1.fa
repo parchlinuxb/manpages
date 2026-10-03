@@ -1,0 +1,150 @@
+'\" t
+.\" ** The above line should force tbl to be a preprocessor **
+.\"
+.\" Copyright (C) 1998-2008 2021 2024 Rob Browning <rlb@defaultvalue.org>
+.\"
+.\" You may distribute under the terms of the GNU General Public
+.\" License as specified in the file COPYING that comes with the
+.\" lockfile\-progs distribution.
+.\"
+.TH lockfile\-progs 1 "2024-12-10" "0.2.0" "Lockfile programs"
+.SH "نام (NAME)"
+lockfile\-progs \- command\-line programs to safely lock and unlock
+files and mailboxes (via liblockfile).
+.SH "خلاصه دستور (SYNOPSIS)"
+.nf
+\fBmail\-lock\fR [\-\-use\-pid] [\-\-retry \fIretry\-count\fR]
+\fBmail\-unlock\fR
+\fBmail\-touchlock\fR [\-\-oneshot]
+
+\fBlockfile\-create\fR [\-\-use\-pid] [\-\-retry \fIretry\-count\fR] [-\-lock\-name] \fIfilename\fR
+\fBlockfile\-remove\fR [-\-lock\-name] \fIfilename\fR
+\fBlockfile\-touch\fR [\-\-oneshot] [-\-lock\-name] \fIfilename\fR
+\fBlockfile\-check\fR [\-\-use-pid] [-\-lock\-name] \fIfilename\fR
+.fi
+.SH "توضیحات (DESCRIPTION)"
+.PP
+Lockfile\-progs provides a set a programs that can be used to lock and
+unlock mailboxes and files safely (via liblockfile):
+
+.nf
+.RS 4
+\fBmail\-lock\fR - lock the current user's mailbox
+\fBmail\-unlock\fR - unlock the current user's mailbox
+\fBmail\-touchlock\fR - touch the lock on the current user's mailbox
+
+\fBlockfile\-create\fR - lock a given file
+\fBlockfile\-remove\fR - remove the lock on a given file
+\fBlockfile\-touch\fR - touch the lock on a given file
+\fBlockfile\-check\fR - check the lock on a given file
+.RE
+.fi
+
+By default, the \fIfilename\fR argument refers to the name of the file
+to be locked, and the name of the lockfile will be
+\fIfilename\fR .lock.  However, if the \-\-lock-name argument is
+specified, then \fIfilename\fR will be taken as the name of the
+lockfile itself.
+
+Each of the mail locking commands attempts to lock
+/var/spool/mail/<user>, where <user> is the name associated with the
+effective user ID, as determined by via geteuid(2).
+
+Once a file is locked, the lock must be touched at least once every
+five minutes or the lock will be considered stale, and subsequent lock
+attempts will succeed.  Also see the \fB\-\-use\-pid\fR option and the
+\fBlockfile_create\fR(3) manpage.
+
+The \fBlockfile\-check\fR command tests whether or not a valid lock
+already exists.
+
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\fB\-\-version\fR
+.RS 4
+Report the version to standard output and exit.
+.RE
+.PP .\" --quiet
+\fB\-q\fR, \fB\-\-quiet\fR
+.RS 4
+Suppress any output.  Success or failure will only be indicated by the
+exit status.
+.RE
+.PP .\" --verbose
+\fB\-v\fR, \fB\-\-verbose\fR
+.RS 4
+Enable diagnostic output.
+.RE
+.PP .\" --lock-name
+\fB\-l\fR, \fB\-\-lock\-name\fR
+.RS 4
+Do not append .lock to the \fIfilename\fR.  This option applies to
+\fBlockfile\-create\fR, \fBlockfile\-remove\fR, \fBlockfile-touch\fR,
+or \fBlockfile-check\fR.
+.RE
+.PP .\" --use-pid
+\fB\-p\fR, \fB\-\-use\-pid\fR
+.RS 4
+Write the parent process id (PPID) to the lockfile whenever a lockfile
+is created, and use that pid when checking a lock's validity.  See the
+\fBlockfile_create\fR(3) manpage for more information.  This option
+applies to \fBlockfile\-create\fR and \fBlockfile-check\fR.  NOTE:
+this option will not work correctly between machines sharing a
+filesystem.
+.RE
+.PP .\" --oneshot
+\fB\-o\fR, \fB\-\-oneshot\fR
+.RS 4
+Touch the lock and exit immediately.  This option applies to
+\fBlockfile\-touch\fR and \fBmail\-touchlock\fR.  When not provided,
+these commands will run forever, touching the lock once every minute
+until killed.
+.RE
+.PP .\" --retry
+\fB\-r\fR \fIretry\-count\fR, \fB\-\-retry\fR \fIretry\-count\fR
+.RS 4
+Try to lock \fIfilename\fR \fIretry\-count\fR times before giving up.
+Each attempt will be delayed a bit longer than the last (in 5 second
+increments) until reaching a maximum delay of one minute between
+retries.  If \fIretry\-count\fR is unspecified, the default is 9 which
+will give up after 225 seconds if all 9 lock attempts fail.
+
+.SH "مثال‌ها (EXAMPLES)"
+
+.B Locking a file during a lengthy process:
+
+  lockfile\-create /some/file
+  lockfile\-touch /some/file &
+  # Save the PID of the lockfile\-touch process
+  BADGER="$!"   
+  do\-something\-important\-with /some/file
+  kill "${BADGER}"
+  lockfile\-remove /some/file
+
+.SH "وضعیت خروج (EXIT STATUS)"
+.PP
+\fB0\fR
+.RS 4
+For \fBlockfile\-check\fR this indicates that a valid lock exists,
+otherwise it just indicates successful program execution.
+.RE
+.PP
+\fBNot 0\fR
+.RS 4
+For \fBlockfile\-check\fR a non-zero exit status indicates that the
+specified lock does not exist or is not valid.  For other programs it
+indicates that some problem was encountered.
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.nf
+\fBmaillock\fR(3)
+\fBtouchlock\fR(3)
+\fBmailunlock\fR(3)
+\fBlockfile_create\fR(3)
+\fBlockfile_remove\fR(3)
+\fBlockfile_touch\fR(3)
+\fBlockfile_check\fR(3)
+.fi
+
+.SH "نویسنده (AUTHOR)"
+Written by Rob Browning <rlb@defaultvalue.org>

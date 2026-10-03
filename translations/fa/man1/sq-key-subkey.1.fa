@@ -1,0 +1,354 @@
+.TH SQ 1 1.4.0 "Sequoia PGP" "User Commands"
+.SH "نام (NAME)"
+sq\-key\-subkey \- Manage subkeys
+.SH "خلاصه دستور (SYNOPSIS)"
+.br
+\fBsq key subkey add\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key subkey export\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key subkey delete\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key subkey password\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key subkey expire\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key subkey revoke\fR [\fIOPTIONS\fR]  
+.br
+\fBsq key subkey bind\fR [\fIOPTIONS\fR]  
+.SH "توضیحات (DESCRIPTION)"
+Manage subkeys.
+.PP
+Add new subkeys to an existing certificate, change their expiration, and revoke them.
+
+.SH SUBCOMMANDS
+.SS "sq key subkey add"
+Add a new subkey to a certificate.
+.PP
+A subkey has one or more capabilities.
+.PP
+`\-\-can\-sign` sets the signing capability, and means that the key may be used for signing. `\-\-can\-authenticate` sets the authentication capability, and means that the key may be used for authentication (e.g., as an SSH key).  `\-\-can\-certify` sets the certificate capability, and means that the key may be used to make third\-party certifications.  These capabilities may be combined.
+.PP
+`\-\-can\-encrypt=storage` sets the storage encryption capability, and means that the key may be used for storage encryption. `\-\-can\-encrypt=transport` sets the transport encryption capability, and means that the key may be used for transport encryption.  `\-\-can\-encrypt=universal` sets both the storage and the transport encryption capability, and means that the key may be used for both storage and transport encryption.  The encryption capabilities must not be combined with the signing or authentication capability.
+.PP
+Normally, `sq` prompts the user for a password to use to encrypt the secret key material.  The password for the new subkey may be different from the other keys.  When using `\-\-without\-password`, `sq` doesn't prompt for a password, and doesn't password\-protect the subkey.
+.PP
+By default a new subkey doesn't expire on its own.  However, its validity period is limited by that of the certificate.  Using the `\-\-expiration` argument allows setting a different expiration time.
+.PP
+`sq key subkey add` respects the reference time set by the top\-level `\-\-time` argument.  It sets the creation time of the subkey to the specified time.
+.PP
+
+
+.SS "sq key subkey export"
+Export secret key material from the secret key store.
+.PP
+Exports the secret key material.  Note that even if secret key material is available, it may not be exportable.  For instance, secret key material stored on a hardware security module usually cannot be exported from the device.
+.PP
+The entire certificate is exported, but only the specified key's secret key material is exported.  An error is returned if the secret key material for the specified key is not available.
+.PP
+If you want to export all secret key material associated with a certificate, use `sq key export`.
+.PP
+
+
+.SS "sq key subkey delete"
+Delete a certificate's secret key material.
+.PP
+Unlike `sq key delete`, which deletes all the secret key material, this command only deletes the specified secret key material.
+.PP
+If the secret key material is managed by multiple devices, it is deleted from all of them.
+.PP
+Although the secret key material is deleted, the public keys are retained.  If you don't want the keys to be used anymore you should revoke the keys using `sq key subkey revoke`.
+.PP
+
+
+.SS "sq key subkey password"
+Change the password protecting secret key material.
+.PP
+Secret key material can be protected by a password.  This subcommand changes or clears the password of one or more keys.
+.PP
+To strip the password either use `\-\-clear` or supply a zero\-length password when prompted for the new password.
+.PP
+If a key is password protected, and the correct password was not supplied using the `\-\-password\-file` argument, the user is prompted for the password.  Likewise, if the new password isn't provided, the user is prompted.
+.PP
+
+
+.SS "sq key subkey expire"
+Change a subkey's expiration time.
+.PP
+This subcommand changes a key's expiration time.  To change the expiration time of the certificate, use the `sq key expire` subcommand.
+.PP
+Changing the expiration time of the primary key is equivalent to changing the certificate's expiration time.  The expiration time of a subkey is bound by the expiration of the certificate.
+.PP
+
+
+.SS "sq key subkey revoke"
+Revoke a subkey.
+.PP
+Creates a revocation certificate for a subkey.
+.PP
+If `\-\-revoker` or `\-\-revoker\-file` is provided, then that key is used to create the revocation certificate.  If that key is different from the certificate that is being revoked, this results in a third\-party revocation.  This is normally only useful if the owner of the certificate designated the key to be a designated revoker.
+.PP
+`sq key subkey revoke` respects the reference time set by the top\-level `\-\-time` argument.  When set, it uses the specified time instead of the current time when determining what keys are valid, and it sets the revocation certificate's creation time to the reference time instead of the current time.
+.PP
+
+
+.SS "sq key subkey bind"
+Bind keys from one certificate to another.
+.PP
+This command allows the user to attach a primary key or a subkey attached to one certificate to another certificate.  Say you want to transition to a new certificate, but have an authentication subkey on your current certificate that you want to keep because it allows access a server and updating its configuration is not feasible.  This command makes it easy to attach the subkey to the new certificate.
+.PP
+After the operation, the key is bound both to the old certificate and to the new one.  To remove secret key material from the old certificate, use `sq key subkey delete` or `sq key delete`, as appropriate.  To revoke the old subkey or key, use `sq key subkey revoke` or `sq key revoke`, respectively.
+.PP
+
+
+.SH "مثال‌ها (EXAMPLES)"
+.SS "sq key subkey add"
+.PP
+
+.PP
+Add a new signing\-capable subkey to Alice's key.
+.PP
+.nf
+.RS
+sq key subkey add \-\-can\-sign \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0
+.RE
+.RE
+.fi
+.PP
+.SS "sq key subkey export"
+.PP
+
+.PP
+Export Alice's signing\-capable and encryption\-capable subkeys, but not
+her primary key or her authentication\-capable subkey.
+.PP
+.nf
+.RS
+sq key subkey export \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=42020B87D51877E5AF8D272124F3955B0B8DECC8 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=74DCDEAF17D9B995679EB52BA6E65EA2C8497728
+.RE
+.RE
+.fi
+.PP
+.SS "sq key subkey delete"
+.PP
+
+.PP
+Delete Alice's signing subkey.
+.PP
+.nf
+.RS
+sq key subkey delete \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=42020B87D51877E5AF8D272124F3955B0B8DECC8
+.RE
+.RE
+.fi
+.PP
+.SS "sq key subkey password"
+.PP
+
+.PP
+Change the password for Alice's signing key to the password in the
+specified file.
+.PP
+.nf
+.RS
+sq key subkey password \-\-new\-password\-file=password\-file.txt \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=42020B87D51877E5AF8D272124F3955B0B8DECC8
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Clear the password protection for Alice's signing key.
+.PP
+.nf
+.RS
+sq key subkey password \-\-password\-file=password\-file.txt \\
+.RE
+.RS
+.RS
+\-\-clear\-password \\
+.RE
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=42020B87D51877E5AF8D272124F3955B0B8DECC8
+.RE
+.RE
+.fi
+.PP
+.SS "sq key subkey expire"
+.PP
+
+.PP
+Change Alice's authentication subkey to expire in 6 months.
+.PP
+.nf
+.RS
+sq key subkey expire \-\-expiration 6m \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=0D45C6A756A038670FDFD85CB1C82E8D27DB23A1
+.RE
+.RE
+.fi
+.PP
+.SS "sq key subkey revoke"
+.PP
+
+.PP
+Revoke Alice's signing subkey.
+.PP
+.nf
+.RS
+sq key subkey revoke \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=42020B87D51877E5AF8D272124F3955B0B8DECC8 \-\-reason \\
+.RE
+.RE
+.RS
+.RS
+retired \-\-message "Subkey rotation."
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Revoke Alice's signing subkey and encryption subkeys.
+.PP
+.nf
+.RS
+sq key subkey revoke \\
+.RE
+.RS
+.RS
+\-\-cert=EB28F26E2739A4870ECC47726F0073F60FD0CBF0 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=42020B87D51877E5AF8D272124F3955B0B8DECC8 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=74DCDEAF17D9B995679EB52BA6E65EA2C8497728 \-\-reason \\
+.RE
+.RE
+.RS
+.RS
+retired \-\-message "Subkey rotation."
+.RE
+.RE
+.fi
+.PP
+.SS "sq key subkey bind"
+.PP
+
+.PP
+Bind Alice's old authentication subkey to Alice's new certificate.
+.PP
+.nf
+.RS
+sq key subkey bind \\
+.RE
+.RS
+.RS
+\-\-cert=C5999E8191BF7B503653BE958B1F7910D01F86E5 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=0D45C6A756A038670FDFD85CB1C82E8D27DB23A1
+.RE
+.RE
+.PP
+.fi
+
+.PP
+Bind a bare key to Alice's certificate.  A bare key is a public key
+without any components or signatures.  This simplifies working with raw
+keys, e.g., keys generated on an OpenPGP card, a TPM device, etc.
+.PP
+.nf
+.RS
+sq key subkey bind \-\-keyring=bare.pgp \\
+.RE
+.RS
+.RS
+\-\-cert=C5999E8191BF7B503653BE958B1F7910D01F86E5 \\
+.RE
+.RE
+.RS
+.RS
+\-\-key=B321BA8F650CB16443E06826DBFA98A78CF6562F \\
+.RE
+.RE
+.RS
+.RS
+\-\-can\-encrypt=universal
+.RE
+.RE
+.fi
+.SH "همچنین ببینید (SEE ALSO)"
+.nh
+\fBsq\fR(1), \fBsq\-key\fR(1), \fBsq\-key\-subkey\-add\fR(1), \fBsq\-key\-subkey\-export\fR(1), \fBsq\-key\-subkey\-delete\fR(1), \fBsq\-key\-subkey\-password\fR(1), \fBsq\-key\-subkey\-expire\fR(1), \fBsq\-key\-subkey\-revoke\fR(1), \fBsq\-key\-subkey\-bind\fR(1).
+.hy
+.PP
+For the full documentation see <https://book.sequoia\-pgp.org>.
+.SH "نسخه (VERSION)"
+1.4.0

@@ -1,0 +1,7416 @@
+'\" t
+.\"     Title: herbstluftwm
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 2026-04-03
+.\"    Manual: \ \&
+.\"    Source: \ \& herbstluftwm 0.9.6
+.\"  Language: English
+.\"
+.TH "HERBSTLUFTWM" "1" "2026\-04\-03" "\ \& herbstluftwm 0\&.9\&.6" "\ \&"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+herbstluftwm \- a manual tiling window manager for X
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBherbstluftwm\fR [\fIOPTION\fR \&...]
+.SH "توضیحات (DESCRIPTION)"
+.sp
+Starts the \fBherbstluftwm\fR window manager on \fIDISPLAY\fR\&. It also listens for calls from \fBherbstclient\fR(1) and executes them\&. The list of available \fBCOMMANDS\fR is listed below\&.
+.sp
+\fIOPTION\fR can be:
+.PP
+\fB\-v\fR, \fB\-\-version\fR
+.RS 4
+print version and exit
+.RE
+.PP
+\fB\-h\fR, \fB\-\-help\fR
+.RS 4
+print a short help and exit
+.RE
+.PP
+\fB\-c\fR, \fB\-\-autostart\fR \fIPATH\fR
+.RS 4
+use
+\fIPATH\fR
+as autostart file instead of the one in
+\fI$XDG_CONFIG_HOME\fR
+.RE
+.PP
+\fB\-\-replace\fR
+.RS 4
+Replace existing window manager\&.
+.RE
+.PP
+\fB\-l\fR, \fB\-\-locked\fR
+.RS 4
+Initially set the monitors_locked setting to 1\&. WARNING: this keeps herbstluftwm locked until the
+\fBunlock\fR
+command is invoked (usually by the
+\fBautostart\fR)\&. If
+\fB\-\-locked\fR
+is activated but the autostart does not invoke
+\fBunlock\fR
+(or if its invokation is unreachable because of a blocking command before), then herbstluftwm stays locked, resulting in frozen state\&. Only use with care!
+.RE
+.PP
+\fB\-\-exit\-on\-xerror\fR
+.RS 4
+Make herbstluftwm exit whenever xlib reports an error\&. This may only be activated for automated testing and never for actual sessions\&.
+.RE
+.PP
+\fB\-\-no\-transparency\fR
+.RS 4
+Disable true transparency\&.
+.RE
+.PP
+\fB\-\-no\-tag\-import\fR
+.RS 4
+Do not preserve the tags (virtual desktops) from a previous running window manager\&.
+.RE
+.PP
+\fB\-\-verbose\fR
+.RS 4
+print verbose information to stderr\&. This can be switched at run\-time by the
+\fIverbose\fR
+setting\&.
+.RE
+.sp
+This manual documents the scripting and configuration interface\&. For a more verbose introduction see \fBherbstluftwm\-tutorial\fR(7)\&.
+.SH "TILING ALGORITHM"
+.sp
+The basic tiling concept is that the layout is represented by a binary tree\&. On startup you see one big frame across the entire screen\&. A frame fulfills exactly one of the following conditions:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+Frame contains windows:
+
+It shows some clients and arranges them\&. The available layout algorithms are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIvertical\fR
+\- clients are placed below each other
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIhorizontal\fR
+\- clients are placed next to each other
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fImax\fR
+\- all clients are maximized in this frame
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIgrid\fR
+\- clients are arranged in an almost quadratic grid
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+Frame is split into subframes:
+
+It is split into exactly two
+\fBsubframes\fR
+in a configurable
+\fIfraction\fR
+either in a vertical or horizontal way\&. So it produces two
+\fBframes\fR
+which fulfill the same conditions (new frames always are about to contain
+\fBwindows\fR)\&. If you split a frame that already contains windows, the windows are inherited by the first new child frame\&.
+.RE
+.sp
+If a new window appears, it is put in the currently focused frame\&. Only the leaves of the frame tree can be focused\&.
+.sp
+A frame can be removed, it is then merged with its neighbour frame\&. Due to the layout structure of a binary tree, each frame (i\&.e\&. node in binary tree) has exactly one neighbour\&.
+.sp
+The analogy to a binary tree is explained the best way with a small example: On startup you have a simple binary tree, with one frame that can contain clients:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+C
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+When splitting it (e\&.g\&. with the command \fIsplit vertical 0\&.5\fR) you will get this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+  V
+ / \e
+C   C
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+You also can split the left frame horizontally and you will get:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+    V
+   / \e
+  H   C
+ / \e
+C   C
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+If you change the focus to the client on the right and remove this frame, it will be merged with the left subtree and you will get:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+  H
+ / \e
+C   C
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The \fIlayout\fR command prints the current layout of all tags as a tree\&.
+.SH "FRAME INDEX"
+.sp
+The exact position of a frame in the layout tree may be described by its \fBindex\fR which is just a string of characters\&. The lookup algorithm starts at the root frame and interprets the \fBindex\fR string character by character as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB0\fR: select the first subtree
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB1\fR: select the second subtree
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\&.\fR: select the subtree having the focus
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB/\fR: select the subtree not having the focus
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB@\fR: select the frame having the focus\&. In contrast to
+\fB\&.\fR, this passes multiple layers all down to the focused leaf of the frame tree\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBp\fR: select the parent tree
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBe\fR: finds a suitable empty frame: if the focused frame is not empty, this selects the closest frame that is empty (in any subtree)
+.RE
+.sp
+For example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+An empty string refers to the root frame
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB00\fR
+refers to the first subtree of the first subtree of the root frame\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB1e\fR
+refers to the first empty frame in the second subtree\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB/@\fR
+refers to the focused frame within the unfocused "half" of the frame tree
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB@p/\fR
+refers to the sibling of the focused frame
+.RE
+.SH "TAGS"
+.sp
+Tags are very similar to workspaces, virtual desktops or window groups\&. Each tag has one layout\&. There is a list of tags\&. You can add or remove tags dynamically\&.
+.SH "MONITORS"
+.sp
+Monitors in \fBherbstluftwm\fR are totally independent of the actual physical screens\&. This means you can for example split your screen in two virtual monitors to view two tags at once on a big screen\&.
+.sp
+Each monitor displays exactly one tag on a specified rectangle on the screen\&.
+.sp
+Each monitor may have a name, which can be set via \fBadd_monitor\fR and \fBrename_monitor\fR\&. It can be unset with the \fBrename_monitor\fR command\&. A monitor name is an arbitrary non\-empty string which must not start with \fB+\fR, \fB\-\fR or any digit\&.
+.sp
+A monitor can be referenced in different ways:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+by its absolute index as listed in the
+\fBlist_monitors\fR
+command\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+by its relative index: a
+\fB+\fR
+or
+\fB\-\fR
+followed by a delta, e\&.g\&.: +3
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+by its relative position to the focused monitor\&.
+\fB\-l\fR
+denotes the monitor left of the focused monitor,
+\fB\-r\fR
+right of,
+\fB\-u\fR
+above of, and
+\fB\-d\fR
+below of, respectively\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+by "" (an empty string) which represents the current monitor\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+by its name\&.
+.RE
+.SH "COMMANDS"
+.sp
+\fBherbstluftwm\fR is controlled by internal commands, which can be executed via \fBherbstclient\fR(1) or via keybindings\&.
+.PP
+quit
+.RS 4
+Quits herbstluftwm\&.
+.RE
+.PP
+reload
+.RS 4
+Executes the autostart file\&.
+.RE
+.PP
+version
+.RS 4
+Prints the version of the running herbstluftwm instance\&.
+.RE
+.PP
+echo [\fIARGS\fR \&...]
+.RS 4
+Prints all given
+\fIARGS\fR
+separated by a single space and a newline afterwards\&.
+.RE
+.PP
+true
+.RS 4
+Ignores all arguments and always returns success, i\&.e\&. 0\&.
+.RE
+.PP
+false
+.RS 4
+Ignores all arguments and always returns failure, i\&.e\&. 1\&.
+.RE
+.PP
+help [\fIOBJECT\fR|\fIATTRIBUTE\fR]
+.RS 4
+Print help on a given object or attribute\&. For example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+help clients\&.focus
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+help monitors
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+help types\&.color
+.RE
+.RE
+.PP
+list_commands
+.RS 4
+Lists all available commands\&.
+.RE
+.PP
+list_monitors
+.RS 4
+List currently configured monitors with their index, area (as rectangle), name (if named) and currently viewed tag\&.
+.RE
+.PP
+list_rules
+.RS 4
+Lists all active rules\&. Each line consists of all the parameters the rule was called with, plus its label, separated by tabs\&.
+.RE
+.PP
+list_keybinds
+.RS 4
+Lists all bound keys with their associated command\&. Each line consists of one key combination and the command with its parameters separated by tabs\&.
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.sp
+Tabs within command parameters are not escaped!
+.sp .5v
+.RE
+.PP
+list_clients [\fB\-\-tag=\fR\fITAG\fR|\fB\-\-monitor=\fR\fIMONITOR\fR] [\fB\-\-frame=\fR\fIFRAME_PATH\fR|\fB\-\-floating\fR|\fB\-\-tiling\fR] [\fB\-\-title\fR]
+.RS 4
+Lists the window ids of all clients on the given
+\fITAG\fR
+or
+\fIMONITOR\fR
+(or the current if unspecified)\&. In addition to that, one can restrict to clients in a specific frame (\fB\-\-frame=\fR) or to tiled or floated clients\&. The output is one line per client; if
+\fB\-\-title\fR
+is given, then in addition to every client\(cqs window id, its window title is printed in the same line\&.
+.RE
+.PP
+lock
+.RS 4
+Increases the
+\fImonitors_locked\fR
+setting\&. Use this if you want to do multiple window actions at once (i\&.e\&. without repainting between the single steps)\&. See also:
+\fBunlock\fR
+.RE
+.PP
+unlock
+.RS 4
+Decreases the
+\fImonitors_locked\fR
+setting\&. If
+\fImonitors_locked\fR
+is changed to 0, then all monitors are repainted again\&. See also:
+\fBlock\fR
+.RE
+.PP
+keybind \fIKEY\fR \fICOMMAND\fR [\fIARGS \&...\fR]
+.RS 4
+Adds a key binding\&. If there is already a binding for this
+\fIKEY\fR, it will be overwritten\&. When
+\fIKEY\fR
+is pressed, the internal
+\fICOMMAND\fR
+(with its
+\fIARGS\fR) is executed\&. A key binding is a (possibly empty) list of modifiers (Mod1, Mod2, Mod3, Mod4, Mod5, Alt, Super, Control/Ctrl, Shift) and one key (see keysymdef\&.h for a list of keys)\&. Modifiers and the key are concatenated with
+\fI\-\fR
+or
+\fI+\fR
+as separator\&. If
+\fIKEY\fR
+is prefixed with
+\fIRelease\-\fR
+then the keybinding is only active during the corresponding key release event: that is, in order to run the key binding for
+\fIRelease\-Mod1\-Shift\-p\fR
+one needs to first press
+\fIMod1\-Shift\-p\fR
+and then release
+\fIp\fR\&. Examples:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+keybind Mod4+Ctrl+q quit
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+keybind Mod4\-Shift\-d attr clients\&.focus\&.decorated toggle
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+keybind Mod1\-Shift\-space cycle_layout \-1
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBkeybind Release\-Mod4\-Shift\-p spawn scrot\fR
+takes a screenshot when the
+\fBp\fR
+is released while Mod4 and Shift are still pressed\&.
+.RE
+.RE
+.PP
+keyunbind \fIKEY\fR|\fB\-F\fR|\fB\-\-all\fR
+.RS 4
+Removes the key binding for
+\fIKEY\fR\&. The syntax for
+\fIKEY\fR
+is defined in
+\fBkeybind\fR\&. If
+\fB\-F\fR
+or
+\fB\-\-all\fR
+is given, then all key bindings will be removed\&.
+.RE
+.PP
+mousebind \fIBUTTON\fR \fIACTION\fR [\fICOMMAND\fR \&...]
+.RS 4
+Adds a mouse binding for the floating mode\&. When
+\fIBUTTON\fR
+is pressed, the specified
+\fIACTION\fR
+will be performed\&.
+\fIBUTTON\fR
+has a similar syntax to the
+\fIKEY\fR
+argument of keybind: It consists of a list of modifiers (separated by
+\fI\-\fR
+or
+\fI+\fR, valid modifiers are listed in the description of
+\fIkeybind\fR) and exactly one button name:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBB1\fR
+or
+\fBButton1\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBB2\fR
+or
+\fBButton2\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\&...
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBB9\fR
+or
+\fBButton9\fR
+.RE
+.RE
+.PP
+.RS 4
+\fIACTION\fR
+must be one of the following actions:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmove\fR: Moves the window by dragging the cursor\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBresize\fR: Resizes the window by dragging a corner\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBzoom\fR: Resizes the window into all four directions while keeping the center of the window constant\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcall\fR: Only calls the specified
+\fICOMMAND\fR
+while
+\fBclient\&.dragged\fR
+links to the client on which the
+\fIBUTTON\fR
+has been performed\&.
+.RE
+.RE
+.PP
+.RS 4
+While an
+\fIACTION\fR
+is performed,
+\fBclient\&.dragged\fR
+is the client which is dragged\&. E\&.g\&.:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmousebind Mod1\-Button3 zoom\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmousebind Mod1\-B4 call substitute WID clients\&.dragged\&.winid spawn transset\-df \-\-inc \-i WID 0\&.05\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmousebind Mod1\-B5 call substitute WID clients\&.dragged\&.winid spawn transset\-df \-\-dec \-i WID \-m 0\&.2 0\&.05\fR
+.RE
+.RE
+.PP
+drag \fIWINID\fR \fIACTION\fR
+.RS 4
+Starts dragging the specified client window
+\fIWINID\fR
+with the specified
+\fIACTION\fR
+(see
+\fImousebind\fR)\&. E\&.g\&.
+\fBdrag \*(Aq\*(Aq resize\fR
+starts resizing the focused window\&.
+.RE
+.PP
+mouseunbind
+.RS 4
+Removes all mouse bindings\&.
+.RE
+.PP
+spawn \fIEXECUTABLE\fR [\fIARGS \&...\fR]
+.RS 4
+Spawns an
+\fIEXECUTABLE\fR
+with its
+\fIARGS\fR\&. For details see
+\fIman 3 execvp\fR\&. Example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+spawn xterm \-e man 3 execvp
+.RE
+.RE
+.PP
+wmexec [\fIWINDOWMANAGER\fR [\fIARGS \&...\fR]]
+.RS 4
+Executes the
+\fIWINDOWMANAGER\fR
+with its
+\fIARGS\fR\&. This is useful to switch the window manager in the running session without restarting the session\&. If no or an invalid
+\fIWINDOWMANAGER\fR
+is given, then herbstluftwm is restarted\&. For details see
+\fIman 3 execvp\fR\&. Example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+wmexec openbox
+.RE
+.RE
+.PP
+chain \fISEPARATOR\fR [\fICOMMANDS\fR \&...]
+.RS 4
+chain expects a
+\fISEPARATOR\fR
+and a list of
+\fICOMMANDS\fR
+with arguments\&. The commands have to be separated by the specified
+\fISEPARATOR\fR\&. The
+\fISEPARATOR\fR
+can by any word and only is recognized as the separator between commands if it exactly matches
+\fISEPARATOR\fR\&. "chain" outputs the appended outputs of all commands and returns the exit code of the last executed command\&. Examples are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Create a tag called "foo" and directly use it:
+
+chain , add foo , use foo
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Rotate the layout clockwise:
+
+chain \&.\-\&. lock \&.\-\&. rotate \&.\-\&. rotate \&.\-\&. rotate \&.\-\&. unlock
+.RE
+.RE
+.PP
+.RS 4
+Counterexamples are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+This will only create a tag called "foo,":
+
+chain , add foo, use foo
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Separator "\&." defined, but "," is used:
+
+chain \&. add foo , use foo
+.RE
+.RE
+.PP
+and \fISEPARATOR\fR [\fICOMMANDS\fR \&...]
+.RS 4
+"and" behaves like the chain command but only executes the specified
+\fICOMMANDS\fR
+while the commands return the exit code 0\&.
+.RE
+.PP
+or \fISEPARATOR\fR [\fICOMMANDS\fR \&...]
+.RS 4
+"or" behaves like the chain command but only executes the specified
+\fICOMMANDS\fR
+until one command returns the exit code 0\&.
+.RE
+.PP
+! \fICOMMAND\fR
+.RS 4
+"!" executes the provided command, but inverts its return value\&. If the provided command returns a nonzero, "!" returns a 0, if the command returns a zero, "!" returns a 1\&.
+.RE
+.PP
+try \fICOMMAND\fR
+.RS 4
+"try" executes the provided command, prints its output, but always returns success, i\&.e\&. 0\&.
+.RE
+.PP
+silent \fICOMMAND\fR
+.RS 4
+"silent" executes the provided command, but discards its output and only returns its exit code\&.
+.RE
+.PP
+focus_nth \fIINDEX\fR
+.RS 4
+Focuses the nth window in a frame\&. The first window has
+\fIINDEX\fR
+0\&. If
+\fIINDEX\fR
+is negative or greater than the last window index, then the last window is focused\&.
+.RE
+.PP
+cycle [\fIDELTA\fR]
+.RS 4
+Cycles the selection within the current frame by
+\fIDELTA\fR
+or cycles through the clients in the floating layer if that is focused\&. If
+\fIDELTA\fR
+is omitted,
+\fIDELTA\fR
+= 1 will be used\&.
+\fIDELTA\fR
+can be negative;
+\fIDELTA\fR
+= \-1 means: cycle in the opposite direction by 1\&.
+.RE
+.PP
+cycle_all [\fB\-\-skip\-invisible\fR] [\fIDIRECTION\fR]
+.RS 4
+Cycles through all non\-minimized windows and frames on the current tag\&.
+\fIDIRECTION\fR
+= 1 means forward (default value),
+\fIDIRECTION\fR
+= \-1 means backward,
+\fIDIRECTION\fR
+= 0 has no effect\&. If there are multiple windows within one frame, then it acts similar to the
+\fIcycle\fR
+command\&. If
+\fB\-\-skip\-invisible\fR
+is given, then this only cycles through all visible windows and skips invisible windows in the max layout (the flag only affects invisible windows in the max layout; minimized windows are always skipped)\&. After each focus change, the focused window is raised\&.
+.RE
+.PP
+cycle_frame [\fIDIRECTION\fR]
+.RS 4
+Cycles through all frames on the current tag\&.
+\fIDIRECTION\fR
+= 1 means forward,
+\fIDIRECTION\fR
+= \-1 means backward,
+\fIDIRECTION\fR
+= 0 has no effect\&.
+\fIDIRECTION\fR
+defaults to 1\&.
+.RE
+.PP
+cycle_layout [\fIDELTA\fR [\fILAYOUTS\fR \&...]]
+.RS 4
+Cycles the layout algorithm in the current frame by
+\fIDELTA\fR\&.
+\fIDELTA\fR
+defaults to 1\&. You can find a
+list of layout algorithms
+above\&. If a list of
+\fILAYOUTS\fR
+is given, cycle_layout will cycle through those instead of the default layout algorithm list\&. This is done by finding the first occurrence of the current layout in
+\fILAYOUTS\fR
+and picking the next layout according to
+\fIDELTA\fR\&. If the current layout doesn\(cqt occur in
+\fILAYOUTS\fR, the first entry is picked\&. Example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cycle_layout \-1
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cycle_layout 1 vertical grid
+.RE
+.RE
+.PP
+set_layout \fILAYOUT\fR
+.RS 4
+Sets the layout algorithm in the current frame to
+\fILAYOUT\fR\&. For the list of layouts, check the
+list of layout algorithms above\&.
+.RE
+.PP
+close \fIWINID\fR
+.RS 4
+Closes the specified window gracefully or the focused window if none is given explicitly\&. See the
+section on WINDOW IDS
+how to reference a certain window\&.
+.RE
+.PP
+close_or_remove
+.RS 4
+Closes the focused window or removes the current frame if no window is focused\&. In floating mode, this acts as the close command\&.
+.RE
+.PP
+close_and_remove
+.RS 4
+Closes the focused window and removes the current frame if no other window is present in that frame\&. In floating mode, this acts as the close command\&.
+.RE
+.PP
+split \fIALIGN\fR [\fIFRACTION\fR [\fIFRAMEINDEX\fR]]
+.RS 4
+Splits the focused frame (or the frame specified by
+\fIFRAMEINDEX\fR, see the section
+\fBframe index\fR) into two subframes with a specified
+\fIFRACTION\fR
+between 0 and 1 which defaults to 0\&.5\&.
+\fIALIGN\fR
+is one of
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fItop\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbottom\fR
+(=
+\fIvertical\fR)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIleft\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIright\fR
+(=
+\fIhorizontal\fR)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIexplode\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIauto\fR
+(split along longest side)
+
+It specifies which of the two halves will be empty after the split\&. The other half will be occupied by the currently focused frame\&. After splitting, the originally focused frame will stay focused\&. One special
+\fIALIGN\fR
+mode is
+\fIexplode\fR, which splits the frame in such a way that the window focus, window sizes, and positions are kept as much as possible (so the default
+\fIFRACTION\fR
+is not always 0\&.5, unlike for the other
+\fIALIGN\fR
+modes)\&. Example:
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+split explode
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+split bottom 0\&.5
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+split horiz 0\&.3
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+split vertical 0\&.5
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+split h
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+split top 0\&.2 \*(Aq\*(Aq (splits the root frame)
+.RE
+.RE
+.PP
+focus [\fI\-i\fR|\fI\-e\fR|\fB\-\-level=\fR\fILEVEL\fR] \fIDIRECTION\fR
+.RS 4
+Moves the focus from current frame to the next frame or client in
+\fIDIRECTION\fR
+which is in:
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+l[eft]
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+r[ight]
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+u[p]
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+d[own]
+.RE
+.RE
+.PP
+.RS 4
+If there is no client within this frame or
+\fILEVEL\fR
+is
+\fIframe\fR, then the next frame in specified
+\fIDIRECTION\fR
+will be focused\&. If
+\fILEVEL\fR
+is
+\fIvisible\fR
+or default_direction_external_only is unset, then the next client in
+\fIDIRECTION\fR
+can also be within the same frame, but has to be visible\&. For
+\fItabs\fR
+\fILEVEL\fR, the next client may be hidden in a tabbed_max layout\&. With
+\fIall\fR
+any client within a max layout maybe selected before focusing the next frame\&. The flag
+\fI\-i\fR
+is an alias for
+\fI\-\-level=visible\fR
+and
+\fI\-e\fR
+for
+\fI\-\-level=frame\fR\&.
+
+
+The direction between frames is defined as follows: The focus is in a leaf of the binary tree\&. Each inner node in the tree remembers the last focus direction (child 0 or child 1)\&. The algorithm uses the shortest possible way from the leaf (the currently focused frame) to the root until it is possible to change focus in the specified
+\fIDIRECTION\fR\&. From there the focus goes back to the leaf\&.
+
+
+Example: The focus is at frame A\&. After executing
+\fIfocus right\fR
+focus will be at frame C\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ Tree:  H,0     Screen: ┌─────┐┌─────┐ (before)
+        ╱ ╲             │  B  ││  C  │
+       ╱   ╲            └─────┘└─────┘
+     V,1   V,0          ┌─────┐┌─────┐
+     ╱ ╲   ╱ ╲          │  A* ││  D  │
+    B  A* C   D         └─────┘└─────┘
+
+ Tree:  H,1     Screen: ┌─────┐┌─────┐ (after focus right)
+        ╱ ╲             │  B  ││  C* │
+       ╱   ╲            └─────┘└─────┘
+     V,1   V,0          ┌─────┐┌─────┐
+     ╱ ╲   ╱ ╲          │  A  ││  D  │
+    B   A C*  D         └─────┘└─────┘
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+.RS 4
+If the currently focused client is floated, then the next floating window in the specified direction is focused and raised\&.
+.RE
+.PP
+.RS 4
+If
+\fIfocus_crosses_monitor_boundaries\fR
+is set and no client or frame is found in the specified
+\fIDIRECTION\fR, then the next monitor in that
+\fIDIRECTION\fR
+is focused\&.
+.RE
+.PP
+focus_edge [\fI\-i\fR|\fI\-e\fR] \fIDIRECTION\fR
+.RS 4
+Focuses the window on the edge of the tag in the specified
+\fIDIRECTION\fR\&. The
+\fIDIRECTIONS\fR
+and
+\fI\-e\fR
+behave as specified at the
+\fIfocus\fR
+command\&.
+
+
+If
+\fI\-i\fR
+(internal) is given or default_direction_external_only is unset, then the window on the edge of the tag will be focused\&. Else, only the frame on the edge of the tag will be focused, and the window that was last focused in that frame will be focused\&.
+.RE
+.PP
+raise \fIWINID\fR
+.RS 4
+Raises the specified managed or unmanaged window\&. Managed windows are only moved within the tag\(cqs stack (as reported by the
+\fIstack\fR
+command), and unmanaged windows are raised globally, i\&.e\&. are raised above all managed windows\&. See the
+section on WINDOW IDS
+on how to reference a certain window\&. Its result is only visible for floating windows and unmanaged windows\&.
+.RE
+.PP
+lower \fIWINID\fR
+.RS 4
+Lowers the specified managed or unmanaged window, analogously to the
+\fIraise\fR
+command: managed windows are lowered within the stack of floating windows (with no effect for tiled windows) and unmanaged windows are moved below all managed windows (for example, it can be used to lower desktop windows)\&.
+.RE
+.PP
+jumpto \fIWINID\fR
+.RS 4
+Puts the focus to the specified window\&. See the
+section on WINDOW IDS
+on how to reference a certain window\&.
+.RE
+.PP
+bring \fIWINID\fR
+.RS 4
+Moves the specified window to the current frame and focuses it\&. Floating windows are brought to the current tag, but keep their floating state\&. See the
+section on WINDOW IDS
+on how to reference a certain window\&.
+.RE
+.PP
+resize \fIDIRECTION\fR [\fIFRACTIONDELTA\fR]
+.RS 4
+Changes the size of the focused frame in the specified
+\fIDIRECTION\fR
+by
+\fIFRACTIONDELTA\fR
+(which defaults to 0\&.02 if none is supplied)\&.
+\fIDIRECTION\fR
+behaves as specified at the
+\fIfocus\fR
+command\&. If a floating window is focused, it grows towards next edge, i\&.e\&. either the edge of the next window or the monitor edge in the specified
+\fIDIRECTION\fR
+(\fIFRACTIONDELTA\fR
+is ignored in that case)\&. Example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+resize right +0\&.05
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+resize down \-0\&.1
+.RE
+.RE
+.PP
+shift_edge [\fI\-i\fR|\fI\-e\fR] \fIDIRECTION\fR
+.RS 4
+Shifts the focused window to the the edge of a tag in the specified
+\fIDIRECTION\fR\&. The
+\fIDIRECTIONS\fR
+behave as specified at the
+\fIfocus\fR
+command and
+\fI\-i\fR
+and
+\fI\-e\fR
+behave as specified at the
+\fIfocus_edge\fR
+command\&.
+.RE
+.PP
+shift [\fI\-i\fR|\fI\-e\fR|\fB\-\-level=\fR\fILEVEL\fR] \fIDIRECTION\fR
+.RS 4
+Shifts the focused window to the next frame in the specified
+\fIDIRECTION\fR\&. The
+\fIDIRECTIONS\fR
+and parameters
+\fI\-i\fR|\fI\-e\fR|\fB\-\-level=\fR\fILEVEL\fR
+behave as specified at the
+\fIfocus\fR
+command\&. If the focused client is floated instead of being tiled, then client is shifted to the next window or screen edge\&. If the window cannot be moved and the setting
+\fIfocus_crosses_monitor_boundaries\fR
+is activated, then the window is moved to the monitor in the specified
+\fIDIRECTION\fR\&.
+.RE
+.PP
+shift_to_monitor \fIMONITOR\fR
+.RS 4
+Moves the focused window to the tag on the specified
+\fIMONITOR\fR\&. See the
+MONITORS section, how to address a monitor\&.
+.RE
+.PP
+remove
+.RS 4
+Removes focused frame and merges its windows to its closest neighbour frame\&.
+.RE
+.PP
+rotate
+.RS 4
+Rotates the layout on the focused tag counterclockwise by 90 degrees\&. This only manipulates the alignment of frames, not the content of them\&.
+.RE
+.PP
+mirror [\fIvertical\fR|\fIhorizontal\fR|\fIboth\fR]
+.RS 4
+Mirrors the layout on the focused tag vertically, horizontally, or both; the default is
+\fIhorizontal\fR\&. This command only manipulates the alignment of frames, not the content of them\&.
+.RE
+.PP
+set \fINAME\fR \fIVALUE\fR
+.RS 4
+Sets the specified setting
+\fINAME\fR
+to
+\fIVALUE\fR\&. Allowed values for boolean settings are
+\fIon\fR
+or
+\fItrue\fR
+for on,
+\fIoff\fR
+or
+\fIfalse\fR
+for off,
+\fItoggle\fR
+to toggle its value\&. All
+\fBsettings\fR
+are listed in the
+section below\&.
+.RE
+.PP
+get \fINAME\fR
+.RS 4
+Prints the value of setting
+\fINAME\fR\&. All
+\fBsettings\fR
+are listed in the
+section below\&.
+.RE
+.PP
+toggle \fINAME\fR
+.RS 4
+Toggles the setting
+\fINAME\fR
+if it\(cqs a boolean setting\&.
+.RE
+.PP
+cycle_value \fIPATH\fR \fIVALUES\fR \&...
+.RS 4
+Cycles value of the attribute
+\fIPATH\fR
+through
+\fIVALUES\fR: I\&.e\&. it searches the first occurrence of the current value in
+\fIVALUES\fR
+and changes the value to the next in the list or to the first one if the end is reached or current value wasn\(cqt found\&. For compatibility reasons,
+\fIPATH\fR
+can also be the name of a setting\&. Examples:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cycle_value settings\&.frame_gap 0 5 10 15
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+cycle_value theme\&.active\&.inner_color red green blue
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+the command
+\fIcycle_layout +1\fR
+is equivalent to
+\fIcycle_value tags\&.focus\&.tiling\&.focused_frame\&.algorithm\fR
+.RE
+.RE
+.PP
+cycle_monitor [\fIDELTA\fR]
+.RS 4
+Cycles monitor focused by
+\fIDELTA\fR\&.
+\fIDELTA\fR
+defaults to 1\&.
+.RE
+.PP
+focus_monitor \fIMONITOR\fR
+.RS 4
+Puts focus to the specified monitor\&. See the
+MONITORS section, how to address a monitor\&.
+.RE
+.PP
+add \fITAG\fR
+.RS 4
+Creates a new empty tag named
+\fITAG\fR\&.
+.RE
+.PP
+use \fITAG\fR
+.RS 4
+Switches the focused monitor to specified
+\fITAG\fR\&.
+.RE
+.PP
+use_index \fIINDEX\fR [\fB\-\-skip\-visible\fR]
+.RS 4
+Switches the focused monitor to the
+\fITAG\fR
+with the specified
+\fIINDEX\fR\&. If
+\fIINDEX\fR
+starts with
+\fB+\fR
+or
+\fB\-\fR, then
+\fIINDEX\fR
+is treated relative to the current
+\fITAG\fR\&. If
+\fB\-\-skip\-visible\fR
+is passed and
+\fIINDEX\fR
+is relative, then tags that are already visible on a monitor are skipped\&. E\&.g\&. this cycles backwards through the tags:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+use_index \-1 \-\-skip\-visible
+.RE
+.RE
+.PP
+use_previous
+.RS 4
+Switches the focused monitor to the previously viewed tag\&.
+.RE
+.PP
+merge_tag \fITAG\fR [\fITARGET\fR]
+.RS 4
+Removes tag named
+\fITAG\fR
+and moves all its windows to tag
+\fITARGET\fR\&. If
+\fITARGET\fR
+is omitted, the focused tag will be used\&.
+.RE
+.PP
+rename \fIOLDTAG\fR \fINEWTAG\fR
+.RS 4
+Renames tag named
+\fIOLDTAG\fR
+to
+\fINEWTAG\fR\&.
+.RE
+.PP
+move \fITAG\fR
+.RS 4
+Moves the focused window to the tag named
+\fITAG\fR\&.
+.RE
+.PP
+move_index \fIINDEX\fR [\fB\-\-skip\-visible\fR]
+.RS 4
+Moves the focused window to the tag specified by
+\fIINDEX\fR\&. Analogical to the argument for
+\fBuse_index\fR: If
+\fIINDEX\fR
+starts with
+\fB+\fR
+or
+\fB\-\fR, then it is treated relative\&. If
+\fB\-\-skip\-visible\fR
+is passed with a relative index, then already visible tags are skipped\&.
+.RE
+.PP
+lock_tag [\fIMONITOR\fR]
+.RS 4
+Lock the tag switching on the specified monitor\&. If no argument is given, the currently focused monitor is used\&. When the tag switching is disabled for a monitor, the commands
+\fBuse\fR
+and
+\fBuse_index\fR
+have no effect when executed there\&. When
+\fIswap_monitors_to_get_tag\fR
+is enabled, switching to a tag which is located on a locked monitor, switches to that monitor instead of stealing it from there\&. The lock state of a monitor is indicated by "[LOCKED]" in the
+\fBlist_monitors\fR
+output\&.
+.RE
+.PP
+unlock_tag [\fIMONITOR\fR]
+.RS 4
+Re\-enables the tag switching on the specified monitor\&. If no argument is given, the currently focused monitor is used\&. This is the reverse operation to
+\fBlock_tag\fR
+and has no further side effects but removing this lock\&.
+.RE
+.PP
+disjoin_rects \fIRECTS\fR \&...
+.RS 4
+Takes a list of rectangles and splits them into smaller pieces until all rectangles are disjoint, the result rectangles are printed line by line\&. This command does not modify the current list of monitors! So this can be useful in combination with the set_monitors command\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+E\&.g\&.
+\fBdisjoin_rects 600x400+0+0 600x400+300+250\fR
+prints this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+300x150+300+250
+600x250+0+0
+300x150+0+250
+300x150+600+250
+600x250+300+400
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+In the above example two monitors are split into 5 monitors, which graphically means:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+┌──────┐                  ┌──────┐
+│      │                  └──────┘
+│  ┌───┼───┐              ┌─┐┌───┐┌──┐
+│  │   │   │   disjoin    │ ││   ││  │
+└──┼───┘   │  ─────────>  └─┘└───┘└──┘
+   │       │                 ┌───────┐
+   └───────┘                 └───────┘
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.RE
+.PP
+set_monitors \fIRECTS\fR \&...
+.RS 4
+Sets the list of monitors
+\fBexactly\fR
+to the list of given rectangles:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+The i\(cqth existing monitor is moved to the i\(cqth given
+\fIRECT\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+New monitors are created if there are more
+\fIRECTS\fR
+than monitors
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Existing monitors are deleted if there are more monitors than
+\fIRECTS\fR
+.RE
+.RE
+.PP
+detect_monitors \fI\-l\fR|\fI\-\-list\fR|\fI\-\-list\-all\fR|\fI\-\-no\-disjoin\fR
+.RS 4
+Sets the list of monitors to the physically available monitors\&. If both Xinerama and xrandr are missing, it will fall back to one monitor across the entire screen\&. If the detected monitors overlap, the will be split into more monitors that are disjoint but cover the same area using
+\fBdisjoin_rects\fR\&.
+
+If
+\fI\-l\fR
+or
+\fI\-\-list\fR
+is passed, the list of rectangles of detected physical monitors is printed\&. So
+\fBhc detect_monitors\fR
+is equivalent to the bash command
+\fBhc set_monitors $(hc disjoin_rects $(hc detect_monitors \-l))\fR\&.
+
+If
+\fI\-\-list\-all\fR
+is passed, then it is printed which multimonitor detection (xinerama, xrandr) has which set of physical monitors\&.
+.RE
+.PP
+add_monitor \fIRECT\fR [\fITAG\fR [\fINAME\fR]]
+.RS 4
+Adds a monitor on the specified rectangle
+\fIRECT\fR
+and displays
+\fITAG\fR
+on it\&.
+\fITAG\fR
+currently must not be displayed on any other monitor\&.
+\fIRECT\fR
+is a string of the form
+\fIWxH\(+-X\(+-Y\fR\&. If no or an empty
+\fITAG\fR
+is given, then any free/empty tag will be chosen, depending on the
+\fImonitors\&.tag_selection_strategy\fR
+attribute\&. If a
+\fINAME\fR
+is given, you can reference to this monitor by its name instead of using an index\&. Example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+add_monitor 1024x768\-20+0 mynewtag main
+.RE
+.RE
+.PP
+remove_monitor \fIMONITOR\fR
+.RS 4
+Removes the specified monitor\&.
+.RE
+.PP
+move_monitor \fIMONITOR\fR \fIRECT\fR [\fIPADUP\fR [\fIPADRIGHT\fR [\fIPADDOWN\fR [\fIPADLEFT\fR]]]]
+.RS 4
+Moves the specified monitor to rectangle
+\fIRECT\fR\&.
+\fIRECT\fR
+is defined as in
+\fIadd_monitor\fR\&. If no or an empty pad is given, it is not changed\&.
+.RE
+.PP
+raise_monitor [\fIMONITOR\fR]
+.RS 4
+Raises the specified monitor or the current one if
+\fIMONITOR\fR
+is omitted\&.
+.RE
+.PP
+rename_monitor \fIMONITOR\fR \fINAME\fR
+.RS 4
+(Re)names an already existing monitor\&. If
+\fINAME\fR
+is empty, it removes the monitor\(cqs name\&.
+.RE
+.PP
+stack
+.RS 4
+Prints the stack of monitors with the visible tags and their layers as a tree\&. The order of the printed stack is top to bottom\&. The style is configured by the
+\fItree_style\fR
+setting\&.
+.RE
+.PP
+monitor_rect [[\-p] \fIMONITOR\fR]
+.RS 4
+Prints the rectangle of the specified monitor in the format:
+\fBX Y W H\fR
+If no
+\fIMONITOR\fR
+or
+\fIcur\fR
+is given, then the current monitor is used\&. If
+\fI\-p\fR
+is supplied, then the remaining rect without the pad around this monitor is printed\&.
+.RE
+.PP
+pad \fIMONITOR\fR [\fIPADUP\fR [\fIPADRIGHT\fR [\fIPADDOWN\fR [\fIPADLEFT\fR]]]]
+.RS 4
+Sets the pad of specified monitor to the specified padding\&. If no or an empty padding is given, it is not changed\&.
+.RE
+.PP
+list_padding [\fIMONITOR\fR]
+.RS 4
+Lists the padding of the specified monitor, or the currently focused monitor if no monitor is given\&.
+.RE
+.PP
+layout [\fITAG\fR [\fIINDEX\fR]]
+.RS 4
+Prints the layout of frame with
+\fIINDEX\fR
+on
+\fITAG\fR, in a nice tree style\&. Its style is defined by the
+\fItree_style\fR
+setting\&. If no
+\fITAG\fR
+is given, the current tag is used\&. If no
+\fIINDEX\fR
+is given, the root frame is used\&. To specify
+\fIINDEX\fR
+without specifying
+\fITAG\fR
+(i\&.e\&. use current tag), pass an empty string as
+\fITAG\fR\&.
+
+An example output is:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+╾─┐ horizontal 50% selection=1
+  ├─╼ vertical: 0xe00009
+  └─┐ vertical 50% selection=0
+    ├─╼ vertical: 0xa00009 [FOCUS]
+    └─╼ vertical: 0x1000009
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+dump [\fITAG\fR [\fIINDEX\fR]]
+.RS 4
+Prints the same information as the
+\fIlayout\fR
+command but in a machine readable format\&. Its output can be read back with the
+\fIload\fR
+command\&.
+
+An example output (formatted afterwards) is:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+(split horizontal:0\&.500000:1
+    (clients vertical:0 0xe00009)
+    (split vertical:0\&.500000:1
+        (clients vertical:0 0xa00009)
+        (clients vertical:0 0x1000009)))
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.PP
+load [\fITAG\fR] \fILAYOUT\fR
+.RS 4
+Loads a given
+\fILAYOUT\fR
+description to specified
+\fITAG\fR
+or current tag if no
+\fITAG\fR
+is given\&.
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBCaution\fR
+.ps -1
+.br
+.sp
+\fILAYOUT\fR is exactly one parameter\&. If you are calling it manually from your shell or from a script, quote it properly!
+.sp .5v
+.RE
+.PP
+complete \fIPOSITION\fR [\fICOMMAND\fR \fIARGS \&...\fR]
+.RS 4
+Prints the result of tab completion for the partial
+\fICOMMAND\fR
+with optional
+\fIARGS\fR\&. You usually do not need this, because there is already tab completion for bash, zsh and fish\&. Example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+complete 0 m
+
+prints all commands beginning with m
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+complete 1 toggle fra
+
+prints all settings beginning with fra that can be toggled
+.RE
+.RE
+.PP
+complete_shell \fIPOSITION\fR [\fICOMMAND\fR \fIARGS \&...\fR]
+.RS 4
+Behaves like
+\fBcomplete\fR
+with the following extras, useful for completion on posix shells:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Escape sequences are removed in
+\fICOMMAND\fR
+and
+\fIARGS\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+A space is appended to each full completion result\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Special characters will be escaped in the output\&.
+.RE
+.RE
+.PP
+emit_hook \fINAME\fR \fIARGS \&...\fR
+.RS 4
+Emits a custom hook
+\fINAME\fR
+to all idling herbstclients\&.
+.RE
+.PP
+tag_status [\fIMONITOR\fR]
+.RS 4
+Print a tab separated list of all tags for the specified
+\fIMONITOR\fR
+index\&. If no
+\fIMONITOR\fR
+index is given, the focused monitor is used\&. Each tag name is prefixed with one char, which indicates its state:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\&.\fR
+the tag is empty
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB:\fR
+the tag is not empty
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB+\fR
+the tag is viewed on the specified
+\fIMONITOR\fR, but this monitor is not focused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB#\fR
+the tag is viewed on the specified
+\fIMONITOR\fR
+and it is focused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\fR
+the tag is viewed on a different
+\fIMONITOR\fR, but this monitor is not focused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB%\fR
+the tag is viewed on a different
+\fIMONITOR\fR
+and it is focused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB!\fR
+the tag contains an urgent window
+.RE
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBWarning\fR
+.ps -1
+.br
+.sp
+If you use a tab in one of the tag names, then tag_status is probably quite useless for you\&.
+.sp .5v
+.RE
+.PP
+floating [[\fITAG\fR] \fBon\fR|\fBoff\fR|\fBtoggle\fR|\fBstatus\fR]
+.RS 4
+Changes specified
+\fITAG\fR
+to floating/tiling mode or prints its current status\&. If no
+\fITAG\fR
+is given, the current tag is used\&. If no argument is given, floating mode is toggled\&. If
+\fBstatus\fR
+is given, then
+\fBon\fR
+or
+\fBoff\fR
+is printed, depending of the floating state of
+\fITAG\fR\&.
+.RE
+.PP
+rule [[\-\-]\fIFLAG\fR|[\-\-]\fILABEL\fR|[\-\-]\fICONDITION\fR|[\-\-]\fICONSEQUENCE\fR \&...]
+.RS 4
+Defines a rule which will be applied to all new clients\&. Its behaviour is described in the
+\fBRULES section\fR\&.
+.RE
+.PP
+unrule \fILABEL\fR|\fB\-\-all\fR|\fB\-F\fR
+.RS 4
+Removes all rules named
+\fILABEL\fR\&. If \-\-all or \-F is passed, then all rules are removed\&.
+.RE
+.PP
+apply_rules \fIWINID\fR|\fB\-\-all\fR
+.RS 4
+Apply the rules to the specified window
+\fIWINID\fR\&. If
+\fB\-\-all\fR
+is passed, then the rules are applied to all clients\&.
+.RE
+.PP
+apply_tmp_rule \fIWINID\fR|\fB\-\-all\fR [\fIRULEDESCRIPTION\fR\&...]
+.RS 4
+Apply the rule
+\fIRULEDESCRIPTION\fR
+to one particular client
+\fIWINID\fR
+or all clients (\fB\-\-all\fR) without adding the rule to the rule list\&. The
+\fIRULEDESCRIPTION\fR
+specifies a rule consisting of conditions and consequences as one would pass it to the
+\fBrule\fR
+command as described in the
+\fBRULES section\fR\&. This allows testing rules before adding them\&. Running
+\fBapply_tmp_rule\fR
+only applies the particular rule given in the arguments and ignores the existing rules\&.
+.RE
+.PP
+fullscreen [\fBon\fR|\fBoff\fR|\fBtoggle\fR]
+.RS 4
+Sets or toggles the fullscreen state of the focused client\&. If no argument is given, fullscreen mode is toggled\&.
+.RE
+.PP
+pseudotile [\fBon\fR|\fBoff\fR|\fBtoggle\fR]
+.RS 4
+Sets or toggles the pseudotile state of the focused client\&. If a client is pseudotiled, then in tiling mode the client is only moved but not resized \- the client size will stay the floating size\&. The only reason to resize the client is to ensure that it fits into its tile\&. If no argument is given, pseudotile mode is toggled\&.
+.RE
+.PP
+object_tree [\fIPATH\fR]
+.RS 4
+Prints the tree of objects\&. If the object path
+\fIPATH\fR
+is given, only the subtree starting at
+\fIPATH\fR
+is printed\&. See the
+\fBOBJECTS section\fR
+for more details\&.
+.RE
+.PP
+attr [\fIPATH\fR [\fINEWVALUE\fR]
+.RS 4
+Prints the children and attributes of the given object addressed by
+\fIPATH\fR\&. If
+\fIPATH\fR
+is an attribute, then print the attribute value\&. If
+\fINEWVALUE\fR
+is given, assign
+\fINEWVALUE\fR
+to the attribute given by
+\fIPATH\fR\&. See the
+\fBOBJECTS section\fR
+for more details\&.
+.RE
+.PP
+get_attr \fIATTRIBUTE\fR
+.RS 4
+Print the value of the specified
+\fIATTRIBUTE\fR
+as described in the
+\fBOBJECTS section\fR\&.
+.RE
+.PP
+set_attr \fIATTRIBUTE\fR \fINEWVALUE\fR
+.RS 4
+Assign
+\fINEWVALUE\fR
+to the specified
+\fIATTRIBUTE\fR
+as described in the
+\fBOBJECTS section\fR\&.
+.RE
+.PP
+attr_type \fIATTRIBUTE\fR
+.RS 4
+Print the type of the specified
+\fIATTRIBUTE\fR\&.
+.RE
+.PP
+new_attr \fBbool\fR|\fBcolor\fR|\fBint\fR|\fBstring\fR|\fBuint\fR \fIPATH\fR [\fIVALUE\fR]
+.RS 4
+Creates a new attribute with the name and in the object specified by
+\fIPATH\fR\&. Its type is specified by the first argument\&. The attribute name has to begin with
+\fBmy_\fR\&. If
+\fIVALUE\fR
+is supplied, then it is written to the attribute (if this fails the attribute still remains)\&.
+.RE
+.PP
+watch \fIPATH\fR
+.RS 4
+Watch the value of the given attribute
+\fIPATH\fR\&. Whenever the value changes from
+\fIOLDVALUE\fR
+to
+\fINEWVALUE\fR, a hook is emitted:
+
+\fBattribute_changed\fR
+\fIPATH\fR
+\fIOLDVALUE\fR
+\fINEWVALUE\fR
+.RE
+.PP
+remove_attr \fIPATH\fR
+.RS 4
+Removes the user defined attribute
+\fIPATH\fR\&.
+.RE
+.PP
+substitute \fIIDENTIFIER\fR \fIATTRIBUTE\fR \fICOMMAND\fR [\fIARGS\fR \&...]
+.RS 4
+Replaces all exact occurrences of
+\fIIDENTIFIER\fR
+in
+\fICOMMAND\fR
+and its
+\fIARGS\fR
+by the value of the
+\fIATTRIBUTE\fR\&. Note that the
+\fICOMMAND\fR
+also is replaced by the attribute value if it equals
+\fIIDENTIFIER\fR\&. The replaced command with its arguments then is executed\&. Example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsubstitute MYTITLE clients\&.focus\&.title echo MYTITLE\fR
+
+Prints the title of the currently focused window\&.
+.RE
+.RE
+.PP
+sprintf \fIIDENTIFIER\fR \fIFORMAT\fR [\fIFORMATARG\fR \&...] \fICOMMAND\fR [\fICMDARGS\fR \&...]
+.RS 4
+Replaces all exact occurrences of
+\fIIDENTIFIER\fR
+in
+\fICOMMAND\fR
+and its
+\fICMDARGS\fR
+by the string specified by
+\fIFORMAT\fR\&. The
+\fIFORMAT\fR
+string may contain several placeholders, similar to the
+\fBprintf\fR(1) command:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB%s\fR
+inserts an attribute value whose path is given by the string value of the next
+\fIFORMATARG\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB%c\fR
+("constant") inserts the next
+\fIFORMATARG\fR
+without modification\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB%{ATTR}\fR
+inserts the current value of the attribute
+\fIATTR\fR\&. The path
+\fIATTR\fR
+can itself contain format placeholders\&. This can be used to compose attribute paths at run time, e\&.g\&. in a
+\fBforeach\fR
+loop\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB%%\fR
+stands for a plain
+\fB%\fR
+.RE
+.RE
+.PP
+.RS 4
+The replaced command with its arguments then is executed\&. Examples:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsprintf STR title=%s clients\&.focus\&.title echo STR\fR
+
+Prints the title of the currently focused window prepended by
+\fBtitle=\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsprintf X "%c %s tags" "there are" tags\&.count echo X\fR
+
+Prints
+\fBthere are N tags\fR
+with
+\fBN\fR
+replaced by the number of tags\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsprintf X tag=%s tags\&.focus\&.name rule once X\fR
+
+Moves the next client that appears to the tag that is currently focused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsprintf X %s/%s tags\&.focus\&.index tags\&.count echo X\fR
+
+Tells which tag is focused and how many tags there are
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsprintf l somelongstring echo l l l\fR
+
+Prints
+\fBsomelongstring\fR
+three times, separated by spaces\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsprintf VALUE "%{%c\&.client_count}" tags\&.0 echo VALUE\fR
+
+Prints the number of clients on the tag with index 0
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBforeach \-\-filter\-name="[0\-9]*" T tags\&. sprintf S "%{%c\&.client_count}" T echo T S\fR
+
+Prints the number of clients for each tag\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsubstitute X tags\&.count sprintf Y "number=%c" X echo Y\fR
+
+has the same output as
+
+\fBsprintf Y "number=%s" tags\&.count echo Y\fR
+
+(Note how the
+\fB%c\fR
+changes to
+\fB%s\fR)
+.RE
+.RE
+.PP
+foreach \fIIDENTIFIER\fR \fIOBJECT\fR [\fB\-\-recursive\fR] [\fB\-\-unique\fR] [\fB\-\-filter\-name=\fR\fIREGEX\fR] \fICOMMAND\fR [\fIARGS\fR \&...]
+.RS 4
+For each child of the given
+\fIOBJECT\fR
+the
+\fICOMMAND\fR
+is called with its
+\fIARGS\fR, where the
+\fIIDENTIFIER\fR
+is replaced by the path of the child\&. The options are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-filter\-name=\fR\fIREGEX\fR
+consider children whose name match the specified
+\fIREGEX\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-unique\fR
+do not print duplicates (some objects can be reached via multiple paths, such as
+\fBclients\&.focus\fR)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-recursive\fR
+print
+\fIOBJECT\fR
+and all its children of arbitrary depth in breadth\-first search order\&. This implicitly activates
+\fB\-\-unique\fR\&.
+.RE
+.RE
+.PP
+.RS 4
+The exit code is the exit code of the command executed last\&. Examples:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBforeach T tags\&.by\-name\&. echo T\fR
+
+Prints:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+tags\&.by\-name\&.1
+tags\&.by\-name\&.2
+tags\&.by\-name\&.3
+[\&.\&.\&.]
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Note that
+\fBforeach\fR
+only iterates over children, but not over attributes, so
+\fBforeach S settings echo S\fR
+prints nothing, since the settings object has only attributes but no child objects\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBforeach C clients\&. echo C\fR
+prints the object paths of all clients, but the focused client twice, because it is mentioned in
+\fBclients\&.\fR
+twice: by window id and as
+\fBclients\&.focus\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBforeach F tags\&.focus\&.tiling\&.root\&. \-\-recursive echo F\fR
+prints the object paths of all frames on the focused tag\&.
+.RE
+.RE
+.PP
+mktemp [\fBbool\fR|\fBint\fR|\fBstring\fR|\fBuint\fR] \fIIDENTIFIER\fR \fICOMMAND\fR [\fIARGS\fR \&...]
+.RS 4
+Creates a temporary attribute with the given type and replaces all occurrences of
+\fIIDENTIFIER\fR
+in
+\fICOMMAND\fR
+and
+\fIARGS\fR
+by the path of the temporary attribute\&. The replaced command with its arguments is executed then\&. The exit status of
+\fICOMMAND\fR
+is returned\&.
+.RE
+.PP
+compare \fIATTRIBUTE\fR \fIOPERATOR\fR \fIVALUE\fR
+.RS 4
+Compares the value of
+\fIATTRIBUTE\fR
+with
+\fIVALUE\fR
+using the comparison method
+\fIOPERATOR\fR\&. If the comparison succeeds, it returns 0, else 1\&. The operators are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB=\fR:
+\fIATTRIBUTE\fR\*(Aqs value equals
+\fIVALUE\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB!=\fR:
+\fIATTRIBUTE\fR\*(Aqs value does not equal
+\fIVALUE\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBle\fR:
+\fIATTRIBUTE\fR\*(Aqs value <=
+\fIVALUE\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBlt\fR:
+\fIATTRIBUTE\fR\*(Aqs value <
+\fIVALUE\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBge\fR:
+\fIATTRIBUTE\fR\*(Aqs value >=
+\fIVALUE\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBgt\fR:
+\fIATTRIBUTE\fR\*(Aqs value >
+\fIVALUE\fR
+.RE
+.RE
+.PP
+.RS 4
+The
+\fIOPERATORs\fR
+\fBle\fR,\fBlt\fR,\fBge\fR,\fBgt\fR
+can only be used if
+\fIATTRIBUTE\fR
+is of the type integer or unsigned integer\&. Note that the first parameter must always be an attribute and the second a constant value\&. If you want to compare two attributes, use the substitute command:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+substitute FC tags\&.focus\&.frame_count \e
+    compare tags\&.focus\&.client_count gt FC
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+It returns success if there are more clients on the focused tag than frames\&.
+.RE
+.PP
+getenv \fINAME\fR
+.RS 4
+Gets the value of the environment variable
+\fINAME\fR\&.
+.RE
+.PP
+setenv \fINAME\fR \fIVALUE\fR
+.RS 4
+Set the value of the environment variable
+\fINAME\fR
+to
+\fIVALUE\fR\&. See the
+export command
+for a convenience wrapper\&.
+.RE
+.PP
+unsetenv \fINAME\fR
+.RS 4
+Unsets the environment variable
+\fINAME\fR\&.
+.RE
+.PP
+export \fINAME\fR=\fIVALUE\fR
+.RS 4
+Set the value of the environment variable
+\fINAME\fR
+to
+\fIVALUE\fR\&. The syntax is the same as for
+\fBexport\fR
+in unix shells (notice that there is a
+\fB=\fR)\&. Intuitively, if you forgot to run
+\fBexport FOO=BAR\fR
+before starting herbstluftwm, you can run
+\fBherbstclient export FOO=BAR\fR
+from within your herbstluftwm session for the same effect\&. The
+\fBexport\fR
+command is the same as the
+setenv command
+with different syntax\&.
+.RE
+.PP
+debug_css [\fIFLAGS\fR]
+.RS 4
+This command exists solely for testing herbstluftwm; it has no use in normal hlwm sessions\&. Moreover, the interface of this command may change in incompatible ways\&. The command performs various operations, specified by the optional
+\fIFLAGS\fR:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-stylesheet=CSS\fR
+specify some stylesheet that is possibly used in one of the other commands\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-css\fR
+print the stylesheet in some normalized form
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-tree=TREE\fR
+a dom\-style tree specification, where the syntax of a tree starts with
+\fB(\fR
+and ends with
+\fB)\fR\&. In between, the tree contains a space\-separated list of class names and subtrees\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-print\-tree\fR
+print the tree specification of
+\fITREE\fR
+again\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-pretty\-client\-tree=CLIENT\fR
+for the given
+\fICLIENT\fR, print the tree of its widgets together with the classes, each widget has\&. Each class is preceeded with a dot
+\fB\&.\fR
+in the same way as in a css selector\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-query\-tree\-indices=SELECTOR\fR
+print the tree indices (analogously to frame indices) of those nodes that match the given css\-style
+\fBSELECTOR\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-compute\-style=INDEX\fR
+compute the box style of the node in above
+\fITREE\fR
+that has the tree index
+\fIINDEX\fR\&.
+.RE
+.RE
+.SH "RULES"
+.sp
+Rules are used to change default properties for certain clients when they appear or when the \fIapply_rules\fR command is called\&. Each rule matches against a certain subset of all clients and defines a set of properties for them (called \fICONSEQUENCE\fRs)\&. A rule can be defined with this command:
+.sp
+\fBrule\fR [[\-\-]\fIFLAG\fR|[\-\-]\fILABEL\fR|[\-\-]\fICONDITION\fR|[\-\-]\fICONSEQUENCE\fR \&...]
+.sp
+Each rule consists of a list of \fIFLAG\fRs, \fICONDITION\fRs, \fICONSEQUENCE\fRs and, optionally, a \fILABEL\fR\&. (each of them can be optionally prefixed with two dashes (\fB\-\-\fR) to provide a more \fBiptables\fR(8)\-like feeling)\&.
+.sp
+Each rule can be given a custom label by specifying the \fILABEL\fR property:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB[\-\-]label\fR=\fIVALUE\fR
+.RE
+.sp
+If multiple labels are specified, the last one in the list will be applied\&. If no label is given, then the rule will be given an integer name that represents the index of the rule since the last \fIunrule \-F\fR command (which is triggered in the default autostart)\&.
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+\fBTip\fR
+.ps -1
+.br
+.sp
+Rule labels default to an incremental index\&. These default labels are unique, unless you assign a different rule a custom integer \fILABEL\fR\&. Default labels can be captured with the \fIprintlabel\fR flag\&.
+.sp .5v
+.RE
+.sp
+If a new client appears, herbstluftwm tries to apply each rule to this new client as follows: If each \fICONDITION\fR of this rule matches against this client, then every \fICONSEQUENCE\fR is executed\&. (If there are no conditions given, then this rule is executed for each client)
+.sp
+Each \fICONDITION\fR consists of a \fIproperty\fR name, an operator and a \fIvalue\fR\&. Valid operators are:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB~\fR
+matches if client\(cqs
+\fIproperty\fR
+is matched by the regex
+\fIvalue\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB=\fR
+matches if client\(cqs
+\fIproperty\fR
+string is equal to
+\fIvalue\fR\&.
+.RE
+.sp
+Valid \fIproperties\fR are:
+.PP
+\fBinstance\fR
+.RS 4
+the first entry in client\(cqs
+\fBWM_CLASS\fR\&.
+.RE
+.PP
+\fBclass\fR
+.RS 4
+the second entry in client\(cqs
+\fBWM_CLASS\fR\&.
+.RE
+.PP
+\fBtitle\fR
+.RS 4
+client\(cqs window title\&.
+.RE
+.PP
+\fBpid\fR
+.RS 4
+the client\(cqs process id (Warning: the pid is not available for every client\&. This only matches if the client sets _NET_WM_PID to the pid itself)\&.
+.RE
+.PP
+\fBpgid\fR
+.RS 4
+this client\(cqs process group id\&. Since the pgid of a window is derived from its
+\fBpid\fR
+the same restrictions apply as above\&.
+.RE
+.PP
+\fBmaxage\fR
+.RS 4
+matches if the age of the rule measured in seconds does not exceed
+\fIvalue\fR\&. This condition only can be used with the
+\fB=\fR
+operator\&. If maxage already is exceeded (and never will match again), then this rule is removed\&. (With this you can build rules that only live for a certain time\&.)
+.RE
+.PP
+\fBwindowtype\fR
+.RS 4
+matches the _NET_WM_WINDOW_TYPE property of a window\&. If _NET_WM_WINDOW_TYPE has multiple entries, then only the first entry is used here\&.
+.RE
+.PP
+\fBwindowrole\fR
+.RS 4
+matches the WM_WINDOW_ROLE property of a window if it is set by the window\&.
+.RE
+.PP
+\fBfixedsize\fR (no parameter)
+.RS 4
+matches if the window does not allow being resized (i\&.e\&. if the minimum size matches the maximum size)\&. This condition does
+\fBnot\fR
+take a parameter\&. Example:
+
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+hc rule fixedsize floating=on
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+Each \fICONSEQUENCE\fR consists of a \fINAME\fR=\fIVALUE\fR pair\&. Valid \fINAMES\fR are:
+.PP
+\fBtag\fR
+.RS 4
+moves the client to tag
+\fIVALUE\fR\&.
+.RE
+.PP
+\fBmonitor\fR
+.RS 4
+moves the client to the tag on monitor
+\fIVALUE\fR\&. If the tag consequence was also specified, and switchtag is set for the client, move the client to that tag, then display that tag on monitor
+\fIVALUE\fR\&. If the tag consequence was specified, but switchtag was not, ignore this consequence\&.
+.RE
+.PP
+\fBfocus\fR
+.RS 4
+decides whether the client gets the input focus in its tag\&. The default is
+\fBoff\fR\&.
+\fIVALUE\fR
+is a boolean (\fBon\fR
+or
+\fBoff\fR)\&.
+.RE
+.PP
+\fBswitchtag\fR
+.RS 4
+if
+\fBfocus\fR
+is activated and the client is put to a not focused tag, then
+\fBswitchtag\fR
+tells whether the client\(cqs tag will be shown or not\&. If the tag is shown on any monitor but is not focused, the client\(cqs tag only is brought to the current monitor if
+\fBswap_monitors_to_get_tag\fR
+is activated\&.
+\fIVALUE\fR
+is a boolean (\fBon\fR
+or
+\fBoff\fR)\&.
+.RE
+.PP
+\fBmanage\fR
+.RS 4
+decides whether the client will be managed or not\&. The default is
+\fBon\fR\&.
+\fIVALUE\fR
+is a boolean (\fBon\fR
+or
+\fBoff\fR)\&.
+.RE
+.PP
+\fBindex\fR
+.RS 4
+moves the window to a specified index in the tree\&.
+\fIVALUE\fR
+is a
+\fBframe index\fR\&.
+.RE
+.PP
+\fBfloating\fR
+.RS 4
+sets the floating state of the client\&.
+\fIVALUE\fR
+is a boolean\&.
+.RE
+.PP
+\fBpseudotile\fR
+.RS 4
+sets the pseudotile state of the client\&.
+\fIVALUE\fR
+is a boolean\&.
+.RE
+.PP
+\fBsticky\fR
+.RS 4
+sets the sticky attribute of the client\&.
+\fIVALUE\fR
+is a boolean\&.
+.RE
+.PP
+\fBewmhrequests\fR
+.RS 4
+sets whether the window state (the fullscreen state and the demands attention flag) can be changed by the application via ewmh itself\&. This does not affect the initial fullscreen state requested by the window\&.
+\fIVALUE\fR
+is a boolean; it defaults to
+\fBon\fR\&.
+.RE
+.PP
+\fBewmhnotify\fR
+.RS 4
+sets whether hlwm should let the client know about EMWH changes (currently only the fullscreen state)\&. If this is set, applications do not change to their fullscreen\-mode while still being fullscreen\&.
+\fIVALUE\fR
+is a boolean, it defaults to
+\fBon\fR\&.
+.RE
+.PP
+\fBfullscreen\fR
+.RS 4
+sets the fullscreen flag of the client\&.
+\fIVALUE\fR
+is a boolean\&.
+.RE
+.PP
+\fBhook\fR
+.RS 4
+emits the custom hook
+\fBrule\fR
+\fIVALUE\fR
+\fIWINID\fR
+when this rule is triggered by a new window with the id
+\fIWINID\fR\&. This consequence can be used multiple times, which will cause a hook to be emitted for each occurrence of a hook consequence\&.
+.RE
+.PP
+\fBkeymask\fR
+.RS 4
+sets the keymask for a client (see the
+\fBkeymask\fR
+attribute documentation)\&.
+.RE
+.PP
+\fBkeys_inactive\fR
+.RS 4
+sets a regex that determines which key bindings are inactive for a client (see the
+\fBkeys_inactive\fR
+attribute documentation)\&.
+.RE
+.PP
+\fBfloatplacement\fR
+.RS 4
+changes the floating position of a window\&. The
+\fIVALUE\fR
+can be one of the following:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBnone\fR
+does not change the placement at all
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcenter\fR
+centers the window on the monitor
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBsmart\fR
+tries to place it with as little overlap to other floating windows as possible\&. If there are multiple options with the least overlap, then the position with the least overlap to tiling windows is chosen\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBtopleft\fR,
+\fBtopright\fR,
+\fBbottomleft\fR,
+\fBbottomright\fR
+moves the window to the respective corner of the monitor but leaves a gap of
+\fBsettings\&.snap_gap\fR
+pixels\&.
+.RE
+.RE
+.PP
+\fBfloating_geometry\fR
+.RS 4
+Sets the client\(cqs
+\fBfloating_geometry\fR
+attribute\&. The
+\fIVALUE\fR
+is a rectangle, interpreted relatively to the monitor\&. If
+\fBfloatplacement\fR
+is also specified for the client (possibly by another rule), then only the size of the
+\fBfloating_geometry\fR
+is used\&. In order to force the position from the geometry, it is necessary to add
+\fBfloatplacement=none\fR\&.
+.RE
+.sp
+A rule\(cqs behaviour can be configured by some special \fIFLAGS\fR:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBnot\fR: negates the next
+\fICONDITION\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB!\fR: same as
+\fBnot\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBonce\fR: only apply this rule once (and delete it afterwards)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBprintlabel\fR: prints the label of the newly created rule to stdout\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBprepend\fR: prepend the rule to the list of rules instead of appending it\&. So its consequences may be overwritten by already existing rules\&.
+.RE
+.sp
+Examples:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBrule \-\-class=Netscape \-\-tag=6 \-\-focus=off\fR
+
+Moves all Netscape instances to tag 6, but doesn\(cqt give focus to them\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBrule not class~\&.*[Tt]erm tag=2\fR
+
+Moves all clients to tag 2, if their class does not end with
+\fBterm\fR
+or
+\fBTerm\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBrule class=Thunderbird index=/0\fR
+
+Insert all Thunderbird instances in the tree that has no focus and there in the first child\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBrule \-\-windowtype=_NET_WM_WINDOW_TYPE_DIALOG \-\-focus=on\fR
+
+Sets focus to new dialogs which set their
+\fB_NET_WM_WINDOW_TYPE\fR
+correctly\&.
+.RE
+.SH "WINDOW IDS"
+.sp
+Several commands accept a window as reference, e\&.g\&. \fBclose\fR\&. The syntax is as follows:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+an empty string \(em or missing argument \(em references the currently focused window\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBurgent\fR
+references some window that is urgent\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB0x\fR\fIHEXID\fR \(em where
+\fIHEXID\fR
+is some hexadecimal number \(em references the window with hexadecimal X11 window id
+\fIHEXID\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBlongest\-minimized\fR
+references the minimized window on the focused tag that has been minimized for the longest time\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBlast\-minimized\fR
+references the minimized window on the focused tag that has been minimized most recently\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIDECID\fR \(em where
+\fIDECID\fR
+is some decimal number \(em references the window with the decimal X11 window id
+\fIDECID\fR\&.
+.RE
+.SH "OBJECTS"
+.sp
+The object tree is a collection of objects with attributes similar to \fB/sys\fR known from the Linux kernel\&. Many entities (like tags, monitors, clients, \&...) have objects to access their attributes directly\&. The tree is printed by the \fBobject_tree\fR command and looks more or less as follows:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ herbstclient object_tree
+╾─┐
+  ├─┐ tags
+  │ ├─┐ by\-name
+  │ │ ├─╼ 1
+  │ │ \&.\&.\&.
+  │ │ └─╼ 9
+  │ └─╼ focus
+  ├─┐ clients
+  │ ├─╼ 0x1400022
+  │ └─╼ focus
+  └─┐ monitors
+    ├─╼ by\-name
+    └─╼ focus
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+To print a subtree starting at a certain object, pass the \fIPATH\fR of the object to \fBobject_tree\fR\&. The object \fIPATH\fR is the path using the separator \fB\&.\fR (dot), e\&.g\&. \fBtags\&.by\-name\fR:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ herbstclient object_tree tags\&.by\-name\&.
+╾─┐ tags\&.by\-name\&.
+  ├─╼ 1
+  ├─╼ 2
+  \&.\&.\&.
+  └─╼ 9
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+To query all attributes and children of a object, pass its \fIPATH\fR to \fBattr\fR:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ herbstclient attr tags\&.
+2 children:
+  by\-name\&.
+  focus\&.
+
+1 attributes:
+ \&.\-\-\-\- type
+ | \&.\-\- writable
+ V V
+ u \- count                = 9
+
+$ herbstclient attr tags\&.focus\&.
+0 children\&.
+6 attributes:
+ \&.\-\-\-\- type
+ | \&.\-\- writable
+ V V
+ s w name                 = "1"
+ b w floating             = false
+ i \- frame_count          = 2
+ i \- client_count         = 1
+ i \- curframe_windex      = 0
+ i \- curframe_wcount      = 1
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+This already gives an intuition of the output: \fBattr\fR first lists the names of the child objects and then all attributes, telling for each attribute:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+its type
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBb\fR
+for boolean
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBc\fR
+for color
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBi\fR
+for integer
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBr\fR
+for regex
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBs\fR
+for string
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBu\fR
+for unsigned integer
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+if it is writable by the user:
+\fBw\fR
+if yes,
+\fB\-\fR
+else\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+the name of the attribute
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+its current value (only quoted for strings)
+.RE
+.sp
+To get the unquoted value of a certain attribute, address the attribute using the same syntax as for object paths and pass it to \fBattr\fR or \fBget_attr\fR:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ herbstclient attr clients\&.focus\&.title
+herbstluftwm\&.txt = (~/dev/c/herbstluftwm/doc) \- VIM
+$ herbstclient get_attr  clients\&.focus\&.title
+herbstluftwm\&.txt = (~/dev/c/herbstluftwm/doc) \- VIM
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+To change a writable attribute value pass the new value to \fBattr\fR or to \fBset_attr\fR:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ herbstclient attr tags\&.focus\&.floating
+false
+$ herbstclient attr tags\&.focus\&.floating true
+$ herbstclient attr tags\&.focus\&.floating
+true
+$ herbstclient set_attr tags\&.focus\&.floating false
+$ herbstclient attr tags\&.focus\&.floating
+false
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+More information on an attribute or object is given by the \fBhelp\fR command:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+$ herbstclient help clients\&.focus
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Just look around to get a feeling what is there\&. The entry point is a root object that has the following child objects:
+.SS "autostart:"
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBglobal_path\fR\fR
+= globalAutostart: Path of the system\-wide autostart, used as a fallback\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBlast_status\fR\fR
+= 0: the exit status of the last autostart run\&. if the autostart is still
+\fIrunning\fR, then this status corresponds to the exit status of the previous autostart invocation\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBpath\fR\fR
+= autostartFromCmdLine: Custom path to the user\(cqs autostart path\&. If it is empty, then the autostart in $XDG_CONFIG_HOME or $HOME is used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpid\fR\fR
+= 0: the process id of the last autostart invocation\&. Even if the autostart is not running anymore, its pid is still present here\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBrunning\fR\fR
+= false: whether the autostart process (with
+\fIpid\fR) is still running\&.
+.RE
+.SS "clients:"
+.sp
+The managed windows\&. For every (managed) window id there is an entry here\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBdragged\fR\fR: the object of a client which is currently dragged by the mouse, if any\&. See the documentation of the mousebind command for examples\&. For attributes and children, see
+\fBclients\&.focus\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfocus\fR\fR: the focused client (only exists if a client is focused)\&.
+a managed window
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBclass\fR\fR: the class of it (second entry in WM_CLASS)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBcontent_geometry\fR\fR: the geometry of the application content, that is, not taking the decoration into account\&. Also, this is the last window geometry that was reported to the client application\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBdecorated\fR\fR
+= true: whether window border and title are drawn
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBdecoration_geometry\fR\fR: the geometry of the client, taking the window decoration into account\&. The position is the global window position, that is, relative to the top left corner of the entire screen
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBewmhnotify\fR\fR
+= true: if the client is told about its state via ewmh
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBewmhrequests\fR\fR
+= true: if ewmh requests are permitted for this client
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfloating\fR\fR
+= false: whether this client is set as a (single\-window) floating client\&. If set, the client is floated above the tiled clients\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfloating_effectively\fR\fR
+= false: whether this client is in the floating state currently\&. This is the case if the client\(cqs tag is set to floating mode or if the client itself is set as floating\&. Its value is also indicated via the X11 properties HLWM_FLOATING_WINDOW and HLWM_TILING_WINDOW\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBfloating_geometry\fR\fR
+= 0: the geometry of the client content if the client is in floating mode\&. The position is relative to the monitor and does not take the window decoration into account\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfullscreen\fR\fR
+= false: whether this client covers all other windows and panels on its monitor\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBinstance\fR\fR: the instance of it (first entry in WM_CLASS)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIregex\fR
+\fB\fBkeymask\fR\fR
+= "": A regular expression that is matched against the string representation of all key bindings (as they are printed by list_keybinds)\&. While this client is focused, only bindings that match the expression will be active\&. Any other bindings will be disabled\&. The default keymask is an empty string (), which does not disable any keybinding\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIregex\fR
+\fB\fBkeys_inactive\fR\fR
+= "": A regular expression that describes which keybindings are inactive while the client is focused\&. If a key combination is pressed and its string representation (as given by list_keybinds) matches the regex, then the key press is propagated to the client\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBminimized\fR\fR
+= false: whether this client is minimized (also called iconified)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBpgid\fR\fR
+= \-1
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBpid\fR\fR
+= \-1: the process id of it (\-1 if unset)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBpseudotile\fR\fR
+= false: if activated, the client always has its floating window size, even if it is in tiling mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBsizehints_floating\fR\fR
+= true: if sizehints for this client should be respected in floating mode
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBsizehints_tiling\fR\fR
+= false: if sizehints for this client should be respected in tiling mode
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBsticky\fR\fR
+= false: whether this client is pinned to the monitor\&. This means that the client stays on its monitor, even when the monitor switches to another tag\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBtag\fR\fR: the name of the tag it\(cqs currently on\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBtitle\fR\fR
+= "": its window title
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBurgent\fR\fR
+= false: the urgency state (also known as: demands attention)\&. The focused client can not be urgent\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBvisible\fR\fR
+= visible_already: whether this client is rendered currently
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBwinid\fR\fR
+= "": its window id (as a hexadecimal number with 0x prefix)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBparent_frame\fR\fR: the frame contaning this client if the client is tiled\&. For attributes and children, see
+\fBtags\&.focus\&.tiling\&.root\fR
+.RE
+.RE
+.SS "monitors:"
+.sp
+Every monitor is a rectangular part of the screen on which a tag is shown\&. These monitors may or may not match the actual outputs\&. This has an entry \fIINDEX\fR for each monitor with index \fIINDEX\fR\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBcount\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fITagSelectionStrategy\fR
+\fB\fBtag_selection_strategy\fR\fR
+= any_unshown: How to select a tag when a new monitor is created\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIany_unshown\fR: select the first tag that is not shown on any monitor
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIonly_empty\fR: select the first empty tag that isn\*(Aq+++t shown, abort if none is available
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB+\fR\fIprefer_empty\fR: prefer an empty tag, but select any unshown tag if no empty tag is available
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBby\-name\fR\fR:
+This has an entry
+\fIname\fR
+for every object with the given
+\fIname\fR\&. If an object has an empty name then it is not listed here\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfocus\fR\fR: the focused monitor\&.
+The monitor is a rectangular part on the screen that holds precisely one tag at a time\&. The pad attributes reserve space on the monitor\(cqs edge for panels, so this space (given in number of pixels) is never occupied by tiled clients\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBcontent_geometry\fR\fR: the inner geometry of the monitor, i\&.e\&. the geometry with the pads deducted from all sides\&. This is the area floating and tiled client windows are placed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBgeometry\fR\fR
+= rect_: the outer geometry of the monitor
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBindex\fR\fR
+= 0: the monitor\(cqs index (starts at index 0)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBlock_tag\fR\fR
+= false: if activated, then it it is not possible to switch this monitor to a different tag\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBname\fR\fR
+= "": the monitor\(cqs name (can be empty)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBpad_down\fR\fR
+= 0: space for panels at the monitor\(cqs lower edge
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBpad_left\fR\fR
+= 0: space for panels at the monitor\(cqs left edge
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBpad_right\fR\fR
+= 0: space for panels at the monitor\(cqs right edge
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBpad_up\fR\fR
+= 0: space for panels at the monitor\(cqs upper edge
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBtag\fR\fR: the name of the tag viewed here
+.RE
+.RE
+.SS "panels:"
+.sp
+For every panel window, there is an entry with the panel\(cqs window id here\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBcount\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBgeometry_fallback\fR\fR
+= false: when auto\-detecting panels: if a panel does not specify the amount of space it needs at the monitor edge, fall back to reserve the panel\(cqs geometryat the screen edge\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fI0xWindowID\fR:
+a panel is an unmanaged window that reserves space at the edge of the monitor it is on\&. The space depends on the _NET_WM_STRUT defined by the panel\&. If it is however not defined explicitly, then the amount of reserved space is inferred from the window geometry\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBclass\fR\fR: the window class (second entry of WM_CLASS)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBgeometry\fR\fR: the size and position of the window
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBinstance\fR\fR: the window instance (first entry of WM_CLASS)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIWindowID\fR
+\fB\fBwinid\fR\fR
+= winid: the ID of the panel window
+.RE
+.RE
+.SS "settings:"
+.sp
+Settings configure the general behaviour of herbstluftwm and can be controlled via the \fIset\fR, \fIget\fR and \fItoggle\fR commands\&. The settings\&. object has an attribute for each setting\&. Many settings are wrappers around attributes and only remain for compatibility\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBalways_show_frame\fR\fR
+= false: DEPRECATED, use
+\fBshow_frame_decorations\fR
+instead\&. If set,
+\fIshow_frame_decorations\fR
+will be set to
+\fIall\fR
+(or
+\fIfocused\fR
+if unset)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBauto_detect_monitors\fR\fR
+= false: If set, detect_monitors is automatically executed every time a monitor is connected, disconnected or resized\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBauto_detect_panels\fR\fR
+= true: If set, EWMH panels are automatically detected and reserve space at the side of the monitors they are on (via pad attributes of each monitor)\&. This setting is activated per default\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBdefault_direction_external_only\fR\fR
+= false: This setting controls the behaviour of focus and shift if no
+\fI\-e\fR
+or
+\fI\-i\fR
+argument is given\&. If set, then focus and shift changes the focused frame even if there are other clients in this frame in the specified
+\fIDIRECTION\fR\&. Else, a client within current frame is selected if it is in the specified
+\fIDIRECTION\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fILayoutAlgorithm\fR
+\fB\fBdefault_frame_layout\fR\fR
+= vertical: Name of the layout algorithm, which is used if a new frame is created (on a new tag or by a non\-trivial split)\&. See above for the
+list of layout algorithms\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBellipsis\fR\fR
+= \&...: string to append when window or tab titles are shortened to fit in the available space\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfocus_crosses_monitor_boundaries\fR\fR
+= true: If set, commands
+\fBfocus\fR
+and
+\fBshift\fR
+cross monitor boundaries\&. If there is no client in the direction given to
+\fBfocus\fR, then the monitor in the specified direction is focused\&. Similarly, if
+\fBshift\fR
+cannot move a window within a tag, the window is moved to the neighbour monitor in the desired direction\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfocus_follows_mouse\fR\fR
+= false: If set and a window is focused by mouse cursor, this window is focused (this feature is also known as sloppy focus)\&. If unset, you need to click to change the window focus by mouse\&.
+
+
+If another window is hidden by the focus change (e\&.g\&. when having pseudotiled windows in the max layout) then an extra click is required to change the focus\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfocus_stealing_prevention\fR\fR
+= true: If set, only pagers and taskbars are allowed to change the focus\&. If unset, all applications can request a focus change\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_active_opacity\fR\fR
+= 100: Focused frame opacity in percent\&. Requires a running compositing manager to take actual effect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBframe_bg_active_color\fR\fR
+= black: The fill color of a focused frame\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBframe_bg_normal_color\fR\fR
+= black: The fill color of an unfocused frame (It is only visible if non\-focused frames are configured to be visible, see
+\fIshow_frame_decorations\fR)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBframe_bg_transparent\fR\fR
+= false: If set, the background of frames are transparent\&. That means a rectangle is cut out from the inner such that only the frame border and a stripe of width
+\fIframe_transparent_width\fR
+can be seen\&. Use
+\fIframe_active_opacity\fR
+and
+\fIframe_normal_opacity\fR
+for real transparency\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBframe_border_active_color\fR\fR
+= red: The border color of a focused frame\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBframe_border_inner_color\fR\fR
+= black: The color of the inner border of a frame\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_border_inner_width\fR\fR
+= 0: The width of the inner border of a frame\&. Must be less than
+\fIframe_border_width\fR, since it does not add to the frame border width but is a part of it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBframe_border_normal_color\fR\fR
+= blue: The border color of an unfocused frame\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_border_width\fR\fR
+= 2: Border width of a frame\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_gap\fR\fR
+= 5: The gap between frames in the tiling mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_normal_opacity\fR\fR
+= 100: Unfocused frame opacity in percent\&. Requires a running compositing manager to take actual effect\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_padding\fR\fR
+= 0: The padding within a frame in the tiling mode, i\&.e\&. the space between the border of a frame and the windows within it\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_transparent_width\fR\fR
+= 0: Specifies the width of the remaining frame colored with
+\fIframe_bg_active_color\fR
+if
+\fIframe_bg_transparent\fR
+is set\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBgapless_grid\fR\fR
+= true: This setting affects the size of the last client in a frame that is arranged by grid layout\&. If set, then the last client always fills the gap within this frame\&. If unset, then the last client has the same size as all other clients in this frame\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBhide_covered_windows\fR\fR
+= false: If activated, windows are explicitly hidden when they are covered by another window in a frame with max layout\&. This only has a visible effect if a compositor is used\&. If activated, shadows do not stack up and transparent windows show the wallpaper behind them instead of the other clients in the max layout\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBmonitors_locked\fR\fR
+= 0: If greater than 0, then the clients on all monitors aren\(cqt moved or resized anymore\&. If it is set to 0, then the arranging of monitors is enabled again, and all monitors are rearranged if their content has changed in the meantime\&. You should not change this setting manually due to concurrency issues; use the commands
+\fBlock\fR
+and
+\fBunlock\fR
+instead\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBmouse_recenter_gap\fR\fR
+= 0: Specifies the gap around a monitor\&. If the monitor is selected and the mouse position would be restored into this gap, it is set to the center of the monitor\&. This is useful, when the monitor was left via mouse movement, but is reselected by keyboard\&. If the gap is 0 (default), the mouse is never recentered\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBpseudotile_center_threshold\fR\fR
+= 10: If greater than 0, it specifies the least distance between a centered pseudotile window and the border of the frame or tile it is assigned to\&. If this distance is lower than
+\fIpseudotile_center_threshold\fR, it is aligned to the top left of the client\(cqs tile\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBraise_on_click\fR\fR
+= true: If set, a window is raised if it is clicked\&. The value of this setting is only noticed in floating mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBraise_on_focus\fR\fR
+= false: If set, a window is raised if it is focused\&. The value of this setting is only used in floating mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBraise_on_focus_temporarily\fR\fR
+= false: If set, a window is raised temporarily if it is focused on its tag\&. Temporarily in this case means that the window will return to its previous stacking position if another window is focused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIShowFrameDecorations\fR
+\fB\fBshow_frame_decorations\fR\fR
+= focused_if_multiple: This controls, which frame decorations are shown at all\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fInone\fR
+shows no frame decorations at all,
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fInonempty\fR
+shows decorations of frames that have client windows,
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIif_multiple\fR
+shows decorations on the tags with at least two frames,
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIif_empty\fR
+shows decorations of frames that have no client windows,
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIif_multiple_empty\fR
+shows decorations of frames that have no client windows on tags with at least two frames,
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIfocused\fR
+shows the decoration of focused and nonempty frames,
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIfocused_if_multiple\fR
+shows decorations of focused and non\-empty frames on tags with at least two frames\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIall\fR
+shows all frame decorations\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fISmartFrameSurroundings\fR
+\fB\fBsmart_frame_surroundings\fR\fR
+= off: If set to
+\fIhide_all\fR, frame borders and gaps will be removed when there is no ambiguity regarding the focused frame\&. If set to
+\fIhide_gaps\fR, only frame gaps will be removed when there is no ambiguity regarding the focused frame\&. Turn
+\fIoff\fR
+to always show frame borders and gaps\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fISmartWindowSurroundings\fR
+\fB\fBsmart_window_surroundings\fR\fR
+= off: If set to
+\fIone_window\fR
+(or
+\fIon\fR), then window borders and gaps will be hidden in each frame that shows only one window\&. If set to
+\fIone_window_and_frame\fR, then only those frames are affected that are the only frame on their tag\&. Still, these hidden decorations can be configured by the
+\fBtheme\&.minimal\fR
+object\&. Turn
+\fIoff\fR
+to always show window borders and gaps\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBsnap_distance\fR\fR
+= 10: If a client is dragged in floating mode, then it snaps to neighbour clients if the distance between them is smaller than snap_distance\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBsnap_gap\fR\fR
+= 5: Specifies the remaining gap if a dragged client snaps to an edge in floating mode\&. If snap_gap is set to 0, no gap will remain\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBswap_monitors_to_get_tag\fR\fR
+= true: If set: If you want to view a tag, that already is viewed on another monitor, then the monitor contents will be swapped and you see the wanted tag on the focused monitor\&. If not set, the other monitor is focused if it shows the desired tag\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBtabbed_max\fR\fR
+= true: if activated, multiple windows in a frame with the
+\fImax\fR
+layout algorithm are drawn as tabs\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBtree_style\fR\fR
+= "*| +`\-\-\&.": It contains the chars that are used to print a nice ascii tree\&. It must contain at least 8 characters\&. e\&.g\&.
+\fBX|:#+*\-\&.\fR
+produces a tree like:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+X\-\&.
+  #\-\&. child 0
+  | #\-* child 00
+  | +\-* child 01
+  +\-\&. child 1
+  : #\-* child 10
+  : +\-* child 11
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Useful values for
+\fItree_style\fR
+are:
+\fB╾│ ├└╼─┐\fR
+or
+\fB\-| |\*(Aq\-\-\&.\fR
+or
+\fB╾│ ├╰╼─╮\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBupdate_dragged_clients\fR\fR
+= false: If set, a client\*(Aqs window content is resized immediately during resizing it with the mouse\&. If unset, the client\*(Aqs content is resized after the mouse button is released\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBverbose\fR\fR
+= false: If set, verbose output is logged to herbstluftwm\(cqs stderr\&. The default value is controlled by the
+\fB\-\-verbose\fR
+command line flag\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBwindow_border_active_color\fR\fR: Border color of a focused window\&.
+
+
+\fBWarning:\fR
+This only exists for compatibility reasons; it is only an alias for the attribute
+\fBtheme\&.active\&.color\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBwindow_border_inner_color\fR\fR: Color of the inner border of a window\&.
+\fBWarning:\fR
+This only exists for compatibility reasons; it is only an alias for the attribute
+\fBtheme\&.inner_color\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBwindow_border_inner_width\fR\fR: The width of the inner border of a window\&. Must be less than window_border_width, since it does not add to the window border width but is a part of it\&.
+
+
+\fBWarning:\fR
+This only exists for compatibility reasons; it is only an alias for the attribute
+\fBtheme\&.inner_width\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBwindow_border_normal_color\fR\fR: Border color of an unfocused window\&.
+
+
+\fBWarning:\fR
+This only exists for compatibility reasons; it is only an alias for the attribute
+\fBtheme\&.normal\&.color\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBwindow_border_urgent_color\fR\fR: Border color of an unfocused but urgent window\&.
+
+
+\fBWarning:\fR
+This only exists for compatibility reasons; it is only an alias for the attribute
+\fBtheme\&.urgent\&.color\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBwindow_border_width\fR\fR: Border width of a window\&.
+
+
+\fBWarning:\fR
+This only exists for compatibility reasons; it is only an alias for the attribute
+\fBtheme\&.border_width\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBwindow_gap\fR\fR
+= 0: The gap between windows within one frame in the tiling mode\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBwmname\fR\fR
+= herbstluftwm: It controls the value of the
+\fB_NET_WM_NAME\fR
+property on the root window, which specifies the name of the running window manager\&. The value of this setting is not updated if the actual
+\fB_NET_WM_NAME\fR
+property on the root window is changed externally\&. Example usage:
+
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcycle_value wmname herbstluftwm LG3D\fR
+.RE
+.RE
+.SS "tags:"
+.sp
+The tags (or virtual desktops or workspaces)\&. This contains an entry \fIindex\fR for each tag with the given \fIindex\fR\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBcount\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBby\-name\fR\fR: For attributes and children, see
+\fBmonitors\&.by\-name\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfocus\fR\fR: the object of the focused tag, equivalently, the tag on the focused monitor\&.
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBat_end\fR\fR
+= false: all tags with this property activated will be kept at the end of the tag list\&. Usually, this property is set for special purpose tags like scratchpads\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBclient_count\fR\fR: the number of clients on this tag
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBcurframe_wcount\fR\fR: number of clients in the selected frame
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBcurframe_windex\fR\fR: index of the focused client in the selected frame
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfloating\fR\fR
+= false: if the entire tag is set to floating mode
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBfloating_focused\fR\fR
+= false: if the floating layer is focused (otherwise the tiling layer is)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBframe_count\fR\fR: the number of frames on this tag
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBindex\fR\fR
+= 0: index of this tag (the first index is 0)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBname\fR\fR
+= name_: name of the tag (must be non\-empty)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBurgent_count\fR\fR: the number of urgent clients on this tag
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBvisible\fR\fR
+= false: if this tag is shown on some monitor
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfocused_client\fR\fR: For attributes and children, see
+\fBclients\&.focus\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBtiling\fR\fR:
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfocused_frame\fR\fR: The focused frame (leaf) in this frame tree\&. For attributes and children, see
+\fBtags\&.focus\&.tiling\&.root\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBroot\fR\fR
+can be a frame leaf\&.
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fILayoutAlgorithm\fR
+\fB\fBalgorithm\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBclient_count\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBcontent_geometry\fR\fR: the geometry of the frame\(cqs contents, i\&.e\&. of the area filled by child frames or client windows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBindex\fR\fR: A string containing only
+\fI0\fR
+and
+\fI1\fR
+that describes the position of the frame in the tree\&. The empty string denotes the root frame\&. Appending
+\fI0\fR
+(respectively
+\fI1\fR) to a frame index yields the frame index of the first (respectively second) subtree\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBselection\fR\fR
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBroot\fR\fR
+can be a frame split\&.
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIRectangle\fR
+\fB\fBcontent_geometry\fR\fR: the geometry of the frame\(cqs contents, i\&.e\&. of the area filled by child frames or client windows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIdecimal\fR
+\fB\fBfraction\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBindex\fR\fR: A string containing only
+\fI0\fR
+and
+\fI1\fR
+that describes the position of the frame in the tree\&. The empty string denotes the root frame\&. Appending
+\fI0\fR
+(respectively
+\fI1\fR) to a frame index yields the frame index of the first (respectively second) subtree\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIint\fR
+\fB\fBselection\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fISplitAlign\fR
+\fB\fBsplit_type\fR\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fB0\fR\fR
+can be a frame leaf\&. For attributes and children, see
+\fBtags\&.focus\&.tiling\&.root\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fB0\fR\fR
+can be a frame split\&. For attributes and children, see
+\fBtags\&.focus\&.tiling\&.root\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fB1\fR\fR
+can be a frame leaf\&. For attributes and children, see
+\fBtags\&.focus\&.tiling\&.root\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fB1\fR\fR
+can be a frame split\&. For attributes and children, see
+\fBtags\&.focus\&.tiling\&.root\fR
+.RE
+.RE
+.RE
+.RE
+.SS "theme:"
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+inner_color/inner_width
+      ╻        outer_color/outer_width
+      │                  ╻
+      │                  │
+┌────╴│╶─────────────────┷─────┐ ⎫ border_width
+│     │      color             │ ⎬ + title_height + title_depth
+│  ┌──┷─────────────────────┐  │ ⎭ + padding_top
+│  │====================\&.\&.\&.\&.│  │
+│  │== window content ==\&.\&.\&.\&.│  │
+│  │====================\&.\&.╾──────── background_color
+│  │\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.\&.│  │
+│  └────────────────────────┘  │ ⎱ border_width +
+└──────────────────────────────┘ ⎰ padding_bottom
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Setting an attribute of the theme object just propagates the value to the respective attribute of the \fBtiling\fR and the \fBfloating\fR object\&. If the title area is divided into tabs, then the not selected tabs can be styled using the \fBtab_\&...\fR attributes\&. If these attributes are empty, then the colors are taken from the theme of the client to which the tab refers to\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBbackground_color\fR\fR
+= black: color behind window contents visible on resize
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBborder_width\fR\fR
+= 0: the base width of the border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBcolor\fR\fR
+= black: the basic background color of the border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBinner_color\fR\fR
+= black: color of the inner border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBinner_width\fR\fR
+= 0: width of the border around the clients content
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fICssFile::Ptr\fR
+\fB\fBname\fR\fR: the absolute path to a css theme file\&. if this is empty, then the theme is specified by the attributes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBouter_color\fR\fR
+= black: color of the outer border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBouter_width\fR\fR
+= 0: width of an border close to the edge
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_bottom\fR\fR
+= 0: additional border width on the bottom
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_left\fR\fR
+= 0: additional border width on the left
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_right\fR\fR
+= 0: additional border width on the right
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_top\fR\fR
+= 0: additional border width on the top
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBreset\fR\fR: writing this resets all attributes to a default value
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fICssSource\fR
+\fB\fBstyle_override\fR\fR: additional css source to overwrite parts of the theme\&. All rules here have higher precedence than all rules in the theme
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_color\fR\fR
+= Inherit: if non\-empty, the color of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_outer_color\fR\fR
+= Inherit: if non\-empty, the outer border color of non\-urgent and unfocused tabs; if empty, the colors are taken from the tab\(cqsclient decoration settings\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeULong\fR
+\fB\fBtab_outer_width\fR\fR
+= Inherit: if non\-empty, the outer border width of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_title_color\fR\fR
+= Inherit: if non\-empty, the title color of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBtight_decoration\fR\fR
+= false: specifies whether the size hints also affect the window decoration or only the window contents of tiled clients (requires enabled sizehints_tiling)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fITextAlign\fR
+\fB\fBtitle_align\fR\fR
+= left: the horizontal alignment of the title within the tab or title bar\&. The value is one of: left, center, right
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBtitle_color\fR\fR
+= black
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeInt\fR
+\fB\fBtitle_depth\fR\fR
+= 0: the space below the baseline of the window title, or \*(Aq\*(Aq for an automatic calculation based on the font\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIfont\fR
+\fB\fBtitle_font\fR\fR
+= fixed
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeULong\fR
+\fB\fBtitle_height\fR\fR
+= 0: the space above the baseline of the window title, or \*(Aq\*(Aq for an automatic calculation based on the font\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fITitleWhen\fR
+\fB\fBtitle_when\fR\fR
+= always: when to show the window title: always, never, if the the client is in a tabbed scenario like a max frame (\fBone_tab\fR), if there are
+\fBmultiple_tabs\fR
+to be shown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBactive\fR\fR: configures the decoration of the focused client\&.
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBbackground_color\fR\fR
+= black: color behind window contents visible on resize
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBborder_width\fR\fR
+= 0: the base width of the border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBcolor\fR\fR
+= black: the basic background color of the border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBinner_color\fR\fR
+= black: color of the inner border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBinner_width\fR\fR
+= 0: width of the border around the clients content
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBouter_color\fR\fR
+= black: color of the outer border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBouter_width\fR\fR
+= 0: width of an border close to the edge
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_bottom\fR\fR
+= 0: additional border width on the bottom
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_left\fR\fR
+= 0: additional border width on the left
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_right\fR\fR
+= 0: additional border width on the right
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_top\fR\fR
+= 0: additional border width on the top
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBreset\fR\fR: writing this resets all attributes to a default value
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_color\fR\fR
+= Inherit: if non\-empty, the color of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_outer_color\fR\fR
+= Inherit: if non\-empty, the outer border color of non\-urgent and unfocused tabs; if empty, the colors are taken from the tab\(cqsclient decoration settings\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeULong\fR
+\fB\fBtab_outer_width\fR\fR
+= Inherit: if non\-empty, the outer border width of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_title_color\fR\fR
+= Inherit: if non\-empty, the title color of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBtight_decoration\fR\fR
+= false: specifies whether the size hints also affect the window decoration or only the window contents of tiled clients (requires enabled sizehints_tiling)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fITextAlign\fR
+\fB\fBtitle_align\fR\fR
+= left: the horizontal alignment of the title within the tab or title bar\&. The value is one of: left, center, right
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBtitle_color\fR\fR
+= black
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeInt\fR
+\fB\fBtitle_depth\fR\fR
+= 0: the space below the baseline of the window title, or \*(Aq\*(Aq for an automatic calculation based on the font\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIfont\fR
+\fB\fBtitle_font\fR\fR
+= fixed
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeULong\fR
+\fB\fBtitle_height\fR\fR
+= 0: the space above the baseline of the window title, or \*(Aq\*(Aq for an automatic calculation based on the font\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fITitleWhen\fR
+\fB\fBtitle_when\fR\fR
+= always: when to show the window title: always, never, if the the client is in a tabbed scenario like a max frame (\fBone_tab\fR), if there are
+\fBmultiple_tabs\fR
+to be shown\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfloating\fR\fR: behaves analogously to
+\fBtiling\fR\&.
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBbackground_color\fR\fR
+= black: color behind window contents visible on resize
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBborder_width\fR\fR
+= 0: the base width of the border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBcolor\fR\fR
+= black: the basic background color of the border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBinner_color\fR\fR
+= black: color of the inner border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBinner_width\fR\fR
+= 0: width of the border around the clients content
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBouter_color\fR\fR
+= black: color of the outer border
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBouter_width\fR\fR
+= 0: width of an border close to the edge
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_bottom\fR\fR
+= 0: additional border width on the bottom
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_left\fR\fR
+= 0: additional border width on the left
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_right\fR\fR
+= 0: additional border width on the right
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBpadding_top\fR\fR
+= 0: additional border width on the top
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBreset\fR\fR: writing this resets all attributes to a default value
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_color\fR\fR
+= Inherit: if non\-empty, the color of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_outer_color\fR\fR
+= Inherit: if non\-empty, the outer border color of non\-urgent and unfocused tabs; if empty, the colors are taken from the tab\(cqsclient decoration settings\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeULong\fR
+\fB\fBtab_outer_width\fR\fR
+= Inherit: if non\-empty, the outer border width of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeColor\fR
+\fB\fBtab_title_color\fR\fR
+= Inherit: if non\-empty, the title color of non\-urgent and unfocused tabs
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIbool\fR
+\fB\fBtight_decoration\fR\fR
+= false: specifies whether the size hints also affect the window decoration or only the window contents of tiled clients (requires enabled sizehints_tiling)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fITextAlign\fR
+\fB\fBtitle_align\fR\fR
+= left: the horizontal alignment of the title within the tab or title bar\&. The value is one of: left, center, right
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIcolor\fR
+\fB\fBtitle_color\fR\fR
+= black
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeInt\fR
+\fB\fBtitle_depth\fR\fR
+= 0: the space below the baseline of the window title, or \*(Aq\*(Aq for an automatic calculation based on the font\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIfont\fR
+\fB\fBtitle_font\fR\fR
+= fixed
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIMaybeULong\fR
+\fB\fBtitle_height\fR\fR
+= 0: the space above the baseline of the window title, or \*(Aq\*(Aq for an automatic calculation based on the font\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fITitleWhen\fR
+\fB\fBtitle_when\fR\fR
+= always: when to show the window title: always, never, if the the client is in a tabbed scenario like a max frame (\fBone_tab\fR), if there are
+\fBmultiple_tabs\fR
+to be shown\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBactive\fR\fR: configures the decoration of the focused client\&. For attributes and children, see
+\fBtheme\&.active\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBnormal\fR\fR: the default decoration scheme for clients\&. For attributes and children, see
+\fBtheme\&.active\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBurgent\fR\fR: configures the decoration of urgent clients\&. For attributes and children, see
+\fBtheme\&.active\fR
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfullscreen\fR\fR: configures clients in fullscreen state\&. For attributes and children, see
+\fBtheme\&.floating\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBminimal\fR\fR: configures clients with minimal decorations triggered by
+\fBsmart_window_surroundings\fR\&. For attributes and children, see
+\fBtheme\&.floating\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBnormal\fR\fR: the default decoration scheme for clients\&. For attributes and children, see
+\fBtheme\&.active\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBtiling\fR\fR: configures the decoration of tiled clients, setting one of its attributes propagates the respective attribute of the
+\fBactive\fR,
+\fBnormal\fR
+and
+\fBurgent\fR
+child objects\&. For attributes and children, see
+\fBtheme\&.floating\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBurgent\fR\fR: configures the decoration of urgent clients\&. For attributes and children, see
+\fBtheme\&.active\fR
+.RE
+.SS "types:"
+.sp
+This lists the types that are used for attributes and command arguments\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBbool\fR\fR: Type representing boolean values, i\&.e\&. an
+\fIon\fR
+or
+\fIoff\fR
+state, with aliases
+\fItrue\fR
+and
+\fIfalse\fR\&. When writing to a boolean value, one can also specify
+\fItoggle\fR
+in order to alter its value\&.
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBfullname\fR\fR: the full and unique name of this type
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIstring\fR
+\fB\fBshortname\fR\fR: A short (one\-character long) name of this type which is used in the output of the
+\fIattr\fR
+command
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBcolor\fR\fR: Type representing colors\&. A color can be defined in one of the following formats:
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 1.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  1." 4.2
+.\}
+#RRGGBB where R, G, B are hexidecimal digits (0\-9, A\-F), and RR, GG, BB represent the values for red, green, blue\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 2.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  2." 4.2
+.\}
+#RRGGBBAA represents a color with alpha\-value AA\&. The alpha value 00 is fully transparent and FF is fully opaque/intransparent\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04' 3.\h'+01'\c
+.\}
+.el \{\
+.sp -1
+.IP "  3." 4.2
+.\}
+a common color name like
+\fIred\fR,
+\fIblue,\fR
+\fIorange\fR, etc\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBdecimal\fR\fR: Fixed precision decimal numbers, e\&.g\&. 0\&.34\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBfont\fR\fR: A font specification (font family with modifiers regarding size, weight, etc\&.) in one of the following formats:
+
+
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Fontconfig description\&. This supports antialiased fonts, for example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIDejavu Sans:pixelsize=12\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIBitstream Vera Sans:size=12:bold\fR
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+X logical font description (XLFD), as provided by the xfontsel tool\&. No antialiasing is supported here, but this is usually superior for bitmap fonts\&. For example:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fI\-*\-fixed\-medium\-r\-*\-*\-13\-*\-*\-*\-*\-*\-*\-*\fR
+for a standard bitmap font available on most systems\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBint\fR\fR: Type representing signed integers\&. When overwriting an integer, you can increase or decrease its value relatively by writing
+\fI+=N\fR
+or
+\fI\-=N\fR
+where N is an integer\&. So for example, writing
+\fI+=3\fR
+to an attribute increases its value by 3\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBnames\fR\fR: A fixed set of names, depending on the context, e\&.g\&. names of layout algorithms or the split type of a non\-leaf frame (which is only
+\fIhorizontal\fR
+or
+\fIvertical\fR)\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBrectangle\fR\fR: A rectangle on the screen consisting of a size and the position on the screen\&. The format is WxH+X+Y where W is the width, H is the height, and X and Y are the coordinates of the top left corner of the rectangle: X is the number of pixels to the left screen edge and Y is the number of pixels to the top screen edge\&. (if X or Y is negative, then the + turns into \-)\&. For example: 800x600+800+0 or 400x200\-10+30\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBregex\fR\fR: A POSIX extended regular expression\&. Note that when passing a regex on the command line, additional quoting can be necessary\&. For explanations and examples, see section 9\&.4\&.6 of the documentation:
+https://pubs\&.opengroup\&.org/onlinepubs/9699919799/basedefs/V1_chap09\&.html#tag_09_04_06\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBstring\fR\fR: Type representing normal text\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBuint\fR\fR: Type representing unsigned (i\&.e\&. non\-negative) integers\&. When overwriting an integer, you can increase or decrease its value relatively by writing
+\fI+=N\fR
+or
+\fI\-=N\fR
+where N is an integer\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\fBwindowid\fR\fR: The window id is the number of a window\&. This can be a managed window (i\&.e\&. client) or an unmanaged window (e\&.g\&. a panel, a menu, or a desktop window)\&. The default format is 0xHEX where HEX is a hexadecimal number (digits 0\-9 and a\-f) but it can also be specified in the decimal system (base 10), or as an octal number (with prefix 0 and base 8)\&. When a window id is printed, it is always printed in the 0xHEX format and without any leading zeroes\&. For attributes and children, see
+\fBtypes\&.bool\fR
+.RE
+.SS "watchers:"
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIuint\fR
+\fB\fBcount\fR\fR: the number of attributes that are watched
+.RE
+.SH "AUTOSTART FILE"
+.sp
+There is no configuration file but an autostart file, which is executed on startup\&. It is also executed on command \fIreload\fR\&. If not specified by the \fB\-\-autostart\fR argument, autostart file is located at \fI$XDG_CONFIG_HOME/herbstluftwm/autostart\fR or at \fI~/\&.config/herbstluftwm/autostart\fR\&. Normally it consists of a few \fBherbstclient\fR calls\&. If executing the autostart file in a user\(cqs home fails the global autostart file (mostly placed at /etc/xdg/herbstluftwm/autostart) is executed as a fallback\&.
+.sp
+For a quick install, copy the default autostart file to \fI~/\&.config/herbstluftwm/\fR\&.
+.SH "HOOKS"
+.sp
+On special events, herbstluftwm emits some hooks (with parameters)\&. You can receive or wait for them with \fBherbstclient\fR(1)\&. Also custom hooks can be emitted with the \fBemit_hook\fR command\&. The following hooks are emitted by herbstluftwm itself:
+.PP
+attribute_changed \fIPATH\fR \fIOLDVALUE\fR \fINEWVALUE\fR
+.RS 4
+The attribute
+\fIPATH\fR
+was changed from
+\fIOLDVALUE\fR
+to
+\fINEWVALUE\fR\&. Requires that the attribute
+\fIPATH\fR
+has been passed to
+the \fBwatch\fR command
+before\&.
+.RE
+.PP
+fullscreen [on|off] \fIWINID\fR
+.RS 4
+The fullscreen state of window
+\fIWINID\fR
+was changed to [on|off]\&.
+.RE
+.PP
+tag_changed \fITAG\fR \fIMONITOR\fR
+.RS 4
+The tag
+\fITAG\fR
+was selected on
+\fIMONITOR\fR\&.
+.RE
+.PP
+focus_changed \fIWINID\fR \fITITLE\fR
+.RS 4
+The window
+\fIWINID\fR
+was focused\&. Its window title is
+\fITITLE\fR\&.
+.RE
+.PP
+window_title_changed \fIWINID\fR \fITITLE\fR
+.RS 4
+The title of the
+\fBfocused\fR
+window was changed\&. Its window id is
+\fIWINID\fR
+and its new title is
+\fITITLE\fR\&.
+.RE
+.PP
+tag_flags
+.RS 4
+The flags (i\&.e\&. urgent or filled state) have been changed\&.
+.RE
+.PP
+tag_added \fITAG\fR
+.RS 4
+A tag named
+\fITAG\fR
+was added\&.
+.RE
+.PP
+tag_removed \fITAG\fR
+.RS 4
+The tag named
+\fITAG\fR
+was removed\&.
+.RE
+.PP
+tag_renamed \fIOLD\fR \fINEW\fR
+.RS 4
+The tag name changed from
+\fIOLD\fR
+to
+\fINEW\fR\&.
+.RE
+.PP
+urgent [on|off] \fIWINID\fR
+.RS 4
+The urgent state of client with given
+\fIWINID\fR
+has been changed to [on|off]\&.
+.RE
+.PP
+rule \fINAME\fR \fIWINID\fR
+.RS 4
+A window with the id
+\fIWINID\fR
+appeared which triggered a rule with the consequence hook=\fINAME\fR\&.
+.RE
+.sp
+There are also other useful hooks, which never will be emitted by herbstluftwm itself, but which can be emitted with the \fBemit_hook\fR command:
+.PP
+quit_panel
+.RS 4
+Tells a panel to quit\&. The default panel\&.sh quits on this hook\&. Many scripts are using this hook\&.
+.RE
+.PP
+reload
+.RS 4
+Tells all daemons that the
+\fIautostart\fR
+file is reloaded \(em and tells them to quit\&. This hook
+\fBshould\fR
+be emitted in the first line of every
+\fIautostart\fR
+file\&.
+.RE
+.SH "THEMES/STYLESHEETS"
+.sp
+The look of client decorations can be controlled via the attributes under the \fBtheme\&.\fR object, or in a more granular way via stylesheets, inspired by CSS\&.
+.sp
+More documentation on the theme format will come soon\&.
+.SH "STACKING"
+.sp
+Every tag has its own stack of clients that are on this tag\&. Similar to the EWMH specification each tag stack contains several layers, which are from top to bottom:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+the focused client (if raise_on_focus_temporarily is enabled)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+clients in fullscreen
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+normal clients
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+frame decorations
+.RE
+.sp
+All monitors are managed in one large stack which only consists of the stacks of the visible tags put above each other\&. The stacking order of these monitors is independent from their indices and can be modified using the \fBraise_monitor\fR command\&. The current stack is illustrated by the \fBstack\fR command\&.
+.SH "EWMH AND X11 PROPERTIES"
+.sp
+As far as possible, herbstluftwm tries to be EWMH compliant\&. That includes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Information about tag names and client lists is provided\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Desktop windows from desktop environments are not managed and kept below the other windows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Client requests like getting focused are only processed if the setting
+\fIfocus_stealing_prevention\fR
+is disabled\&.
+.RE
+.sp
+Moreover, herbstluftwm sets the X11 properties \fIHLWM_FLOATING_WINDOW\fR and \fIHLWM_TILING_WINDOW\fR to indicate whether a window is in floating or tiling mode, that is, the value of the client\(cqs \fIfloating_effectively\fR attribute\&.
+.SH "ENVIRONMENT VARIABLES"
+.PP
+DISPLAY
+.RS 4
+Specifies the
+\fIDISPLAY\fR
+to use\&.
+.RE
+.SH "فایل‌ها (FILES)"
+.sp
+The following files are used by herbstluftwm:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fIautostart\fR, see section
+\fBAUTOSTART FILE\fR\&.
+.RE
+.SH "وضعیت خروج (EXIT STATUS)"
+.sp
+Returns \fB0\fR on success\&. Returns \fBEXIT_FAILURE\fR if it cannot startup or if \fIwmexec\fR fails\&.
+.SH "اشکالات (BUGS)"
+.sp
+See the \fBherbstluftwm\fR Github issues: https://github\&.com/herbstluftwm/herbstluftwm/issues
+.SH "COMMUNITY"
+.sp
+Feel free to join the IRC channel \fI#herbstluftwm\fR on \fIirc\&.libera\&.chat\fR\&.
+.SH "نویسنده (AUTHOR)"
+.sp
+\fBherbstluftwm\fR was written by Thorsten Wißmann\&. All contributors are listed in the \fBherbstluftwm\fR distribution AUTHORS file\&.
+.SH "RESOURCES"
+.sp
+Homepage: http://herbstluftwm\&.org
+.sp
+Github page: http://github\&.com/herbstluftwm/herbstluftwm
+.sp
+Patch submission and bug reporting:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+hlwm@lists\&.herbstluftwm\&.org
+.fi
+.if n \{\
+.RE
+.\}
+.SH "کپی‌رایت و تکثیر (COPYING)"
+.sp
+Copyright 2011\-2020 Thorsten Wißmann\&. All rights reserved\&.
+.sp
+This software is licensed under the "Simplified BSD License"\&. See LICENSE for details\&.

@@ -1,0 +1,202 @@
+.\" Copyright (c) 2010-2016 Florian Pritz, bluewind at xinu.at
+.\"               2011 Moritz Wilhelmy, mw at wzff.de
+.\"
+.\"  Licensed under GPLv3
+.\"    (see COPYING for full license text)
+.\"
+.Dd April 11, 2016
+.Dt FB 1
+.Os
+.Sh "نام (NAME)"
+.Nm fb
+.Nd a client for https://paste.xinu.at
+.Sh "خلاصه دستور (SYNOPSIS)"
+.Nm
+.Op options
+.Ar file|directory|id://ID|URL ...
+.Nm
+.Op Fl dg
+.Op options
+.Ar ID|URL ...
+.Nm
+.Op Fl hv
+.Sh "توضیحات (DESCRIPTION)"
+.Nm
+is a client to https://paste.xinu.at which allows the user to easily upload,
+delete or download files.
+By default, files will be uploaded as-is and a link to the file will be printed
+to stdout after each upload. If multiple files are uploaded a multipaste ( see
+.Fl -multipaste
+) will be created automatically.
+.Pp
+Directories will be packed into a tarball and the resulting
+.Pa upload.tar
+file will be uploaded.
+If no arguments are given, data will be read from stdin into a temporary file
+that will be uploaded as soon as EOF is received.
+If the file being uploaded is bigger than 10MiB
+.Nm
+will query the server for the maximum upload size and abort the upload if the
+file would be rejected.
+.Pp
+Before terminating,
+.Nm
+will try to copy all links into the clipboard. Depending on the environment from
+which
+.Nm
+was executed.
+If you want this to work, you need to install the correct tool for your environment:
+.Bl -tag -width "wl-clipboard(1)" -offset indent
+.It Xr xclip 1
+when running on X11
+.It Xr wl-clipboard 1
+when running on wayland
+.It Xr pbcopy 1
+when running on Mac OS / Darwin
+.El
+.Pp
+If you want to use paste.xinu.at, you need to create an account there and then run
+.Sq Nm Fl a
+to create an API key.
+.Pp
+IDs of existing pastes can either be given as URLs pointing to that paste or by prefixing the ID with "id://".
+.Sh "گزینه‌ها (OPTIONS)"
+.Bl -tag -width Ds
+.It Fl c, -compress
+Compress the files to be uploaded using
+.Xr gzip 1 .
+This affects all files including piped content and directories.
+If specified twice,
+.Xr xz 1
+will be used rather than gzip.
+If used in conjunction with the -g option this decompresses the download
+before it's output to stdout.
+.It Fl d, -delete
+Delete the IDs. You can no longer upload files in this mode. If the argument is a URL,
+.Nm
+will try to extract the ID. This option also accepts IDs without the "id://" prefix.
+.It Fl -config Ar <config file>
+Use an alternative configuration file. The default value is "$XDG_CONFIG_HOME/fb-client/config".
+.It Fl e Ar extension, Fl -extension Ar extension
+Change the extension used for highlighting. You can also do this if you
+have already uploaded the file by appending the extension to the URL.
+https://paste.xinu.at/<ID>/bash will change the syntax highlighting to bash.
+.It Fl n Ar <file name>, Fl -name Ar <file name>
+Use the specified file name for the upload when pasting from stdin. Defaults
+to "stdin"
+.It Fl a, -create-apikey
+Create a new API key. Asks for username and password.
+.It Fl H, -history
+Display a history of uploads.
+.It Fl g, -get
+Download the IDs and output on stdout. Please take care when using this, as
+binary data may cause unexpected results when being output directly to a
+terminal. You can no longer upload files in this mode. If the argument is a
+URL,
+.Nm
+will try to extract the ID. This option also accepts IDs without the "id://" prefix.
+.It Fl m, -multipaste
+Create a multipaste of the IDs/files/directories/URLs. This uploads files as
+always, but then creates a multipaste combining all of them. URLs starting with
+the pastebin URL will have their ID extracted and will not be downloaded. Only
+the multipaste URL will be displayed and copied to the clipboard. This option
+is enabled automatically if multiple files are uploaded.
+.It Fl M Ar <length>, Fl -min-id-length Ar <length>
+Request the server to generate IDs of at least <length> characters. The minimum
+supported length are two characters.
+.It Fl h, -help
+Display a short help message.
+.It Fl t, -tar
+Upload a tar file containing all files and directories specified on the
+command line. The file name can be specified with the -n option. (don't add any extensions)
+.It Fl v, -version
+Display the client version.
+.It Fl D, -debug
+Display debugging information.
+.El
+.Sh "فایل‌های پیکربندی (CONFIGURATION FILES)"
+.Bl -tag
+.It $XDG_CONFIG_HOME/fb-client/apikey
+This file contains the API key to use for authentication.
+.It $XDG_CONFIG_HOME/fb-client/config
+This file allows to override certain variables by using the format 'option_name="value"'.
+Both, the option value and name, are case-sensitive string literals.
+Environment variables can be used in the value by using the $VARIABLE_NAME syntax.
+.Pp
+The following option names are supported:
+.Bl -tag
+.It pastebin
+The URL of the pastebin you want to use
+.It clipboard_cmd
+The command used to copy URLs of uploaded files to the clipboard.
+This defaults to
+.Xr xclip 1 on X11,
+.Xr wl-copy 1 on Wayland and
+.Xr pbcopy 1 on Mac OS / Darwin.
+.It clipboard_target
+Configure which clipboard to use. Allowed settings:
+.Bl -tag -width "none / off"
+.It default
+Use the default behavior, i.e. "primary" for X11/xclip and "clipboard" for Wayland/wl-copy.
+This is implicitly the default if not specified.
+.It none / off
+Disable copying the upload URL into the clipboard.
+.It primary
+Enforce copy into the "primary" selection (for Wayland/wl-copy).
+.It clipboard
+Enforce copy into the "clipboard" selection (for X11/xclip).
+.El
+.It apikey_file
+The file that contains the API key. This defaults to "$XDG_CONFIG_HOME/fb-client/apikey"
+.El
+.El
+.Sh "محیط (ENVIRONMENT)"
+Some options can be changed by modifying environment variables:
+.Bl -tag -width XZ_OPTS
+.It Ev GZIP
+Assigning GZIP will make the gzip-program treat it's value as if they had been
+appended to the command line.
+.It Ev XZ_OPTS
+The XZ_OPTS environment variable can be used in order to pass additional
+options to xz, in case xz is used for compression.
+.It TMPDIR
+Setting TMPDIR to some directory where
+.Nm
+creates temporary files inside this directory rather than the system default.
+.El
+.Sh "مثال‌ها (EXAMPLES)"
+.Bl -tag
+.It Nm Fl tc Ar directory file
+This will create a .tar archive containing the directory and the file and compress
+it using gzip and upload one archive.
+.It Nm Fl c Ar directory file
+This will create a .tar archive containing only the directory. Both (directory and
+file) will be compressed using gzip and uploaded independently.
+.It Nm Fl cc Ar directory
+This will create a .tar archive containing only the directory and compress it using xz.
+.It Nm Ar id://1bAc directory file https://paste.xinu.at/42SomeID/ http://example.com/example.png
+This will create a multipaste containing an existing paste with the ID 1bAc, a
+tarball of the directory, the file, the existing paste 42SomeID, the file
+example.png, which will be downloaded by the client and then uploaded to the
+server.
+.It Ic make \&|\&& Nm
+This will upload the output of make (stdout and stderr) in csh and similar shells.
+.El
+.Sh "همچنین ببینید (SEE ALSO)"
+.Xr curl 1 ,
+.Xr gzip 1 ,
+.Xr tar 1 ,
+.Xr xz 1 ,
+.Xr xclip 1
+.Sh "نویسندگان (AUTHORS)"
+.An -nosplit
+.Nm
+was written by
+.Bl -bullet -compact
+.It
+.\" mdoc has clever spam protection ;)
+.An Florian Pritz Aq bluewi\&nd@xinu.at
+.It
+.An Moritz Wilhelmy Aq mor\&itz@wzff.de
+.El
+and may be copied under the terms of the GPLv3.

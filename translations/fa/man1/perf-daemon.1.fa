@@ -1,0 +1,299 @@
+'\" t
+.\"     Title: perf-daemon
+.\"    Author: [FIXME: author] [see http://www.docbook.org/tdg5/en/html/author]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 09/04/2026
+.\"    Manual: perf Manual
+.\"    Source: perf
+.\"  Language: English
+.\"
+.TH "PERF\-DAEMON" "1" "09/04/2026" "perf" "perf Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+perf-daemon \- Run record sessions on background
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.nf
+\fIperf daemon\fR
+\fIperf daemon\fR [<options>]
+\fIperf daemon start\fR  [<options>]
+\fIperf daemon stop\fR   [<options>]
+\fIperf daemon signal\fR [<options>]
+\fIperf daemon ping\fR   [<options>]
+.fi
+.SH "توضیحات (DESCRIPTION)"
+.sp
+This command allows to run simple daemon process that starts and monitors configured record sessions\&.
+.sp
+You can imagine \fIperf daemon\fR of background process with several \fIperf record\fR child tasks, like:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# ps axjf
+\&.\&.\&.
+     1  916507 \&.\&.\&. perf daemon start
+916507  916508 \&.\&.\&.  \e_ perf record \-\-control=fifo:control,ack \-m 10M \-e cycles \-\-overwrite \-\-switch\-output \-a
+916507  916509 \&.\&.\&.  \e_ perf record \-\-control=fifo:control,ack \-m 20M \-e sched:* \-\-overwrite \-\-switch\-output \-a
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Not every \fIperf record\fR session is suitable for running under daemon\&. User need perf session that either produces data on query, like the flight recorder sessions in above example or session that is configured to produce data periodically, like with \-\-switch\-output configuration for time and size\&.
+.sp
+Each session is started with control setup (with perf record \-\-control options)\&.
+.sp
+Sessions are configured through config file, see CONFIG FILE section with EXAMPLES\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\-v, \-\-verbose
+.RS 4
+Be more verbose\&.
+.RE
+.PP
+\-\-config=<PATH>
+.RS 4
+Config file path\&. If not provided, perf will check system and default locations (/etc/perfconfig, $HOME/\&.perfconfig)\&.
+.RE
+.PP
+\-\-base=<PATH>
+.RS 4
+Base directory path\&. Each daemon instance is running on top of base directory\&. Only one instance of server can run on top of one directory at the time\&.
+.RE
+.sp
+All generic options are available also under commands\&.
+.SH "START COMMAND"
+.sp
+The start command creates the daemon process\&.
+.PP
+\-f, \-\-foreground
+.RS 4
+Do not put the process in background\&.
+.RE
+.SH "STOP COMMAND"
+.sp
+The stop command stops all the session and the daemon process\&.
+.SH "SIGNAL COMMAND"
+.sp
+The signal command sends signal to configured sessions\&.
+.PP
+\-\-session
+.RS 4
+Send signal to specific session\&.
+.RE
+.SH "PING COMMAND"
+.sp
+The ping command sends control ping to configured sessions\&.
+.PP
+\-\-session
+.RS 4
+Send ping to specific session\&.
+.RE
+.SH "CONFIG FILE"
+.sp
+The daemon is configured within standard perf config file by following new variables:
+.sp
+daemon\&.base: Base path for daemon data\&. All sessions data are stored under this path\&.
+.sp
+session\-<NAME>\&.run: Defines new record session\&. The value is record\(cqs command line without the \fIrecord\fR keyword\&.
+.sp
+Each perf record session is run in daemon\&.base/<NAME> directory\&.
+.SH "مثال‌ها (EXAMPLES)"
+.sp
+Example with 2 record sessions:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# cat ~/\&.perfconfig
+[daemon]
+base=/opt/perfdata
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[session\-cycles]
+run = \-m 10M \-e cycles \-\-overwrite \-\-switch\-output \-a
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[session\-sched]
+run = \-m 20M \-e sched:* \-\-overwrite \-\-switch\-output \-a
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Starting the daemon:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# perf daemon start
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Check sessions:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# perf daemon
+[603349:daemon] base: /opt/perfdata
+[603350:cycles] perf record \-m 10M \-e cycles \-\-overwrite \-\-switch\-output \-a
+[603351:sched] perf record \-m 20M \-e sched:* \-\-overwrite \-\-switch\-output \-a
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+First line is daemon process info with configured daemon base\&.
+.sp
+Check sessions with more info:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# perf daemon \-v
+[603349:daemon] base: /opt/perfdata
+  output:  /opt/perfdata/output
+  lock:    /opt/perfdata/lock
+  up:      1 minutes
+[603350:cycles] perf record \-m 10M \-e cycles \-\-overwrite \-\-switch\-output \-a
+  base:    /opt/perfdata/session\-cycles
+  output:  /opt/perfdata/session\-cycles/output
+  control: /opt/perfdata/session\-cycles/control
+  ack:     /opt/perfdata/session\-cycles/ack
+  up:      1 minutes
+[603351:sched] perf record \-m 20M \-e sched:* \-\-overwrite \-\-switch\-output \-a
+  base:    /opt/perfdata/session\-sched
+  output:  /opt/perfdata/session\-sched/output
+  control: /opt/perfdata/session\-sched/control
+  ack:     /opt/perfdata/session\-sched/ack
+  up:      1 minutes
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+The \fIbase\fR path is daemon/session base\&. The \fIlock\fR file is daemon\(cqs lock file guarding that no other daemon is running on top of the base\&. The \fIoutput\fR file is perf record output for specific session\&. The \fIcontrol\fR and \fIack\fR files are perf control files\&. The \fIup\fR number shows minutes daemon/session is running\&.
+.sp
+Make sure control session is online:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# perf daemon ping
+OK   cycles
+OK   sched
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Send USR2 signal to session \fIcycles\fR to generate perf\&.data file:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# perf daemon signal \-\-session cycles
+signal 12 sent to session \*(Aqcycles [603452]\*(Aq
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# tail \-2  /opt/perfdata/session\-cycles/output
+[ perf record: dump data: Woken up 1 times ]
+[ perf record: Dump perf\&.data\&.2020123017013149 ]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Send USR2 signal to all sessions:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# perf daemon signal
+signal 12 sent to session \*(Aqcycles [603452]\*(Aq
+signal 12 sent to session \*(Aqsched [603453]\*(Aq
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# tail \-2  /opt/perfdata/session\-cycles/output
+[ perf record: dump data: Woken up 1 times ]
+[ perf record: Dump perf\&.data\&.2020123017024689 ]
+# tail \-2  /opt/perfdata/session\-sched/output
+[ perf record: dump data: Woken up 1 times ]
+[ perf record: Dump perf\&.data\&.2020123017024713 ]
+.fi
+.if n \{\
+.RE
+.\}
+.sp
+Stop daemon:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+# perf daemon stop
+.fi
+.if n \{\
+.RE
+.\}
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+\fBperf-record\fR(1), \fBperf-config\fR(1)

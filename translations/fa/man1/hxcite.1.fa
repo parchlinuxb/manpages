@@ -1,0 +1,194 @@
+.de d \" begin display
+.sp
+.in +4
+.nf
+..
+.de e \" end display
+.in -4
+.fi
+.sp
+..
+.TH "HXCITE" "1" "10 Jul 2011" "7.x" "HTML-XML-utils"
+.SH "نام (NAME)"
+hxcite \- replace bibliographic references by hyperlinks
+.SH "خلاصه دستور (SYNOPSIS)"
+.B hxcite
+.RB "[\| " \-b
+.IR base " \|]"
+.RB "[\| " \-p
+.IR pattern " \|]"
+.RB "[\| " \-a
+.IR auxfile " \|]"
+.RB "[\| " \-m
+.IR marker " \|]"
+.RB "[\| " -c " \|]"
+.IR bibfile " [\| " file " \|]"
+.SH "توضیحات (DESCRIPTION)"
+.LP
+The
+.B hxcite
+commands copies the
+.I file
+to standard output, looking for strings of the form [[\fIlabel\fP]].
+The label may not include white space and the double pair of square
+brackets must enclose the label without any spaces in between. If
+.B hxcite
+finds the label in the
+.IR bibfile ","
+the string is replaced by the
+.IR pattern "."
+The pattern can include certain variables. If the label is not found
+in
+.IR bibfile ","
+it is left unchanged.
+.PP
+The default pattern replaces the string with a hyperlink, but if the
+.B \-p
+option is used, the replacement can be any pattern. The input doesn't
+even have to be HTML.
+.LP
+If the label is enclosed in {{...}} instead of [[...]], it is copied
+to the output unchanged and not
+replaced by the pattern, but the label is still searched in the
+.IR bibfile "."
+.SH "گزینه‌ها (OPTIONS)"
+The following options are supported:
+.TP 10
+.BI \-p " pattern"
+Specifies the pattern by which the string [[\fIlabel\fP]] is replaced.
+The pattern may include the variables
+.B %b
+(which is replaced by the value of the
+.B \-b
+option),
+.B %m
+(which is replaced by the value of the
+.B \-m
+option) and
+.B %L
+(which is replaced by the
+.IR label ")."
+The default pattern is
+.d
+<a href="%b#%L" rel="biblioentry">[%L]<!--{{%m%L}}--></a>
+.e
+.TP
+.BI \-b " base"
+Sets the value for the
+.B %b
+variable in the pattern. Typically this is set to a relative or
+absolute URL. By default this value is an empty string.
+.TP
+.BI \-a " auxfile"
+All labels that have been found and replaced are also written to a
+file. This is so that
+.BR hxmkbib (1)
+can find them and create a bibliography. The default
+.I auxfile
+is constructed from the name of the
+.I file
+by removing the last extension (if any) and replacing it by ".aux".
+If no
+.I file
+is given, the default name is "aux.aux".
+.TP
+.BI \-m " marker"
+By default, the program looks for "[[name]]", but it can be
+made to look for "[[#name]]" where # is some string, usually a
+symbol such as '!' or '='. This allows references to be
+classified, e.g., "[[!name]]" for normative references and
+"[[name]]" for non-normative references.
+.TP
+.B \-c
+Causes "[[name]]" to be ignored when it occurs inside XML comments
+("<!--...-->"). This is useful for files where such labels occur in
+comments, to avoid that they be expanded and possibly lead to invalid
+output; useful also if
+.B hxcite
+is used for non-HTML files which may contain "<!--" that are not
+comment. Occurrences of "{{name}}" are not affected by
+.BR \-c "."
+(But see warning under BUGS below.)
+.SH OPERANDS
+The following operands are supported:
+.TP 10
+.I bibfile
+The name of a bibliographic database must be given. It must be a file
+in
+.BR refer (1)
+format and every entry must have at least a
+.B %L
+field, which is used as label. (Entries without such a field will be
+ignored.) Entries may optionally have a
+.B %K
+line, which should contain whitespace-separated keywords. Those keywords can be used to refer to the entry instead of the label. Thus the
+.I foo
+in [[\fIfoo\fP]] can either be the label of an entry (%L line) or one
+of the keywords of the entry's %K line.
+.TP
+.I file
+The name of the input file is optional. If absent,
+.B hxcite
+will read from stdin. The file does not have to be an HTML
+file, but the default pattern (see the
+.B \-p
+option) assumes HTML.
+.SH "وضعیت خروج (EXIT STATUS)"
+The following exit values are returned:
+.TP 10
+.B 0
+Successful completion.
+.TP
+.B > 0
+An error occurred. Usually this is because a file could not be opened.
+Very rarely it may also be an out of memory error.
+.SH "نسخه‌ها (VERSIONS)"
+.PP
+March 2000: created by Bert Bos <bert@w3.org> as "cite".
+.PP
+August 2008: renamed to "hxcite".
+.PP
+Currently maintained by Bert Bos.
+.SH "اشکالات (BUGS)"
+.PP
+.B hxcite
+does not actually parse HTML or XML input and the
+.B \-c
+option simply treats every occurrence of "<!--" as the start of an XML
+comment, even if it occurs inside an attribute value or a CDATA
+section. Likewise for "-->" for the end of a comment.
+.PP
+There is currently no way to use numbers for references (e.g., "[1]",
+"[2]") instead of the labels ("[Lie1996]", "[UTN22]").
+.PP
+.B hxcite
+requires the
+.B %L
+(label) field to be present in every entry in
+.IR bibfile ","
+which is not the case for
+.BR refer "(1)."
+.B hxcite
+does not implement
+.BR refer "'s"
+keyword search.
+.SH "مثال (EXAMPLE)"
+.PP
+The following looks for reference of the form "[[!label]]" in
+"myfile.html", skipping references that occur inside HTML comments,
+and looks up the labels in "biblio.ref". The output is written to
+"new.html" and the list of recognized labels to "myfile.aux".
+.d
+hxcite -c -m '!' biblio.ref myfile.html > new.html
+.e
+.SH "همچنین ببینید (SEE ALSO)"
+.BR asc2xml (1),
+.BR refer (1),
+.BR hxmkbib (1),
+.BR hxnormalize (1),
+.BR hxnum (1),
+.BR hxprune (1),
+.BR hxtoc (1),
+.BR hxunent (1),
+.BR xml2asc (1),
+.BR UTF-8 " (RFC 2279)"

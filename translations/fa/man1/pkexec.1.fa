@@ -1,0 +1,228 @@
+'\" t
+.\"     Title: pkexec
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: May 2009
+.\"    Manual: pkexec
+.\"    Source: polkit
+.\"  Language: English
+.\"
+.TH "PKEXEC" "1" "May 2009" "polkit" "pkexec"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+pkexec \- Execute a command as another user
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBpkexec\fR\ 'u
+\fBpkexec\fR [\fB\-\-version\fR] [\fB\-\-disable\-internal\-agent\fR] [\fB\-\-help\fR]
+.HP \w'\fBpkexec\fR\ 'u
+\fBpkexec\fR [\fB\-\-keep\-cwd\fR] [\fB\-\-user\fR\ \fIusername\fR] \fIPROGRAM\fR [\fIARGUMENTS\fR...]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+\fBpkexec\fR
+allows an authorized user to execute
+\fIPROGRAM\fR
+as another user\&. If
+\fIPROGRAM\fR
+is not specified, the default shell will be run\&. If
+\fIusername\fR
+is not specified, then the program will be executed as the administrative super user,
+\fIroot\fR\&.
+.SH "RETURN VALUE"
+.PP
+Upon successful completion, the return value is the return value of
+\fIPROGRAM\fR\&. If the calling process is not authorized or an authorization could not be obtained through authentication or an error occurred,
+\fBpkexec\fR
+exits with a return value of 127\&. If the authorization could not be obtained because the user dismissed the authentication dialog,
+\fBpkexec\fR
+exits with a return value of 126\&.
+.SH "AUTHENTICATION AGENT"
+.PP
+\fBpkexec\fR, like any other polkit application, will use the authentication agent registered for the calling process or session\&. However, if no authentication agent is available, then
+\fBpkexec\fR
+will register its own textual authentication agent\&. This behavior can be turned off by passing the
+\fB\-\-disable\-internal\-agent\fR
+option\&.
+.SH "SECURITY NOTES"
+.PP
+Executing a program as another user is a privileged operation\&. By default the action to check for (see
+the section called \(lqACTION AND AUTHORIZATIONS\(rq) requires administrator authentication\&. In addition, the authentication dialog presented to the user will display the full path to the program to be executed so the user is aware of what will happen\&.
+.PP
+The environment that
+\fIPROGRAM\fR
+will run it, will be set to a minimal known and safe environment in order to avoid injecting code through
+LD_LIBRARY_PATH
+or similar mechanisms\&. In addition the
+PKEXEC_UID
+environment variable is set to the user id of the process invoking
+\fBpkexec\fR\&. As a result,
+\fBpkexec\fR
+will not by default allow you to run X11 applications as another user since the
+$DISPLAY
+and
+$XAUTHORITY
+environment variables are not set\&. These two variables will be retained if the
+\fIorg\&.freedesktop\&.policykit\&.exec\&.allow_gui\fR
+annotation on an action is set to a nonempty value; this is discouraged, though, and should only be used for legacy programs\&.
+.PP
+\fBpkexec\fR
+will run
+\fIPROGRAM\fR
+in
+\fIusername\fR\*(Aqs home directory, unless
+\fB\-\-keep\-cwd\fR
+is used to override this behavior
+.PP
+Note that
+\fBpkexec\fR
+does no validation of the
+\fIARGUMENTS\fR
+passed to
+\fIPROGRAM\fR\&. In the normal case (where administrator authentication is required every time
+\fBpkexec\fR
+is used), this is not a problem since if the user is an administrator he might as well just run
+\fBpkexec bash\fR
+to get root\&.
+.PP
+However, if an action is used for which the user can retain authorization (or if the user is implicitly authorized) this could be a security hole\&. Therefore, as a rule of thumb, programs for which the default required authorization is changed, should
+\fBnever\fR
+implicitly trust user input (e\&.g\&. like any other well\-written
+\fIsuid\fR
+program)\&.
+.SH "ACTION AND AUTHORIZATIONS"
+.PP
+By default, the
+\fIorg\&.freedesktop\&.policykit\&.exec\fR
+action is used\&. To use another action, use the
+\fIorg\&.freedesktop\&.policykit\&.exec\&.path\fR
+annotation on an action with the value set to the full path of the program\&. In addition to specifying the program, the authentication message, description, icon and defaults can be specified\&. If the
+\fIorg\&.freedesktop\&.policykit\&.exec\&.argv1\fR
+annotation is present, the action will only be picked if the first argument to the program matches the value of the annotation\&.
+.PP
+Note that authentication messages may reference variables (see
+the section called \(lqVARIABLES\(rq), for example
+$(user)
+will be expanded to the value of the
+user
+variable\&.
+.SH "WRAPPER USAGE"
+.PP
+To avoid modifying existing software to prefix their command\-line invocations with
+\fBpkexec\fR, it\*(Aqs possible to use
+\fBpkexec\fR
+in a
+\m[blue]\fBshe\-bang wrapper\fR\m[]\&\s-2\u[1]\d\s+2
+like this:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+#!/usr/bin/pkexec /usr/bin/python
+
+import os
+import sys
+
+print "Hello, I\*(Aqm running as uid %d"%(os\&.getuid())
+
+for n in range(len(sys\&.argv)):
+    print "arg[%d]=`%s\*(Aq"%(n, sys\&.argv[n])
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+If this script is installed into
+/usr/bin/my\-pk\-test, then the following annotations
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+  [\&.\&.\&.]
+  <annotate key="org\&.freedesktop\&.policykit\&.exec\&.path">/usr/bin/python</annotate>
+  <annotate key="org\&.freedesktop\&.policykit\&.exec\&.argv1">/usr/bin/my\-pk\-test</annotate>
+  [\&.\&.\&.]
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+can be used to select the appropriate polkit action\&. Be careful to get the latter annotation right, otherwise it will match any
+\fBpkexec\fR
+invocation of
+/usr/bin/python
+scripts\&.
+.SH "VARIABLES"
+.PP
+The following variables are set by
+\fBpkexec\fR\&. They can be used in authorization rules and messages shown in authentication dialogs:
+.PP
+\fIprogram\fR
+.RS 4
+Fully qualified path to the program to be executed\&. Example:
+\(lq/bin/cat\(rq
+.RE
+.PP
+\fIcommand_line\fR
+.RS 4
+The requested command\-line (do not use this for any security checks, it is not secure)\&. Example:
+\(lqcat /srv/xyz/foobar\(rq
+.RE
+.PP
+\fIuser\fR
+.RS 4
+The user name of the user to execute the program as\&. Example:
+\(lqdavidz\(rq
+.RE
+.PP
+\fIuser\&.gecos\fR
+.RS 4
+The full name of the user to execute the program as\&. Example:
+\(lqDavid Zeuthen\(rq
+.RE
+.PP
+\fIuser\&.display\fR
+.RS 4
+A representation of the user to execute the program as that is suitable for display in an authentication dialog\&. Is typically set to a combination of the user name and the full name\&. Example:
+\(lqDavid Zeuthen (davidz)\(rq
+.RE
+.SH "نویسنده (AUTHOR)"
+.PP
+Written by David Zeuthen
+<davidz@redhat\&.com>
+with a lot of help from many others\&.
+.SH "اشکالات (BUGS)"
+.PP
+Please send bug reports to either the distribution or the polkit\-devel mailing list, see
+\m[blue]\fB\%https://github.com/polkit-org/polkit#bugs-and-development\fR\m[]\&.
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBpolkit\fR(8),
+\fBpolkitd\fR(8),
+\fBpkaction\fR(1),
+\fBpkcheck\fR(1),
+\fBpkttyagent\fR(1)
+.SH "نکات (NOTES)"
+.IP " 1." 4
+she-bang wrapper
+.RS 4
+\%http://en.wikipedia.org/wiki/Shebang_(Unix)
+.RE

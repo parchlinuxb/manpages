@@ -1,0 +1,196 @@
+'\" t
+.\"     Title: ndctl-destroy-namespace
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2026-06-30
+.\"    Manual: ndctl Manual
+.\"    Source: ndctl
+.\"  Language: English
+.\"
+.TH "NDCTL\-DESTROY\-NAMESPACE" "1" "2026-06-30" "ndctl" "ndctl Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+ndctl-destroy-namespace \- destroy the given namespace(s)
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+.nf
+\fIndctl destroy\-namespace\fP <namespace> [<options>]
+.fi
+.br
+.SH "THEORY OF OPERATION"
+.sp
+The capacity of an NVDIMM REGION (contiguous span of persistent memory)
+is accessed via one or more NAMESPACE devices. REGION is the Linux term
+for what ACPI and UEFI call a DIMM\-interleave\-set, or a
+system\-physical\-address\-range that is striped (by the memory controller)
+across one or more memory modules.
+.sp
+The UEFI specification defines the \fINVDIMM Label Protocol\fP as the
+combination of label area access methods and a data format for
+provisioning one or more NAMESPACE objects from a REGION. Note that
+label support is optional and if Linux does not detect the label
+capability it will automatically instantiate a "label\-less" namespace
+per region. Examples of label\-less namespaces are the ones created by
+the kernel\(cqs \fImemmap=ss!nn\fP command line option (see the nvdimm wiki on
+kernel.org), or NVDIMMs without a valid \fInamespace index\fP in their label
+area.
+.if n .sp
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
+.B Note
+.ps -1
+.br
+.sp
+Label\-less namespaces lack many of the features of their label\-rich
+cousins. For example, their size cannot be modified, or they cannot be
+fully \fIdestroyed\fP (i.e. the space reclaimed). A destroy operation will
+zero any mode\-specific metadata. Finally, for create\-namespace operations
+on label\-less namespaces, ndctl bypasses the region capacity availability
+checks, and always satisfies the request using the full region capacity.
+The only reconfiguration operation supported on a label\-less namespace
+is changing its \fImode\fP.
+.sp .5v
+.RE
+.sp
+A namespace can be provisioned to operate in one of 4 modes, \fIfsdax\fP,
+\fIdevdax\fP, \fIsector\fP, and \fIraw\fP. Here are the expected usage models for
+these modes:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+fsdax: Filesystem\-DAX mode is the default mode of a namespace
+when specifying \fIndctl create\-namespace\fP with no options. It creates
+a block device (/dev/pmemX[.Y]) that supports the DAX capabilities
+of Linux filesystems (xfs and ext4 to date). DAX removes the page
+cache from the I/O path and allows mmap(2) to establish direct
+mappings to persistent memory media. The DAX capability enables
+workloads / working\-sets that would exceed the capacity of the page
+cache to scale up to the capacity of persistent memory. Workloads
+that fit in page cache or perform bulk data transfers may not see
+benefit from DAX. When in doubt, pick this mode.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+devdax: Device\-DAX mode enables similar mmap(2) DAX mapping
+capabilities as Filesystem\-DAX. However, instead of a block\-device
+that can support a DAX\-enabled filesystem, this mode emits a single
+character device file (/dev/daxX.Y). Use this mode to assign
+persistent memory to a virtual\-machine, register persistent memory
+for RDMA, or when gigantic mappings are needed.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+sector: Use this mode to host legacy filesystems that do
+not checksum metadata or applications that are not prepared for torn
+sectors after a crash. Expected usage for this mode is for small
+boot volumes. This mode is compatible with other operating systems.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+raw: Raw mode is effectively just a memory disk that does
+not support DAX. Typically this indicates a namespace that was
+created by tooling or another operating system that did not know how
+to create a Linux \fIfsdax\fP or \fIdevdax\fP mode namespace. This mode is
+compatible with other operating systems, but again, does not support
+DAX operation.
+.RE
+.SH "گزینه‌ها (OPTIONS)"
+.sp
+<namespace>
+.RS 4
+A \fInamespaceX.Y\fP device name. The keyword \fIall\fP can be specified to carry out
+the operation on every namespace in the system, optionally filtered by region
+(see \-\-region=option)
+.RE
+.sp
+\-r, \-\-region=
+.RS 4
+A \fIregionX\fP device name, or a region id number. Restrict the operation to
+the specified region(s). The keyword \fIall\fP can be specified to indicate
+the lack of any restriction, however this is the same as not supplying a
+\-\-region option at all.
+.RE
+.sp
+\-b, \-\-bus=
+.RS 4
+A bus id number, or a provider string (e.g. "ACPI.NFIT"). Restrict the
+operation to the specified bus(es). The keyword \fIall\fP can be specified
+to indicate the lack of any restriction, however this is the same as
+not supplying a \-\-bus option at all.
+.RE
+.sp
+\-v, \-\-verbose
+.RS 4
+Emit debug messages for the namespace operation
+.RE
+.sp
+\-f, \-\-force
+.RS 4
+Unless this option is specified the \fIdestroy namespace\fP
+operation will fail if the namespace is presently active.
+Specifying \-\-force causes the namespace to be disabled before
+the operation is attempted. However, if the namespace is
+mounted then the \fIdisable namespace\fP and \fIdestroy
+namespace\fP operations will be aborted.  The namespace must be
+unmounted before being destroyed.
+.RE
+.SH "حق نشر (COPYRIGHT)"
+.sp
+Copyright \(co 2016 \- 2022, Intel Corporation. License GPLv2: GNU GPL
+version 2 \c
+.URL "http://gnu.org/licenses/gpl.html" "" "."
+This is free software:
+you are free to change and redistribute it.  There is NO WARRANTY, to
+the extent permitted by law.
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+ndctl\-create\-namespace(1)

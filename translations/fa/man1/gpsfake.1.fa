@@ -1,0 +1,367 @@
+'\" t
+.\"     Title: gpsfake
+.\"    Author: Eric S. Raymond
+.\" Generator: Asciidoctor 2.0.26
+.\"      Date: 2025-11-04
+.\"    Manual: GPSD Documentation
+.\"    Source: GPSD, Version 3.27.5
+.\"  Language: English
+.\"
+.TH "GPSFAKE" "1" "2025-11-04" "GPSD, Version 3.27.5" "GPSD Documentation"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "نام (NAME)"
+gpsfake \- test harness for gpsd, simulating a GNSS receiver
+.SH "خلاصه دستور (SYNOPSIS)"
+.sp
+\fBgpsfake\fP [OPTIONS] infile
+.sp
+\fBgpsfake\fP \-h
+.sp
+\fBgpsfake\fP \-V
+.SH "توضیحات (DESCRIPTION)"
+.sp
+\fBgpsfake\fP is a test harness for \fBgpsd\fP and its clients. It opens a pty
+(pseudo\-TTY), launches a \fBgpsd\fP instance that thinks the slave side of
+the pty is its GNSS device, and repeatedly feeds the contents of one
+or more test logfiles through the master side to the GNSS receiver. If
+there are multiple logfiles, sentences from them are interleaved in the
+order the files are specified.
+.sp
+\fBgpsfake\fP does not require root privileges, but will run fine as root.
+It can be run concurrently with a production \fBgpsd\fP instance without
+causing problems, as long as you use the \fB\-P\fP option.  Running under sudo
+will cause minor loss of functionality.
+.sp
+The logfiles may contain packets in any supported format, including in
+particular NMEA, SiRF, TSIP, or Zodiac. Leading lines beginning with #
+will be treated as comments and ignored, except in the following special
+cases.
+.sp
+These are interpreted directly by \fBgpsfake\fP:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+a comment of the form \fB#Serial: [0\-9] [78][NOE][12]\fP may be used to set
+serial parameters for the log \- baud rate, word length, stop bits.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+a comment of the form \fB#Transport: UDP\fP may be used to fake a UDP source
+rather than the normal pty.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+a comment of the form \fB#Transport: TCP\fP may be used to fake a TCP source
+rather than the normal pty.
+.RE
+.sp
+These are interpreted directly by \fBgpsd\fP:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.  sp -1
+.  IP \(bu 2.3
+.\}
+a comment of the form \fB# Date: yyyy\-mm\-dd\fP (ISO8601 date format) may be
+used to set the initial date for the log.
+.RE
+.sp
+The \fBgpsd\fP instance is run in foreground. The thread sending fake GNSS data
+to the daemon is run in background.
+.SH "گزینه‌ها (OPTIONS)"
+.sp
+\fB\-?\fP, \fB\-h\fP, \fB\-\-help\fP
+.RS 4
+Print a usage message and exit.
+.RE
+.sp
+\fB\-1\fP, \fB\-\-singleshot\fP
+.RS 4
+The logfile is interpreted once only rather than repeatedly. This
+option is intended to facilitate regression testing.
+.RE
+.sp
+\fB\-b\fP, \fB\-\-baton\fP
+.RS 4
+Enable a twirling\-baton progress indicator on standard error. At
+termination, it reports elapsed time.
+.RE
+.sp
+\fB\-c COUNT\fP, \fB\-\-cycle COUNT\fP
+.RS 4
+Sets the delay between sentences in seconds. Fractional values of
+seconds are legal. The default is zero (no delay).
+.RE
+.sp
+\fB\-d LVL\fP, \fB\-\-debug LVL\fP
+.RS 4
+Pass a \fB\-D\fP option to the daemon: thus \fB\-D
+4\fP is shorthand for \fB\-o="\-D 4"\fP.
+.RE
+.sp
+\fB\-g\fP, \fB\-G\fP, \fB\-\-gdb\fP, \fB\-\-lldb\fP
+.RS 4
+Use the monitor facility to run the \fBgpsd\fP instance within \fBgpsfake\fP under
+control of \fBgdb\fP or \fBlldb\fP, respectively. They also disable the timeout on
+daemon inactivity, to allow for breakpointing. If necessary, the
+timeout can be reenabled by a subsequent \fB\-W\fP or \fB\-\-wait\fP . If
+\fBxterm\fP and $DISPLAY are available, these options launch the debugger in
+a separate \fBxterm\fP window, to separate the debugger dialog from the
+program output, but otherwise run it directly. In the \fBgdb\fP case,
+\fB\-tui\fP is used with \fBxterm\fP but not otherwise, since curses and
+program output don\(cqt play nicely together. Although \fBlldb\fP lacks an
+equivalent option, some versions have a \*(Aqgui\*(Aq command.
+.RE
+.sp
+\fB\-i\fP, \fB\-\-promptme\fP
+.RS 4
+Single\-step through logfiles. It dumps the line or packet number (and
+the sentence if the protocol is textual) followed by "? ". Only when
+the user keys Enter is the line actually fed to \fBgpsd\fP.
+.RE
+.sp
+\fB\-l\fP, \fB\-\-linedump\fP
+.RS 4
+Print a line or packet number just before each sentence is fed to the
+daemon. If the sentence is textual (e.g. NMEA), the text is printed as
+well. If not, the packet will be printed in hexadecimal (except for
+RTCM packets, which aren\(cqt dumped at all). This option is useful for
+checking that \fBgpsfake\fP is getting packet boundaries right.
+.RE
+.sp
+\fB\-m PROG\fP, \fB\-\-monitor PROG\fP
+.RS 4
+Specify a monitor program (PROG) inside which the daemon should be
+run. This option is intended to be used with \fBvalgrind\fP(1) , \fBgdb\fP(1) and
+similar programs.
+.RE
+.sp
+\fB\-n\fP, \fB\-\-nowait\fP
+.RS 4
+Pass \fB\-n\fP to the daemon to start the daemon reading the GNSS receiver
+without waiting for a client (equivalent to \fB\-o="\-n"\fP).
+.RE
+.sp
+\fB\-o="OPTS"\fP, \fB\-\-option="OPTS"\fP
+.RS 4
+Specify options to pass to the daemon. The equal sign (=) and quotes
+are required so that \fBgpsd\fP options are not confused with \fBgpsfake\fP
+options. To start the daemon reading the GNSS receiver without waiting
+for a client use \fB\-o="\-n"\fP (equivalent to the \fB\-n\fP) which passes \fB\-n\fP
+to the \fBgpsd\fP daemon. The option \fB\-o="\-D 4"\fP passes a \fB\-D 4\fP to the
+daemon, equivalent to the using \fB\-D 4\fP.
+.RE
+.sp
+\fB\-p\fP, \fB\-\-pipe\fP
+.RS 4
+Sets watcher mode and dump the NMEA and GPSD notifications generated
+by the log to standard output. This is useful for regression testing.
+.RE
+.sp
+\fB\-P PORT\fP, \fB\-\-port PORT\fP
+.RS 4
+Sets the daemon\(cqs listening port to PORT.
+.RE
+.sp
+\fB\-q\fP, \fB\-\-quiet\fP
+.RS 4
+Tell \fBgpsfake\fP to suppress normal progress output and thus act in a
+quiet manner.
+.RE
+.sp
+\fB\-r STR\fP, \fB\-\-clientinit STR\fP
+.RS 4
+Specify an initialization command to use in pipe mode. The default is
+\fB?WATCH={"enable":true,"json":true}\fP.
+.RE
+.sp
+\fB\-s SPEED\fP, \fB\-\-speed SPEED\fP
+.RS 4
+Sets the baud rate for the slave tty. The default is 4800.
+.RE
+.sp
+\fB\-S\fP, \fB\-\-slow\fP
+.RS 4
+Tells \fBgpsfake\fP to insert realistic delays in the test input rather than
+trying to stuff it through the daemon as fast as possible. This will
+make the test(s) run much slower, but avoids flaky failures due to
+machine load and possible race conditions in the pty layer.
+.RE
+.sp
+\fB\-t\fP, \fB\-\-tcp\fP
+.RS 4
+Forces the test framework to use TCP rather than pty devices. Besides
+being a test of TCP source handling, this may be useful for testing
+from within chroot jails where access to pty devices is locked out.
+.RE
+.sp
+\fB\-T\fP, \fB\-\-sysinfo\fP
+.RS 4
+Makes \fBgpsfake\fP print some system information and then exit.
+.RE
+.sp
+\fB\-u\fP, \fB\-\-udp\fP
+.RS 4
+Forces the test framework to use UDP rather than pty devices. Besides
+being a test of UDP source handling, this may be useful for testing
+from within chroot jails where access to pty devices is locked out.
+.RE
+.sp
+\fB\-v\fP, \fB\-\-verbose\fP
+.RS 4
+Enable verbose progress reports to stderr. Use multiple times to
+increase verbosity. It is mainly useful for debugging \fBgpsfake\fP itself.
+.RE
+.sp
+\fB\-w SEC\fP, \fB\-\-wait SEC\fP
+.RS 4
+Set the timeout on daemon inactivity, in seconds. The default timeout
+is 60 seconds, and a value of 0 suppresses the timeout altogether.
+Note that the actual timeout is longer due to internal delays,
+typically by about 20 seconds.
+.RE
+.sp
+\fB\-x\fP, \fB\-\-predump\fP
+.RS 4
+Dump packets as \fBgpsfake\fP gathers them. It is mainly useful for
+debugging \fBgpsfake\fP itself.
+.RE
+.sp
+The last argument(s) must be the name of a file or files containing the
+data to be cycled at the device. \fBgpsfake\fP will print a notification each
+time it cycles.
+.sp
+Normally, \fBgpsfake\fP creates a pty for each logfile and passes the slave
+side of the device to the daemon. If the header comment in the logfile
+contains the string "UDP", packets are instead shipped via UDP port 5000
+to the address 192.168.0.1.255. You can monitor the packet with \fBtcpdump\fP
+this way:
+.sp
+.if n .RS 4
+.nf
+.fam C
+tcpdump \-s0 \-n \-A \-i lo udp and port 5000
+.fam
+.fi
+.if n .RE
+.SH "MAGIC COMMENTS"
+.sp
+Certain magic comments in test load headers can change the conditions of
+the test. These are:
+.sp
+\fBSerial\fP
+.RS 4
+May contain a serial\-port setting such as 4800 7N2 \- baud rate
+followed by 7 or 8 for byte length, N or O or E for parity and 1 or 2
+for stop bits. The test is run with those settings on the slave port
+that the daemon sees.
+.RE
+.sp
+\fBTransport\fP
+.RS 4
+Values \*(AqTCP\*(Aq and \*(AqUDP\*(Aq force the use of TCP and UDP feeds respectively
+(the default is a pty).
+.RE
+.sp
+\fBDelay\-Cookie\fP
+.RS 4
+Must be followed by two whitespace\-separated fields, a delimiter
+character and a numeric delay in seconds. Instead of being broken up
+by packet boundaries, the test load is split on the delimiters. The
+delay is performed after each feed. Can be useful for imposing write
+boundaries in the middle of packets.
+.RE
+.SH "CUSTOM TESTS"
+.sp
+\fBgpsfake\fP is a trivial wrapper around a Python module, also named \fBgpsfake\fP,
+that can be used to fully script sessions involving a \fBgpsd\fP instance, any
+number of client sessions, and any number of fake GPSes feeding the
+daemon instance with data from specified sentence logs.
+.sp
+Source and embedded documentation for this module is shipped with the
+\fBgpsd\fP development tools. You can use it to torture test either \fBgpsd\fP
+itself or any \fBgpsd\fP\-aware client application.
+.sp
+Logfiles for the use with \fBgpsfake\fP can be retrieved using \fBgpspipe\fP,
+\fBgpscat\fP, or \fBcgps\fP from the \fBgpsd\fP distribution, or any other application
+which is able to create a compatible output.
+.SH "محیط (ENVIRONMENT)"
+.SS "WRITE_PAD"
+.sp
+For unknown reasons \fBgpsfake\fP may sometimes time out and fail. Set the
+WRITE_PAD environment value to a larger value to avoid this issue. A
+starting point might be "WRITE_PAD = 0.005". Values as large os 0.200
+may be required.
+.SS "GPSD_HOME"
+.sp
+If \fBgpsfake\fP exits with "Cannot execute gpsd: executable not found." the
+environment variable GPSD_HOME can be set to the path where \fBgpsd\fP can be
+found. (instead of adding that folder to the PATH environment variable
+.SH "RETURN VALUES"
+.sp
+\fB0\fP
+.RS 4
+on success.
+.RE
+.sp
+\fB1\fP
+.RS 4
+on failure
+.RE
+.SH "همچنین ببینید (SEE ALSO)"
+.sp
+\fBgpsd\fP(8), \fBgps\fP(1), \fBgpspipe\fP(1), \fBgpscat\fP(1), \fBcgps\fP(1), \fBtcpdump\fP(1),
+\fBgdb\fP(1), \fBlldb\fP(1), \fBvalgrind\fP(1)
+.SH "RESOURCES"
+.sp
+\fBProject web site:\fP \c
+.URL "https://gpsd.io" "" ""
+.SH "کپی‌رایت و تکثیر (COPYING)"
+.sp
+This file is Copyright 2013 by the GPSD project
+.br
+SPDX\-License\-Identifier: BSD\-2\-clause
+.SH "نویسنده (AUTHOR)"
+.sp
+Eric S. Raymond

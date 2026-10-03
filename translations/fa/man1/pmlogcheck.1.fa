@@ -1,0 +1,357 @@
+'\" t
+.\"
+.\" Copyright (c) 2000 Silicon Graphics, Inc.  All Rights Reserved.
+.\"
+.\" This program is free software; you can redistribute it and/or modify it
+.\" under the terms of the GNU General Public License as published by the
+.\" Free Software Foundation; either version 2 of the License, or (at your
+.\" option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful, but
+.\" WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+.\" or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+.\" for more details.
+.\"
+.\"
+.TH PMLOGCHECK 1 "PCP" "Performance Co-Pilot"
+.SH "نام (NAME)"
+\f3pmlogcheck\f1 \- checks for invalid data in a PCP archive
+.SH "خلاصه دستور (SYNOPSIS)"
+\f3pmlogcheck\f1
+[\f3\-flmRrvwz?\f1]
+[\f3\-D\f1 \f2debug\f1]
+[\f3\-n\f1 \f2pmnsfile\f1]
+[\f3\-S\f1 \f2start\f1]
+[\f3\-T\f1 \f2finish\f1]
+[\f3\-Z\f1 \f2timezone\f1]
+\f2archive\f1 ...
+.de EX
+.in +0.5i
+.ie t .ft CB
+.el .ft B
+.ie t .sp .5v
+.el .sp
+.ta \\w' 'u*8
+.nf
+..
+.de EE
+.fi
+.ie t .sp .5v
+.el .sp
+.ft R
+.in
+..
+.SH "توضیحات (DESCRIPTION)"
+.B pmlogcheck
+prints information about the nature of any invalid data which it detects
+in the files of PCP archives.
+For some limited cases it also provides a ``repair'' facility.
+.PP
+Each archive has the base name
+.I archive
+and must have been previously created using
+.BR pmlogger (1).
+Alternatively,
+.I archive
+can be the name of a physical file that forms part of a PCP archive.
+.PP
+When multiple
+.I archive
+options are present, all of the corresponding PCP archives will be
+checked, however if the
+.I archive
+options are file names, then each associated PCP archive will be checked
+at most once.
+.SH "گزینه‌ها (OPTIONS)"
+The available command line options are:
+.TP 5
+\fB\-f\fR, \fB\-\-full\fR
+Under normal operation, most errors in
+.B "Pass 0"
+(see below) are sufficiently
+serious that
+.B pmlogcheck
+will exit this happens.
+The
+.I \-f
+option forces
+.B pmlogcheck
+to keep going, even if serious errors are found.
+.TP 5
+\fB\-l\fR, \fB\-\-label\fR
+Print the archive label, showing the archive format version,
+the time and date for the start and (current) end of the archive, and
+the host from which the performance metrics values were collected.
+.TP
+\fB\-m\fR, \fB\-\-metadataonly\fR
+Skip
+.B "Pass 3"
+(see below) and only check the archive meta data.
+This can run substantially faster in cases where the volume data
+doesn't need to be checked, especially on archives with compressed
+data volume(s).
+.TP
+\fB\-n\fR \fIpmnsfile\fR, \fB\-\-namespace\fR=\fIpmnsfile\fR
+Load an alternative Performance Metrics Name Space (\c
+.BR PMNS (5))
+from the file
+.IR pmnsfile .
+.TP 5
+\fB\-R\fR, \fB\-\-auto-repair\fR
+Try to repair any structural damage and in particular when files
+are incomplete (usually as a result of a system crash or filesystem
+out of space conditions), truncate them to preserve as much complete
+information as possible.
+Truncation will only work for uncompressed files, so any
+.I archive
+with compressed file components will need to be uncompressed first
+with
+.BR pmlogdecompress (1).
+.RS
+.PP
+Any repair option implies
+.IR \-f .
+.PP
+Some problems detected by
+.B pmlogcheck
+are not best resolved by file truncation (e.g. \c
+.BR pmlogrewrite (1)
+may be a better option), so it is recommended that
+.B pmlogcheck
+is first run without
+.I \-R
+to determine the scope of any issues, or repair interactively with
+.IR \-r .
+.RE
+.TP 5
+\fB\-r\fR, \fB\-\-repair\fR
+Same repair functions as
+.I \-R
+but the
+.I \-r
+option requires
+.B pmlogcheck
+to be run interactively and it will prompt the user and demand
+a positive response before any file is truncated.
+.TP
+\fB\-S\fR \fIstarttime\fR, \fB\-\-start\fR=\fIstarttime\fR
+Specify the
+.I starttime
+of time window over which metrics should be checked
+in
+.B "Pass 3"
+(see below).
+Refer to
+.BR PCPIntro (1)
+for a complete description of the syntax for
+.IR starttime .
+.TP
+\fB\-T\fR \fIendtime\fR, \fB\-\-finish\fR=\fIendtime\fR
+Specify the
+.I endtime
+of time window over which metrics should be checked
+in
+.B "Pass 3"
+(see below).
+Refer to
+.BR PCPIntro (1)
+for a complete description of the syntax for
+.IR endtime .
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Enable verbose mode.
+.TP
+\fB\-w\fR, \fB\-\-nowrap\fR
+Suppress reporting of counter wraps.
+.TP
+\fB\-z\fR, \fB\-\-hostzone\fR
+Use the local timezone of the host that is the source of the
+performance metrics archive.
+The default is to use the timezone of the local host.
+.TP
+\fB\-Z\fR \fItimezone\fR, \fB\-\-timezone\fR=\fItimezone\fR
+Use
+.I timezone
+for the date and time.
+.I Timezone
+is in the format of the environment variable
+.B TZ
+as described in
+.BR environ (7).
+The default is to use the timezone of the local host.
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Display usage message and exit.
+.SH OPERATION
+The checking proceeds in a number of passes, each designed to validate
+progressively more complex semantic relationships between the information
+in a PCP archive.
+.SS Pass 0
+Each physical file of the PCP archive is processed to ensure the label
+records are valid and consistent, and that each file contains an
+integral number of physical records with correct header and trailer
+fields.
+.PP
+Any errors at this stage are usually fatal.
+The PCP archive is
+probably damaged beyond repair, and no more passes of
+.B pmlogcheck
+are attempted.
+.SS Pass 1
+Validates the integrity of the temporal index, usually
+.IB archive .index\c
+\&.
+.PP
+As the temporal index is (strictly speaking) optional, errors at this
+stage are handled by marking the index as bad and ignoring it for
+the remainder of the
+.B pmlogcheck
+passes.
+.PP
+Permanent repair can be achieved by removing the temporal index file
+and then making a copy of the PCP archive using
+.BR pmlogrewrite (1)
+or
+.BR pmlogextract (1).
+This will create a new temporal index for the copied archive as a side-effect.
+.SS Pass 2
+Validates the integrity of the metadata file, usually
+.IB archive .meta\c
+\&.
+.SS Pass 3
+Validates the integrity of each of the volumes of the PCP archive, usually
+.IB archive .0\c
+,
+.IB archive .1\c
+, etc.
+.PP
+There is some basic integrity checks to ensure the encoding of
+values for each metric remains consistent and the values are well formed
+across all the observations in the archive.
+.PP
+Also the timestamps for the observations are expected to be
+monotonically increasing as the archive is traversed.
+.PP
+Additional attention is given to
+counter metrics (\c
+.I type
+from
+.BR pmLookupDesc (3)
+is
+.BR PM_SEM_COUNTER )
+which are expected to have monotonically increasing values.
+If the values are not monotonic increasing this may suggest
+a counter wrap has happened or there has been some interruption
+or reset to
+the underlying source of the performance data that is no captured in
+the archive.
+.PP
+For each counter metric which has been detected as having wrapped at some
+point in the archive,
+.B pmlogcheck
+produces output describing the metric name (with instance identifiers where
+appropriate), the internal storage type for the metric, the value of the
+metric before the counter wrap (with its associated timestamp), and the value of
+the metric after the wrap (also with a timestamp).
+.PP
+The
+.B \-w
+option may be used to suppress reporting of counter wraps.
+.PP
+.B pmlogcheck
+produces two different timestamp formats, depending on the interval over
+which it is run.
+For an interval greater than 24 hours, the date is displayed
+in addition to the time at which the counter wrap occurred.
+If the extent of the data being checked is less than 24 hours, a more
+precise format is used (time is displayed with millisecond precision, but
+without the date).
+.SH "مثال‌ها (EXAMPLES)"
+The following are all equivalent:
+.EX
+$ pmlogcheck myarchive
+.br
+$ pmlogcheck myarchive.0
+.br
+$ pmlogcheck myarchive.meta
+.br
+$ pmlogcheck myarchive.0 myarchive.meta
+.EE
+.PP
+If the current directory contains multiple PCP archives, then
+the command
+.EX
+$ pmlogcheck *.meta*
+.EE
+will check them all, as there is one
+.B .meta
+file for each PCP archive, but this file may have been compressed
+(hence the trailing \fB*\fP).
+.SH "فایل‌ها (FILES)"
+.TP 5
+.I $PCP_VAR_DIR/pmns/*
+default PMNS specification files
+.TP
+.I $PCP_LOG_DIR/pmlogger/<hostname>
+default directory for PCP archives containing performance data collected
+from the host
+.IR hostname .
+.SH PCP ENVIRONMENT
+Environment variables with the prefix \fBPCP_\fP are used to parameterize
+the file and directory names used by PCP.
+On each installation, the
+file \fI/etc/pcp.conf\fP contains the local values for these variables.
+The \fB$PCP_CONF\fP variable may be used to specify an alternative
+configuration file, as described in \fBpcp.conf\fP(5).
+.SH DEBUGGING OPTIONS
+The
+.B \-D
+or
+.B \-\-debug
+option enables the output of additional diagnostics on
+.I stderr
+to help triage problems, although the information is sometimes cryptic and
+primarily intended to provide guidance for developers rather end-users.
+.I debug
+is a comma separated list of debugging options; use
+.BR pmdbg (1)
+with the
+.B \-l
+option to obtain
+a list of the available debugging options and their meaning.
+.PP
+Debugging options specific to
+.B pmlogcheck
+are as follows:
+.TS
+box;
+lf(B) | lf(B)
+lf(B) | lxf(R) .
+Option	Description
+_
+appl0	dump each \fBpmResult\fP processed
+_
+appl1	report each time a new metric-instance pair is seen
+_
+appl2	report counter values as part of wrap detection
+_
+appl3	report elapsed and cpu time for each pass
+.TE
+.SH "همچنین ببینید (SEE ALSO)"
+.BR PCPIntro (1),
+.BR pmlogdecompress (1),
+.BR pmlogdump (1),
+.BR pmlogextract (1),
+.BR pmlogger (1),
+.BR pmlogrewrite (1),
+.BR pmlogsummary (1),
+.BR PMAPI (3),
+.BR pmLookupDesc (3),
+.BR PMNS (5),
+.BR pcp.conf (5)
+and
+.BR pcp.env (5).
+
+.\" control lines for scripts/man-spell
+.\" +ok+ endtime starttime myarchive {from example}
+.\" +ok+ sp {from troff .sp}

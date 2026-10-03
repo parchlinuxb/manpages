@@ -1,0 +1,241 @@
+.TH "icmodmap" "1" "1992\-2025" "icmake\&.13\&.00\&.03" "initializes C++ projects using modules"
+
+.PP 
+.SH "نام (NAME)"
+icmodmap \- Initializes the maintenance of C++ projects using
+modules
+.PP 
+.SH "خلاصه دستور (SYNOPSIS)"
+\fBicmodmap\fP \fI[Options]\fP start\-directory
+.PP 
+.SH "توضیحات (DESCRIPTION)"
+
+.PP 
+Although modules have already been available for quite some time, the gnu
+\fIg++\fP compiler still shows a number of bugs related to C++ modules
+(cf\&. \fIhttps://gcc\&.gnu\&.org/bugzilla/show_bug\&.cgi?id=103524\fP)\&. So it\(cq\&s
+possible that when using modules you will encounter some of these (or new)
+bugs\&. The bugs will probabably have been repaired in future releases of the
+compiler, and the current state of affairs at least allows you to gain some
+experience in using modules\&. 
+.PP 
+Modules cannot mutually import each other\&. Consequently there\(cq\&s always a
+linear, non\-circular module hierarchy, which should be acknowledged when
+compiling files defining and using modules\&. The \fBicmodmap\fP program
+determines this order and prepares the construction of modules used by
+programs\&.
+.PP 
+\fBIcmodmap\fP assumes that modules are defined in separate sub\-directories, and
+that module interfaces are defined in (by default) files named
+\fImodule\&.cc\fP\&. If a program defines two modules \fIFirst\fP and \fISecond\fP
+(e\&.g\&., in sub\-directories \fIfirst\fP and \fIsecond\fP and the
+\fIsecond/module\&.cc\fP imports module \fIFirst\fP then \fIfirst/module\&.cc\fP must be
+compiled before compiling \fIsecond/module\&.cc\fP\&. This is handled by
+\fBicmodmap\fP\&. Once the \fImodule\&.cc\fP files have been compiled the remaining
+source files of the program can be compiled as usual\&.
+.PP 
+\fBIcmodmap\fP expect projects using modules to be organized as follows:
+.IP o 
+The project\(cq\&s top\-level directory contains a file \fICLASSES\fP, where
+each line (ignoring (\fBC++\fP) comment) specifies the name of a
+sub\-directory implementing one of the project\(cq\&s
+components\&. Alternatively a (subset) of the directory\(cq\&s
+sub\-directories can be specified\&. Each sub\-directory can define a
+module, a module partition, a class (not part of a module, but maybe
+using modules), or global\-level functions (also maybe using modules);
+.IP o 
+If the project defines a program, the project\(cq\&s top\-level directory
+contains source files (like \fImain\&.cc\fP) defining the \fImain\fP
+function\&.  The top\-level directory does not define a module, but its
+sources may use modules;
+.IP o 
+Sub\-directories defining modules or partitions by default contain a
+file \fImodule\&.cc\fP, defining the module\(cq\&s name and its interface
+(instead of \fImodule\&.cc\fP another file name can be specified);
+.IP o 
+Modules and partitions may define classes (one class per module, one
+class per partition)\&. If so the member functions of those classes are
+defined in the module or partition\(cq\&s sub\-directory\&.
+
+.PP 
+\fBIcmodmap\fP(1) inspects each specified sub\-directory\&. If it contains the file
+\fImodule\&.cc\fP (or its alternative name), then that file (having the
+following structure) is inspected:
+.IP o 
+its first non\-empty line: defines the name of the module or partition;
+.IP o 
+\fIimport\fP lines can specify system headers, modules and/or
+partitions\&.
+
+.PP 
+.SH "گزینه‌ها (OPTIONS)"
+
+.PP 
+\fIIcmodmap\fP supports the following options:
+.IP o 
+\fB\-\-colors\fP (\fB\-c\fP)
+.br 
+by default the compiler is called using the
+\fI\-fdiagnostics\-color=never\fP option\&. Use this option to suppress this
+option; 
+.IP o 
+\fB\-\-dependencies\fP (\fB\-d\fP)
+.br 
+the dependencies between modules is shown using this option\&. Module
+defining source files are not compiled\&. \fBIcmodmap\(cq\&s\fP output may look
+like this:
+.nf 
+    Square:l
+    DepSquare: Square
+.fi 
+here, the \fI:l\fP suffix indicates that \fISquare\fP is a module defined
+by the project, not depending on other modules\&. When module
+definitions do depend on other modules they\(cq\&re listed next:
+\fIDepSquare\fP is another module defined by the project, depending on
+the \fISquare\fP module\&.
+.IP 
+It\(cq\&s also possible that modules depend on modules defined by other
+projects\&. In that case the output may look like this:
+.nf 
+    Square:e
+    Mod1: Square:e
+    Mod2: Square:e Mod1 
+    Mod3: Square:e Mod1  Mod2
+.fi 
+In this example module \fISquare\fP is an external module, indicated by
+the \fI:e\fP suffix\&. All other modules depend on \fISquare\fP, and (e\&.g\&.,)
+\fIMod3\fP also depnds on the locally defined modules \fIMod1\fP and
+\fIMod2\fP\&. In this latter example the \fISquare\&.gcm\fP file must be
+available in the project\(cq\&s \fIgcm\&.cache\fP directory (it could be a
+soft\-link to the actual file);
+.IP 
+.IP o 
+\fB\-\-help\fP (\fB\-h\fP)
+.br 
+Provides usage info, returning 0 to the operating system;
+.IP 
+.IP o 
+\fB\-\-module\fP=\fIfile\fP (\fB\-m\fP)
+.br 
+By default modules are defined in \fImodule\&.cc\fP source files\&. If
+modules are defined in source files having other names then those
+names can be specified using this option\&. E\&.g\&., when modules are
+defined in \fIinterface\&.cc\fP files then specify option \fI\-\-module
+interface\&.cc\fP\&. Using differently named module definition files is not
+supported;
+.IP 
+.IP o 
+\fB\-\-subdir\fP (\fB\-s\fP)
+.br 
+By default the compiled module defining files are located in the
+project\(cq\&s \fItmp/o\fP sub\-directory where each compiled file has
+received an compilation order number prefix (e\&.g\&., \fItmp/o/1module\&.o,
+tmp/o/2module\&.o, \&.\&.\&.\fP)\&. When specifying the \fI\-\-subdir\fP option the
+compiled files are located in the same sub\-directory as the module
+defining files themselves (not using the order number prefix);
+.IP 
+.IP o 
+\fB\-\-version\fP (\fB\-v\fP)
+.br 
+Displays \fBicmodmap\fP\(cq\&s version\&.
+.IP 
+.IP o 
+\fB\-\-verbose\fP (\fB\-V\fP)
+.br 
+Shows additional output when determining the module compilation order
+and compiling the module definition files\&.
+
+.PP 
+.SH "مثال (EXAMPLE)"
+
+.PP 
+The following program defines a module \fISquare\fP in its sub\-directory
+\fIsquare\fP, containing this \fImodule\&.cc\fP file:
+.PP 
+.nf 
+export module Square;
+
+export
+{
+    double square(double value);
+
+    class Square
+    {
+        double d_amount;
+
+        public:
+            Square(double amount = 0);          // initialize
+            void amount(double value);          // change d_amount
+            double amount() const;              // return d_amount
+
+            double lastSquared() const;         // returns g_squared
+            double square() const;              // returns sqr(d_amount)
+    };
+}
+
+double g_squared;
+
+.fi 
+
+.PP 
+The \fImain\fP function imports the \fISquare\fP module and uses its
+facilities\&. It also imports the \fIiostream\fP module\-compiled system
+header\&. That header is not inspected by \fBicmodmap\fP, and must be available before
+the \fImain\&.cc\fP file can be compiled\&. Here is the \fImain\&.cc\fP source file:
+.PP 
+.nf 
+import Square;
+import <iostream>;
+
+int main(int argc, char **argv)
+{
+    std::cout << \(dq\&the square of \(dq\& << argc << \(dq\& is \(dq\& 
+                                        << square(argc) << \(cq\&\en\(cq\&;
+    Square obj{12};
+    std::cout << \(dq\&the square of 12 is \(dq\& << obj\&.square() << \(dq\&\en\(dq\&
+                \(dq\&the last computed square is \(dq\& << 
+                obj\&.lastSquared() << \(cq\&\en\(cq\&;
+
+}
+
+.fi 
+
+.PP 
+Executing \fIicmodmap \-d \&.\fP shows \fISquare\fP as a local module:
+.PP 
+.nf 
+    Square:l
+.fi 
+
+.PP 
+Executing \fIicmodmap \-V \&.\fP shows the compilation of \fIsquare/module\&.cc\fP:
+.PP 
+.nf 
+    Module: Square
+    square:
+    /bin/g++ \-\-std=c++26 \-fdiagnostics\-color=never  \-c \-fmodules\-ts 
+            \-Wall \-o \&.\&./tmp/o/1module\&.o module\&.cc
+.fi 
+
+.PP 
+It also defines the \fIgcm\&.cache\fP subdirectory, containing \fISquare\&.gcm\fP and
+a soft\-link \fIusr \-> /usr\fP, and because of this soft\-link the compiler
+finds the module\-compiled system header files\&. It also defines the soft\-link
+\fIsquare/gcm\&.cache \-> \&.\&./gcm\&.cache\fP: those soft\-links are defined in all
+sub\-directories used by the program, allowing all source files in all of the
+program\(cq\&s sub\-directories to import all modules defined in the main
+directory\(cq\&s \fIgcm\&.cache\fP directory\&.
+.PP 
+.SH "همچنین ببینید (SEE ALSO)"
+\fBicmake\fP(1)\&.
+.PP 
+.SH "اشکالات (BUGS)"
+None reported\&.
+.PP 
+.SH "حق نشر (COPYRIGHT)"
+This is free software, distributed under the terms of the 
+GNU General Public License (GPL)\&.
+.PP 
+.SH "نویسنده (AUTHOR)"
+Frank B\&. Brokken (\fBf\&.b\&.brokken@rug\&.nl\fP)\&.
+.PP 

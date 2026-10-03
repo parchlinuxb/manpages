@@ -1,0 +1,223 @@
+'\" t
+.\"     Title: gnome-session
+.\"    Author: gnome-session contributors
+.\" Generator: DocBook XSL Stylesheets vsnapshot <http://docbook.sf.net>
+.\"      Date: 05/28/2026
+.\"    Manual: User Commands
+.\"    Source: gnome-session
+.\"  Language: English
+.\"
+.TH "GNOME\-SESSION" "1" "" "gnome-session" "User Commands"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "نام (NAME)"
+gnome-session \- Start the GNOME desktop environment
+.SH "خلاصه دستور (SYNOPSIS)"
+.HP \w'\fBgnome\-session\fR\ 'u
+\fBgnome\-session\fR [OPTION...]
+.SH "توضیحات (DESCRIPTION)"
+.PP
+The
+\fBgnome\-session\fR
+program starts up the GNOME desktop environment\&. This command is typically executed by your login manager (either GDM, SDDM, lightdm, or other)\&. It will load either your saved session, or it will provide a default session for the user as defined by the system administrator (or the default GNOME installation on your system)\&.
+.PP
+The default session is defined in
+gnome\&.session, a \&.desktop\-like file that is looked for in
+$XDG_CONFIG_HOME/gnome\-session/sessions,
+$XDG_CONFIG_DIRS/gnome\-session/sessions
+and
+$XDG_DATA_DIRS/gnome\-session/sessions\&.
+.SH "گزینه‌ها (OPTIONS)"
+.PP
+\fB\-\-session\fR=SESSION
+.RS 4
+Use the applications defined in
+SESSION\&.session\&. If not specified,
+gnome\&.session
+will be used\&.
+.RE
+.PP
+\fB\-\-debug\fR
+.RS 4
+Enable debugging code\&.
+.RE
+.SH "SYSTEMD"
+.PP
+\fBgnome\-session\fR
+uses
+\fBsystemd\fR
+for the bulk of its service management\&.
+\fBsystemd\fR
+provides the two special targets for desktop integration:
+graphical\-session\&.target
+and
+graphical\-session\-pre\&.target\&. These work across desktop environments, and should be used if possible\&.
+\fBgnome\-session\fR
+provides the following additional GNOME\-specific targets:
+.PP
+gnome\-session\&.target
+.RS 4
+Generic unit that will be active throughout the session\&. Similar to
+graphical\-session\&.target\&.
+.RE
+.PP
+gnome\-session\-pre\&.target
+.RS 4
+Used for tasks that need to be done before session startup\&. Similar to
+graphical\-session\-pre\&.target\&.
+.RE
+.PP
+gnome\-session@SESSION\&.target
+.RS 4
+Main unit started for the session\&.
+\fISESSION\fR
+is set according to the session that is passed in via
+\fB\-\-session\fR\&.
+.RE
+.PP
+gnome\-session\-basic\-services\&.target
+.RS 4
+Special unit that lists basic services that are needed by any GNOME session built around
+\fBgnome\-shell\fR\&. This allows for convenient reuse by kiosk sessions like the GDM login screen\&.
+.RE
+.PP
+gnome\-session\-x11\-services\&.target
+.RS 4
+Special unit started when X11 services are needed\&. Programs will need to use the special
+\fIGNOME_SETUP_DISPLAY\fR
+environment variable instead of
+\fIDISPLAY\fR\&.
+.RE
+.PP
+Note that care must be taken to set appropriate
+\fIAfter=\fR
+rules\&. It is also strongly recommended to always do this in combination with
+\fIBindsTo=\fR
+or
+\fIPartOf=\fR
+on one of the core targets (e\&.g\&.
+graphical\-session\&.target)\&.
+.PP
+Units are required to set
+\fICollectMode=inactive\-or\-failed\fR\&. In addition, it is strongly recommended to set
+\fITimeoutStopSec=5\fR
+so that logout will not be delayed indefinitely in case the process does not stop properly\&.
+.SH "SESSION DEFINITION"
+.PP
+Sessions are defined in
+\&.session
+files, that are using a \&.desktop\-like format, with the following keys in the
+GNOME Session
+group:
+.PP
+\fIName\fR
+.RS 4
+Name of the session\&. This can be localized\&.
+.RE
+.PP
+\fIKiosk\fR
+.RS 4
+Kiosk sessions are special single\-purpose sessions that are built around starting some specific app\&. For instance, a kiosk session may run a full\-screen web browser that\*(Aqs locked to a specific page\&. In GNOME, we use kiosk sessions for the login screen (where the app is the login screen UI) and the initial\-setup first boot experience\&. When set to true,
+\fBgnome\-session\fR
+will make no attempt to autostart any
+\&.desktop
+files, and will instead require that the session configures all required functionality via systemd\&.
+.RE
+.PP
+Here is an example of a session definition:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+[GNOME Session]
+Name=GNOME
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+The
+\&.session
+files are loaded from
+$XDG_CONFIG_HOME/gnome\-session/sessions,
+$XDG_CONFIG_DIRS/gnome\-session/sessions
+and
+$XDG_DATA_DIRS/gnome\-session/sessions\&.
+.PP
+Session definitions don\*(Aqt do anything on their own, and they need to be accompanied by
+\fBsystemd\fR
+configuration to provide some functionality (i\&.e\&. launch services)\&. The recommended way to do that is by hooking into one of the targets described above\&. For instance: when defining a session named
+foobar, you can create a systemd drop\-in file in
+/etc/systemd/user/gnome\-session@foobar\&.target\&.d/session\&.conf
+and define
+Requires=
+and
+Wants=
+dependencies to tell systemd what services it needs to start when launching this session\&.
+.SH "فایل‌ها (FILES)"
+.PP
+.if n \{\
+.RS 4
+.\}
+.nf
+      $XDG_CONFIG_HOME/autostart
+      $XDG_CONFIG_DIRS/autostart
+      /usr/share/gnome/autostart
+    
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Applications defined via
+\&.desktop
+files in those directories will be started on login\&. Note that previous versions of
+\fBgnome\-session\fR
+would launch services from here, but this is no longer the case\&. Services should now be configured via
+\fBsystemd\fR
+unit files
+.PP
+.if n \{\
+.RS 4
+.\}
+.nf
+      $XDG_CONFIG_HOME/gnome\-session/sessions
+      $XDG_CONFIG_DIRS/gnome\-session/sessions
+      $XDG_DATA_DIRS/gnome\-session/sessions
+    
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+These directories contain the
+\&.session
+files that can be used with the
+\fB\-\-session\fR
+option\&.
+.SH "اشکالات (BUGS)"
+.PP
+If you find bugs in the
+\fBgnome\-session\fR
+program, please report these on https://gitlab\&.gnome\&.org/GNOME/gnome\-session/issues\&.
+.SH "همچنین ببینید (SEE ALSO)"
+.PP
+\fBgnome-session-quit\fR(1)

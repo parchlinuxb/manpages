@@ -2,51 +2,59 @@
 .TH PIP\ STRESS 8 "September 17, 2018"
 # SPDX-License-Identifier: GPL-2.0-or-later
 .SH "نام (NAME)"
-.B pip_stress \- Priority Inheritance with processes
+pip_stress \- ارث‌بری اولویت با فرایندها
 .SH "خلاصه دستور (SYNOPSIS)"
 .B pip_stress
 .RB [ \-u|\-\-usleep
 .IR TIME ]
 .SH "توضیحات (DESCRIPTION)"
-This program demonstrates the technique of using priority inheritance (PI)
-mutexes with processes instead of threads.
-The way to do this is to obtain some shared memory - in this case with
-mmap that backs a pthread_mutex_t since this will support PI.
-Pay particular attention to how this is intialized to support processes.
-Function init_shared_pthread_mutex() does this by setting the
-pthread_mutexattr to PTHREAD_PROCESS_SHARED and the mutex protocol to
-PTHREAD_PRIO_INHERIT.
-In this program we purposely try to invoke a classic priority inversion.
-A low priority process grabs the mutex and does some work.
-A high priority process comes a long and is blocked since the mutex is taken.
-A medium priority process that doesn't require the mutex then takes the
-processor. Because the processes are restricted to one cpu, the low priority
-processes never makes any progress because the medium priority process
-runs in an infinite loop. This is a priority inversion because the
-medium priority process is running at the expensive of the high priority
-process. However, since we have used PRIO_INHERIT and are running on a
-machine that supports preemption, the high priority process will lend it's
-priority to the low priority process which will preempt the medium priority
-process. The low priority process will then release the mutex which the
-high priority process can obtain. When the high priority process gets to run
-it kills the medium priority process.
-The state structure keeps track of the progress. Although this program
-is set up to likely trigger an inversion, there is no guarantee that
-scheduling will make that happen. After the program completes it reports
-whether a priority inversion occurred or not. In either case this program
-demonstrates how to use priority inheritance mutexes with processes.
-In fact, you would be better off to avoid scenarios in which a priority
-inversion occurs if possible - this program tries to trigger them just
-to show that it works. If you are having difficulty triggering an inversion,
-merely increase the time that the low priority process sleeps while
-holding the lock. (usleep);
-Also note that you have to run as a user with permission to change
-scheduling priorities.
+این برنامه روش استفاده از موتکس‌های ارث‌بری اولویت (PI \- Priority Inheritance) را با فرایندها به‌جای نخ‌ها نشان می‌دهد.
+روش انجام این کار به دست آوردن مقداری حافظه مشترک است — در این مورد با استفاده از
+.B mmap
+که پشتیبان یک
+.B pthread_mutex_t
+می‌شود، زیرا از ارث‌بری اولویت پشتیبانی خواهد کرد.
+به نحوه مقداردهی اولیه این بخش برای پشتیبانی از فرایندها توجه ویژه‌ای داشته باشید.
+تابع
+.B init_shared_pthread_mutex()
+این کار را با تنظیم
+.B pthread_mutexattr
+بر روی
+.B PTHREAD_PROCESS_SHARED
+و پروتکل موتکس بر روی
+.B PTHREAD_PRIO_INHERIT
+انجام می‌دهد.
+.PP
+در این برنامه عمداً تلاش می‌شود تا یک وضعیت کلاسیک وارونگی اولویت (Priority Inversion) ایجاد شود.
+یک فرایند با اولویت پایین موتکس را در اختیار گرفته و کارهایی را انجام می‌دهد.
+یک فرایند با اولویت بالا وارد شده و از آنجا که موتکس گرفته شده است، مسدود (بلاک) می‌شود.
+سپس یک فرایند با اولویت متوسط که نیازی به موتکس ندارد، پردازنده را در اختیار می‌گیرد.
+از آنجا که فرایندها به یک پردازنده محدود شده‌اند، فرایند با اولویت پایین هرگز هیچ پیشرفتی نمی‌کند، چرا که فرایند با اولویت متوسط در یک حلقه بی‌نهایت اجرا می‌شود.
+این یک وارونگی اولویت است زیرا فرایند با اولویت متوسط به قیمت از دست رفتن زمان فرایند با اولویت بالا در حال اجرا است.
+با این حال، از آنجا که ما از
+.B PRIO_INHERIT
+استفاده کرده‌ایم و بر روی سامانه‌ای اجرا می‌شویم که از پیش‌دستی (Preemption) پشتیبانی می‌کند، فرایند با اولویت بالا اولویت خود را به فرایند با اولویت پایین قرض می‌دهد تا پردازنده را از فرایند با اولویت متوسط پس بگیرد.
+سپس فرایند با اولویت پایین موتکس را آزاد کرده و فرایند با اولویت بالا می‌تواند آن را به دست آورد.
+هنگامی که نوبت اجرای فرایند با اولویت بالا می‌رسد، فرایند با اولویت متوسط را متوقف کرده و خاتمه می‌دهد.
+.PP
+ساختار وضعیت (state structure) روند پیشرفت را پیگیری می‌کند.
+اگرچه این برنامه طوری تنظیم شده است که احتمالاً وارونگی اولویت را فعال کند، هیچ تضمینی وجود ندارد که زمان‌بندی سامانه حتماً باعث رخ دادن آن شود.
+پس از اتمام برنامه، گزارش داده می‌شود که آیا وارونگی اولویت رخ داده است یا خیر.
+در هر صورت، این برنامه نحوه استفاده از موتکس‌های ارث‌بری اولویت را با فرایندها نشان می‌دهد.
+.PP
+در واقع، بهتر است در صورت امکان از سناریوهایی که در آن‌ها وارونگی اولویت رخ می‌دهد اجتناب کنید — این برنامه صرفاً برای نمایش کارکرد آن سعی در ایجاد این سناریوها دارد.
+اگر در ایجاد وارونگی با مشکل مواجه هستید، کافی است مدت‌زمانی را که فرایند با اولویت پایین در حین نگه‌داشتن قفل به خواب می‌رود
+.RB ( usleep )
+افزایش دهید.
+.PP
+همچنین توجه داشته باشید که باید برنامه را به عنوان کاربری اجرا کنید که مجوز تغییر اولویت‌های زمان‌بندی را داشته باشد.
 .SH "گزینه‌ها (OPTIONS)"
 .IP "\-u TIME,\-\-usleep=TIME"
-Specify the sleep time in usec of the low priority process. Defaults to 500.
+مدت‌زمان خواب فرایند با اولویت پایین را بر حسب میکروثانیه مشخص می‌کند. مقدار پیش‌فرض ۵۰۰ است.
 .BR
 .SH "نویسنده (AUTHOR)"
-pip_stress was written by John Kacur <jkacur at redhat.com>
+برنامه
+.B pip_stress
+توسط John Kacur <jkacur at redhat.com> نوشته شده است.
 .PP
-This manual page was also written by John Kacur
+این صفحه راهنما نیز توسط John Kacur نوشته شده است.

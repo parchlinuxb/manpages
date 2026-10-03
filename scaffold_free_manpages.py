@@ -163,7 +163,7 @@ def main():
             sec = r["section"]
             cmd = r["command"]
             st = r["status"]
-            if sec in ["1", "5", "8"] and st == "free":
+            if sec in ["1", "5", "8", "1ssl", "5ssl"] and st in ["free", "in_progress"]:
                 target_path = os.path.join(BASE_DIR, "translations", "fa", f"man{sec}", f"{cmd}.{sec}.fa")
                 if not os.path.exists(target_path):
                     free_tasks.append((cmd, sec, target_path))

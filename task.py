@@ -240,7 +240,6 @@ def import_csv_to_db(conn, csv_path=CSV_PATH):
 
 def auto_sync(conn):
     if not os.path.exists(CSV_PATH):
-        export_db_to_csv(conn, CSV_PATH)
         return
 
     csv_hash = get_file_md5(CSV_PATH)
@@ -279,7 +278,7 @@ def save_tasks(tasks):
            OR package != excluded.package
            OR file_path != excluded.file_path
         """, tasks)
-    export_db_to_csv(conn)
+    ensure_db_permissions()
 
 
 def cmd_stats(args):
@@ -448,7 +447,7 @@ def cmd_next(args):
                 "UPDATE tasks SET status = 'in_progress', updated_at = CURRENT_TIMESTAMP WHERE command = ? AND section = ?",
                 keys
             )
-        export_db_to_csv(conn)
+        ensure_db_permissions()
 
         # Unlock the files specifically for editing by this user
         unlocked = 0
@@ -519,7 +518,7 @@ def cmd_finish(args):
             "UPDATE tasks SET status = 'completed', file_path = ?, updated_at = CURRENT_TIMESTAMP WHERE command = ? AND section = ?",
             (expected_path, cmd, sec)
         )
-    export_db_to_csv(conn)
+    ensure_db_permissions()
 
     # Lock the file back to read-only 0444
     lock_task_file(cmd, sec)

@@ -3,301 +3,213 @@
 .\" Subject to the GPL, version 2.
 .TH TRAFGEN 8 "03 March 2013" "Linux" "netsniff-ng toolkit"
 .SH "نام (NAME)"
-trafgen \- a fast, multithreaded network packet generator
+trafgen \- مولد ترافیک و بسته‌های شبکه سریع و چندنخی
 .PP
 .SH "خلاصه دستور (SYNOPSIS)"
 .PP
-\fBtrafgen\fP [\fIoptions\fP] [\fIpacket\fP]
+\fBtrafgen\fP [\fIگزینه‌ها\fP] [\fIبسته\fP]
 .PP
 .SH "توضیحات (DESCRIPTION)"
 .PP
-trafgen is a fast, zero-copy network traffic generator for debugging,
-performance evaluation, and fuzz-testing. trafgen utilizes the
+ابزار trafgen یک مولد ترافیک شبکه سریع و مبتنی بر روش صفر-کپی (zero-copy) برای اشکال‌زدایی، ارزیابی کارایی و آزمون فازینگ (fuzz-testing) است. trafgen از رابط سوکت
 .BR packet (7)
-socket interface of Linux which postpones complete control over packet data
-and packet headers into the user space. It has a powerful packet configuration
-language, which is rather low-level and not limited to particular protocols.
-Thus, trafgen can be used for many purposes. Its only limitation is that it
-cannot mimic full streams resp. sessions. However, it is very useful for
-various kinds of load testing in order to analyze and subsequently improve
-systems behaviour under DoS attack scenarios, for instance.
+لینوکس بهره می‌برد که کنترل کامل بر داده‌ها و سرایندهای بسته را به فضای کاربری واگذار می‌کند. این ابزار دارای یک زبان قدرتمند برای پیکربندی بسته‌ها است که نسبتاً سطح پایین بوده و محدود به پروتکل‌های خاصی نیست. بنابراین، trafgen می‌تواند برای اهداف متعددی استفاده شود. تنها محدودیت آن این است که نمی‌تواند جریان‌ها یا نشست‌های کامل (full streams resp. sessions) را شبیه‌سازی کند. با این حال، برای انواع مختلف آزمون‌های بارگذاری به منظور تحلیل و متعاقباً بهبود رفتار سیستم‌ها در سناریوهای حملات منع سرویس (DoS)، بسیار سودمند است.
 .PP
-trafgen is Linux specific, meaning there is no support for other operating
-systems, same as
-.BR netsniff-ng (8),
-thus we can keep the code footprint quite minimal and to the point. trafgen
-makes use of
+ابزار trafgen مختص لینوکس است، به این معنی که همانند
+.BR netsniff-ng (8)،
+هیچ پشتیبانی از سیستم‌عامل‌های دیگر وجود ندارد؛ بنابراین می‌توانیم ردپای کد را کاملاً کمینه و متمرکز بر هدف نگه داریم. trafgen از رابط TX_RING سوکت
 .BR packet (7)
-socket's TX_RING interface of the Linux kernel, which is a
-.BR mmap (2)'ed
-ring buffer shared between user and kernel space.
+هسته لینوکس استفاده می‌کند که یک بافر حلقوی
+.BR mmap (2)
+شده مشترک میان فضای کاربری و فضای هسته است.
 .PP
-By default, trafgen starts as many processes as available CPUs, pins each
-of them to their respective CPU and sets up the ring buffer each in their own
-process space after having compiled a list of packets to transmit. Thus, this is
-likely the fastest one can get out of the box in terms of transmission performance
-from user space, without having to load unsupported or non-mainline third-party
-kernel modules. On Gigabit Ethernet, trafgen has a comparable performance to
-pktgen, the built-in Linux kernel traffic generator, except that trafgen is more
-flexible in terms of packet configuration possibilities. On 10-Gigabit-per-second
-Ethernet, trafgen might be slower than pktgen due to the user/kernel space
-overhead but still has a fairly high performance for out of the box kernels.
+به‌طور پیش‌فرض، trafgen به تعداد پردازنده‌های (CPU) در دسترس پردازه ایجاد می‌کند، هر یک از آن‌ها را به پردازنده مربوط به خود متصل (pin) کرده و پس از کامپایل فهرستی از بسته‌ها برای ارسال، بافر حلقوی را در فضای پردازه اختصاصی هر کدام راه‌اندازی می‌کند. بنابراین، این احتمالاً سریع‌ترین کارایی ارسال از فضای کاربری است که می‌توان بدون نیاز به بارگذاری ماژول‌های هسته متفرقه یا خارج از شاخه اصلی (non-mainline) به دست آورد. در اترنت گیگابیتی، trafgen کارایی قابل مقایسه‌ای با pktgen (مولد ترافیک داخلی هسته لینوکس) دارد، با این تفاوت که trafgen از نظر انعطاف‌پذیری در پیکربندی بسته‌ها بسیار برتر است. در اترنت ۱۰ گیگابیت بر ثانیه، trafgen ممکن است به دلیل سربار جابه‌جایی میان فضای کاربری و هسته از pktgen کندتر باشد، اما همچنان برای هسته‌های استاندارد کارایی نسبتاً بالایی دارد.
 .PP
-trafgen has the potential to do fuzz testing, meaning a packet configuration can
-be built with random numbers on all or certain packet offsets that are freshly
-generated each time a packet is sent out. With a built-in IPv4 ping, trafgen can
-send out an ICMP probe after each packet injection to the remote host in order
-to test if it is still responsive/alive. Assuming there is no answer from the
-remote host after a certain threshold of probes, the machine is considered dead
-and the last sent packet is printed together with the random seed that was used
-by trafgen. You might not really get lucky fuzz-testing the Linux kernel, but
-presumably there are buggy closed-source embedded systems or network driver's
-firmware files that are prone to bugs, where trafgen could help in finding them.
+ابزار trafgen دارای پتانسیل انجام آزمون فازینگ (fuzz testing) است؛ بدین معنا که می‌توان یک پیکربندی بسته با اعداد تصادفی در تمام یا برخی افست‌های معین بسته ایجاد کرد که در هر بار ارسال بسته از نو تولید شوند. با ابزار پینگ داخلی IPv4، ابزار trafgen می‌تواند پس از تزریق هر بسته، یک کاوشگر ICMP به میزبان راه دور بفرستد تا پاسخگو بودن و زنده بودن آن را بیازماید. با این فرض که پس از آستانه معینی از کاوش‌ها پاسخی از میزبان مقصد دریافت نشود، دستگاه از کار افتاده تلقی شده و آخرین بسته ارسال‌شده به همراه دانه تصادفی (random seed) مورد استفاده توسط trafgen چاپ می‌شود تا امکان بازتولید باگ فراهم گردد. شاید شانس چندانی برای فازینگ موفق هسته لینوکس نداشته باشید، اما احتمالاً سیستم‌های تعبیه‌شده تجاری باگ‌دار یا سفت‌افزارهای درایورهای شبکه وجود دارند که مستعد خطا هستند و trafgen می‌تواند در یافتن آن‌ها کمک کند.
 .PP
-trafgen's configuration language is quite powerful, also due to the fact, that
-it supports C preprocessor macros. A stddef.h is being shipped with trafgen for
-this purpose, so that well known defines from Linux kernel or network programming
-can be reused. After a configuration file has passed the C preprocessor stage,
-it is processed by the trafgen packet compiler. The language itself supports a
-couple of features that are useful when assembling packets, such as built-in
-runtime checksum support for IP, UDP and TCP. Also it has an expression evaluator
-where arithmetic (basic operations, bit operations, bit shifting, ...) on constant
-expressions is being reduced to a single constant on compile time. Other features
-are ''fill'' macros, where a packet can be filled with n bytes by a constant, a
-compile-time random number or run-time random number (as mentioned with fuzz
-testing). Also,
+زبان پیکربندی trafgen بسیار قدرتمند است، از جمله به این دلیل که از ماکروهای پیش‌پردازنده C پشتیبانی می‌کند. برای همین منظور، فایل stddef.h به همراه trafgen ارائه می‌شود تا بتوان تعاریف شناخته‌شده از هسته لینوکس یا برنامه‌نویسی شبکه را مجدداً استفاده کرد. پس از آن‌که فایل پیکربندی از مرحله پیش‌پردازنده C عبور کرد، توسط کامپایلر بسته trafgen پردازش می‌شود. خود زبان از قابلیت‌های متعددی پشتیبانی می‌کند که هنگام سرهم‌بندی بسته‌ها بسیار مفید هستند؛ مانند پشتیبانی داخلی از محاسبه چکسام در زمان اجرا برای IP، UDP و TCP. همچنین دارای یک ارزیاب عبارت (expression evaluator) است که محاسبات ریاضی (عملیات پایه، عملیات بیتی، شیفت بیت و...) روی عبارات ثابت را در زمان کامپایل به یک مقدار ثابت تبدیل می‌کند. از دیگر ویژگی‌ها ماکروهای پر کردن (''fill'') است که با آن‌ها می‌توان n بایت از بسته را با یک مقدار ثابت، یک عدد تصادفی زمان کامپایل یا عدد تصادفی زمان اجرا (همان‌طور که در آزمون فازینگ ذکر شد) پر کرد. همچنین
 .BR netsniff-ng (8)
-is able to convert a pcap file into a trafgen configuration file, thus such a
-configuration can be further tweaked for a given scenario.
+قادر است یک فایل pcap را به فایل پیکربندی trafgen تبدیل کند؛ بنابراین می‌توان چنین پیکربندی را برای یک سناریوی معین بیشتر شخصی‌سازی کرد.
 .PP
 .SH "گزینه‌ها (OPTIONS)"
 .TP
 .B -i <cfg|pcap|->, -c <cfg|->, --in <cfg|pcap|->, --conf <cfg|->
-Defines the input configuration file that can either be passed as a normal plain
-text file or via stdin (''-''). Note that currently, if a configuration is
-passed through stdin, only 1 CPU will be used.
-It is also possible to specify PCAP file with .pcap extension via
-\fB-i\fP/\fB--in\fP option, by default packets will be sent at rate considering
-timestamp from PCAP file which might be reset via the \fB-b\fP or \fB-t\fP option.
+فایل پیکربندی ورودی را مشخص می‌کند که می‌تواند به صورت یک فایل متنی ساده معمولی یا از طریق ورودی استاندارد (''-'') داده شود. توجه داشته باشید در حال حاضر، اگر پیکربندی از طریق ورودی استاندارد داده شود، تنها از ۱ پردازنده (CPU) استفاده خواهد شد.
+همچنین می‌توان یک فایل PCAP با پسوند .pcap را از طریق گزینه
+\fB-i\fP/\fB--in\fP
+مشخص کرد؛ به‌طور پیش‌فرض بسته‌ها با نرخی با در نظر گرفتن برچسب زمان (timestamp) موجود در فایل PCAP ارسال می‌شوند که می‌توان با گزینه
+\fB-b\fP
+یا
+\fB-t\fP
+آن را بازنشانی کرد.
 .TP
 .B -o <dev|.pcap|.cfg>, -d <dev|.pcap|.cfg>, --out <dev|.pcap|.cfg>, --dev <dev|.pcap|.cfg>
-Defines the outgoing networking device such as eth0, wlan0 and others or
-a *.pcap or *.cfg file. Pcap and configuration files are identified by extension.
+دستگاه شبکه خروجی مانند eth0، wlan0 و غیره، یا یک فایل *.pcap یا *.cfg را تعیین می‌کند. فایل‌های pcap و پیکربندی از طریق پسوند فایل شناسایی می‌شوند.
 .TP
 .B -p, --cpp
-Pass the packet configuration to the C preprocessor before reading it into
-trafgen. This allows #define and #include directives (e.g. to include
-definitions from system headers) to be used in the trafgen configuration file.
+پیکربندی بسته را پیش از خواندن در trafgen، از پیش‌پردازنده C عبور می‌دهد. این امکان استفاده از دستورات #define و #include (برای نمونه جهت گنجاندن تعاریف از هدرهای سیستم) را در فایل پیکربندی trafgen فراهم می‌سازد.
 .TP
 .B -D <name>=<definition>, --define <name>=<definition>
-Add macro definition for the C preprocessor to use it within trafgen file. This
-option is used in combination with the \fB-p\fP/\fB--cpp\fP option.
+افزودن تعریف ماکرو برای پیش‌پردازنده C جهت استفاده در فایل trafgen. این گزینه در ترکیب با گزینه
+\fB-p\fP/\fB--cpp\fP
+استفاده می‌شود.
 .TP
 .B -J, --jumbo-support
-By default trafgen's ring buffer frames are of a fixed size of 2048 bytes.
-This means that if you're expecting jumbo frames or even super jumbo frames to
-pass your line, then you will need to enable support for that with the help of
-this option. However, this has the disadvantage of a performance regression and
-a bigger memory footprint for the ring buffer.
+به‌طور پیش‌فرض فریم‌های بافر حلقوی trafgen اندازه ثابت ۲۰۴۸ بایت دارند. این بدان معناست که اگر انتظار دارید فریم‌های بزرگ (jumbo frames) یا حتی فریم‌های بسیار بزرگ (super jumbo frames) از خط شما عبور کنند، باید با کمک این گزینه پشتیبانی از آن را فعال کنید. با این حال، این کار عیب کاهش کارایی و اشغال حافظه بیشتر برای بافر حلقوی را به همراه دارد.
 .TP
 .B -R, --rfraw
-In case the output networking device is a wireless device, it is possible with
-trafgen to turn this into monitor mode and create a mon<X> device that trafgen
-will be transmitting on instead of wlan<X>, for instance. This enables trafgen
-to inject raw 802.11 frames. In case if the output is a pcap file the link type
-is set to 127 (ieee80211 radio tap).
+در صورتی که دستگاه شبکه خروجی یک دستگاه بی‌سیم باشد، با trafgen می‌توان آن را به حالت پایش (monitor mode) درآورد و یک دستگاه mon<X> ایجاد کرد که برای نمونه trafgen به جای wlan<X> روی آن ارسال کند. این کار به trafgen امکان تزریق فریم‌های خام 802.11 را می‌دهد. در صورتی که خروجی یک فایل pcap باشد، نوع پیوند روی 127 (ieee80211 radio tap) تنظیم می‌شود.
 .TP
 .B -s <ipv4>, --smoke-test <ipv4>
-In case this option is enabled, trafgen will perform a smoke test. In other
-words, it will probe the remote end, specified by an <ipv4> address, that is
-being ''attacked'' with trafgen network traffic, if it is still alive and
-responsive. That means, after each transmitted packet that has been configured,
-trafgen sends out ICMP echo requests and waits for an answer before it continues.
-In case the remote end stays unresponsive, trafgen assumes that the machine
-has crashed and will print out the content of the last packet as a trafgen
-packet configuration and the random seed that has been used in order to
-reproduce a possible bug. This might be useful when testing proprietary embedded
-devices. It is recommended to have a direct link between the host running
-trafgen and the host being attacked by trafgen.
+در صورتی که این گزینه فعال باشد، trafgen یک آزمون دود (smoke test) انجام خواهد داد. به عبارت دیگر، انتهای راه دور را که با آدرس <ipv4> مشخص شده و هدف ارسال ترافیک شبکه trafgen قرار دارد می‌آزماید تا ببیند همچنان زنده و پاسخگو است یا خیر. بدین معنا که پس از هر بسته ارسال‌شده که پیکربندی شده است، trafgen درخواست‌های پژواک ICMP (echo requests) ارسال کرده و پیش از ادامه منتظر پاسخ می‌ماند. در صورتی که انتهای راه دور بدون پاسخ بماند، trafgen فرض می‌کند که دستگاه دچار فروپاشی (crash) شده و محتوای آخرین بسته را به صورت یک پیکربندی بسته trafgen به همراه دانه تصادفی استفاده‌شده برای بازتولید باگ احتمالی چاپ می‌کند. این ویژگی ممکن است هنگام آزمایش دستگاه‌های تعبیه‌شده تجاری بسیار سودمند باشد. توصیه می‌شود بین میزبانی که trafgen را اجرا می‌کند و میزبانی که هدف ارسال trafgen قرار دارد یک اتصال مستقیم برقرار باشد.
 .TP
 .B -n <0|uint>, --num <0|uint>
-Process a number of packets and then exit. If the number of packets is 0, then
-this is equivalent to infinite packets resp. processing until interrupted.
-Otherwise, a number given as an unsigned integer will limit processing.
+پردازش تعداد مشخصی از بسته‌ها و سپس خروج. اگر تعداد بسته‌ها ۰ باشد، معادل بسته‌های نامحدود یا پردازش تا زمان توقف با وقفه است. در غیر این صورت، عددی که به صورت یک عدد صحیح بدون علامت داده شود پردازش را محدود خواهد کرد.
 .TP
 .B -r, --rand
-Randomize the packet selection of the configuration file. By default, if more
-than one packet is defined in a packet configuration, packets are scheduled for
-transmission in a round robin fashion. With this option, they are selected
-randomly instread.
+انتخاب بسته از فایل پیکربندی را تصادفی می‌کند. به‌طور پیش‌فرض، اگر بیش از یک بسته در یک پیکربندی بسته تعریف شده باشد، بسته‌ها برای ارسال با روش نوبت‌گردشی (round-robin) زمان‌بندی می‌شوند. با این گزینه، آن‌ها به جای آن به صورت تصادفی انتخاب می‌شوند.
 .TP
 .B -P <uint>[-<uint>], --cpus <uint>[-<uint>]
-Specify the number of processes trafgen shall
+تعداد پردازه‌هایی را که trafgen باید با
 .BR fork (2)
-off or list exact CPUs to use. By default trafgen will start as many processes
-as CPUs that are online and pin them to each, respectively. A single integer
-within interval [1,CPUs] overrides number of processes, which will be spawned
-starting from the first CPU. A pair of integers within interval [0,CPUs-1], and
-separated using  ''-'' represents an interval of CPUs, which will be used to
-spawn worker processes.
+ایجاد کند مشخص می‌کند یا فهرست دقیق پردازنده‌هایی را که باید استفاده شوند ارائه می‌دهد. به‌طور پیش‌فرض trafgen به تعداد پردازنده‌های فعال سیستم پردازه ایجاد کرده و هر یک را به پردازنده مربوطه متصل (pin) می‌کند. یک عدد صحیح منفرد در بازه [1,CPUs] تعداد پردازه‌ها را بازنویسی می‌کند که از پردازنده اول ایجاد خواهند شد. یک جفت عدد صحیح در بازه [0,CPUs-1] که با ''-'' جدا شده‌اند بازه‌ای از پردازنده‌ها را نشان می‌دهد که برای ایجاد پردازه‌های کارگر استفاده خواهند شد.
 .TP
 .B -t <time>, --gap <time>
-Specify a static inter-packet timegap in seconds, milliseconds, microseconds,
-or nanoseconds: ''<num>s/ms/us/ns''. If no postfix is given default to
-microseconds. If this option is given, then instead of
-.BR packet (7)'s
-TX_RING interface, trafgen will use
+مشخص کردن یک فاصله زمانی ایستا میان بسته‌ها بر حسب ثانیه، میلی‌ثانیه، میکروثانیه یا نانوثانیه: ''<num>s/ms/us/ns''. اگر هیچ پسوندی داده نشود، پیش‌فرض میکروثانیه خواهد بود. اگر این گزینه مشخص شود، آن‌گاه trafgen به جای رابط TX_RING سوکت
+.BR packet (7)،
+از ورودی/خروجی
 .BR sendto (2)
-I/O for network packets, even if the <time> argument is 0. This option is useful
-for a couple of reasons:
-
-  1) comparison between
-.BR sendto (2)
-and TX_RING performance,
-  2) low-traffic packet probing for a given interval,
-  3) ping-like debugging with specific payload patterns.
-
-Furthermore, the TX_RING interface does not cope with interpacket gaps.
+برای بسته‌های شبکه استفاده خواهد کرد، حتی اگر آرگومان <time> برابر با ۰ باشد. این گزینه به چند دلیل سودمند است:
+.PP
+.nf
+  1) مقایسه کارایی میان sendto(2) و TX_RING
+  2) کاوش بسته با ترافیک کم در یک بازه زمانی معین
+  3) اشکال‌زدایی شبه‌پینگ با الگوهای بار داده (payload) مشخص
+.fi
+.PP
+علاوه بر این، رابط TX_RING قابلیت تنظیم فواصل زمانی میان بسته‌ها را ندارد.
 .TP
 .B -b <rate>, --rate <rate>
-Specify the packet send rate <num>pps/kpps/Mpps/B/kB/MB/GB/kbit/Mbit/Gbit/KiB/MiB/GiB units.
-Like with the \fB-t\fP/\fB--gap\fP option, the packets are sent in slow mode.
+مشخص کردن نرخ ارسال بسته‌ها بر حسب واحدهای <num>pps/kpps/Mpps/B/kB/MB/GB/kbit/Mbit/Gbit/KiB/MiB/GiB.
+همانند گزینه
+\fB-t\fP/\fB--gap\fP،
+بسته‌ها در حالت آهسته (slow mode) ارسال می‌شوند.
 .TP
 .B -S <size>, --ring-size <size>
-Manually define the TX_RING resp. TX_RING size in ''<num>KiB/MiB/GiB''. By
-default the size is being determined based on the network connectivity rate.
+تعریف دستی اندازه TX_RING بر حسب ''<num>KiB/MiB/GiB''. به‌طور پیش‌فرض، اندازه بر اساس نرخ اتصال شبکه تعیین می‌شود.
 .TP
 .B -E <uint>, --seed <uint>
-Manually set the seed for pseudo random number generator (PRNG) in trafgen. By
-default, a random seed from /dev/urandom is used to feed glibc's PRNG. If that
-fails, it falls back to the unix timestamp. It can be useful to set the seed
-manually in order to be able to reproduce a trafgen session, e.g. after fuzz
-testing.
+تنظیم دستی دانه (seed) برای مولد اعداد شبه‌تصادفی (PRNG) در trafgen. به‌طور پیش‌فرض، یک دانه تصادفی از /dev/urandom برای تغذیه PRNG مربوط به glibc استفاده می‌شود. اگر ناموفق باشد، به برچسب زمان یونیکس بازمی‌گردد. تنظیم دستی دانه می‌تواند برای بازتولید یک نشست trafgen، برای نمونه پس از آزمون فازینگ، مفید باشد.
 .TP
 .B -u <uid>, --user <uid> resp. -g <gid>, --group <gid>
-After ring setup, drop privileges to a non-root user/group combination.
+پس از راه‌اندازی حلقه، دسترسی‌ها را به ترکیب کاربر/گروه غیر ریشه کاهش می‌دهد.
 .TP
 .B -H, --prio-high
-Set this process as a high priority process in order to achieve a higher
-scheduling rate resp. CPU time. This is however not the default setting, since
-it could lead to starvation of other processes, for example low priority kernel
-threads.
+تنظیم این پردازه به عنوان یک پردازه با اولویت بالا به منظور دستیابی به نرخ زمان‌بندی یا زمان CPU بیشتر. با این حال این تنظیم پیش‌فرض نیست، زیرا ممکن است باعث گرسنگی (starvation) سایر پردازه‌ها، برای نمونه نخ‌های هسته با اولویت پایین شود.
 .TP
 .B -A, --no-sock-mem
-Do not change systems default socket memory setting during testrun.
-Default is to boost socket buffer memory during the test to:
-
+عدم تغییر تنظیمات حافظه سوکت پیش‌فرض سیستم در طول اجرای آزمون. پیش‌فرض این است که حافظه بافر سوکت در طول آزمون به مقادیر زیر ارتقا داده شود:
+.PP
+.nf
   /proc/sys/net/core/rmem_default:4194304
   /proc/sys/net/core/wmem_default:4194304
   /proc/sys/net/core/rmem_max:104857600
   /proc/sys/net/core/wmem_max:104857600
+.fi
 .TP
 .B -Q, --notouch-irq
-Do not reassign the NIC's IRQ CPU affinity settings.
+تنظیمات وابستگی وقفه سخت‌افزاری (IRQ CPU affinity) کارت شبکه را بازنشانی یا دستکاری نکند.
 .TP
 .B -q, --qdisc-path
-Since Linux 3.14, the kernel supports a socket option PACKET_QDISC_BYPASS,
-which trafgen enables by default. This options disables the qdisc bypass,
-and uses the normal send path through the kernel's qdisc (traffic control)
-layer, which can be usefully for testing the qdisc path.
+از لینوکس ۳.۱۴، هسته از یک گزینه سوکت به نام PACKET_QDISC_BYPASS پشتیبانی می‌کند که trafgen به‌طور پیش‌فرض آن را فعال می‌کند. این گزینه میانبر qdisc را غیرفعال کرده و از مسیر ارسال معمول از طریق لایه qdisc (کنترل ترافیک) هسته استفاده می‌کند، که می‌تواند برای آزمودن مسیر qdisc مفید باشد.
 .TP
 .B -V, --verbose
-Let trafgen be more talkative and let it print the parsed configuration and
-some ring buffer statistics.
+حالت پرگویی trafgen را فعال می‌کند تا پیکربندی پردازش‌شده و برخی آمارهای بافر حلقوی را چاپ کند.
 .TP
 .B -e, --example
-Show a built-in packet configuration example. This might be a good starting
-point for an initial packet configuration scenario.
+نمایش یک نمونه پیکربندی بسته داخلی. این گزینه می‌تواند نقطه شروع مناسبی برای یک سناریوی اولیه پیکربندی بسته باشد.
 .TP
 .B -C, --no-cpu-stats
-Do not print CPU time statistics on exit.
+عدم چاپ آمارهای زمان CPU هنگام خروج.
 .TP
 .B -v, --version
-Show version information and exit.
+نمایش اطلاعات نگارش و خروج.
 .TP
 .B -h, --help
-Show user help and exit.
+نمایش راهنمای کاربر و خروج.
 .PP
 .SH "سینتکس (SYNTAX)"
 .PP
-trafgen's packet configuration syntax is fairly simple. The very basic things
-one needs to know is that a configuration file is a simple plain text file
-where packets are defined. It can contain one or more packets. Packets are
-enclosed by opening '{' and closing '}' braces, for example:
+سینتکس پیکربندی بسته در trafgen نسبتاً ساده است. پایه‌ای‌ترین چیزی که باید بدانید این است که یک فایل پیکربندی یک فایل متنی ساده معمولی است که بسته‌ها در آن تعریف می‌شوند. این فایل می‌تواند حاوی یک یا چند بسته باشد. بسته‌ها میان آکولاد باز '{' و بسته '}' محصور می‌شوند، برای نمونه:
 .PP
-   { /* packet 1 content goes here ... */ }
-   { /* packet 2 content goes here ... */ }
+   { /* محتوای بسته ۱ در اینجا قرار می‌گیرد ... */ }
+   { /* محتوای بسته ۲ در اینجا قرار می‌گیرد ... */ }
 .PP
-Alternatively, packets can also be specified directly on the command line, using
-the same syntax as used in the configuration files.
+همچنین، بسته‌ها را می‌توان مستقیماً در خط فرمان نیز با همان سینتکس مورد استفاده در فایل‌های پیکربندی مشخص کرد.
 .PP
-When trafgen is started using multiple CPUs (default), then each of those packets
-will be scheduled for transmission on all CPUs by default. However, it is possible
-to tell trafgen to schedule a packet only on a particular CPU:
+هنگامی که trafgen با استفاده از چند پردازنده (پیش‌فرض) آغاز می‌شود، به‌طور پیش‌فرض هر یک از آن بسته‌ها برای ارسال روی همه پردازنده‌ها زمان‌بندی می‌شوند. با این حال، می‌توان به trafgen گفت که یک بسته را تنها روی یک پردازنده خاص زمان‌بندی کند:
 .PP
-   cpu(1): { /* packet 1 content goes here ... */ }
-   cpu(2-3): { /* packet 2 content goes here ... */ }
+   cpu(1): { /* محتوای بسته ۱ در اینجا قرار می‌گیرد ... */ }
+   cpu(2-3): { /* محتوای بسته ۲ در اینجا قرار می‌گیرد ... */ }
 .PP
-Thus, in case we have a 4 core machine with CPU0-CPU3, packet 1 will be scheduled
-only on CPU1, packet 2 on CPU2 and CPU3. When using trafgen with \-\-num option,
-then these constraints will still be valid and the packet is fairly distributed
-among those CPUs.
+بنابراین، در صورتی که یک دستگاه ۴ هسته‌ای با پردازنده‌های CPU0-CPU3 داشته باشیم، بسته ۱ تنها روی CPU1 و بسته ۲ روی CPU2 و CPU3 زمان‌بندی خواهد شد. هنگام استفاده از trafgen با گزینه \-\-num، این محدودیت‌ها همچنان معتبر خواهند بود و بسته به‌طور عادلانه میان آن پردازنده‌ها توزیع می‌شود.
 .PP
-Packet content is delimited either by a comma or whitespace, or both:
+محتوای بسته با ویرگول (کاما) یا فاصله خالی، یا هر دو از یکدیگر جدا می‌شود:
 .PP
    { 0xca, 0xfe, 0xba 0xbe }
 .PP
-Packet content can be of the following:
+محتوای بسته می‌تواند از انواع زیر باشد:
 .PP
-   hex bytes:   0xca, xff
-   decimal:     42
-   binary:      0b11110000, b11110000
-   octal:       011
-   character:   'a'
-   string:      "hello world"
-   shellcode:   "\\x31\\xdb\\x8d\\x43\\x17\\x99\\xcd\\x80\\x31\\xc9"
+.nf
+   بایت‌های هگزادسیمال: 0xca, xff
+   ده‌دهی (دسیمال):      42
+   دودویی (باینری):     0b11110000, b11110000
+   هشت‌هشتی (اوکتال):     011
+   کاراکتر:             'a'
+   رشته:                "hello world"
+   شل‌کد:               "\\x31\\xdb\\x8d\\x43\\x17\\x99\\xcd\\x80\\x31\\xc9"
+.fi
 .PP
-Thus, a quite useless packet configuration might look like this (one can verify
-this when running this with trafgen in combination with \-V):
+بنابراین، یک پیکربندی بسته که کاربرد چندانی ندارد ممکن است شبیه به این باشد (می‌توان این موضوع را هنگام اجرای آن با trafgen در ترکیب با \-V بررسی کرد):
 .PP
    { 0xca, 42, 0b11110000, 011, 'a', "hello world",
      "\\x31\\xdb\\x8d\\x43\\x17\\x99\\xcd\\x80\\x31\\xc9" }
 .PP
-There are a couple of helper functions in trafgen's language to make life easier
-to write configurations:
+تعدادی تابع کمکی در زبان trafgen وجود دارد تا نگارش پیکربندی‌ها را آسان‌تر سازد:
 .PP
-.B i) Fill with garbage functions:
+.B i) توابع پر کردن با داده‌های بی‌استفاده (Garbage):
 .PP
-   byte fill function:      fill(<content>, <times>): fill(0xca, 128)
-   compile-time random:     rnd(<times>): rnd(128), rnd()
-   runtime random numbers:  drnd(<times>): drnd(128), drnd()
-   compile-time counter:    seqinc(<start-val>, <times>, <increment>)
-                            seqdec(<start-val>, <times>, <decrement>)
-   runtime counter (1byte): dinc(<min-val>, <max-val>, <increment>)
-                            ddec(<min-val>, <max-val>, <decrement>)
+.nf
+   تابع پر کردن بایت:             fill(<content>, <times>): fill(0xca, 128)
+   تصادفی زمان کامپایل:          rnd(<times>): rnd(128), rnd()
+   اعداد تصادفی زمان اجرا:        drnd(<times>): drnd(128), drnd()
+   شمارنده زمان کامپایل:         seqinc(<start-val>, <times>, <increment>)
+                                 seqdec(<start-val>, <times>, <decrement>)
+   شمارنده زمان اجرا (۱ بایت):   dinc(<min-val>, <max-val>, <increment>)
+                                 ddec(<min-val>, <max-val>, <decrement>)
+.fi
 .PP
-.B ii) Checksum helper functions (packet offsets start with 0):
+.B ii) توابع کمکی چکسام (افست‌های بسته از ۰ شروع می‌شوند):
 .PP
-   IP/ICMP checksum:        csumip/csumicmp(<off-from>, <off-to>)
-   UDP checksum:            csumudp(<off-iphdr>, <off-udpdr>)
-   TCP checksum:            csumtcp(<off-iphdr>, <off-tcphdr>)
-   UDP checksum (IPv6):     csumudp6(<off-ip6hdr>, <off-udpdr>)
-   TCP checksum (IPv6):     csumtcp6(<off-ip6hdr>, <off-tcphdr>)
+.nf
+   چکسام IP/ICMP:                csumip/csumicmp(<off-from>, <off-to>)
+   چکسام UDP:                    csumudp(<off-iphdr>, <off-udpdr>)
+   چکسام TCP:                    csumtcp(<off-iphdr>, <off-tcphdr>)
+   چکسام UDP در IPv6:            csumudp6(<off-ip6hdr>, <off-udpdr>)
+   چکسام TCP در IPv6:            csumtcp6(<off-ip6hdr>, <off-tcphdr>)
+.fi
 .PP
-.B iii) Multibyte functions, compile-time expression evaluation:
+.B iii) توابع چندبایتی، ارزیابی عبارت در زمان کامپایل:
 .PP
    const8(<content>), c8(<content>), const16(<content>), c16(<content>),
    const32(<content>), c32(<content>), const64(<content>), c64(<content>)
 .PP
-   These functions write their result in network byte order into the packet
-configuration, e.g. const16(0xaa) will result in ''00 aa''. Within c*()
-functions, it is possible to do some arithmetics: -,+,*,/,%,&,|,<<,>>,^
-E.g. const16((((1<<8)+0x32)|0b110)*2) will be evaluated to ''02 6c''.
+این توابع نتیجه خود را با ترتیب بایت شبکه در پیکربندی بسته می‌نویسند؛ برای نمونه const16(0xaa) به خروجی ''00 aa'' منجر خواهد شد. در توابع ()*c، امکان انجام برخی محاسبات حسابی وجود دارد: -,+,*,/,%,&,|,<<,>>,^
+برای نمونه (((1<<8)+0x32)|0b110)*2)const16 به ''02 6c'' ارزیابی خواهد شد.
 .PP
-.B iv) Protocol header functions:
+.B iv) توابع سرایند پروتکل (Protocol header functions):
 .in +4
-The protocol header functions allow to fill protocol header fields by
-using following generic syntax:
+توابع سرایند پروتکل امکان پر کردن فیلدهای سرایند پروتکل را با استفاده از نحو عمومی زیر فراهم می‌کنند:
 .sp
 .in +4
 <proto>(<field>=<value>,<field2>=<value2>,...,<field3>,...)
@@ -305,41 +217,34 @@ using following generic syntax:
 .sp
 .in -4
 .in +4
-If a field is not specified, then a default value will be used (usually 0).
-Protocol fields might be set in any order. However, the offset of the fields in
-the resulting packet is according to the respective protocol.
+اگر فیلدی مشخص نشود، از مقدار پیش‌فرض استفاده خواهد شد (معمولاً ۰). فیلدهای پروتکل ممکن است به هر ترتیبی تنظیم شوند؛ با این حال، افست فیلدها در بسته نهایی مطابق با پروتکل مربوطه خواهد بود.
 .sp
-Each field might be set with a function which generates field value at runtime by
-increment or randomize it. For L3/L4 protocols the checksum is calculated automatically
-if the field was changed dynamically by specified function.  The following field
-functions are supported:
+هر فیلد ممکن است با تابعی تنظیم شود که مقدار فیلد را در زمان اجرا با افزایش تدریجی یا تصادفی‌سازی تولید می‌کند. برای پروتکل‌های L3/L4، اگر فیلد به‌صورت پویا با تابع مشخص‌شده تغییر کرده باشد، چکسام به‌طور خودکار محاسبه می‌شود. توابع فیلد زیر پشتیبانی می‌شوند:
 .in +4
 .sp
 .B dinc
-- increment field value at runtime. By default increment step is '1'.
+\- افزایش مقدار فیلد در زمان اجرا. به‌طور پیش‌فرض گام افزایش '1' است. پارامترهای
 .B min
-and
+و
 .B max
-parameters are used to increment field only in the specified range, by default original
-field value is used. If the field length is greater than 4 then last 4 bytes are
-incremented only (useful for MAC and IPv6 addresses):
+برای افزایش فیلد تنها در محدوده مشخص‌شده استفاده می‌شوند؛ به‌طور پیش‌فرض از مقدار اولیه فیلد استفاده می‌شود. اگر طول فیلد بیشتر از ۴ بایت باشد، تنها ۴ بایت آخر افزایش می‌یابند (برای آدرس‌های MAC و IPv6 کاربرد دارد):
 .in +4
 .sp
 <field> = dinc() | dinc(min, max) | dinc(min, max, step)
 .in -4
 .sp
 .B drnd
-- randomize field value at runtime.
+\- تصادفی‌سازی مقدار فیلد در زمان اجرا. پارامترهای
 .B min
-and
+و
 .B max
-parameters are used to randomize field only in the specified range:
+برای تصادفی‌سازی فیلد تنها در محدوده مشخص‌شده استفاده می‌شوند:
 .in +4
 .sp
 <field> = drnd() | drnd(min, max)
 .in -4
 .sp
-Example of using dynamic functions:
+نمونه استفاده از توابع پویا:
 .sp
 {
 .in +2
@@ -352,24 +257,22 @@ Example of using dynamic functions:
 .in -4
 
 .sp
-Fields might be further manipulated with a function at a specific offset:
+فیلدها را می‌توان با یک تابع در یک افست مشخص نیز بیشتر دستکاری کرد:
 .sp
 .in +4
 <field>[<index>] | <field>[<index>:<length>]
 .sp
 .in +4
-<index> - relative field offset with range 0..<field.len> - 1
+<index> \- افست نسبی فیلد در محدوده 0..<field.len> - 1
 .sp
-<length> - length/size of the value which will be set; either 1, 2 or 4 bytes (default: 1)
+<length> \- طول/اندازه مقداری که تنظیم خواهد شد؛ ۱، ۲ یا ۴ بایت (پیش‌فرض: ۱)
 .in -4
 .sp
-The <index> starts from the field's first byte in network order.
+مقدار <index> از نخستین بایت فیلد بر اساس ترتیب شبکه (network order) آغاز می‌شود.
 .sp
-The syntax is similar to the one used in pcap filters (man pcap-filter) for
-matching header field at a specified offset.
+این نحو مشابه سینتکس مورد استفاده در فیلترهای pcap (صفحه راهنمای pcap-filter) برای تطبیق فیلد سرایند در یک افست مشخص است.
 .sp
-Examples of using field offset (showing the effect in a shortenet output from
-netsniff-ng):
+نمونه‌های استفاده از افست فیلد (نمایش اثر در یک خروجی خلاصه‌شده از netsniff-ng):
 .sp
 .in +4
 1) trafgen -o lo --cpus 1 -n 3 '{ eth(da=11:22:33:44:55:66, da[0]=dinc()), tcp() }'
@@ -396,13 +299,11 @@ netsniff-ng):
 .in -4
 
 .sp
-All required lower layer headers will be filled automatically if they were not
-specified by the user. The headers will be filled in the order they were
-specified. Each header will be filled with some mimimum required set of fields.
+تمامی سرایندهای لایه پایین‌تر مورد نیاز، در صورتی که توسط کاربر مشخص نشده باشند، به‌طور خودکار پر خواهند شد. سرایندها به همان ترتیبی که مشخص شده‌اند پر می‌شوند. هر سرایند با مجموعه‌ای کمینه از فیلدهای الزامی پر خواهد شد.
 .in -4
 .sp
 .in +4
-Supported protocol headers:
+سرایندهای پروتکل پشتیبانی‌شده:
 .sp
 .I Ethernet
 :
@@ -410,13 +311,13 @@ Supported protocol headers:
 .sp
 .in +4
 .B da|daddr
-- Destination MAC address (default: 00:00:00:00:00:00)
+\- آدرس MAC مقصد (پیش‌فرض: 00:00:00:00:00:00)
 .sp
 .B sa|saddr
-- Source MAC address (default: device MAC address)
+\- آدرس MAC مبدأ (پیش‌فرض: آدرس MAC دستگاه)
 .sp
 .B etype|type|prot|proto
-- Ethernet type (default: 0)
+\- نوع اترنت (Ethernet type) (پیش‌فرض: 0)
 .in -4
 
 .sp
@@ -426,17 +327,17 @@ Supported protocol headers:
 .sp
 .in +4
 .B code
-- MAC Control opcode (default: 0x0001)
+\- آپ‌کد کنترل MAC (پیش‌فرض: 0x0001)
 .sp
 .B time
-- Pause time (default: 0)
+\- زمان مکث (پیش‌فرض: 0)
 .sp
-By default Ethernet header is added with a fields:
+به‌طور پیش‌فرض سرایند اترنت با فیلدهای زیر افزوده می‌شود:
 .in +4
 .sp
-Ethernet type - 0x8808
+نوع اترنت \- 0x8808
 .sp
-Destination MAC address - 01:80:C2:00:00:01
+آدرس MAC مقصد \- 01:80:C2:00:00:01
 .in -4
 
 .in -4
@@ -448,23 +349,23 @@ Destination MAC address - 01:80:C2:00:00:01
 .sp
 .in +4
 .B code
-- MAC Control opcode (default: 0x0101)
+\- آپ‌کد کنترل MAC (پیش‌فرض: 0x0101)
 .sp
 .B pri|prio
-- Priority enable vector (default: 0)
+\- بردار فعال‌سازی اولویت (پیش‌فرض: 0)
 .sp
 .B pri|prio(<number>)
-- Enable/disable (0 - disable, 1 - enable) pause for priority <number> (default: 0)
+\- فعال/غیرفعال‌سازی (۰ - غیرفعال، ۱ - فعال) مکث برای اولویت <number> (پیش‌فرض: 0)
 .sp
 .B time(<number>)
-- Set pause time for priority <number> (default: 0)
+\- تنظیم زمان مکث برای اولویت <number> (پیش‌فرض: 0)
 .sp
-By default Ethernet header is added with a fields:
+به‌طور پیش‌فرض سرایند اترنت با فیلدهای زیر افزوده می‌شود:
 .in +4
 .sp
-Ethernet type - 0x8808
+نوع اترنت \- 0x8808
 .sp
-Destination MAC address - 01:80:C2:00:00:01
+آدرس MAC مقصد \- 01:80:C2:00:00:01
 .in -4
 
 .in -4
@@ -474,29 +375,28 @@ Destination MAC address - 01:80:C2:00:00:01
 .sp
 .in +4
 .B tpid|prot|proto
-- Tag Protocol Identifier (TPID) (default: 0x8100)
+\- شناسه پروتکل برچسب (TPID) (پیش‌فرض: 0x8100)
 .sp
 .B tci
-- Tag Control Information (TCI) field (VLAN Id + PCP + DEI) (default: 0)
+\- فیلد اطلاعات کنترل برچسب (TCI) (شامل VLAN Id + PCP + DEI) (پیش‌فرض: 0)
 .sp
 .B dei|cfi
-- Drop Eligible Indicator (DEI), formerly Canonical Format Indicator (CFI) (default: 0)
+\- نشانگر شایستگی دور انداختن (DEI)، که قبلاً نشانگر قالب استاندارد (CFI) نامیده می‌شد (پیش‌فرض: 0)
 .sp
 .B pcp
-- Priority code point (PCP) (default: 0)
+\- نقطه کد اولویت (PCP) (پیش‌فرض: 0)
 .sp
 .B id
-- VLAN Identifier (default: 0)
+\- شناسه VLAN (پیش‌فرض: 0)
 .sp
 .B 1q
-- Set 802.1q header (TPID: 0x8100)
+\- تنظیم سرایند 802.1q (با TPID: 0x8100)
 .sp
 .B 1ad
-- Set 802.1ad header (TPID: 0x88a8)
+\- تنظیم سرایند 802.1ad (با TPID: 0x88a8)
 .sp
 .in -4
-By default, if the lower level header is Ethernet, its EtherType is set to
-0x8100 (802.1q).
+به‌طور پیش‌فرض، اگر سرایند سطح پایین‌تر اترنت باشد، فیلد نوع اترنت (EtherType) آن بر روی 0x8100 (802.1q) تنظیم می‌شود.
 .sp
 
 .I MPLS
@@ -505,21 +405,19 @@ By default, if the lower level header is Ethernet, its EtherType is set to
 .sp
 .in +4
 .B label|lbl
-- MPLS label value (default: 0)
+\- مقدار برچسب MPLS (پیش‌فرض: 0)
 .sp
 .B tclass|tc|exp
-- Traffic Class for QoS field (default: 0)
+\- کلاس ترافیک برای فیلد کیفیت خدمات (QoS) (پیش‌فرض: 0)
 .sp
 .B last
-- Bottom of stack S-flag (default: 1 for most last label)
+\- فلگ انتهای پشته S-flag (پیش‌فرض: ۱ برای آخرین برچسب)
 .sp
 .B ttl
-- Time To Live (TTL) (default: 0)
+\- طول عمر (TTL) (پیش‌فرض: 0)
 .sp
 .in -4
-By default, if the lower level header is Ethernet, its EtherType is set to
-0x8847 (MPLS Unicast). S-flag is set automatically to 1 for the last label and
-resets to 0 if the lower MPLS label was added after.
+به‌طور پیش‌فرض، اگر سرایند سطح پایین‌تر اترنت باشد، فیلد EtherType آن بر روی 0x8847 (MPLS Unicast) تنظیم می‌شود. فلگ S به‌طور خودکار برای آخرین برچسب روی ۱ تنظیم شده و اگر برچسب MPLS پایین‌تری پس از آن افزوده شود، به ۰ بازنشانی می‌گردد.
 .sp
 
 .I ARP
@@ -529,35 +427,34 @@ resets to 0 if the lower MPLS label was added after.
 .sp
 .in +4
 .B htype
-- ARP hardware type (default: 1 [Ethernet])
+\- نوع سخت‌افزار ARP (پیش‌فرض: 1 [Ethernet])
 .sp
 .B ptype
-- ARP protocol type (default: 0x0800 [IPv4])
+\- نوع پروتکل ARP (پیش‌فرض: 0x0800 [IPv4])
 .sp
 .B op
-- ARP operation type (request/reply) (default: request)
+\- نوع عملیات ARP (درخواست/پاسخ) (پیش‌فرض: request)
 .sp
 .B req|request
-- ARP Request operation type
+\- نوع عملیات درخواست ARP
 .sp
 .B reply
-- ARP Reply operation type
+\- نوع عملیات پاسخ ARP
 .sp
 .B smac|sha
-- Sender hardware (MAC) address (default: device MAC address)
+\- آدرس سخت‌افزاری (MAC) فرستنده (پیش‌فرض: آدرس MAC دستگاه)
 .sp
 .B sip|spa
-- Sender protocol (IPv4) address (default: device IPv4 address)
+\- آدرس پروتکل (IPv4) فرستنده (پیش‌فرض: آدرس IPv4 دستگاه)
 .sp
 .B tmac|tha
-- Target hardware (MAC) address (default: 00:00:00:00:00:00)
+\- آدرس سخت‌افزاری (MAC) هدف (پیش‌فرض: 00:00:00:00:00:00)
 .sp
 .B tip|tpa
-- Target protocol (IPv4) address (default: device IPv4 address)
+\- آدرس پروتکل (IPv4) هدف (پیش‌فرض: آدرس IPv4 دستگاه)
 .in -4
 .sp
-By default, the ARP operation field is set to request and the Ethernet
-destination MAC address is set to the broadcast address (ff:ff:ff:ff:ff:ff).
+به‌طور پیش‌فرض، فیلد عملیات ARP روی request و آدرس MAC مقصد اترنت روی آدرس همگانی (ff:ff:ff:ff:ff:ff) تنظیم می‌شود.
 
 .I IPv4
 :
@@ -570,57 +467,55 @@ destination MAC address is set to the broadcast address (ff:ff:ff:ff:ff:ff).
 .sp
 .in +4
 .B ver|version
-- Version field (default: 4)
+\- فیلد نگارش (پیش‌فرض: 4)
 .sp
 .B ihl
-- Header length in number of 32-bit words (default: 5)
+\- طول سرایند بر حسب تعداد کلمات ۳۲ بیتی (پیش‌فرض: 5)
 .sp
 .B tos
-- Type of Service (ToS) field (default: 0)
+\- فیلد نوع سرویس (ToS) (پیش‌فرض: 0)
 .sp
 .B dscp
-- Differentiated Services Code Point (DSCP, DiffServ) field (default: 0)
+\- فیلد نقطه کد خدمات تفکیک‌شده (DSCP, DiffServ) (پیش‌فرض: 0)
 .sp
 .B ecn
-- Explicit Congestion Notification (ECN) field (default: 0)
+\- فیلد اعلان صریح ازدحام (ECN) (پیش‌فرض: 0)
 .sp
 .B len|length
-- Total length of header and payload (calculated by default)
+\- طول کل سرایند و بار داده (به‌طور پیش‌فرض محاسبه می‌شود)
 .sp
 .B id
-- IPv4 datagram identification (default: 0)
+\- شناسه دیتاگرام IPv4 (پیش‌فرض: 0)
 .sp
 .B flags
-- IPv4 flags value (DF, MF) (default: 0)
+\- مقدار فلگ‌های IPv4 (DF, MF) (پیش‌فرض: 0)
 .sp
 .B df
-- Don't fragment (DF) flag (default: 0)
+\- فلگ عدم تکه‌تکه‌سازی (DF) (پیش‌فرض: 0)
 .sp
 .B mf
-- More fragments (MF) flag (default: 0)
+\- فلگ تکه‌های بیشتر (MF) (پیش‌فرض: 0)
 .sp
 .B frag
-- Fragment offset field in number of 8 byte blocks (default: 0)
+\- فیلد افست تکه بر حسب تعداد بلوک‌های ۸ بایتی (پیش‌فرض: 0)
 .sp
 .B ttl
-- Time to live (TTL) field (default: 0)
+\- فیلد طول عمر (TTL) (پیش‌فرض: 0)
 .sp
 .B csum
-- Header checksum (calculated by default)
+\- چکسام سرایند (به‌طور پیش‌فرض محاسبه می‌شود)
 .sp
 .B sa|saddr
-- Source IPv4 address (default: device IPv4 address)
+\- آدرس IPv4 مبدأ (پیش‌فرض: آدرس IPv4 دستگاه)
 .sp
 .B da|daddr
-- Destination IPv4 address (default: 0.0.0.0)
+\- آدرس IPv4 مقصد (پیش‌فرض: 0.0.0.0)
 .sp
 .B prot|proto
-- IPv4 protocol number (default: 0)
+\- شماره پروتکل IPv4 (پیش‌فرض: 0)
 .in -4
 .sp
-By default, if the lower level header is Ethernet, its EtherType field is set to
-0x0800 (IPv4). If the lower level header is IPv4, its protocol field is set to
-0x4 (IP-in-IP).
+به‌طور پیش‌فرض، اگر سرایند سطح پایین‌تر اترنت باشد، فیلد EtherType آن بر روی 0x0800 (IPv4) تنظیم می‌شود. اگر سرایند سطح پایین‌تر IPv4 باشد، فیلد پروتکل آن بر روی 0x4 (IP-in-IP) تنظیم می‌گردد.
 
 .I IPv6
 :
@@ -632,32 +527,31 @@ By default, if the lower level header is Ethernet, its EtherType field is set to
 .sp
 .in +4
 .B ver|version
-- Version field (default: 6)
+\- فیلد نگارش (پیش‌فرض: 6)
 .sp
 .B tc|tclass
-- Traffic class (default: 0)
+\- کلاس ترافیک (Traffic class) (پیش‌فرض: 0)
 .sp
 .B fl|flow
-- Flow label (default: 0)
+\- برچسب جریان (Flow label) (پیش‌فرض: 0)
 .sp
 .B len|length
-- Payload length (calculated by default)
+\- طول بار داده (به‌طور پیش‌فرض محاسبه می‌شود)
 .sp
 .B nh|nexthdr
-- Type of next header, i.e. transport layer protocol number (default: 0)
+\- نوع سرایند بعدی، یعنی شماره پروتکل لایه انتقال (پیش‌فرض: 0)
 .sp
 .B hl|hoplimit|ttl
-- Hop limit, i.e. time to live (default: 0)
+\- محدودیت جهش، یعنی طول عمر (پیش‌فرض: 0)
 .sp
 .B sa|saddr
-- Source IPv6 address (default: device IPv6 address)
+\- آدرس IPv6 مبدأ (پیش‌فرض: آدرس IPv6 دستگاه)
 .sp
 .B da|daddr
-- Destination IPv6 address (default: 0:0:0:0:0:0:0:0)
+\- آدرس IPv6 مقصد (پیش‌فرض: 0:0:0:0:0:0:0:0)
 .in -4
 .sp
-By default, if the lower level header is Ethernet, its EtherType field is set to
-0x86DD (IPv6).
+به‌طور پیش‌فرض، اگر سرایند سطح پایین‌تر اترنت باشد، فیلد EtherType آن بر روی 0x86DD (IPv6) تنظیم می‌شود.
 
 .I ICMPv4
 :
@@ -666,34 +560,34 @@ By default, if the lower level header is Ethernet, its EtherType field is set to
 .sp
 .in +4
 .B type
-- Message type (default: 0 - Echo reply)
+\- نوع پیام (پیش‌فرض: 0 - Echo reply)
 .sp
 .B code
-- Message code (default: 0)
+\- کد پیام (پیش‌فرض: 0)
 .sp
 .B echorequest
-- ICMPv4 echo (ping) request (type: 8, code: 0)
+\- درخواست پژواک (پینگ) ICMPv4 (نوع: 8، کد: 0)
 .sp
 .B echoreply
-- ICMPv4 echo (ping) reply (type: 0, code: 0)
+\- پاسخ پژواک (پینگ) ICMPv4 (نوع: 0، کد: 0)
 .sp
 .B csum
-- Checksum of ICMPv4 header and payload (calculated by default)
+\- چکسام سرایند و بار داده ICMPv4 (به‌طور پیش‌فرض محاسبه می‌شود)
 .sp
 .B mtu
-- Next-hop MTU field used in 'Datagram is too big' message type (default; 0)
+\- فیلد MTU جهش بعدی مورد استفاده در نوع پیام 'Datagram is too big' (پیش‌فرض: 0)
 .sp
 .B seq
-- Sequence number used in Echo/Timestamp/Address mask messages (default: 0)
+\- شماره توالی مورد استفاده در پیام‌های Echo/Timestamp/Address mask (پیش‌فرض: 0)
 .sp
 .B id
-- Identifier used in Echo/Timestamp/Address mask messages (default: 0)
+\- شناسه مورد استفاده در پیام‌های Echo/Timestamp/Address mask (پیش‌فرض: 0)
 .sp
 .B addr
-- IPv4 address used in Redirect messages (default: 0.0.0.0)
-.sp
+\- آدرس IPv4 مورد استفاده در پیام‌های تغییر مسیر (Redirect) (پیش‌فرض: 0.0.0.0)
 .in -4
-Example ICMP echo request (ping):
+.sp
+نمونه درخواست پژواک ICMP (پینگ):
 .in +4
 .sp
 { icmpv4(echorequest, seq=1, id=1326) }
@@ -706,23 +600,22 @@ Example ICMP echo request (ping):
 .sp
 .in +4
 .B type
-- Message type (default: 0)
+\- نوع پیام (پیش‌فرض: 0)
 .sp
 .B code
-- Code (default: 0)
+\- کد (پیش‌فرض: 0)
 .sp
 .B echorequest
-- ICMPv6 echo (ping) request
+\- درخواست پژواک (پینگ) ICMPv6
 .sp
 .B echoreply
-- ICMPv6 echo (ping) reply
+\- پاسخ پژواک (پینگ) ICMPv6
 .sp
 .B csum
-- Message checksum (calculated by default)
+\- چکسام پیام (به‌طور پیش‌فرض محاسبه می‌شود)
 .in -4
 .sp
-By default, if the lower level header is IPv6, its Next Header field is set to
-58 (ICMPv6).
+به‌طور پیش‌فرض، اگر سرایند سطح پایین‌تر IPv6 باشد، فیلد Next Header آن بر روی 58 (ICMPv6) تنظیم می‌شود.
 
 .I UDP
 :
@@ -730,20 +623,19 @@ By default, if the lower level header is IPv6, its Next Header field is set to
 .sp
 .in +4
 .B sp|sport
-- Source port (default: 0)
+\- درگاه مبدأ (پیش‌فرض: 0)
 .sp
 .B dp|dport
-- Destination port (default: 0)
+\- درگاه مقصد (پیش‌فرض: 0)
 .sp
 .B len|length
-- Length of UDP header and data (calculated by default)
+\- طول سرایند و داده‌های UDP (به‌طور پیش‌فرض محاسبه می‌شود)
 .sp
 .B csum
-- Checksum field over IPv4 pseudo header (calculated by default)
-.sp
+\- فیلد چکسام روی شبه‌سرایند IPv4 (به‌طور پیش‌فرض محاسبه می‌شود)
 .in -4
-By default, if the lower level header is IPv4, its protocol field is set to
-0x11 (UDP).
+.sp
+به‌طور پیش‌فرض، اگر سرایند سطح پایین‌تر IPv4 باشد، فیلد پروتکل آن بر روی 0x11 (UDP) تنظیم می‌شود.
 
 .I TCP
 :
@@ -753,58 +645,57 @@ By default, if the lower level header is IPv4, its protocol field is set to
 .sp
 .in +4
 .B sp|sport
-- Source port (default: 0)
+\- درگاه مبدأ (پیش‌فرض: 0)
 .sp
 .B dp|dport
-- Destination port (default: 0)
+\- درگاه مقصد (پیش‌فرض: 0)
 .sp
 .B seq
-- Sequence number (default: 0)
+\- شماره توالی (پیش‌فرض: 0)
 .sp
 .B aseq|ackseq
-- Acknowledgement number (default: 0)
+\- شماره تأیید دریافت (پیش‌فرض: 0)
 .sp
 .B doff|hlen
-- Header size (data offset) in number of 32-bit words (default: 5)
+\- اندازه سرایند (افست داده) بر حسب تعداد کلمات ۳۲ بیتی (پیش‌فرض: 5)
 .sp
 .B cwr
-- Congestion Window Reduced (CWR) flag (default: 0)
+\- فلگ کاهش پنجره ازدحام (CWR) (پیش‌فرض: 0)
 .sp
 .B ece|ecn
-- ECN-Echo (ECE) flag (default: 0)
+\- فلگ بازتاب ECN (ECE) (پیش‌فرض: 0)
 .sp
 .B urg
-- Urgent flag (default: 0)
+\- فلگ اضطراری (URG) (پیش‌فرض: 0)
 .sp
 .B ack
-- Acknowledgement flag (default: 0)
+\- فلگ تأیید دریافت (ACK) (پیش‌فرض: 0)
 .sp
 .B psh
-- Push flag (default: 0)
+\- فلگ ارسال فوری (PSH) (پیش‌فرض: 0)
 .sp
 .B rst
-- Reset flag (default: 0)
+\- فلگ بازنشانی (RST) (پیش‌فرض: 0)
 .sp
 .B syn
-- Synchronize flag (default: 0)
+\- فلگ همگام‌سازی (SYN) (پیش‌فرض: 0)
 .sp
 .B fin
-- Finish flag (default: 0)
+\- فلگ پایان (FIN) (پیش‌فرض: 0)
 .sp
 .B win|window
-- Receive window size (default: 0)
+\- اندازه پنجره دریافت (پیش‌فرض: 0)
 .sp
 .B csum
-- Checksum field over IPv4 pseudo header (calculated by default)
+\- فیلد چکسام روی شبه‌سرایند IPv4 (به‌طور پیش‌فرض محاسبه می‌شود)
 .sp
 .B urgptr
-- Urgent pointer (default: 0)
-.sp
+\- اشاره‌گر اضطراری (پیش‌فرض: 0)
 .in -4
-By default, if the lower level header is IPv4, its protocol field is set to
-0x6 (TCP).
+.sp
+به‌طور پیش‌فرض، اگر سرایند سطح پایین‌تر IPv4 باشد، فیلد پروتکل آن بر روی 0x6 (TCP) تنظیم می‌شود.
 
-Simple example of a UDP Echo packet:
+مثال ساده از یک بسته UDP Echo:
 .PP
 .in +5
    {
@@ -815,102 +706,102 @@ Simple example of a UDP Echo packet:
    }
 .in -5
 .PP
-Furthermore, there are two types of comments in trafgen configuration files:
+علاوه بر این، دو نوع توضیح (کامنت) در فایل‌های پیکربندی trafgen وجود دارد:
 .PP
-  1. Multi-line C-style comments:        /* put comment here */
-  2. Single-line Shell-style comments:   #  put comment here
+  1. توضیحات چندخطی به سبک C:          /* put comment here */
+  2. توضیحات تک‌خطی به سبک شل:          #  put comment here
 .PP
-Next to all of this, a configuration can be passed through the C preprocessor
-before the trafgen compiler gets to see it with option \fB--cpp\fP. To give you a
-taste of a more advanced example, run ''trafgen \-e'', fields are commented:
+در کنار همه این‌ها، یک پیکربندی می‌تواند قبل از مشاهده توسط کامپایلر trafgen با استفاده از گزینه
+\fB--cpp\fP
+از پیش‌پردازنده C عبور داده شود. برای آشنایی با یک نمونه پیشرفته‌تر، دستور ''trafgen \-e'' را اجرا کنید؛ فیلدهای آن با کامنت توضیح داده شده است:
 .PP
-   /* Note: dynamic elements make trafgen slower! */
+   /* نکته: عناصر پویا trafgen را کندتر می‌کنند! */
    #include <stddef.h>
 
    {
-     /* MAC Destination */
+     /* آدرس MAC مقصد */
      fill(0xff, ETH_ALEN),
-     /* MAC Source */
+     /* آدرس MAC مبدأ */
      0x00, 0x02, 0xb3, drnd(3),
-     /* IPv4 Protocol */
+     /* پروتکل IPv4 */
      c16(ETH_P_IP),
-     /* IPv4 Version, IHL, TOS */
+     /* نگارش IPv4، اندازه IHL و TOS */
      0b01000101, 0,
-     /* IPv4 Total Len */
+     /* طول کل IPv4 */
      c16(59),
-     /* IPv4 Ident */
+     /* شناسه IPv4 */
      drnd(2),
-     /* IPv4 Flags, Frag Off */
+     /* فلگ‌های IPv4، افست تکه */
      0b01000000, 0,
-     /* IPv4 TTL */
+     /* طول عمر (TTL) در IPv4 */
      64,
-     /* Proto TCP */
+     /* پروتکل TCP */
      0x06,
-     /* IPv4 Checksum (IP header from, to) */
+     /* چکسام IPv4 (سرایند IP از، تا) */
      csumip(14, 33),
-     /* Source IP */
+     /* آدرس IP مبدأ */
      drnd(4),
-     /* Dest IP */
+     /* آدرس IP مقصد */
      drnd(4),
-     /* TCP Source Port */
+     /* درگاه مبدأ TCP */
      drnd(2),
-     /* TCP Dest Port */
+     /* درگاه مقصد TCP */
      c16(80),
-     /* TCP Sequence Number */
+     /* شماره توالی TCP */
      drnd(4),
-     /* TCP Ackn. Number */
+     /* شماره تأیید دریافت TCP */
      c32(0),
-     /* TCP Header length + TCP SYN/ECN Flag */
+     /* طول سرایند TCP + فلگ TCP SYN/ECN */
      c16((8 << 12) | TCP_FLAG_SYN | TCP_FLAG_ECE)
-     /* Window Size */
+     /* اندازه پنجره */
      c16(16),
-     /* TCP Checksum (offset IP, offset TCP) */
+     /* چکسام TCP (افست IP، افست TCP) */
      csumtcp(14, 34),
-     /* TCP Options */
+     /* گزینه‌های TCP */
      0x00, 0x00, 0x01, 0x01, 0x08, 0x0a, 0x06,
      0x91, 0x68, 0x7d, 0x06, 0x91, 0x68, 0x6f,
-     /* Data blob */
+     /* بخش داده */
      "gotcha!",
    }
 .PP
-Another real-world example by Jesper Dangaard Brouer [1]:
+یک نمونه واقعی دیگر از Jesper Dangaard Brouer [1]:
 .PP
    {
-     # --- ethernet header ---
-     0x00, 0x1b, 0x21, 0x3c, 0x9d, 0xf8,  # mac destination
-     0x90, 0xe2, 0xba, 0x0a, 0x56, 0xb4,  # mac source
-     const16(0x0800), # protocol
-     # --- ip header ---
-     # ipv4 version (4-bit) + ihl (4-bit), tos
+     # --- سرایند اترنت ---
+     0x00, 0x1b, 0x21, 0x3c, 0x9d, 0xf8,  # آدرس mac مقصد
+     0x90, 0xe2, 0xba, 0x0a, 0x56, 0xb4,  # آدرس mac مبدأ
+     const16(0x0800), # پروتکل
+     # --- سرایند ip ---
+     # نگارش ipv4 (۴ بیت) + ihl (۴ بیت)، tos
      0b01000101, 0,
-     # ipv4 total len
+     # طول کل ipv4
      const16(40),
-     # id (note: runtime dynamic random)
+     # شناسه (نکته: تصادفی پویا در زمان اجرا)
      drnd(2),
-     # ipv4 3-bit flags + 13-bit fragment offset
-     # 001 = more fragments
+     # فلگ‌های ۳ بیتی ipv4 + افست تکه ۱۳ بیتی
+     # 001 = تکه‌های بیشتر (more fragments)
      0b00100000, 0,
      64, # ttl
-     17, # proto udp
-     # dynamic ip checksum (note: offsets are zero indexed)
+     17, # پروتکل udp
+     # چکسام پویا ip (نکته: افست‌ها از صفر شروع می‌شوند)
      csumip(14, 33),
-     192, 168, 51, 1, # source ip
-     192, 168, 51, 2, # dest ip
-     # --- udp header ---
-     # as this is a fragment the below stuff does not matter too much
-     const16(48054), # src port
-     const16(43514), # dst port
-     const16(20),    # udp length
-     # udp checksum can be dyn calc via csumudp(offset ip, offset tcp)
-     # which is csumudp(14, 34), but for udp its allowed to be zero
+     192, 168, 51, 1, # آدرس ip مبدأ
+     192, 168, 51, 2, # آدرس ip مقصد
+     # --- سرایند udp ---
+     # از آنجا که این یک تکه است، موارد زیر اهمیت چندانی ندارند
+     const16(48054), # درگاه مبدأ
+     const16(43514), # درگاه مقصد
+     const16(20),    # طول udp
+     # چکسام udp می‌تواند به صورت پویا با csumudp(offset ip, offset tcp) محاسبه شود
+     # که برابر است با csumudp(14, 34)، اما برای udp مقدار صفر مجاز است
      const16(0),
-     # payload
+     # بار داده
      'A',  fill(0x41, 11),
    }
 .PP
    [1] https://marc.info/?l=linux-netdev&m=135903630614184
 .PP
-The above example rewritten using the header generation functions:
+نمونه بالا بازنویسی‌شده با استفاده از توابع تولید سرایند:
 .PP
    {
      # --- ethernet header ---
@@ -923,122 +814,79 @@ The above example rewritten using the header generation functions:
      'A',  fill(0x41, 11),
    }
 .PP
-.SH USAGE EXAMPLE
+.SH "مثال‌های کاربردی (USAGE EXAMPLES)"
 .TP
 .B trafgen --dev eth0 --conf trafgen.cfg
-This is the most simple and, probably, the most common use of trafgen. It
-will generate traffic defined in the configuration file ''trafgen.cfg'' and
-transmit this via the ''eth0'' networking device. All online CPUs are used.
+این ساده‌ترین و احتمالاً رایج‌ترین کاربرد trafgen است. ترافیک تعریف‌شده در فایل پیکربندی ''trafgen.cfg'' را تولید کرده و آن را از طریق دستگاه شبکه ''eth0'' ارسال می‌کند. از تمامی پردازنده‌های فعال سیستم استفاده می‌شود.
 .TP
 .B trafgen --dev eth0 --conf trafgen.cfg --cpus 2-4
-Instead of using all online CPUs, transmit traffic from CPUs 2, 3, and 4.
+به جای استفاده از تمام پردازنده‌های فعال، ترافیک را تنها از پردازنده‌های ۲، ۳ و ۴ ارسال می‌کند.
 .TP
 .B trafgen -e | trafgen -i - -o lo --cpp -n 1
-This is an example where we send one packet of the built-in example through
-the loopback device. The example configuration is passed via stdin and also
-through the C preprocessor before trafgen's packet compiler will see it.
+این مثالی است که در آن یک بسته از نمونه داخلی را از طریق دستگاه loopback ارسال می‌کنیم. پیکربندی نمونه از طریق ورودی استاندارد (stdin) و همچنین پیش از دیده‌شدن توسط کامپایلر بسته trafgen، از پیش‌پردازنده C عبور داده می‌شود.
 .TP
 .B trafgen --dev eth0 --conf fuzzing.cfg --smoke-test 10.0.0.1
-Read the ''fuzzing.cfg'' packet configuration file (which contains drnd()
-calls) and send out the generated packets to the ''eth0'' device. After each
-sent packet, ping probe the attacked host with address 10.0.0.1 to check if
-it's still alive. This also means, that we utilize 1 CPU only, and do not
-use the TX_RING, but sendto(2) packet I/O due to ''slow mode''.
+فایل پیکربندی بسته ''fuzzing.cfg'' (که حاوی فراخوانی‌های ()drnd است) را خوانده و بسته‌های تولیدشده را به دستگاه ''eth0'' ارسال می‌کند. پس از ارسال هر بسته، میزبان مورد حمله با آدرس 10.0.0.1 را با پینگ کاوش می‌کند تا ببیند آیا هنوز زنده است یا خیر. این همچنین به این معنی است که ما تنها از ۱ پردازنده استفاده می‌کنیم و از TX_RING استفاده نکرده، بلکه به دلیل «حالت آهسته» از ورودی/خروجی بسته sendto(2) بهره می‌بریم.
 .TP
 .B trafgen --dev wlan0 --rfraw --conf beacon-test.txf -V --cpus 2
-As an output device ''wlan0'' is used and put into monitoring mode, thus we
-are going to transmit raw 802.11 frames through the air. Use the ''beacon-test.txf''
-configuration file, set trafgen into verbose mode and use only 2 CPUs starting
-from CPU 0.
+از دستگاه ''wlan0'' به عنوان دستگاه خروجی استفاده شده و در حالت پایش (monitor mode) قرار می‌گیرد؛ بنابراین فریم‌های خام 802.11 را در هوا ارسال خواهیم کرد. از فایل پیکربندی ''beacon-test.txf'' استفاده کرده، trafgen را در حالت پرگو قرار می‌دهد و تنها از ۲ پردازنده با شروع از CPU 0 استفاده می‌کند.
 .TP
 .B trafgen --dev em1 --conf frag_dos.cfg --rand --gap 1000us
-Use trafgen in sendto(2) mode instead of TX_RING mode and sleep after each
-sent packet a static timegap for 1000us. Generate packets from ''frag_dos.cfg''
-and select next packets to send randomly instead of a round-robin fashion.
-The output device for packets is ''em1''.
+از trafgen در حالت sendto(2) به جای حالت TX_RING استفاده می‌کند و پس از هر بسته ارسال‌شده به مدت ۱۰۰۰ میکروثانیه به عنوان فاصله زمانی ایستا به خواب می‌رود. بسته‌ها را از ''frag_dos.cfg'' تولید کرده و بسته‌های بعدی برای ارسال را به صورت تصادفی به جای نوبت‌گردشی انتخاب می‌کند. دستگاه خروجی برای بسته‌ها ''em1'' است.
 .TP
 .B trafgen --dev eth0 --conf icmp.cfg --rand --num 1400000 -k1000
-Send only 1400000 packets using the ''icmp.cfg'' configuration file and then
-exit trafgen. Select packets randomly from that file for transmission and
-send them out via ''eth0''. Also, trigger the kernel every 1000us for batching
-the ring frames from user space (default is 10us).
+تنها ۱۴۰۰۰۰۰ بسته را با استفاده از فایل پیکربندی ''icmp.cfg'' ارسال کرده و سپس از trafgen خارج می‌شود. بسته‌ها را برای ارسال به صورت تصادفی از آن فایل انتخاب کرده و آن‌ها را از طریق ''eth0'' ارسال می‌کند. همچنین، هسته را هر ۱۰۰۰ میکروثانیه برای دسته‌بندی فریم‌های حلقه از فضای کاربری برمی‌انگیزد (پیش‌فرض ۱۰ میکروثانیه است).
 .TP
 .B trafgen --dev eth0 --conf tcp_syn.cfg -u `id -u bob` -g `id -g bob`
-Send out packets generated from the configuration file ''tcp_syn.cfg'' via
-the ''eth0'' networking device. After setting up the ring for transmission,
-drop credentials to the non-root user/group bob/bob.
+بسته‌های تولیدشده از فایل پیکربندی ''tcp_syn.cfg'' را از طریق دستگاه شبکه ''eth0'' ارسال می‌کند. پس از راه‌اندازی حلقه برای ارسال، اختیارات را به کاربر/گروه غیر ریشه bob/bob کاهش می‌دهد.
 .TP
 .B trafgen --dev eth0 '{ fill(0xff, 6), 0x00, 0x02, 0xb3, rnd(3), c16(0x0800), fill(0xca, 64) }' -n 1
-Send out 1 invaid IPv4 packet built from command line to all hosts.
+ارسال ۱ بسته نامعتبر IPv4 ساخته‌شده در خط فرمان به همه میزبان‌ها.
 .PP
 .SH "نکته (NOTE)"
 .PP
-trafgen can saturate a Gigabit Ethernet link without problems. As always,
-of course, this depends on your hardware as well. Not everywhere where it
-says Gigabit Ethernet on the box, will you reach almost physical line rate!
-Please also read the
+ابزار trafgen می‌تواند یک پیوند اترنت گیگابیتی را بدون مشکل اشباع کند. البته همانند همیشه، این موضوع به سخت‌افزار شما نیز بستگی دارد. هر جا که روی جعبه عبارت اترنت گیگابیتی نوشته شده باشد، لزوماً به نرخ فیزیکی کامل خط نخواهید رسید! لطفاً بخش NOTE از صفحه راهنمای
 .BR netsniff-ng (8)
-man page, section NOTE for further details about tuning your system e.g. with
-.BR tuned (8).
+را نیز برای جزئیات بیشتر درباره تنظیم دقیق سیستم خود، برای نمونه با
+.BR tuned (8)،
+مطالعه کنید.
 .PP
-If you intend to use trafgen on a 10-Gbit/s Ethernet NIC, make sure you
-are using a multiqueue
-.BR tc(8)
-discipline, and make sure that the packets you generate with trafgen will have a
-good distribution among tx_hashes so that you'll actually make use of
-multiqueues.
-.PP
-For introducing bit errors, delays with random variation and more, there
-is no built-in option in trafgen. Rather, one should reuse existing methods
-for that which integrate nicely with trafgen, such as
+اگر قصد دارید از trafgen روی یک کارت شبکه اترنت ۱۰ گیگابیت بر ثانیه استفاده کنید، مطمئن شوید که از یک انضباط چندصفی
 .BR tc (8)
-with its different disciplines, i.e. \fBnetem\fP.
+استفاده می‌کنید، و اطمینان حاصل کنید که بسته‌هایی که با trafgen تولید می‌کنید توزیع مناسبی میان tx_hashها داشته باشند تا در عمل از صف‌های چندگانه بهره ببرید.
 .PP
-For more complex packet configurations, it is recommended to use high-level
-scripting for generating trafgen packet configurations in a more automated
-way, i.e. also to create different traffic distributions that are common for
-industrial benchmarking:
+برای وارد کردن خطاهای بیتی، تأخیرها با تغییرات تصادفی و موارد دیگر، هیچ گزینه داخلی در trafgen وجود ندارد. در عوض، باید از روش‌های موجود برای این کار که به خوبی با trafgen یکپارچه می‌شوند، مانند
+.BR tc (8)
+با انضباط‌های مختلف آن، یعنی \fBnetem\fP، استفاده کنید.
 .PP
+برای پیکربندی‌های پیچیده‌تر بسته‌ها، توصیه می‌شود از اسکریپت‌نویسی سطح بالا برای تولید پیکربندی‌های بسته trafgen به روشی خودکارتر استفاده کنید، از جمله برای ایجاد توزیع‌های ترافیکی مختلف که برای معیارسنجی صنعتی رایج هستند:
+.PP
+.nf
     Traffic model              Distribution
-.PP
+
     IMIX                       64:7,  570:4,  1518:1
     Tolly                      64:55,  78:5,   576:17, 1518:23
     Cisco                      64:7,  594:4,  1518:1
     RPR Trimodal               64:60, 512:20, 1518:20
     RPR Quadrimodal            64:50, 512:15, 1518:15, 9218:20
+.fi
 .PP
-The low-level nature of trafgen makes trafgen rather protocol independent
-and therefore useful in many scenarios when stress testing is needed, for
-instance. However, if a traffic generator with higher level packet
-descriptions is desired, netsniff-ng's mausezahn(8) can be of good use as
-well.
+ماهیت سطح پایین trafgen باعث می‌شود که نسبتاً مستقل از پروتکل باشد و بنابراین در سناریوهای بسیاری که به آزمون فشار نیاز است مفید واقع شود. با این حال، اگر یک مولد ترافیک با توصیف بسته‌ها در سطح بالاتر مد نظر باشد، mausezahn(8) از مجموعه netsniff-ng نیز می‌تواند بسیار کاربردی باشد.
 .PP
-For smoke/fuzz testing with trafgen, it is recommended to have a direct
-link between the host you want to analyze (''victim'' machine) and the host
-you run trafgen on (''attacker'' machine). If the ICMP reply from the victim
-fails, we assume that probably its kernel crashed, thus we print the last
-sent packet together with the seed and quit probing. It might be very unlikely
-to find such a ping-of-death on modern Linux systems. However, there might
-be a good chance to find it on some proprietary (e.g. embedded) systems or
-buggy driver firmwares that are in the wild. Also, fuzz testing can be done
-on raw 802.11 frames, of course. In case you find a ping-of-death, please
-mention that you were using trafgen in your commit message of the fix!
+برای آزمون دود/فازینگ با trafgen، توصیه می‌شود بین میزبانی که می‌خواهید تحلیل کنید (دستگاه «قربانی») و میزبانی که trafgen را روی آن اجرا می‌کنید (دستگاه «حمله‌کننده»)، یک پیوند مستقیم وجود داشته باشد. اگر پاسخ ICMP از سوی قربانی دریافت نشود، فرض می‌کنیم که احتمالاً هسته آن دچار فروپاشی شده است؛ بنابراین آخرین بسته ارسالی را به همراه دانه چاپ کرده و کاوش را متوقف می‌کنیم. شاید یافتن چنین «پینگ مرگ» (ping-of-death) روی سیستم‌های لینوکسی مدرن بسیار نامحتمل باشد. با این حال، ممکن است شانس خوبی برای یافتن آن روی برخی سیستم‌های اختصاصی (مانند دستگاه‌های تعبیه‌شده) یا سفت‌افزارهای درایور باگ‌دار موجود در بازار وجود داشته باشد. همچنین آزمون فازینگ می‌تواند روی فریم‌های خام 802.11 نیز انجام شود. در صورتی که یک پینگ مرگ پیدا کردید، لطفاً در پیام کامیت رفع باگ خود ذکر کنید که از trafgen استفاده می‌کردید!
 .PP
 .SH "اشکالات (BUGS)"
-For old trafgen versions only, there could occur kernel crashes: we have fixed
-this bug in the mainline and stable kernels under commit 7f5c3e3a8 (''af_packet:
-remove BUG statement in tpacket_destruct_skb'') and also in trafgen.
+تنها در نگارش‌های قدیمی trafgen، امکان فروپاشی هسته وجود داشت: ما این باگ را در هسته‌های اصلی و پایدار تحت کامیت 7f5c3e3a8 (''af_packet: remove BUG statement in tpacket_destruct_skb'') و همچنین در خود trafgen برطرف کرده‌ایم.
 .PP
-Probably the best is if you upgrade trafgen to the latest version.
+احتمالاً بهترین راه این است که trafgen را به آخرین نگارش ارتقا دهید.
 .PP
-.SH LEGAL
-trafgen is licensed under the GNU GPL version 2.0.
+.SH "مجوز قانونی (LEGAL)"
+ابزار trafgen تحت مجوز عمومی گنو (GNU GPL) نگارش ۲.۰ منتشر شده است.
 .PP
 .SH "تاریخچه (HISTORY)"
+ابزار
 .B trafgen
-was originally written for the netsniff-ng toolkit by Daniel Borkmann. It
-is currently maintained by Tobias Klauser <tklauser@distanz.ch> and Daniel
-Borkmann <dborkma@tik.ee.ethz.ch>.
+در ابتدا برای جعبه‌ابزار netsniff-ng توسط Daniel Borkmann نوشته شد. در حال حاضر توسط Tobias Klauser <tklauser@distanz.ch> و Daniel Borkmann <dborkma@tik.ee.ethz.ch> نگهداری می‌شود.
 .PP
 .SH "همچنین ببینید (SEE ALSO)"
 .BR netsniff-ng (8),
@@ -1049,9 +897,8 @@ Borkmann <dborkma@tik.ee.ethz.ch>.
 .BR astraceroute (8),
 .BR curvetun (8)
 .PP
-.SH "نویسنده (AUTHOR)"
-Manpage was written by Daniel Borkmann.
+.SH "نویسندگان (AUTHORS)"
+این صفحه راهنما توسط Daniel Borkmann نوشته شده است.
 .PP
-.SH COLOPHON
-This page is part of the Linux netsniff-ng toolkit project. A description of the project,
-and information about reporting bugs, can be found at http://netsniff-ng.org/.
+.SH "اطلاعات تکمیلی (COLOPHON)"
+این صفحه بخشی از پروژه جعبه‌ابزار netsniff-ng لینوکس است. توضیحات مربوط به پروژه و اطلاعات پیرامون گزارش اشکالات را می‌توان در <http://netsniff-ng.org> یافت.

@@ -1,777 +1,340 @@
-'\" t
+'" t
 .nh
 .TH podman-pod-clone 1
 .SH "نام (NAME)"
-podman-pod-clone \- Create a copy of an existing pod
+podman-pod-clone \- ایجاد یک رونوشت از یک پاد موجود
 
 .SH "خلاصه دستور (SYNOPSIS)"
-\fBpodman pod clone\fP [\fIoptions\fP] \fIpod\fP \fIname\fP
+\fBpodman pod clone\fP [\fIگزینه‌ها\fP] \fIپاد\fP [\fIنام\fP]
 
 .SH "توضیحات (DESCRIPTION)"
-\fBpodman pod clone\fP creates a copy of a pod, recreating the identical config for the pod and for all of its containers. Users can modify the pods new name and select pod details within the infra container
+دستور \fBpodman pod clone\fP با کپی کردن پیکربندی یک پاد موجود و کانتینرهای درون آن، یک پاد جدید ایجاد می‌کند. این کار به کاربر امکان می‌دهد تا به سادگی یک پاد مشابه را با همان تنظیمات یا با تغییرات جزئی بازتولید کند.
 
 .SH "گزینه‌ها (OPTIONS)"
 .SS \fB--blkio-weight\fP=\fIweight\fP
-Block IO relative weight. The \fIweight\fP is a value between \fB10\fP and \fB1000\fP\&.
-
-.PP
-This option is not supported on cgroups V1 rootless systems.
+ورودی/خروجی بلوکی (وزن نسبی)، بین 10 تا 1000، یا 0 برای غیرفعال‌سازی (پیش‌فرض 0)
 
 .SS \fB--blkio-weight-device\fP=\fIdevice:weight\fP
-Block IO relative device weight.
+وزن ورودی/خروجی بلوکی (وزن نسبی دستگاه)
 
 .SS \fB--cgroup-parent\fP=\fIpath\fP
-Path to cgroups under which the cgroup for the pod is created. If the
-path is not absolute, the path is considered to be relative to the cgroups path
-of the init process. Cgroups are created if they do not already exist.
+گروه کنترلی (cgroup) والد اختیاری برای کانتینر
 
 .SS \fB--cpu-shares\fP, \fB-c\fP=\fIshares\fP
-CPU shares (relative weight).
+.PP
+سهم‌های پردازنده (وزن نسبی)
 
 .PP
-By default, all containers get the same proportion of CPU cycles. This
-proportion can be modified by changing the container's CPU share weighting
-relative to the combined weight of all the running containers.
-Default weight is \fB1024\fP\&.
+به‌طور پیش‌فرض، همه کانتینرها سهم یکسانی از چرخه‌های پردازنده دریافت می‌کنند. این نسبت می‌تواند با تغییر وزن سهم پردازنده کانتینر نسبت به وزن سایر کانتینرهای در حال اجرا اصلاح شود.
 
 .PP
-The proportion only applies when CPU-intensive processes are running.
-When tasks in one container are idle, other containers can use the
-left-over CPU time. The actual amount of CPU time varies depending on
-the number of containers running on the system.
+برای تغییر نسبت از مقدار پیش‌فرض 1024، از پرچم \fB--cpu-shares\fP برای تنظیم وزن به 2 یا بالاتر استفاده کنید.
 
 .PP
-For example, consider three containers, one has a cpu-share of 1024 and
-two others have a cpu-share setting of 512. When processes in all three
-containers attempt to use 100% of CPU, the first container receives
-50% of the total CPU time. If a fourth container is added with a cpu-share
-of 1024, the first container only gets 33% of the CPU. The remaining containers
-receive 16.5%, 16.5% and 33% of the CPU.
+این نسبت تنها زمانی اعمال خواهد شد که فرایندهای با بار پردازشی بالا در حال اجرا باشند. هنگامی که وظایف در یک کانتینر بیکار هستند، کانتینرهای دیگر می‌توانند از زمان پردازنده باقی‌مانده استفاده کنند. مقدار واقعی زمان پردازنده بسته به تعداد کانتینرهای در حال اجرا روی سیستم متغیر خواهد بود.
 
 .PP
-On a multi-core system, the shares of CPU time are distributed over all CPU
-cores. Even if a container is limited to less than 100% of CPU time, it can
-use 100% of each individual CPU core.
+به عنوان مثال، سه کانتینر را در نظر بگیرید که یکی دارای cpu-share معادل 1024 و دو کانتینر دیگر دارای تنظیم cpu-share برابر با 512 هستند. هنگامی که فرایندها در هر سه کانتینر تلاش می‌کنند از %100 پردازنده استفاده کنند، کانتینر اول %50 از کل زمان پردازنده را دریافت خواهد کرد. اگر کانتینر چهارمی با cpu-share معادل 1024 اضافه کنید، کانتینر اول تنها %33 از پردازنده را دریافت می‌کند. کانتینرهای باقی‌مانده %16.5، %16.5 و %33 از پردازنده را دریافت خواهند کرد.
 
 .PP
-For example, consider a system with more than three cores.
-If the container \fIC0\fP is started with \fB--cpu-shares=512\fP running one process,
-and another container \fIC1\fP with \fB--cpu-shares=1024\fP running two processes,
-this can result in the following division of CPU shares:
-
-.TS
-allbox;
-l l l l 
-l l l l .
-\fBPID\fP	\fBcontainer\fP	\fBCPU\fP	\fBCPU share\fP
-100	C0	0	100% of CPU0
-101	C1	1	100% of CPU1
-102	C1	2	100% of CPU2
-.TE
+روی یک سیستم چند‌هسته‌ای، سهم‌های زمان پردازنده میان تمام هسته‌های پردازنده توزیع می‌شود. حتی اگر یک کانتینر به کمتر از %100 زمان پردازنده محدود شده باشد، می‌تواند از %100 هر هسته پردازنده به صورت جداگانه استفاده کند.
 
 .PP
-On some systems, changing the resource limits may not be allowed for non-root
-users. For more details, see
-https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
+به عنوان مثال، سیستمی با بیش از سه هسته را در نظر بگیرید. اگر یک کانتینر \fB{C0}\fP را با \fB-c=512\fP در حال اجرای یک فرایند، و کانتینر دیگری \fB{C1}\fP را با \fB-c=1024\fP در حال اجرای دو فرایند راه‌اندازی کنید، این کار می‌تواند منجر به تقسیم سهم‌های پردازنده به شکل زیر شود:
 
-.PP
-This option is not supported on cgroups V1 rootless systems.
+.EX
+PID    container	CPU	CPU share
+100    {C0}		0	100% of CPU0
+101    {C1}		1	100% of CPU1
+102    {C1}		2	100% of CPU2
+.EE
 
 .SS \fB--cpus\fP
-Set a number of CPUs for the pod that overrides the original pods CPU limits. If none are specified, the original pod's Nano CPUs are used.
+تعداد پردازنده‌ها
 
 .SS \fB--cpuset-cpus\fP=\fInumber\fP
-CPUs in which to allow execution. Can be specified as a comma-separated list
-(e.g. \fB0,1\fP), as a range (e.g. \fB0-3\fP), or any combination thereof
-(e.g. \fB0-3,7,11-15\fP).
-
-.PP
-On some systems, changing the resource limits may not be allowed for non-root
-users. For more details, see
-https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
-
-.PP
-This option is not supported on cgroups V1 rootless systems.
-
-.PP
-If none are specified, the original pod's CPUset is used.
+پردازنده‌های مجاز برای اجرا (0-3, 0,1)
 
 .SS \fB--cpuset-mems\fP=\fInodes\fP
-Memory nodes (MEMs) in which to allow execution (0-3, 0,1). Only effective on
-NUMA systems.
-
-.PP
-If there are four memory nodes on the system (0-3), use \fB--cpuset-mems=0,1\fP
-then processes in the container only uses memory from the first
-two memory nodes.
-
-.PP
-On some systems, changing the resource limits may not be allowed for non-root
-users. For more details, see
-https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
-
-.PP
-This option is not supported on cgroups V1 rootless systems.
+گره‌های حافظه مجاز برای اجرا (0-3, 0,1)
 
 .SS \fB--destroy\fP
-Remove the original pod that we are cloning once used to mimic the configuration.
+.PP
+حذف پاد اصلی پس از ایجاد رونوشت از آن.
 
 .SS \fB--device\fP=\fIhost-device[:container-device][:permissions]\fP
-Add a host device to the pod. The format of this is
-\fBHOST-DEVICE[:CONTAINER-DEVICE][:PERMISSIONS]\fR, where \fBHOST-DEVICE\fR is the path of
-the device node on the host, \fBCONTAINER-DEVICE\fR is the path of the device node in
-the container, and \fBPERMISSIONS\fR is a list of permissions combining 'r' for read,
-\&'w' for write, and 'm' for mknod(2).
-
-.PP
-Example: \fB--device=/dev/sdc:/dev/xvdc:rwm\fP\&.
-
-.PP
-Note: if \fIhost-device\fP is a symbolic link then it is resolved first.
-The pod only stores the major and minor numbers of the host device.
-
-.PP
-Podman may load kernel modules required for using the specified
-device. The devices that Podman loads modules for when necessary are:
-/dev/fuse.
-
-.PP
-In rootless mode, the new device is bind mounted in the container from the host
-rather than Podman creating it within the container space. Because the bind
-mount retains its SELinux label on SELinux systems, the container can get
-permission denied when accessing the mounted device. Modify SELinux settings to
-allow containers to use all device labels via the following command:
-
-.PP
-$ sudo setsebool -P  container_use_devices=true
-
-.PP
-Note: the pod implements devices by storing the initial configuration passed by the user and recreating the device on each container added to the pod.
+افزودن دستگاه میزبان به کانتینر
 
 .SS \fB--device-read-bps\fP=\fIpath:rate\fP
-Limit read rate (in bytes per second) from a device (e.g. \fB--device-read-bps=/dev/sda:1mb\fP).
-
-.PP
-On some systems, changing the resource limits may not be allowed for non-root
-users. For more details, see
-https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
-
-.PP
-This option is not supported on cgroups V1 rootless systems.
+محدود کردن نرخ خواندن (بایت در ثانیه) از یک دستگاه
 
 .SS \fB--device-write-bps\fP=\fIpath:rate\fP
-Limit write rate (in bytes per second) to a device (e.g. \fB--device-write-bps=/dev/sda:1mb\fP).
-
-.PP
-On some systems, changing the resource limits may not be allowed for non-root
-users. For more details, see
-https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-resource-limits-fails-with-a-permissions-error
-
-.PP
-This option is not supported on cgroups V1 rootless systems.
+محدود کردن نرخ نوشتن (بایت در ثانیه) روی یک دستگاه
 
 .SS \fB--gidmap\fP=\fIcontainer_gid:from_gid[:amount]\fP
-Run all containers in the pod in a new user namespace using the supplied GID
-mapping. This option conflicts with the \fB--userns\fP option. It provides a way
-to map host GIDs to container GIDs. It can be passed several times to map
-different ranges.
+.PP
+نگاشت شناسه‌های گروه کاربری (GID) میزبان به کانتینر در حالت بدون ریشه (rootless).
 
 .SS \fB--gpus\fP=\fIENTRY\fP
-Start the container with GPU support. Where \fBENTRY\fR can be \fBall\fR to request all GPUs, or a vendor-specific identifier. Currently, NVIDIA and AMD devices are supported. If both NVIDIA and AMD devices are present, the NVIDIA devices will be preferred, and a CDI device name must be specified using the \fB--device\fR flag to request a set of GPUs from a \fIspecific\fP vendor.
+دستگاه‌های پردازنده گرافیکی (GPU) جهت افزودن به کانتینر ('all' برای ارسال همه GPUها)
 
 .SS \fB--help\fP, \fB-h\fP
-Print usage statement.
+چاپ نحوه استفاده
+
+.PP
+\fB-h\fP, \fB--hostname\fP=""
+	نام میزبان کانتینر
 
 .SS \fB--hostname\fP=\fIname\fP
-Set the pod's hostname inside all containers.
-
 .PP
-The given hostname is also added to the \fB/etc/hosts\fR file using the container's
-primary IP address (also see the \fB--add-host\fP option).
+تنظیم نام میزبان (hostname) سفارشی برای کانتینر.
 
 .SS \fB--infra-command\fP=\fIcommand\fP
-The command that is run to start the infra container. Default: "/pause".
+.PP
+دستور جایگزین برای اجرای کانتینر زیرساخت در پاد.
 
 .SS \fB--infra-conmon-pidfile\fP=\fIfile\fP
-Write the pid of the infra container's \fBconmon\fP process to a file. As \fBconmon\fP runs in a separate process than Podman, this is necessary when using systemd to manage Podman containers and pods.
+.PP
+مسیر فایل برای ثبت شناسه فرآیند (PID) مانیتور conmon کانتینر زیرساخت.
 
 .SS \fB--infra-name\fP=\fIname\fP
-The name that is used for the pod's infra container.
+.PP
+نام سفارشی برای کانتینر زیرساخت پاد.
 
 .SS \fB--label\fP, \fB-l\fP=\fIkey=value\fP
-Add metadata to a pod.
+.PP
+افزودن یک برچسب تصویر \fIlabel\fP (برای نمونه label=\fIvalue\fP) به متاداده تصویر. این گزینه می‌تواند چندین بار استفاده شود.
+اگر نام \fIlabel\fP ذکر شود، اما نه \fB=\fR و نه یک \fBvalue\fR ارائه نشود، آنگاه \fIlabel\fP روی یک مقدار خالی تنظیم می‌شود.
+
+.PP
+کاربران می‌توانند یک LABEL ویژه به صورت \fBio.containers.capabilities=CAP1,CAP2,CAP3\fP در یک Containerfile تنظیم کنند که فهرست قابلیت‌های (capabilities) لینوکس مورد نیاز برای اجرای درست کانتینر را مشخص می‌کند. این برچسب تعیین‌شده در تصویر کانتینر به موتورهای کانتینر، مانند Podman، که این برچسب را می‌شناسند می‌گوید تا کانتینر را فقط با همین قابلیت‌ها اجرا کنند. موتور کانتینر کانتینر را فقط با قابلیت‌های مشخص‌شده راه‌اندازی می‌کند، تا زمانی که این فهرست از قابلیت‌ها زیرمجموعه‌ای از فهرست پیش‌فرض باشد.
+
+.PP
+اگر قابلیت‌های مشخص‌شده در مجموعه پیش‌فرض نباشند، موتورهای کانتینر باید یک پیام خطا چاپ کنند و کانتینر را با قابلیت‌های پیش‌فرض اجرا خواهند کرد.
 
 .SS \fB--label-file\fP=\fIfile\fP
-Read in a line-delimited file of labels.
+خواندن فایلی از برچسب‌ها که با خط جدا شده‌اند
 
 .SS \fB--memory\fP, \fB-m\fP=\fInumber[unit]\fP
-Memory limit. A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
+.PP
+محدودیت حافظه (قالب: []، که در آن واحد می‌تواند b، k، m یا g باشد)
 
 .PP
-Allows the memory available to a container to be constrained. If the host
-supports swap memory, then the \fB--memory\fP memory setting can be larger than physical
-RAM. If a limit of 0 is specified (not using \fB--memory\fP), the container's memory is
-not limited. The actual limit may be rounded up to a multiple of the operating
-system's page size (the value is very large, that's millions of trillions).
-
-.PP
-This option is not supported on cgroups V1 rootless systems.
+به شما امکان می‌دهد حافظه در دسترس کانتینر را محدود کنید\&. اگر میزبان از حافظه swap پشتیبانی کند، تنظیم حافظه \fB-m\fP می‌تواند بزرگ‌تر از رم (RAM) فیزیکی باشد\&. اگر محدودیت 0 مشخص شود (عدم استفاده از \fB-m\fP)، حافظه کانتینر محدود نمی‌شود\&. محدودیت واقعی ممکن است به ضریبی از اندازه صفحه سیستم‌عامل گرد شود (این مقدار بسیار بزرگ خواهد بود، یعنی میلیون‌ها تریلیون)\&.
 
 .SS \fB--memory-swap\fP=\fInumber[unit]\fP
-A limit value equal to memory plus swap.
-A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
-
-.PP
-Must be used with the \fB-m\fP (\fB--memory\fP) flag.
-The argument value must be larger than that of
- \fB-m\fP (\fB--memory\fP) By default, it is set to double
-the value of \fB--memory\fP\&.
-
-.PP
-Set \fInumber\fP to \fB-1\fP to enable unlimited swap.
-
-.PP
-This option is not supported on cgroups V1 rootless systems.
+حد حافظه مبادله‌ای (swap) برابر با مجموع حافظه به‌علاوه swap؛ مقدار '-1' برای فعال کردن swap نامحدود
 
 .SS \fB--name\fP, \fB-n\fP
-Set a custom name for the cloned pod. The default if not specified is of the syntax: \fB<ORIGINAL_NAME>-clone\fP
+اختصاص یک نام به کانتینر
 
 .SS \fB--pid\fP=\fIpid\fP
-Set the PID mode for the pod. The default is to create a private PID namespace for the pod. Requires the PID namespace to be shared via --share.
-
-.EX
-host: use the host’s PID namespace for the pod
-ns: join the specified PID namespace
-private: create a new namespace for the pod (default)
-.EE
+فضای نام PID مورد استفاده
 
 .SS \fB--restart\fP=\fIpolicy\fP
-Restart policy to follow when containers exit.
-Restart policy does not take effect if a container is stopped via the \fBpodman kill\fP or \fBpodman stop\fP commands.
-
-.PP
-Valid \fIpolicy\fP values are:
-.IP \(bu 2
-\fBno\fR                       : Do not restart containers on exit
-.IP \(bu 2
-\fBnever\fR                    : Synonym for \fBno\fP; do not restart containers on exit
-.IP \(bu 2
-\fBon-failure[:max_retries]\fR : Restart containers when they exit with a non-zero exit code, retrying indefinitely or until the optional \fImax_retries\fP count is hit
-.IP \(bu 2
-\fBalways\fR                   : Restart containers when they exit, regardless of status, retrying indefinitely
-.IP \(bu 2
-\fBunless-stopped\fR           : Restart containers when they exit, unless the container was explicitly stopped by the user. After a system reboot, containers with this policy will be restarted by podman-restart.service only if they were not explicitly stopped by the user before the reboot. This differs from \fBalways\fP, which restarts containers after a system reboot regardless of whether they were user-stopped
-
-.PP
-Podman provides a systemd unit file, podman-restart.service, which restarts containers after a system reboot.
-
-.PP
-When running containers in systemd services, use the restart functionality provided by systemd.
-In other words, do not use this option in a container unit, instead set the \fBRestart=\fR systemd directive in the \fB[Service]\fR section.
-See \fBpodman-systemd.unit\fP(5) and \fBsystemd.service\fP(5).
-
-.PP
-Default restart policy for all the containers in a pod.
+سیاست راه‌اندازی مجدد هنگام خروج کانتینر
 
 .SS \fB--security-opt\fP=\fIoption\fP
-Security Options
-.IP \(bu 2
-\fBapparmor=unconfined\fP : Turn off apparmor confinement for the pod
-.IP \(bu 2
-\fBapparmor\fP=\fIalternate-profile\fP : Set the apparmor confinement profile for the pod
-.IP \(bu 2
-\fBlabel=user:\fP\fIUSER\fP: Set the label user for the pod processes
-.IP \(bu 2
-\fBlabel=role:\fP\fIROLE\fP: Set the label role for the pod processes
-.IP \(bu 2
-\fBlabel=type:\fP\fITYPE\fP: Set the label process type for the pod processes
-.IP \(bu 2
-\fBlabel=level:\fP\fILEVEL\fP: Set the label level for the pod processes
-.IP \(bu 2
-\fBlabel=filetype:\fP\fITYPE\fP: Set the label file type for the pod files
-.IP \(bu 2
-\fBlabel=disable\fP: Turn off label separation for the pod
-
-.PP
-Note: Labeling can be disabled for all pods/containers by setting label=false in the \fBcontainers.conf\fP (\fB/etc/containers/containers.conf\fR or \fB$HOME/.config/containers/containers.conf\fR) file.
-.IP \(bu 2
-\fBlabel=nested\fP: Allows SELinux modifications within the container. Containers are allowed to modify SELinux labels on files and processes, as long as SELinux policy allows. Without \fBnested\fP, containers view SELinux as disabled, even when it is enabled on the host. Containers are prevented from setting any labels.
-.IP \(bu 2
-\fBmask\fP=\fI/path/1:/path/2\fP: The paths to mask separated by a colon. A masked path cannot be accessed inside the containers within the pod.
-.IP \(bu 2
-\fBno-new-privileges\fP: Disable container processes from gaining additional privileges through the \fBexecve(2)\fR system call (e.g. via setuid or setgid bits, or via file capabilities). Programs that rely on setuid/setgid bits set on their executable to change user id or group id are no longer able to do so, and any file capabilities added to the executable (e.g. via \fBsetcap\fR) are not added to the permitted capability set. For more details, see: https://docs.kernel.org/userspace-api/no_new_privs.html.
-.IP \(bu 2
-\fBseccomp=unconfined\fP: Turn off seccomp confinement for the pod.
-.IP \(bu 2
-\fBseccomp=profile.json\fP: JSON file to be used as a seccomp filter. Note that the \fBio.podman.annotations.seccomp\fR annotation is set with the specified value as shown in \fBpodman inspect\fR\&.
-.IP \(bu 2
-\fBproc-opts\fP=\fIOPTIONS\fP : Comma-separated list of options to use for the /proc mount. More details
-for the possible mount options are specified in the \fBproc(5)\fP man page.
-.IP \(bu 2
-\fBunmask\fP=\fIALL\fP or \fI/path/1:/path/2\fP, or shell expanded paths (/proc/*): Paths to unmask separated by a colon. If set to \fBALL\fP, it unmasks all the paths that are masked or made read-only by default.
-The default masked paths are \fB/proc/acpi, /proc/kcore, /proc/keys, /proc/latency_stats, /proc/sched_debug, /proc/scsi, /proc/timer_list, /proc/timer_stats, /sys/firmware, and /sys/fs/selinux\fP, \fB/sys/devices/virtual/powercap\fP\&.  The default paths that are read-only are \fB/proc/asound\fP, \fB/proc/bus\fP, \fB/proc/fs\fP, \fB/proc/irq\fP, \fB/proc/sys\fP, \fB/proc/sysrq-trigger\fP, \fB/sys/fs/cgroup\fP\&.
-
-.PP
-Note: Labeling can be disabled for all containers by setting \fBlabel=false\fP in the \fBcontainers.conf\fP(5) file.
+گزینه‌های امنیتی
 
 .SS \fB--shm-size\fP=\fInumber[unit]\fP
-Size of \fI/dev/shm\fP\&. A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
-If the unit is omitted, the system uses bytes. If the size is omitted, the default is \fB64m\fP\&.
-When \fIsize\fP is \fB0\fP, there is no limit on the amount of memory used for IPC by the pod.
-This option conflicts with \fB--ipc=host\fP\&.
+اندازه مسیر /dev/shm
 
 .SS \fB--shm-size-systemd\fP=\fInumber[unit]\fP
-Size of systemd-specific tmpfs mounts such as /run, /run/lock, /var/log/journal and /tmp.
-A \fIunit\fP can be \fBb\fP (bytes), \fBk\fP (kibibytes), \fBm\fP (mebibytes), or \fBg\fP (gibibytes).
-If the unit is omitted, the system uses bytes. If the size is omitted, the default is \fB64m\fP\&.
-When \fIsize\fP is \fB0\fP, the usage is limited to 50% of the host's available memory.
+.PP
+اندازه سیستم‌فایل موقت /dev/shm در زمان فعال بودن حالت systemd.
 
 .SS \fB--start\fP
-When set to true, this flag starts the newly created pod after the
-clone process has completed. All containers within the pod are started.
+.PP
+شروع خودکار پاد جدید پس از اتمام شبیه‌سازی.
 
 .SS \fB--subgidname\fP=\fIname\fP
-Run the container in a new user namespace using the map with \fIname\fP in the \fI/etc/subgid\fP file.
-When running rootless, the user needs the necessary permissions to use the mapping. See \fBsubgid\fP(5).
-This flag conflicts with \fB--userns\fP and \fB--gidmap\fP\&.
-Together with \fB--gidmap\fP it acts as if \fB--gidmap\fP was passed with all mappings of the \fIname\fP group in \fI/etc/subgid\fP\&.
+.PP
+نام کاربری در /etc/subgid برای تخصیص شناسه‌های گروه کاربری در حالت بدون ریشه.
 
 .SS \fB--subuidname\fP=\fIname\fP
-Run the container in a new user namespace using the map with \fIname\fP in the \fI/etc/subuid\fP file.
-When running rootless, the user needs the necessary permissions to use the mapping. See \fBsubuid\fP(5).
-This flag conflicts with \fB--userns\fP and \fB--uidmap\fP\&.
-Together with \fB--uidmap\fP it acts as if \fB--uidmap\fP was passed with all mappings of the \fIname\fP user in \fI/etc/subuid\fP\&.
+.PP
+نام کاربری در /etc/subuid برای تخصیص شناسه‌های کاربری در حالت بدون ریشه.
 
 .SS \fB--sysctl\fP=\fIname=value\fP
-Configure namespaced kernel parameters for all containers in the pod.
-
-.PP
-For the IPC namespace, the following sysctls are allowed:
-.IP \(bu 2
-kernel.msgmax
-.IP \(bu 2
-kernel.msgmnb
-.IP \(bu 2
-kernel.msgmni
-.IP \(bu 2
-kernel.sem
-.IP \(bu 2
-kernel.shmall
-.IP \(bu 2
-kernel.shmmax
-.IP \(bu 2
-kernel.shmmni
-.IP \(bu 2
-kernel.shm_rmid_forced
-.IP \(bu 2
-Sysctls beginning with fs.mqueue.*
-
-.PP
-Note: if the ipc namespace is not shared within the pod, the above sysctls are not allowed.
-
-.PP
-For the network namespace, only sysctls beginning with net.* are allowed.
-
-.PP
-Note: if the network namespace is not shared within the pod, the above sysctls are not allowed.
+گزینه‌های sysctl
 
 .SS \fB--uidmap\fP=\fIcontainer_uid:from_uid[:amount]\fP
-Run all containers in the pod in a new user namespace using the supplied mapping. This
-option conflicts with the \fB--userns\fP and \fB--subuidname\fP options. This
-option provides a way to map host UIDs to container UIDs. It can be passed
-several times to map different ranges.
+.PP
+نگاشت شناسه‌های کاربری (UID) سیستم میزبان به کانتینر در حالت بدون ریشه.
 
 .SS \fB--userns\fP=\fImode\fP
-Set the user namespace mode for all the containers in a pod. It defaults to the \fBPODMAN_USERNS\fR environment variable. An empty value ("") means user namespaces are disabled.
-
-.PP
-Rootless user \fB--userns=Key\fP mappings:
-
-.TS
-allbox;
-l l l 
-l l l .
-\fBKey\fP	\fBHost User\fP	\fBContainer User\fP
-""	$UID	T{
-0 (Default User account mapped to root user in container.)
-T}
-host	$UID	T{
-0 (Default User account mapped to root user in container.)
-T}
-keep-id	$UID	T{
-$UID (Map user account to same UID within container.)
-T}
-auto	$UID	T{
-nil (Host User UID is not mapped into container.)
-T}
-nomap	$UID	T{
-nil (Host User UID is not mapped into container.)
-T}
-.TE
-
-.PP
-Valid \fImode\fP values are:
-.IP \(bu 2
-\fIauto[:\fP\fIOPTIONS,...\fP\fI]\fP: automatically create a namespace. It is possible to specify these options to \fBauto\fR:
-.RS
-.IP \(bu 2
-\fIgidmapping=\fP\fICONTAINER_GID:HOST_GID:SIZE\fP to force a GID mapping to be present in the user namespace.
-.IP \(bu 2
-\fIsize=\fP\fISIZE\fP: to specify an explicit size for the automatic user namespace. e.g. \fB--userns=auto:size=8192\fR\&. If \fBsize\fR is not specified, \fBauto\fR estimates the size for the user namespace.
-.IP \(bu 2
-\fIuidmapping=\fP\fICONTAINER_UID:HOST_UID:SIZE\fP to force a UID mapping to be present in the user namespace.
-.RE
-.IP \(bu 2
-\fIhost\fP: run in the user namespace of the caller. The processes running in the container have the same privileges on the host as any other process launched by the calling user (default).
-.IP \(bu 2
-\fIkeep-id\fP: creates a user namespace where the current rootless user's UID:GID are mapped to the same values in the container. This option is not allowed for containers created by the root user.
-.IP \(bu 2
-\fInomap\fP: creates a user namespace where the current rootless user's UID:GID are not mapped into the container. This option is not allowed for containers created by the root user.
+فضای نام کاربر مورد استفاده
 
 .SS \fB--uts\fP=\fImode\fP
-Set the UTS namespace mode for the pod. The following values are supported:
-.IP \(bu 2
-\fBhost\fP: use the host's UTS namespace inside the pod.
-.IP \(bu 2
-\fBprivate\fP: create a new namespace for the pod (default).
-.IP \(bu 2
-\fBns:[path]\fP: run the pod in the given existing UTS namespace.
+فضای نام UTS مورد استفاده
+
+.PP
+\fB-v\fP, \fB--volume\fP=
+	سوار کردن یک حجم به‌صورت bind mount
 
 .SS \fB--volume\fP, \fB-v\fP=\fI[[SOURCE-VOLUME|HOST-DIR:]CONTAINER-DIR[:OPTIONS]]\fP
-Create a bind mount. If \fB-v /HOST-DIR:/CONTAINER-DIR\fR is specified, Podman
-bind mounts \fB/HOST-DIR\fR from the host into \fB/CONTAINER-DIR\fR in the Podman
-container. Similarly, \fB-v SOURCE-VOLUME:/CONTAINER-DIR\fR mounts the named
-volume from the host into the container. If no such named volume exists,
-Podman creates one. The \fBnocreate\fP option can be used to disable this
-behavior and require the volume to already exist. If no source is given,
-the volume is created as an anonymously named volume with a randomly
-generated name, and is removed when the pod is removed via
-the \fB--rm\fR flag or the \fBpodman rm --volumes\fR command.
-
 .PP
-(Note when using the remote client, including Mac and Windows (excluding WSL2) machines, the volumes are mounted from the remote server, not necessarily the client machine.)
+ایجاد یک اتصال پیوندی (bind mount). اگر مشخص کنید \fB-v /HOST-DIR:/CONTAINER-DIR\fR، ابزار Podman
+مسیر \fB/HOST-DIR\fR در میزبان را به \fB/CONTAINER-DIR\fR درون کانتینر Podman پیوند
+می‌زند. مقادیر \fBOPTIONS\fR فهرستی جداشده با کاما هستند و می‌توانند شامل موارد زیر باشند:
 
-.PP
-The \fIOPTIONS\fP is a comma-separated list and can be one or more of:
+.RS
 .IP \(bu 2
-\fBrw\fP|\fBro\fP
+[rw|ro]
 .IP \(bu 2
-\fBz\fP|\fBZ\fP
+[U]
 .IP \(bu 2
-[\fBO\fP]
+[z|Z|O]
 .IP \(bu 2
-[\fBU\fP]
-.IP \(bu 2
-[\fBno\fP]\fBcopy\fP
-.IP \(bu 2
-[\fBno\fP]\fBdev\fP
-.IP \(bu 2
-[\fBno\fP]\fBexec\fP
-.IP \(bu 2
-[\fBno\fP]\fBsuid\fP
-.IP \(bu 2
-[\fBr\fP]\fBbind\fP
-.IP \(bu 2
-[\fBr\fP]\fBshared\fP|[\fBr\fP]\fBslave\fP|[\fBr\fP]\fBprivate\fP[\fBr\fP]\fBunbindable\fP [1]
+[\fB[r]shared\fR|\fB[r]slave\fR|\fB[r]private\fR|\fB[r]unbindable\fR] [1]
 \[la]#Footnote1\[ra]
+
+.RE
+
+.PP
+مسیر \fBCONTAINER-DIR\fR باید یک مسیر مطلق مانند \fB/src/docs\fR\& باشد. مسیر \fBHOST-DIR\fR
+نیز باید یک مسیر مطلق باشد. Podman مسیر \fBHOST-DIR\fR را به
+مسیری که مشخص می‌کنید bind-mount می‌کند. برای نمونه، اگر \fB/foo\fR را به‌عنوان مسیر میزبان بدهید،
+Podman محتویات \fB/foo\fR را در سیستم‌فایل کانتینر روی میزبان کپی کرده
+و آن را به درون کانتینر bind-mount می‌کند.
+
+.PP
+می‌توانید چندین گزینه \fB-v\fP را برای سوار کردن یک یا چند اتصال به یک
+کانتینر مشخص کنید.
+
+.PP
+\fBاتصال‌های جلد حفاظت‌شده در برابر نوشتن (Write Protected Volume Mounts)\fR
+
+.PP
+می‌توانید پسوند \fB:ro\fR یا \fB:rw\fR را به یک جلد اضافه کنید تا به ترتیب در حالت فقط‌خواندنی یا
+خواندنی-نوشتنی متصل شود. به‌طور پیش‌فرض، جلدها به‌صورت خواندنی-نوشتنی سوار می‌شوند.
+مثال‌ها را ببینید.
+
+.PP
+\fBتغییر مالکیت اتصال‌های جلد (Chowning Volume Mounts)\fR
+
+.PP
+به‌طور پیش‌فرض، Podman مالک و گروه دایرکتوری‌های جلد منبع متصل‌شده به کانتینرها را تغییر نمی‌دهد. اگر کانتینری در یک فضای‌نام کاربری (user namespace) جدید ایجاد شود، UID و GID درون کانتینر ممکن است با UID و GID متفاوتی روی میزبان متناظر باشند.
+
+.PP
+پسوند \fB:U\fR به Podman اعلام می‌کند تا بر پایه UID و GID درون کانتینر، از UID و GID درست میزبان استفاده کرده و مالک و گروه جلد منبع را تغییر دهد.
+
+.PP
+\fBبرچسب‌گذاری اتصال‌های جلد (Labeling Volume Mounts)\fR
+
+.PP
+سامانه‌های برچسب‌گذاری مانند SELinux نیازمند قرارگیری برچسب‌های مناسب روی محتوای جلد
+متصل‌شده به کانتینر هستند. بدون برچسب، سامانه امنیتی ممکن است
+از استفاده فرایندهای در حال اجرا درون کانتینر از محتوا جلوگیری کند. به‌طور
+پیش‌فرض، Podman برچسب‌های تنظیم‌شده توسط سیستم‌عامل را تغییر نمی‌دهد.
+
+.PP
+برای تغییر یک برچسب در بستر کانتینر، می‌توانید یکی از دو پسوند
+\fB:z\fR یا \fB:Z\fR را به اتصال جلد اضافه کنید. این پسوندها به Podman می‌گویند که اشیای فایل
+روی جلدهای اشتراکی را دوباره برچسب‌گذاری کند. گزینه \fBz\fR به Podman می‌گوید که دو کانتینر
+محتوای جلد را به اشتراک می‌گذارند. در نتیجه، Podman محتوا را با یک برچسب محتوای
+مشترک برچسب‌گذاری می‌کند. برچسب‌های جلد مشترک به همه کانتینرها اجازه خواندن/نوشتن محتوا را می‌دهند.
+گزینه \fBZ\fR به Podman می‌گوید که محتوا را با یک برچسب خصوصی غیرمشترک برچسب‌گذاری کند.
+تنها کانتینر فعلی می‌تواند از یک جلد خصوصی استفاده کند.
+
+.PP
+\fBاتصال‌های جلد اورلی (Overlay Volume Mounts)\fR
+
+.PP
+پرچم \fB:O\fR به Podman اعلام می‌کند دایرکتوری را از میزبان با استفاده از سیستم‌فایل Overlay به‌عنوان یک فضای ذخیره‌سازی موقت سوار کند. کانتینرهای دستور \fBRUN\fR مجاز هستند محتویات درون نقطه اتصال را تغییر دهند و این تغییرات در فضای ذخیره‌سازی کانتینر در یک دایرکتوری جداگانه ذخیره می‌شوند. در اصطلاحات سامانه فایل Overlay، دایرکتوری منبع lower و دایرکتوری ذخیره‌سازی کانتینر upper خواهد بود. اصلاحات انجام‌شده در نقطه اتصال هنگام پایان اجرای دستور \fBRUN\fR از بین می‌روند، شبیه به یک نقطه اتصال tmpfs.
+
+.PP
+هر اجرای بعدی دستورهای \fBRUN\fR محتوای دایرکتوری منبع اصلی را می‌بیند؛ و هر تغییری از دستورات RUN قبلی دیگر وجود نخواهد داشت.
+
+.PP
+یک مورد استفاده از اتصال \fBoverlay\fR، به اشتراک گذاشتن حافظه نهان بسته‌ها (package cache) از میزبان به درون کانتینر برای افزایش سرعت ساخت است.
+
+.PP
+نکته:
+
+.RS
 .IP \(bu 2
-\fBidmap\fP[=\fBoptions\fP]
+پرچم \fBO\fR مجاز نیست همراه با پرچم‌های \fBZ\fR یا \fBz\fR مشخص شود. محتوای متصل‌شده به درون کانتینر با برچسب خصوصی برچسب‌گذاری می‌شود.
+در سامانه‌های SELinux، برچسب‌های موجود در دایرکتوری منبع باید برای برچسب کانتینر قابل‌خواندن باشند. در غیر این صورت، تفکیک کانتینر SELinux باید غیرفعال شود تا کانتینر کار کند.
 .IP \(bu 2
-\fBnocreate\fP
+تغییر دایرکتوری جلدی که با یک اتصال overlay به درون کانتینر متصل شده است می‌تواند خطاهای غیرمنتظره به وجود آورد. توصیه می‌شود تا پایان اجرای کانتینر این دایرکتوری را تغییر ندهید.
+
+.RE
 
 .PP
-The \fBCONTAINER-DIR\fR must be an absolute path such as \fB/src/docs\fR\&. The volume
-is mounted into the container at this directory.
+به‌طور پیش‌فرض جلدهای bind-mount شده \fBprivate\fR\& هستند. بدین معنا که هرگونه اتصالی که درون
+کانتینر انجام شود روی میزبان قابل مشاهده نخواهد بود و برعکس. این رفتار را می‌توان
+با مشخص کردن ویژگی انتشار اتصال جلد تغییر داد.
 
 .PP
-If a volume source is specified, it must be a path on the host or the name of a
-named volume. Host paths are allowed to be absolute or relative; relative paths
-are resolved relative to the directory Podman is run in. If the source does not
-exist, Podman returns an error. Users must pre-create the source files or
-directories.
-
-.PP
-Any source that does not begin with a \fB\&.\fR or \fB/\fR is treated as the name of
-a named volume. If a volume with that name does not exist, it is created.
-Volumes created with names are not anonymous, and they are not removed by the \fB--rm\fR
-option and the \fBpodman rm --volumes\fR command.
-
-.PP
-The \fBnocreate\fP option can be specified for named volumes to prevent automatic
-volume creation. If \fBnocreate\fP is set and the volume does not exist, Podman
-returns an error instead of creating the volume. This is useful when you want
-to ensure that a volume was explicitly created before use.
-
-.EX
-$ podman pod clone -v myvolume:/data:nocreate alpine
-.EE
-
-.PP
-Specify multiple \fB-v\fP options to mount one or more volumes into a
-pod.
-
-.PP
-\fBWrite Protected Volume Mounts\fR
-
-.PP
-Add \fB:ro\fP or \fB:rw\fP option to mount a volume in read-only or
-read-write mode, respectively. By default, the volumes are mounted read-write.
-See examples.
-
-.PP
-\fBChowning Volume Mounts\fR
-
-.PP
-When a named volume is first mounted to a container, Podman
-automatically adjusts the ownership of the volume's mount point during
-container initialization. This chown operation occurs under the
-following conditions:
-.IP \(bu 2
-The volume was not used yet (has \fBNeedsChown\fR set to true)
-.IP \(bu 2
-The volume is empty or has not been copied up yet
-.IP \(bu 2
-The volume is not managed by an external volume driver
-.IP \(bu 2
-The volume driver is not "image"
-
-.PP
-For volumes with idmapped mounts (using the \fBidmap\fR option), the
-ownership change takes into account the container's user namespace
-mappings, but the idmapped volume retains proper UID/GID mapping. For
-volumes without idmapping, the mount point is chowned to match the
-container's process user and group, mapped to the host user namespace
-if user namespace remapping is enabled.
-
-.PP
-If a pod is created in a new user namespace, the UID and
-GID in the container may correspond to another UID and GID on the host.
-
-.PP
-The \fB:U\fR suffix tells Podman to use the correct host UID and GID based on the
-UID and GID within the pod, to change recursively the owner and
-group of the source volume. Chowning walks the file system under the volume and
-changes the UID/GID on each file. If the volume has thousands of inodes, this
-process takes a long time, delaying the start of the pod.
-
-.PP
-\fBWarning\fP use with caution since this modifies the host filesystem.
-
-.PP
-\fBLabeling Volume Mounts\fR
-
-.PP
-Labeling systems like SELinux require that proper labels are placed on volume
-content mounted into a pod. Without a label, the security system
-might prevent the processes running inside the pod from using the
-content. By default, Podman does not change the labels set by the OS.
-
-.PP
-To change a label in the pod context, add either of two suffixes
-\fB:z\fP or \fB:Z\fP to the volume mount. These suffixes tell Podman to relabel file
-objects on the shared volumes. The \fBz\fP option tells Podman that two or more
-pods share the volume content. As a result, Podman labels the
-content with a shared content label. Shared volume labels allow all containers
-to read/write content. The \fBZ\fP option tells Podman to label the content with
-a private unshared label. Only the current pod can use a private
-volume.
-
-.PP
-Note: all containers within a \fBpod\fR share the same SELinux label. This
-means all containers within said pod can read/write volumes shared into the
-container created with the \fB:Z\fR on any one of the containers. Relabeling walks
-the file system under the volume and changes the label on each file; if the
-volume has thousands of inodes, this process takes a long time, delaying the
-start of the pod. If the volume was previously relabeled with the
-\fBz\fR option, Podman is optimized to not relabel a second time. If files are
-moved into the volume, then the labels can be manually changed with the
-\fBchcon -Rt container_file_t PATH\fR command.
-
-.PP
-Note: Do not relabel system files and directories. Relabeling system content
-might cause other confined services on the machine to fail.  For these types
-of containers we recommend disabling SELinux separation.  The option
-\fB--security-opt label=disable\fP disables SELinux separation for the pod.
-For example if a user wanted to volume mount their entire home directory into a
-pod, they need to disable SELinux separation.
-
-.EX
-$ podman pod clone --security-opt label=disable -v $HOME:/home/user fedora touch /home/user/file
-.EE
-
-.PP
-\fBOverlay Volume Mounts\fR
-
-.PP
-The \fB:O\fR flag tells Podman to mount the directory from the host as a
-temporary storage using the \fBoverlay file system\fR\&. The pod processes
-can modify content within the mountpoint which is stored in the
-container storage in a separate directory. In overlay terms, the source
-directory is the lower, and the container storage directory is the
-upper. Modifications to the mount point are destroyed when the pod
-finishes executing, similar to a tmpfs mount point being unmounted.
-
-.PP
-For advanced users, the \fBoverlay\fP option also supports custom non-volatile
-\fBupperdir\fP and \fBworkdir\fP for the overlay mount. Custom \fBupperdir\fP and
-\fBworkdir\fP can be fully managed by the users themselves, and Podman does not
-remove it on lifecycle completion.
-Example \fB:O,upperdir=/some/upper,workdir=/some/work\fP
-
-.PP
-Subsequent executions of the container sees the original source directory
-content, any changes from previous pod executions no longer exist.
-
-.PP
-One use case of the overlay mount is sharing the package cache from the
-host into the container to allow speeding up builds.
-
-.PP
-Note: The \fBO\fR flag conflicts with other options listed above.
-
-.PP
-Content mounted into the container is labeled with the private label.
-On SELinux systems, labels in the source directory must be readable
-by the pod infra container label. Usually containers can read/execute \fBcontainer_share_t\fR
-and can read/write \fBcontainer_file_t\fR\&. If unable to change the labels on a
-source volume, SELinux container separation must be disabled for the pod or infra container
-to work.
-
-.PP
-Do not modify the source directory mounted into the pod with an overlay mount,
-it can cause unexpected failures. Only modify the directory after the container finishes running.
-
-.PP
-\fBMounts propagation\fR
-
-.PP
-By default, bind-mounted volumes are \fBprivate\fR\&. That means any mounts done
-inside the pod are not visible on the host and vice versa.
-One can change this behavior by specifying a volume mount propagation property.
-When a volume is \fBshared\fR, mounts done under that volume inside the pod
-are visible on host and vice versa. Making a volume \fBslave\fP[1]
-\[la]#Footnote1\[ra]
-enables only one-way mount propagation: mounts done on the host under that volume
-are visible inside the container but not the other way around.
-
-.PP
-To control mount propagation property of a volume one can use the [\fBr\fP]\fBshared\fP,
-[\fBr\fP]\fBslave\fP, [\fBr\fP]\fBprivate\fP or the [\fBr\fP]\fBunbindable\fP propagation flag.
-Propagation property can be specified only for bind mounted volumes and not for
-internal volumes or named volumes. For mount propagation to work the source mount
-point (the mount point where source dir is mounted on) has to have the right propagation
-properties. For shared volumes, the source mount point has to be shared. And for
-slave volumes, the source mount point has to be either shared or slave.
-[1]
+هنگامی که خط‌مشی انتشار اتصال روی \fBshared\fR تنظیم شود، هرگونه اتصال انجام‌شده درون
+کانتینر روی آن جلد هم برای میزبان و هم کانتینر قابل مشاهده خواهد بود. هنگامی که
+خط‌مشی انتشار اتصال روی \fBslave\fR تنظیم شود، انتشار یک‌طرفه اتصال فعال شده
+و هرگونه اتصال انجام‌شده روی میزبان برای آن جلد تنها در داخل کانتینر قابل مشاهده خواهد بود.
+برای کنترل ویژگی انتشار اتصال جلد، از پرچم‌های انتشار \fB:[r]shared\fR،
+\fB:[r]slave\fR، \fB[r]private\fR یا \fB[r]unbindable\fR استفاده کنید. ویژگی انتشار را فقط
+می‌توان برای جلدهای bind-mount شده تعیین کرد و نه جلدهای داخلی یا
+جلدهای نام‌گذاری‌شده. برای کارکرد انتشار اتصال روی نقطه اتصال منبع (نقطه اتصالی
+که دایرکتوری منبع روی آن سوار شده است)، باید ویژگی‌های انتشار مناسب را داشته باشد. برای
+جلدهای shared، نقطه اتصال منبع باید shared باشد. و برای جلدهای slave،
+اتصال منبع باید shared یا slave باشد. [1]
 \[la]#Footnote1\[ra]
 
 .PP
-To recursively mount a volume and all of its submounts into a
-pod, use the \fBrbind\fP option. By default the bind option is
-used, and submounts of the source directory is not mounted into the
-pod.
-
-.PP
-Mounting the volume with a \fBcopy\fP option tells podman to copy content from
-the underlying destination directory onto newly created internal volumes. The
-\fBcopy\fP only happens on the initial creation of the volume. Content is not
-copied up when the volume is subsequently used on different containers. The
-\fBcopy\fP option is ignored on bind mounts and has no effect.
-
-.PP
-Mounting volumes with the \fBnosuid\fP options means that SUID executables on the
-volume can not be used by applications to change their privilege. By default
-volumes are mounted with \fBnosuid\fP\&.
-
-.PP
-Mounting the volume with the \fBnoexec\fP option means that no executables on the
-volume can be executed within the pod.
-
-.PP
-Mounting the volume with the \fBnodev\fP option means that no devices on the volume
-can be used by processes within the pod. By default volumes
-are mounted with \fBnodev\fP\&.
-
-.PP
-If the \fIHOST-DIR\fP is a mount point, then \fBdev\fP, \fBsuid\fP, and \fBexec\fP options are
-ignored by the kernel.
-
-.PP
-Use \fBdf HOST-DIR\fP to figure out the source mount, then use
-\fBfindmnt -o TARGET,PROPAGATION \fIsource-mount-dir\fP\fP to figure out propagation
-properties of source mount. If \fBfindmnt\fP(1) utility is not available, then one
-can look at the mount entry for the source mount point in \fI/proc/self/mountinfo\fP\&. Look
-at the "optional fields" and see if any propagation properties are specified.
-In there, \fBshared:N\fP means the mount is shared, \fBmaster:N\fP means mount
-is slave, and if nothing is there, the mount is private. [1]
+از دستور \fBdf <source-dir>\fR برای تعیین اتصال منبع و سپس از دستور
+\fBfindmnt -o TARGET,PROPAGATION <source-mount-dir>\fR برای تعیین ویژگی‌های
+انتشار اتصال منبع استفاده کنید؛ اگر ابزار \fBfindmnt\fR در دسترس نیست، نقطه اتصال منبع را
+می‌توان با بررسی مدخل mount در فایل \fB/proc/self/mountinfo\fR\& مشخص کرد.
+\fBoptional fields\fR را بررسی کنید و ببینید آیا ویژگی انتشاری مشخص شده است یا خیر.
+\fBshared:X\fR به معنای \fBshared\fR بودن اتصال است، \fBmaster:X\fR به معنای \fBslave\fR بودن اتصال است و اگر
+چیزی وجود نداشته باشد به این معناست که اتصال \fBprivate\fR\& است. [1]
 \[la]#Footnote1\[ra]
 
 .PP
-To change propagation properties of a mount point, use \fBmount\fP(8) command. For
-example, if one wants to bind mount source directory \fI/foo\fP, one can do
-\fBmount --bind /foo /foo\fP and \fBmount --make-private --make-shared /foo\fP\&. This
-converts /foo into a shared mount point. Alternatively, one can directly
-change propagation properties of source mount. Say \fI/\fP is source mount for
-\fI/foo\fP, then use \fBmount --make-shared /\fP to convert \fI/\fP into a shared mount.
+برای تغییر ویژگی‌های انتشار یک نقطه اتصال از دستور \fBmount\fR استفاده کنید. برای
+نمونه، برای bind-mount کردن دایرکتوری منبع \fB/foo\fR دستورهای
+\fBmount --bind /foo /foo\fR و \fBmount --make-private --make-shared /foo\fR\& را اجرا کنید. این
+کار /foo را به یک نقطه اتصال \fBshared\fR تبدیل می‌کند. ویژگی‌های انتشار نقطه اتصال منبع
+را می‌توان مستقیماً تغییر داد. برای نمونه اگر \fB/\fR نقطه اتصال منبع برای
+\fB/foo\fR باشد، دستور \fBmount --make-shared /\fR را برای تبدیل \fB/\fR به یک اتصال \fBshared\fR به کار ببرید.
 
 .PP
-Note: if the user only has access rights via a group, accessing the volume
-from inside a rootless pod fails.
+نکته: اگر کاربر تنها از طریق یک گروه دارای مجوز دسترسی باشد، دسترسی به حجم از درون یک پاد بدون ریشه ناموفق خواهد بود.
 
 .PP
-\fBIdmapped mount\fR
+\fBاتصال‌های نگاشت شناسه (Idmapped mount)\fR
 
 .PP
-If \fBidmap\fR is specified, create an idmapped mount to the target user
-namespace in the container. The idmap option supports a custom mapping
-that can be different than the user namespace used by the
-container. The mapping can be specified after the idmap option like:
+در صورت تعیین \fBidmap\fR، یک اتصال با شناسه نگاشت‌شده به فضای‌نام کاربری مقصد در کانتینر ایجاد می‌شود. گزینه idmap از نگاشت سفارشی که می‌تواند با فضای‌نام کاربری کانتینر متفاوت باشد پشتیبانی می‌کند. این نگاشت را می‌توان بعد از گزینه idmap به این صورت تعیین کرد:
 \fBidmap=uids=0-1-10#10-11-10;gids=0-100-10\fR\&.
-For each triplet, the first value is the start of the backing file
-system IDs that are mapped to the second value on the host.  The
-length of this mapping is given in the third value.
-Multiple ranges are separated with #.
+برای هر سه‌گانه، مقدار اول آغاز شناسه‌های سیستم‌فایل پشتیبان است که به مقدار دوم روی میزبان نگاشت می‌شوند. طول این نگاشت در مقدار سوم مشخص می‌گردد. محدوده‌های چندگانه با نماد # از یکدیگر تفکیک می‌شوند.
 
 .SS \fB--volumes-from\fP=\fICONTAINER[:OPTIONS]\fP
-Mount volumes from the specified container(s). Used to share volumes between
-containers and pods. The \fIoptions\fP is a comma-separated list with the following available elements:
+سوار کردن حجم‌ها از کانتینر(های) مشخص‌شده. برای به اشتراک‌گذاری حجم‌ها میان کانتینرها و پادها استفاده می‌شود. \fIoptions\fP فهرستی جداشده با کاما از موارد زیر است:
 .IP \(bu 2
 \fBrw\fP|\fBro\fP
 .IP \(bu 2
 \fBz\fP
 
 .PP
-Mounts already mounted volumes from a source container onto another
-pod. \fICONTAINER\fP may be a name or ID.
-To share a volume, use the --volumes-from option when running
-the target container. Volumes can be shared even if the source container
-is not running.
+حجم‌های از قبل سوارشده از یک کانتینر مبدأ را روی یک پاد دیگر سوار می‌کند. \fICONTAINER\fP می‌تواند نام یا شناسه کانتینر باشد. برای اشتراک‌گذاری حجم، هنگام اجرای کانتینر مقصد از گزینه --volumes-from استفاده کنید. حتی اگر کانتینر مبدأ در حال اجرا نباشد، حجم‌ها می‌توانند به اشتراک گذاشته شوند.
 
 .PP
-By default, Podman mounts the volumes in the same mode (read-write or
-read-only) as it is mounted in the source container.
-This can be changed by adding a \fBro\fR or \fBrw\fR \fIoption\fP\&.
+به‌طور پیش‌فرض، Podman حجم‌ها را در همان حالت (خواندنی-نوشتنی یا فقط‌خواندنی) که در کانتینر مبدأ سوار شده‌اند، سوار می‌کند. این رفتار را می‌توان با افزودن گزینه \fBro\fR یا \fBrw\fR تغییر داد.
 
 .PP
-Labeling systems like SELinux require that proper labels are placed on volume
-content mounted into a pod. Without a label, the security system might
-prevent the processes running inside the container from using the content. By
-default, Podman does not change the labels set by the OS.
+سامانه‌های برچسب‌گذاری امنیتی مانند SELinux نیازمند قرارگیری برچسب‌های مناسب روی محتوای حجم سوارشده در پاد هستند. بدون برچسب، سامانه امنیتی ممکن است از دسترسی فرآیندهای درون کانتینر به محتوا جلوگیری کند. به‌طور پیش‌فرض، Podman برچسب‌های تنظیم‌شده توسط سیستم‌عامل را تغییر نمی‌دهد.
 
 .PP
-To change a label in the pod context, add \fBz\fR to the volume mount.
-This suffix tells Podman to relabel file objects on the shared volumes. The \fBz\fR
-option tells Podman that two entities share the volume content. As a result,
-Podman labels the content with a shared content label. Shared volume labels allow
-all containers to read/write content.
+برای تغییر برچسب در بافت پاد، پسوند \fBz\fR را به سوار کردن حجم اضافه کنید. این پسوند به Podman اعلام می‌کند تا اشیای فایل را روی حجم‌های مشترک مجدداً برچسب‌گذاری کند. گزینه \fBz\fR به Podman می‌گوید که دو موجودیت محتوای حجم را به اشتراک می‌گذارند. در نتیجه، Podman محتوا را با یک برچسب محتوای مشترک نشانه‌گذاری می‌کند. برچسب‌های مشترک به همه کانتینرها اجازه خواندن و نوشتن روی محتوا را می‌دهند.
 
 .PP
-If the location of the volume from the source container overlaps with
-data residing on a target pod, then the volume hides
-that data on the target.
+اگر محل حجم ناشی از کانتینر مبدأ با داده‌های موجود در پاد مقصد همپوشانی داشته باشد، حجم مذکور داده‌های موجود در مقصد را پنهان می‌کند.
 
 .SH "مثال‌ها (EXAMPLES)"
-Clone the specified pod to a new pod.
+.PP
+شبیه‌سازی پاد مشخص‌شده در یک پاد جدید:
 
 .EX
 # podman pod clone pod-name
@@ -779,7 +342,7 @@ Clone the specified pod to a new pod.
 .EE
 
 .PP
-Clone the specified pod to a new pod with a new name.
+شبیه‌سازی پاد مشخص‌شده در یک پاد جدید با نام جدید:
 
 .EX
 # podman pod clone pod-name --name=cloned-pod
@@ -788,7 +351,7 @@ d0cf1f782e2ed67e8c0050ff92df865a039186237a4df24d7acba5b1fa8cc6e7
 .EE
 
 .PP
-Clone and remove the specified pod to a new pod, modifying its cpus.
+شبیه‌سازی و حذف پاد اصلی و تغییر تعداد پردازنده‌ها:
 
 .EX
 # podman pod clone --destroy --cpus=5 d0cf1
@@ -796,7 +359,7 @@ Clone and remove the specified pod to a new pod, modifying its cpus.
 .EE
 
 .PP
-Clone the specified pod to a new named pod.
+شبیه‌سازی پاد مشخص‌شده با شناسه و نام جدید:
 
 .EX
 # podman pod clone 2d4d4fca7219b4437e0d74fcdc272c4f031426a6eacd207372691207079551de new_name
@@ -804,7 +367,7 @@ Clone the specified pod to a new named pod.
 .EE
 
 .PP
-Clone a pod with memory limits.
+شبیه‌سازی یک پاد با اعمال محدودیت حافظه:
 
 .EX
 # podman pod clone --memory=1g --memory-swap=2g pod-name
@@ -812,7 +375,7 @@ Clone a pod with memory limits.
 .EE
 
 .PP
-Clone a pod with CPU limits.
+شبیه‌سازی یک پاد با اعمال محدودیت پردازنده:
 
 .EX
 # podman pod clone --cpus=2.5 --cpu-shares=1024 pod-name
@@ -820,11 +383,11 @@ Clone a pod with CPU limits.
 .EE
 
 .SH "همچنین ببینید (SEE ALSO)"
-\fBpodman-pod-create(1)\fP
+\fBpodman(1)\fP, \fBpodman-pod(1)\fP, \fBpodman-pod-create(1)\fP
 
 .SH "تاریخچه (HISTORY)"
-May 2022, Originally written by Charlie Doern cdoern@redhat.com
-\[la]mailto:cdoern@redhat.com\[ra]
+مه ۲۰۲۲، در ابتدا توسط Charlie Doern <cdoern@redhat.com> نگاشته شد.
 
-.SH FOOTNOTES
-1: The Podman project is committed to inclusivity, a core value of open source. The \fBmaster\fR and \fBslave\fR mount propagation terminology used here is problematic and divisive, and needs to be changed. However, these terms are currently used within the Linux kernel and must be used as-is at this time. When the kernel maintainers rectify this usage, Podman will follow suit immediately.
+.SH "پانویس‌ها (FOOTNOTES)"
+.PP
+۱: پروژه Podman به فراگیری، از ارزش‌های بنیادین متن‌باز، متعهد است. اصطلاحات انتشار سوارکردن (mount propagation) شامل \fBmaster\fR و \fBslave\fR که در این‌جا استفاده شده، مشکل‌ساز و تفرقه‌افکن است و باید دگرگون شود. با این حال، این اصطلاحات هم‌اکنون درون هسته لینوکس استفاده می‌شوند و در این مقطع زمانی باید به همان صورت به کار روند. هنگامی که نگه‌دارندگان هسته این کاربرد را اصلاح کنند، Podman بی‌درنگ از آن پیروی خواهد کرد.

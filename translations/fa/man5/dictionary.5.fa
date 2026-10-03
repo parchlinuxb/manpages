@@ -12,194 +12,167 @@
 ..
 .TH dictionary 5 "05 Jan 2025"
 .SH "نام (NAME)"
-dictionary \- RADIUS dictionary file
+dictionary \- قالب فایل دیکشنری پروتکل RADIUS در FreeRADIUS
 .SH "توضیحات (DESCRIPTION)"
-The master RADIUS dictionary file resides in
-\fI/etc/raddb/dictionary\fP.  It references other \fIdictionary\fP
-files located in \fI/usr/share/freeradius/\fP.  Each dictionary
-file contains a list of RADIUS attributes and values, which the server
-uses to map between descriptive names and on-the-wire data.  The names
-have no meaning outside of the RADIUS server itself, and are never
-exchanged between server and clients.
+فایل اصلی دیکشنری RADIUS در مسیر
+.I /etc/raddb/dictionary
+قرار دارد. این فایل به سایر فایل‌های
+.I dictionary
+واقع در
+.I /usr/share/freeradius
+ارجاع می‌دهد. هر فایل دیکشنری حاوی فهرستی از ویژگی‌ها و مقادیر RADIUS است که سرور از آن‌ها برای نگاشت میان نام‌های توصیفی و داده‌های ارسالی روی شبکه استفاده می‌کند. این نام‌ها در خارج از خود سرور RADIUS هیچ معنایی ندارند و هرگز میان سرور و کلاینت‌ها تبادل نمی‌شوند.
 .PP
-That is, editing the dictionaries will have NO EFFECT on anything
-other than the server that is reading those files.  Adding new
-attributes to the dictionaries will have NO EFFECT on RADIUS clients,
-and will not make RADIUS clients magically understand those
-attributes.  The dictionaries are solely for local administrator
-convenience, and are specific to each version of FreeRADIUS.
+به بیان دیگر، ویرایش دیکشنری‌ها هیچ تاثیری بر هیچ چیز دیگری به جز همان سروری که آن فایل‌ها را می‌خواند نخواهد داشت. افزودن ویژگی‌های جدید به دیکشنری‌ها هیچ اثری روی کلاینت‌های RADIUS ندارد و سبب درک خودکار آن ویژگی‌ها توسط کلاینت‌های RADIUS نمی‌شود. دیکشنری‌ها صرفاً برای راحتی کار مدیر سیستم محلی هستند و مختص هر نسخه از FreeRADIUS می‌باشند.
 .PP
-The dictionaries in \fI/usr/share\fP SHOULD NOT be edited unless
-you know exactly what you are doing.  Changing them will most likely
-break your RADIUS deployment.
+دیکشنری‌های موجود در
+.I /usr/share
+نباید ویرایش شوند مگر اینکه دقیقاً بدانید چه کاری انجام می‌دهید. تغییر دادن آن‌ها به احتمال زیاد استقرار RADIUS شما را از کار خواهد انداخت.
 .PP
-If you need to add new attributes, please edit the
-\fI/etc/raddb/dictionary\fP file.  It's sole purpose is to contain
-site-local definitions that are added by the local administrator.
-
-.SH FORMAT
-Every line starting with a hash sign
+اگر نیاز به افزودن ویژگی‌های جدید دارید، لطفاً فایل
+.I /etc/raddb/dictionary
+را ویرایش کنید. تنها هدف این فایل، نگهداری تعاریف محلی است که توسط مدیر سیستم اضافه می‌شوند.
+.SH "قالب (FORMAT)"
+هر خطی که با علامت هش
 .RB (' # ')
-is treated as comment and ignored.
+آغاز شود، به عنوان توضیح در نظر گرفته شده و نادیده گرفته می‌شود.
 .PP
-Each line of the file can contain one of the following strings:
+هر خط از فایل می‌تواند شامل یکی از رشته‌های زیر باشد:
 .TP 0.5i
 .B ATTRIBUTE name  oid  type [flags]
-Define a RADIUS attribute name to number mapping.
-
-The \fIname\fP field is a printable field, taken from various
-specifications or vendor definitions.  It is most commonly used as a
-series of words, separated by hyphens.  e.g. "User-Name".
-Vendor-specific attributes (VSAs) are prefixed by the vendor name,
-e.g. "Cisco-AVPair".  The names should be globally unique, as they are
-used as a key to look up the properties of the attribute.
-
-The \fIoid\fP field is taken from the relevant specification for that
-name.  In most cases, it is a decimal number, such as "256".  For
-certain attributes, a "dotted number" notation is used, e.g. "1.2".
-The "dotted number" notation is used only for certain attributes.
-
-The \fItype\fP field can be one of the standard types:
-
-     string       UTF-8 printable text (the RFCs call this "text")
-     octets       opaque binary data (the RFCs call this "string")
-     ipaddr       IPv4 address
-     date         Seconds since January 1, 1970 (32-bits)
-     integer      32-bit unsigned integer
-     ipv6addr     IPv6 Address
-     ipv6prefix   IPV6 prefix, with mask
-     ifid         Interface Id (hex:hex:hex:hex)
-     integer64	  64-bit unsigned integer
-
-The \fItype\fP field can be one of the following non-standard types:
-
-     ether        Ethernet MAC address
-     abinary      Ascend binary filter format
-     byte         8-bit unsigned integer
-     short        16-bit unsigned integer
-     signed       31-bit signed integer (packed into 32-bit field)
-     tlv          Type-Length-Value (allows nested attributes)
-     ipv4prefix   IPv4 Prefix as given in RFC 6572.
-
-The last (optional) field of an attribute definition are additional
-flags for that attribute, in a comma-separated list.  Previous
-versions of the server allowed these flags to include a vendor name.
-This behavior may still work, but it is deprecated, and is not
-recommended.
-
-The options are:
-
-     array        Multiple values are packed into one attribute.
-     concat	  Multiple attributes should be concatenated
-     encrypt=#    set encryption type 1, 2, or 3.
-     has_tag      The attribute can have an RFC 2868 style tag
-     secret	  A value which should not be printed in debug mode
-     virtual      The attribute is special to the server.
-
-The "array" flag is only used for DHCP.  It indicates that a DHCP
-option can contain an array of multiple values.
-
-The "concat" flags indicates that when multiple attributes are present
-in a packet, the contents should be concatenated together to get the
-final contents.  Similarly, when encoding packets, a long value should
-be split into multiple attributes.
-
-The "encrypt" flag marks the attribute as being encrypted with one of
-three possible methods.  "1" means that the attribute is encrypted
-with the method as defined in \fIRFC2865\fP for the User-Password
-attribute.  "2" means that the password is encrypted with the method
-as defined in \fIRFC2868\fP for the Tunnel-Password attribute.  "3"
-means that the attribute is encrypted as per Ascend's definitions for
-the Ascend-Send-Secret attribute.
-
-The "has_tag" flag marks the attribute as being permitted to have a
-tag, as defined in \fIRFC2868\fP.  The purpose of the tag is to allow
-grouping of attributes for tunneled users.  See \fIRFC2868\fP for
-more details.
-
-The "secret" flag indicates that the value should not be printed in
-normal debug mode.  The value will be printed when the debug level
-is 3 or higher.
-
-The "virtual" flag is for the server, and indicates that the attribute
-does not really exist.  Instead, the value is taken from an internal
-callback.
-
-When the server receives an encoded attribute in a RADIUS packet, it
-looks up that attribute by number in the dictionary, and uses the
-definition found there for printing diagnostic and log messages.  When
-the server sees an attribute name in a configuration file, it looks up
-that attribute by name in the dictionary, and uses the definition
-found there.
-
+تعریف یک نگاشت نام به شماره برای ویژگی RADIUS.
+.PP
+فیلد
+.I name
+یک فیلد قابل چاپ است که از مشخصات فنی گوناگون یا تعاریف تولیدکنندگان گرفته شده است. این فیلد اغلب به صورت مجموعه‌ای از کلمات جدا شده با خط تیره استفاده می‌شود، مانند «User-Name». ویژگی‌های مختص تولیدکننده (VSAها) با نام تولیدکننده پیشوندگذاری می‌شوند، مانند «Cisco-AVPair». نام‌ها باید در سطح سراسری یکتا باشند، زیرا به عنوان کلید برای جستجوی مشخصات ویژگی به کار می‌روند.
+.PP
+فیلد
+.I oid
+از مشخصات فنی مربوط به آن نام گرفته می‌شود. در بیشتر موارد، یک عدد ده‌دهی (دسیمال) مانند «256» است. برای برخی ویژگی‌های معین، از نمادگذاری «اعداد نقطه‌دار» استفاده می‌شود، مانند «1.2». نمادگذاری اعداد نقطه‌دار فقط برای برخی ویژگی‌های خاص استفاده می‌شود.
+.PP
+فیلد
+.I type
+می‌تواند یکی از انواع استاندارد باشد:
+.nf
+     string       متن قابل چاپ UTF-8 (در RFCها «text» نامیده می‌شود)
+     octets       داده‌های باینری خام (در RFCها «string» نامیده می‌شود)
+     ipaddr       آدرس IPv4
+     date         ثانیه‌های سپری‌شده از ۱ ژانویه ۱۹۷۰ (۳۲ بیتی)
+     integer      عدد صحیح ۳۲ بیتی بدون علامت
+     ipv6addr     آدرس IPv6
+     ipv6prefix   پیشوند IPv6 به همراه ماسک
+     ifid         شناسه رابط (hex:hex:hex:hex)
+     integer64    عدد صحیح ۶۴ بیتی بدون علامت
+.fi
+.PP
+فیلد
+.I type
+می‌تواند یکی از انواع غیراستاندارد زیر باشد:
+.nf
+     ether        آدرس MAC اترنت
+     abinary      قالب فیلتر باینری Ascend
+     byte         عدد صحیح ۸ بیتی بدون علامت
+     short        عدد صحیح ۱۶ بیتی بدون علامت
+     signed       عدد صحیح ۳۱ بیتی علامت‌دار (بسته‌بندی شده در فیلد ۳۲ بیتی)
+     tlv          نوع-طول-مقدار (امکان ویژگی‌های تودرتو را فراهم می‌کند)
+     ipv4prefix   پیشوند IPv4 بر اساس RFC 6572
+.fi
+.PP
+آخرین فیلد (اختیاری) از تعریف یک ویژگی، فلگ‌های اضافی برای آن ویژگی است که در یک فهرست جدا شده با کاما قرار می‌گیرند. نسخه‌های قبلی سرور اجازه می‌دادند این فلگ‌ها شامل نام یک تولیدکننده باشند. این رفتار ممکن است هنوز کار کند، اما منسوخ شده و توصیه نمی‌شود.
+.PP
+گزینه‌ها عبارتند از:
+.nf
+     array        چندین مقدار در یک ویژگی بسته‌بندی می‌شوند.
+     concat       چندین ویژگی باید به هم متصل شوند.
+     encrypt=#    تنظیم نوع رمزنگاری روی ۱، ۲ یا ۳.
+     has_tag      ویژگی می‌تواند تگی به سبک RFC 2868 داشته باشد.
+     secret       مقداری که نباید در حالت اشکال‌زدایی چاپ شود.
+     virtual      ویژگی برای سرور خاص است.
+.fi
+.PP
+فلگ «array» تنها برای DHCP استفاده می‌شود و نشان می‌دهد که یک گزینه DHCP می‌تواند حاوی آرایه‌ای از چندین مقدار باشد.
+.PP
+فلگ «concat» نشان می‌دهد زمانی که چندین ویژگی در یک بسته وجود دارند، محتویات آن‌ها باید به یکدیگر متصل شوند تا محتوای نهایی به دست آید. به طور مشابه، هنگام کدگذاری بسته‌ها، یک مقدار طولانی باید به چندین ویژگی تقسیم شود.
+.PP
+فلگ «encrypt» ویژگی را به عنوان رمزنگاری‌شده با یکی از سه روش ممکن علامت‌گذاری می‌کند. مقدار «1» به این معنی است که ویژگی با روش تعریف‌شده در
+.I RFC2865
+برای ویژگی User-Password رمزنگاری شده است. مقدار «2» به این معنی است که گذرواژه با روش تعریف‌شده در
+.I RFC2868
+برای ویژگی Tunnel-Password رمزنگاری شده است. مقدار «3» به این معنی است که ویژگی مطابق با تعاریف Ascend برای ویژگی Ascend-Send-Secret رمزنگاری شده است.
+.PP
+فلگ «has_tag» ویژگی را به عنوان مجاز به داشتن یک برچسب (تگ)، مطابق با تعریف
+.I RFC2868
+علامت‌گذاری می‌کند. هدف تگ، امکان گروه‌بندی ویژگی‌ها برای کاربران تانل‌شده است. برای جزئیات بیشتر به
+.I RFC2868
+مراجعه کنید.
+.PP
+فلگ «secret» نشان می‌دهد که مقدار نباید در حالت اشکال‌زدایی عادی چاپ شود. این مقدار تنها زمانی چاپ می‌شود که سطح اشکال‌زدایی ۳ یا بالاتر باشد.
+.PP
+فلگ «virtual» مخصوص سرور است و نشان می‌دهد که ویژگی در واقع وجود خارجی ندارد. در عوض، مقدار از یک بازخوانی (کالبک) داخلی دریافت می‌شود.
+.PP
+هنگامی که سرور یک ویژگی کدگذاری‌شده را در یک بسته RADIUS دریافت می‌کند، آن ویژگی را بر اساس شماره در دیکشنری جستجو کرده و از تعریف موجود در آنجا برای چاپ پیام‌های تشخیصی و لاگ‌ها استفاده می‌کند. هنگامی که سرور نام یک ویژگی را در یک فایل پیکربندی می‌بیند، آن ویژگی را بر اساس نام در دیکشنری جستجو کرده و از تعریف موجود در آنجا استفاده می‌نماید.
 .TP 0.5i
 .B VALUE attribute-name value-name number
-Define an attribute value name to number mapping, for an attribute of
-type \fIinteger\fP.  The \fIattribute-name\fP field MUST be previously
-defined by an \fIATTRIBUTE\fP entry.  The \fIvalue-name\fP field can
-be any non-space text, but is usually taken from \fIRFC2865\fP, or
-other documents..  The \fInumber\fP field is also taken from the
-relevant documents, for that name.
-
-When the server receives an encoded value in a RADIUS packet, it looks
-up the value of that attribute by number in the dictionary, and uses
-the name found there for printing diagnostic and log messages.
+تعریف یک نگاشت نام مقدار ویژگی به شماره، برای ویژگی‌ای از نوع
+.IR integer .
+فیلد
+.I attribute-name
+باید پیش‌تر توسط یک مدخل
+.I ATTRIBUTE
+تعریف شده باشد. فیلد
+.I value-name
+می‌تواند هر متن بدون فاصله‌ای باشد، اما معمولاً از
+.I RFC2865
+یا اسناد دیگر گرفته می‌شود. فیلد
+.I number
+نیز برای آن نام، از اسناد مربوطه اخذ می‌گردد.
+.PP
+هنگامی که سرور یک مقدار کدگذاری‌شده را در یک بسته RADIUS دریافت می‌کند، مقدار آن ویژگی را بر اساس شماره در دیکشنری جستجو کرده و از نام موجود در آنجا برای چاپ پیام‌های تشخیصی و لاگ‌ها استفاده می‌کند.
 .TP 0.5i
 .B VENDOR vendor-name number [format=...]
-Define a Vendor Specific Attribute encapsulation for \fIvendor-name\fP
-to \fInumber\fP.  For a list of vendor names and numbers, see
-http://www.iana.org/enterprise-numbers.txt.
-
-The "format=t,l" statement tells the server how many octets to use to
-encode/decode the vendor "type" and "length" fields in the attributes.
-The default is "format=1,1", which does not have to be specified.  For
-USR VSA's, the format is "format=4,0", for Lucent VSA's it's
-"format=2,1", and for Starent VSA's it's "format=2,2".
-
-The supported values for the number of type octets (i.e. the first
-digit) are 1, 2, and 4.  The support values for the number of length
-octets (i.e. the second digit) are 0, 1, and 2.  Any combination of
-those values will work.
-
+تعریف یک کپسوله‌سازی ویژگی مختص تولیدکننده (VSA) برای
+.I vendor-name
+به
+.IR number .
+برای مشاهده فهرستی از نام‌ها و شماره‌های تولیدکنندگان، ببینید:
+http://www.iana.org/enterprise-numbers.txt
+.PP
+عبارت «format=t,l» به سرور اعلام می‌کند که از چند اوکتت (بایت) برای کدگذاری/کدگشایی فیلدهای «type» و «length» تولیدکننده در ویژگی‌ها استفاده کند. مقدار پیش‌فرض «format=1,1» است که نیازی به مشخص کردن صریح آن نیست. برای VSAهای USR قالب «format=4,0»، برای VSAهای Lucent قالب «format=2,1» و برای VSAهای Starent قالب «format=2,2» می‌باشد.
+.PP
+مقادیر پشتیبانی‌شده برای تعداد اوکتت‌های type (یعنی رقم اول) برابر با ۱، ۲ و ۴ هستند. مقادیر پشتیبانی‌شده برای تعداد اوکتت‌های length (یعنی رقم دوم) برابر با ۰، ۱ و ۲ هستند. هر ترکیبی از این مقادیر کار خواهد کرد.
 .TP 0.5i
 .B BEGIN-VENDOR vendor-name
-Define the start of a block of Vendor-Specific attributes.  All of the
-following \fIATTRIBUTE\fP  definitions are interpreted as being for the
-named vendor, until the block is closed by an "END-VENDOR" statement.
-
-This practice is preferred to placing the vendor name at the end of an
-\fIATTRIBUTE\fP  definition.
-
-For VSAs in the RFC 6929 "Extended vendor-specific" space, a format
-can be specified following the "vendor-name".  The format should be
-"format=Extended-Vendor-Specific-1", through
-"format=Extended-Vendor-Specific-6".  The matching "END-VENDOR" should
-just have the "vendor-name", without the format string.
+تعریف آغاز یک بلوک از ویژگی‌های مختص تولیدکننده (Vendor-Specific). تمام تعاریف
+.I ATTRIBUTE
+پس از آن، تا زمانی که بلوک با دستور «END-VENDOR» بسته شود، به عنوان ویژگی‌های متعلق به تولیدکنندهٔ نام‌برده تفسیر می‌شوند.
+.PP
+این شیوه نسبت به قرار دادن نام تولیدکننده در انتهای یک تعریف
+.I ATTRIBUTE
+ترجیح داده می‌شود.
+.PP
+برای VSAها در فضای «Extended vendor-specific» بر اساس RFC 6929، می‌توان قالبی را پس از «vendor-name» مشخص کرد. قالب باید بین «format=Extended-Vendor-Specific-1» تا «format=Extended-Vendor-Specific-6» باشد. دستور معادل «END-VENDOR» باید تنها شامل «vendor-name» بدون رشته قالب باشد.
 .TP 0.5i
 .B END-VENDOR vendor-name
-End a previously defined BEGIN-VENDOR block.  The "vendor-name" must match.
+پایان دادن به یک بلوک BEGIN-VENDOR که قبلاً تعریف شده است. مقدار «vendor-name» باید مطابقت داشته باشد.
 .TP 0.5i
 .B $INCLUDE filename
-Include dictionary entries from the file \fIfilename\fP.  The
-\fIfilename\fP is taken as relative to the location of the file which
-is asking for the inclusion.
+درج مدخل‌های دیکشنری از فایل
+.IR filename .
+مسیر
+.I filename
+به صورت نسبی نسبت به محل فایلی که درخواست درج دارد در نظر گرفته می‌شود.
 .TP 0.5i
 .B BEGIN-TLV name
-This feature is supported for backwards compatibility with older
-dictionaries.  It should not be used.  The new "oid" form for defining
-the attribute number should be used instead.
+این قابلیت برای سازگاری با نسخه‌های پیشین با دیکشنری‌های قدیمی‌تر پشتیبانی می‌شود و نباید استفاده گردد. به جای آن باید از فرمت جدید «oid» برای تعریف شماره ویژگی استفاده شود.
 .TP 0.5i
 .B END-TLV name
-This feature is supported for backwards compatibility with older
-dictionaries.  It should not be used.  The new "oid" form for defining
-the attribute number should be used instead.
+این قابلیت برای سازگاری با نسخه‌های پیشین با دیکشنری‌های قدیمی‌تر پشتیبانی می‌شود و نباید استفاده گردد. به جای آن باید از فرمت جدید «oid» برای تعریف شماره ویژگی استفاده شود.
 .PP
 .SH "فایل‌ها (FILES)"
 .I /etc/raddb/dictionary,
 .I /usr/share/freeradius/dictionary.*
 .SH "همچنین ببینید (SEE ALSO)"
 .BR radiusd (8),
-.BR RFC2865,
-.BR RFC2866,
-.BR RFC2868
+.BR RFC2865 ,
+.BR RFC2866 ,
+.BR RFC2868 ,
 .BR RFC6929

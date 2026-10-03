@@ -1,121 +1,111 @@
 .nh
 .TH podman-system-service 1
 .SH "نام (NAME)"
-podman-system-service \- Run an API service
+podman-system-service \- اجرای یک سرویس رابط برنامه‌نویسی کاربردی (API)
 
 .SH "خلاصه دستور (SYNOPSIS)"
 \fBpodman system service\fP [\fIoptions\fP]
 
 .SH "توضیحات (DESCRIPTION)"
-The \fBpodman system service\fP command creates a listening service that answers API calls for Podman.
-The command is available on Linux systems and is usually executed in systemd services.
-The command is not available when the Podman command is executed directly on a Windows or macOS
-host or in other situations where the Podman command is accessing a remote Podman API service.
+دستور \fBpodman system service\fP یک سرویس شنونده (listening service) ایجاد می‌کند که به فراخوانی‌های API برای Podman پاسخ می‌دهد.
+این دستور روی سیستم‌های لینوکس در دسترس است و معمولاً در قالب سرویس‌های systemd اجرا می‌شود.
+این دستور هنگامی که Podman به‌طور مستقیم روی میزبان ویندوز یا macOS اجرا شود، یا در شرایط دیگری که دستور Podman به یک سرویس راه دور API دسترسی پیدا می‌کند، در دسترس نیست.
 
 .PP
-The REST API provided by \fBpodman system service\fP is split into two parts: a compatibility layer offering support for the Docker v1.40 API, and a Podman-native Libpod layer.
-Documentation for the latter is available at \fIhttps://docs.podman.io/en/latest/_static/api.html\fP\&.
-Both APIs are versioned, but the server does not reject requests with an unsupported version set.
+رابط برنامه‌نویسی REST ارائه‌شده توسط \fBpodman system service\fP به دو بخش تقسیم می‌شود: یک لایهٔ سازگاری که پشتیبانی از API نسخهٔ v1.40 داکر را ارائه می‌دهد، و یک لایهٔ بومی Libpod برای Podman.
+مستندات لایهٔ دوم در نشانی \fIhttps://docs.podman.io/en/latest/_static/api.html\fP در دسترس است.
+هر دو API دارای شماره نسخه هستند، اما سرور درخواست‌هایی را که دارای نسخهٔ پشتیبانی‌نشده باشند رد نمی‌کند.
 
-.SS Run the command in a systemd service
-The command \fBpodman system service\fP supports systemd socket activation.
-When the command is run in a systemd service, the API service can therefore be provided on demand.
-If the systemd service is not already running, it will be activated as soon as
-a client connects to the listening socket. Systemd then executes the
-\fBpodman system service\fP command.
-After some time of inactivity, as defined by the \fB--time\fP option, the command terminates.
-Systemd sets the \fIpodman.service\fP state as inactive. At this point there is no
-\fBpodman system service\fP process running. No unnecessary compute resources are wasted.
-As soon as another client connects, systemd activates the systemd service again.
+.SS اجرای دستور در قالب سرویس systemd
+دستور \fBpodman system service\fP از فعال‌سازی سوکت توسط systemd (Socket Activation) پشتیبانی می‌کند.
+بنابراین هنگامی که دستور در یک سرویس systemd اجرا می‌شود، سرویس API می‌تواند بنا بر تقاضا (on-demand) ارائه گردد.
+اگر سرویس systemd از قبل در حال اجرا نباشد، به محض اتصال یک کلاینت به سوکت شنونده فعال خواهد شد. سپس systemd دستور \fBpodman system service\fP را اجرا می‌کند.
+پس از مدتی عدم فعالیت (که توسط گزینهٔ \fB--time\fP تعریف می‌شود)، دستور خاتمه می‌یابد.
+سپس systemd وضعیت سرویس \fIpodman.service\fP را به غیرفعال (inactive) تغییر می‌دهد. در این مرحله هیچ فرآیند فعالی از \fBpodman system service\fP در حال اجرا نیست و منابع پردازشی غیرضروری هدر نمی‌رود.
+به محض اینکه کلاینت دیگری متصل شود، systemd مجدداً سرویس را فعال می‌سازد.
 
 .PP
-The systemd unit files that declares the Podman API service for users are
+فایل‌های واحد systemd که سرویس API پادمن را برای کاربران تعریف می‌کنند عبارتند از:
 .IP \(bu 2
 \fI/usr/lib/systemd/user/podman.service\fP
 .IP \(bu 2
 \fI/usr/lib/systemd/user/podman.socket\fP
 
 .PP
-In the file \fIpodman.socket\fP the path of the listening Unix socket is defined by
+در فایل \fIpodman.socket\fP مسیر سوکت یونیکس شنونده به صورت زیر تعریف شده است:
 
 .EX
 ListenStream=%t/podman/podman.sock
 .EE
 
 .PP
-The path contains the systemd specifier \fB%t\fR which systemd expands to the value of the environment variable
-\fBXDG_RUNTIME_DIR\fR (see systemd specifiers in the \fBsystemd.unit(5)\fP man page).
+این مسیر شامل مشخص‌کنندهٔ (specifier) ویژهٔ systemd یعنی \fB%t\fR است که systemd آن را به مقدار متغیر محیطی \fBXDG_RUNTIME_DIR\fR بسط می‌دهد (به بخش مشخص‌کننده‌های systemd در صفحه راهنمای \fBsystemd.unit(5)\fP مراجعه کنید).
 
 .PP
-In addition to the systemd user services, there is also a systemd system service \fIpodman.service\fP\&.
-It runs rootful Podman and is accessed from the Unix socket \fI/run/podman/podman.sock\fP\&. See the systemd unit files
+علاوه بر سرویس‌های کاربری systemd، یک سرویس سیستمی systemd به نام \fIpodman.service\fP نیز وجود دارد.
+این سرویس، Podman را در حالت ریشه‌ای (rootful) اجرا می‌کند و از طریق سوکت یونیکس \fI/run/podman/podman.sock\fP در دسترس است. فایل‌های واحد systemd آن عبارتند از:
 .IP \(bu 2
 \fI/usr/lib/systemd/system/podman.service\fP
 .IP \(bu 2
 \fI/usr/lib/systemd/system/podman.socket\fP
 
 .PP
-The \fBpodman system service\fP command does not support more than one listening socket for the API service.
+دستور \fBpodman system service\fP برای سرویس API از بیش از یک سوکت شنونده پشتیبانی نمی‌کند.
 
 .PP
-Note: The default systemd unit files (system and user) change the log-level option to \fIinfo\fP from \fIerror\fP\&. This change provides additional information on each API call.
+نکته: فایل‌های واحد پیش‌فرض systemd (سیستمی و کاربری) گزینهٔ سطح لاگ را از \fIerror\fP به \fIinfo\fP تغییر می‌دهند. این تغییر اطلاعات بیشتری در مورد هر فراخوانی API ارائه می‌دهد.
 
-.SS Run the command directly
-To support running an API service without using a systemd service, the command also takes an
-optional endpoint argument for the API in URI form.  For example, \fIunix:///tmp/foobar.sock\fP or \fItcp://localhost:8080\fP\&.
-If no endpoint is provided, defaults is used.  The default endpoint for a rootful
-service is \fIunix:///run/podman/podman.sock\fP and rootless is \fIunix://$XDG_RUNTIME_DIR/podman/podman.sock\fP (for
-example \fIunix:///run/user/1000/podman/podman.sock\fP)
+.SS اجرای مستقیم دستور
+برای پشتیبانی از اجرای سرویس API بدون استفاده از سرویس systemd، این دستور یک آرگومان نقطه پایانی (endpoint) اختیاری را در قالب URI می‌پذیرد؛ به عنوان مثال \fIunix:///tmp/foobar.sock\fP یا \fItcp://localhost:8080\fP\&.
+اگر هیچ نقطه‌پایانی مشخص نشود، مقادیر پیش‌فرض استفاده می‌شوند. نقطه پایانی پیش‌فرض برای یک سرویس با دسترسی ریشه (rootful) برابر \fIunix:///run/podman/podman.sock\fP و برای حالت بدون ریشه (rootless) برابر \fIunix://$XDG_RUNTIME_DIR/podman/podman.sock\fP (برای مثال \fIunix:///run/user/1000/podman/podman.sock\fP) است.
 
-.SS Access the Unix socket from inside a container
-To access the API service inside a container:
-- mount the socket as a volume
-- run the container with \fB--security-opt label=disable\fR
+.SS دسترسی به سوکت یونیکس از داخل یک کانتینر
+برای دسترسی به سرویس API در داخل یک کانتینر:
+- سوکت را به عنوان یک حجم (volume) مانت کنید
+- کانتینر را با گزینهٔ \fB--security-opt label=disable\fR اجرا نمایید
 
-.SS Security
-Please note that the API grants full access to all Podman functionality, and thus allows arbitrary code execution as the user running the API, with no ability to limit or audit this access.
-The API's security model is built upon access via a Unix socket with access restricted via standard file permissions, ensuring that only the user running the service will be able to access it.
-TLS can be used to secure this socket by requiring clients to present a certificate signed by a trusted certificate authority ("CA"), as well as to allow the client to verify the identity of the API.
-We \fIstrongly\fP recommend against making the API socket available via the network (IE, bindings the service to a \fItcp\fP URL) without enabling mutual TLS to authenticate the client.
-Even access via Localhost carries risks - anyone with access to the system will be able to access the API.
-If remote access is required, we instead recommend forwarding the API socket via SSH, and limiting access on the remote machine to the greatest extent possible.
-If a \fItcp\fP URL must be used without TLS, using the \fI--cors\fP option is recommended to improve security.
+.SS امنیت (Security)
+لطفاً توجه داشته باشید که API دسترسی کامل به تمامی عملکردهای Podman را فراهم می‌کند و بنابراین امکان اجرای کدهای دلخواه را با اختیارات کاربری که API را اجرا کرده، بدون هیچ‌گونه امکان محدودسازی یا حسابرسی این دسترسی فراهم می‌سازد.
+مدل امنیتی API بر پایهٔ دسترسی از طریق سوکت یونیکس با مجوزهای استاندارد فایل ساخته شده است که تضمین می‌کند تنها کاربری که سرویس را اجرا کرده قادر به دسترسی به آن خواهد بود.
+از TLS می‌توان برای ایمن‌سازی این سوکت با ملزم کردن کلاینت‌ها به ارائهٔ گواهی امضاشده توسط یک مرجع صدور گواهی معتبر ("CA") و همچنین احراز هویت سرویس API توسط کلاینت استفاده کرد.
+ما \fIاکیداً\fP توصیه می‌کنیم که سوکت API را از طریق شبکه (یعنی متصل کردن سرویس به یک نشانی \fItcp\fP) بدون فعال‌سازی TLS دوطرفه (mutual TLS) جهت احراز هویت کلاینت به اشتراک نگذارید.
+حتی دسترسی از طریق Localhost نیز خطراتی به همراه دارد؛ چرا که هر کسی در سیستم دسترسی داشته باشد می‌تواند به API دسترسی پیدا کند.
+اگر دسترسی از راه دور مورد نیاز است، در عوض توصیه می‌کنیم سوکت API را از طریق SSH هدایت (forward) کنید و دسترسی در ماشین مقصد را تا حد امکان محدود سازید.
+اگر نشانی \fItcp\fP باید بدون TLS استفاده شود، استفاده از گزینهٔ \fI--cors\fP برای بهبود امنیت توصیه می‌شود.
 
 .SH "گزینه‌ها (OPTIONS)"
 .SS \fB--cors\fP
-CORS headers to inject to the HTTP response. The default value is empty string which disables CORS headers.
+هدرهای CORS جهت تزریق به پاسخ HTTP. مقدار پیش‌فرض یک رشتهٔ خالی است که هدرهای CORS را غیرفعال می‌کند.
 
 .SS \fB--help\fP, \fB-h\fP
-Print usage statement.
+چاپ راهنمای نحوه استفاده از دستور.
 
 .SS \fB--time\fP, \fB-t\fP
-The time until the session expires in \fIseconds\fP\&. The default is 5
-seconds. A value of \fB0\fR means no timeout, therefore the session does not expire.
+مدت زمان تا پایان انقضای نشست بر حسب \fIثانیه\fP\&. مقدار پیش‌فرض ۵ ثانیه است. مقدار \fB0\fR به معنای عدم وجود محدودیت زمانی است، بنابراین نشست هرگز منقضی نمی‌شود.
 
 .SS \fB--tls-cert\fP=\fIpath\fP
-Path to a PEM file containing the TLS certificate to present to clients. \fB--tls-key\fR must also be provided.
+مسیر فایل PEM شامل گواهی TLS برای ارائه به کلاینت‌ها. گزینهٔ \fB--tls-key\fR نیز باید ارائه شود.
 
 .SS \fB--tls-client-ca\fP=\fIpath\fP
-Path to a PEM file containing the TLS certificate bundle to validate client connections against.
-Connections that present no certificate or a certificate not signed by one of these certificates will be rejected.
+مسیر فایل PEM شامل مجموعه گواهی‌های TLS جهت اعتبارسنجی اتصالات کلاینت در برابر آن‌ها.
+اتصالاتی که گواهی ارائه نکنند یا گواهی آن‌ها توسط یکی از این گواهی‌ها امضا نشده باشد، رد خواهند شد.
 
 .SS \fB--tls-key\fP=\fIpath\fP
-Path to a PEM file containing the private key matching \fB--tls-cert\fR\&. \fB--tls-cert\fR must also be provided.
+مسیر فایل PEM شامل کلید خصوصی منطبق با \fB--tls-cert\fR\&. گزینهٔ \fB--tls-cert\fR نیز باید مشخص شود.
 
 .PP
-The default timeout can be changed via the \fBservice_timeout=VALUE\fR field in containers.conf.
-See \fBcontainers.conf(5)\fP for more information.
+زمان انتظار پیش‌فرض را می‌توان از طریق فیلد \fBservice_timeout=VALUE\fR در containers.conf تغییر داد.
+برای اطلاعات بیشتر به \fBcontainers.conf(5)\fP مراجعه کنید.
 
 .SH "مثال‌ها (EXAMPLES)"
-Start the user systemd socket for a rootless service.
+راه‌اندازی سوکت کاربری systemd برای یک سرویس بدون ریشه (rootless):
 
 .EX
 systemctl --user start podman.socket
 .EE
 
 .PP
-Configure DOCKER_HOST environment variable to point to the Podman socket so that
-it can be used via Docker API tools like docker-compose.
+پیکربندی متغیر محیطی DOCKER_HOST برای اشاره به سوکت Podman جهت استفاده از طریق ابزارهای Docker API مانند docker-compose:
 
 .EX
 $ export DOCKER_HOST=unix://$XDG_RUNTIME_DIR/podman/podman.sock
@@ -123,7 +113,7 @@ $ docker-compose up
 .EE
 
 .PP
-Configure the systemd socket to be automatically started after reboots, and run as the specified user.
+پیکربندی سوکت systemd برای راه‌اندازی خودکار پس از راه‌اندازی مجدد سیستم و اجرا با کاربر مشخص‌شده:
 
 .EX
 systemctl --user enable podman.socket
@@ -131,45 +121,44 @@ loginctl enable-linger <USER>
 .EE
 
 .PP
-Start the systemd socket for the rootful service.
+راه‌اندازی سوکت systemd برای سرویس با دسترسی ریشه (rootful):
 
 .EX
 sudo systemctl start podman.socket
 .EE
 
 .PP
-Configure the socket to be automatically started after reboots.
+پیکربندی سوکت جهت راه‌اندازی خودکار پس از بازراه‌اندازی سیستم:
 
 .EX
 sudo systemctl enable podman.socket
 .EE
 
 .PP
-It is possible to run the API without using systemd socket activation.
-In this case the API will not be available on demand because the command will
-stay terminated after the inactivity timeout has passed.
-Run an API with an inactivity timeout of 5 seconds without using socket activation.
+امکان اجرای API بدون استفاده از فعال‌سازی سوکت systemd نیز وجود دارد.
+در این حالت API بر حسب تقاضا در دسترس نخواهد بود؛ زیرا دستور پس از سپری شدن زمان عدم فعالیت، خاتمه می‌یابد.
+اجرای API با زمان انتظار عدم فعالیت ۵ ثانیه بدون استفاده از فعال‌سازی سوکت:
 
 .EX
 podman system service --time 5
 .EE
 
 .PP
-The default socket was used as no URI argument was provided.
+از آنجا که آرگومان URI ارائه نشد، از سوکت پیش‌فرض استفاده شد.
 
 .PP
-Run an API service with a custom socket path and no timeout:
+اجرای سرویس API با مسیر سوکت سفارشی و بدون محدودیت زمانی:
 
 .EX
 podman system service --time 0 unix:///var/run/mypodman.sock
 .EE
 
 .PP
-This starts the API service listening on the custom socket \fB/var/run/mypodman.sock\fR with no inactivity timeout (runs indefinitely).
+این دستور سرویس API را به صورتی اجرا می‌کند که روی سوکت سفارشی \fB/var/run/mypodman.sock\fR بدون محدودیت زمانی عدم فعالیت (به‌طور نامحدود) گوش می‌دهد.
 
 .SH "همچنین ببینید (SEE ALSO)"
 \fBpodman(1)\fP, \fBpodman-system-connection(1)\fP, \fBcontainers.conf(5)\fP
 
 .SH "تاریخچه (HISTORY)"
-January 2020, Originally compiled by Brent Baude \fB<bbaude@redhat.com>\fR
-November 2020, Updated by Jhon Honce (jhonce at redhat dot com)
+ژانویه ۲۰۲۰، در ابتدا توسط Brent Baude \fB<bbaude@redhat.com>\fR گردآوری شد.
+نوامبر ۲۰۲۰، توسط Jhon Honce (jhonce at redhat dot com) به‌روزرسانی شد.

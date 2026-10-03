@@ -1,135 +1,84 @@
 .nh
-.TH container-signature 5 Container signature format
-Miloslav Trmač
-March 2017
+.TH containers-signature 5 "مارس ۲۰۱۷" "Containers" "راهنمای لینوکس"
 
 .SH "نام (NAME)"
-container-signature \- Container signature format
+containers-signature \- ساختار و قالب امضای کانتینر
 
 
 .SH "توضیحات (DESCRIPTION)"
-This document describes the format of container signatures,
-as implemented by the \fBgo.podman.io/image/v5/signature\fR package.
+این سند ساختار و قالب امضاهای کانتینر را بر اساس پیاده‌سازی بسته \fBgo.podman.io/image/v5/signature\fR شرح می‌دهد.
 
 .PP
-Most users should be able to consume these signatures by using the \fBgo.podman.io/image/v5/signature\fR package
-(preferably through the higher-level \fBsignature.PolicyContext\fR interface)
-without having to care about the details of the format described below.
-This documentation exists primarily for maintainers of the package
-and to allow independent reimplementations.
+بیشتر کاربران باید بتوانند این امضاها را با استفاده از بسته \fBgo.podman.io/image/v5/signature\fR (ترجیحاً از طریق رابط سطح بالاتر \fBsignature.PolicyContext\fR) به کار ببرند، بدون اینکه نیاز به درگیر شدن با جزئیات ساختار شرح داده شده در زیر داشته باشند.
+این مستندات عمدتاً برای نگهدارندگان بسته و امکان‌پذیر ساختن پیاده‌سازی‌های مستقل فراهم شده است.
 
-.SH High-level overview
-The signature provides an end-to-end authenticated claim that a container image
-has been approved by a specific party (e.g. the creator of the image as their work,
-an automated build system as a result of an automated build,
-a company IT department approving the image for production) under a specified \fIidentity\fP
-(e.g. an OS base image / specific application, with a specific version).
+.SH "نمای کلی (HIGH-LEVEL OVERVIEW)"
+امضا یک ادعای احراز هویت‌شده سرتاسری (end-to-end) فراهم می‌کند مبنی بر اینکه یک ایمیج کانتینر توسط یک طرف مشخص (به عنوان مثال، سازنده ایمیج به عنوان اثر خود، یک سیستم ساخت خودکار به عنوان نتیجه ساخت خودکار، یا بخش فناوری اطلاعات شرکت که ایمیج را برای محیط عملیاتی تایید می‌کند) تحت یک \fIهویت\fP مشخص (به عنوان مثال، یک ایمیج پایه سیستم‌عامل / برنامه‌ای خاص همراه با نسخه‌ای مشخص) تایید شده است.
 
 .PP
-A container signature consists of a cryptographic signature which identifies
-and authenticates who signed the image, and carries as a signed payload a JSON document.
-The JSON document identifies the image being signed, claims a specific identity of the
-image and if applicable, contains other information about the image.
+امضای کانتینر شامل یک امضای رمزنگاری‌شده است که هویت امضاکننده ایمیج را مشخص و احراز می‌کند، و به عنوان بار داده (payload) امضاشده یک سند JSON را حمل می‌نماید. سند JSON ایمیج امضاشده را شناسایی می‌کند، مدعی هویت خاصی برای ایمیج می‌شود و در صورت لزوم، حاوی اطلاعات دیگری درباره ایمیج است.
 
 .PP
-The signatures do not modify the container image (the layers, configuration, manifest, …);
-e.g. their presence does not change the manifest digest used to identify the image in
-docker/distribution servers; rather, the signatures are associated with an immutable image.
-An image can have any number of signatures so signature distribution systems SHOULD support
-associating more than one signature with an image.
+امضاها ایمیج کانتینر (لایه‌ها، پیکربندی، مانیفست و...) را تغییر نمی‌دهند؛ برای مثال، وجود آن‌ها هش مانیفست (manifest digest) را که برای شناسایی ایمیج در سرورهای docker/distribution استفاده می‌شود تغییر نمی‌دهد؛ بلکه امضاها با یک ایمیج تغییرناپذیر (immutable) مرتبط می‌شوند. یک ایمیج می‌تواند هر تعداد امضا داشته باشد، بنابراین سیستم‌های توزیع امضا «باید» (SHOULD) از اتصال بیش از یک امضا به یک ایمیج پشتیبانی کنند.
 
-.SH The cryptographic signature
-As distributed, the container signature is a blob which contains a cryptographic signature
-in an industry-standard format, carrying a signed JSON payload (i.e. the blob contains both the
-JSON document and a signature of the JSON document; it is not a “detached signature” with
-independent blobs containing the JSON document and a cryptographic signature).
+.SH "امضای رمزنگاری (THE CRYPTOGRAPHIC SIGNATURE)"
+امضای کانتینر در هنگام توزیع، یک داده باینری (blob) است که حاوی یک امضای رمزنگاری در یک قالب استاندارد صنعتی است و بار داده JSON امضاشده را حمل می‌کند (یعنی این داده حاوی هم سند JSON و هم امضای سند JSON است؛ این یک «امضای جداگانه» (detached signature) با داده‌های مستقل حاوی سند JSON و امضای رمزنگاری نیست).
 
 .PP
-Currently the only defined cryptographic signature format is an OpenPGP signature (RFC 4880),
-but others may be added in the future.  (The blob does not contain metadata identifying the
-cryptographic signature format. It is expected that most formats are sufficiently self-describing
-that this is not necessary and the configured expected public key provides another indication
-of the expected cryptographic signature format. Such metadata may be added in the future for
-newly added cryptographic signature formats, if necessary.)
+در حال حاضر تنها قالب امضای رمزنگاری تعریف‌شده، امضای OpenPGP (RFC 4880) است، اما ممکن است در آینده قالب‌های دیگری اضافه شوند. (این داده حاوی متادیتایی که قالب امضای رمزنگاری را مشخص کند نیست. انتظار می‌رود که بیشتر قالب‌ها به اندازه کافی خودتوصیف‌گر باشند تا نیازی به این کار نباشد و کلید عمومی مورد انتظار پیکربندی‌شده، نشانه دیگری از قالب امضای رمزنگاری مورد انتظار ارائه دهد. در صورت لزوم، چنین متادیتایی ممکن است در آینده برای قالب‌های امضای رمزنگاری جدید اضافه شود.)
 
 .PP
-Consumers of container signatures SHOULD verify the cryptographic signature
-against one or more trusted public keys
-(e.g. defined in a policy.json signature verification policy file
+مصرف‌کنندگان امضای کانتینر «باید» (SHOULD) امضای رمزنگاری را پیش از هرگونه تجزیه یا پردازش بار داده JSON، با یک یا چند کلید عمومی مورد اعتماد (برای مثال تعریف‌شده در فایل خط‌مشی اعتبارسنجی امضای policy.json
 \[la]containers\-policy.json.5.md\[ra])
-before parsing or processing the JSON payload in \fIany\fP way,
-in particular they SHOULD stop processing the container signature
-if the cryptographic signature verification fails, without even starting to process the JSON payload.
+اعتبارسنجی کنند؛ به‌ویژه اگر اعتبارسنجی امضای رمزنگاری ناموفق بود، «باید» بدون حتی شروع پردازش بار داده JSON، پردازش امضای کانتینر را متوقف نمایند.
 
 .PP
-(Consumers MAY extract identification of the signing key and other metadata from the cryptographic signature,
-and the JSON payload, without verifying the signature, if the purpose is to allow managing the signature blobs,
-e.g. to list the authors and image identities of signatures associated with a single container image;
-if so, they SHOULD design the output of such processing to minimize the risk of users considering the output trusted
-or in any way usable for making policy decisions about the image.)
+(مصرف‌کنندگان «می‌توانند» (MAY) هویت کلید امضاکننده و سایر متادیتاها را بدون تایید امضا از امضای رمزنگاری و بار داده JSON استخراج کنند، در صورتی که هدف، مدیریت داده‌های امضا باشد؛ برای مثال، جهت فهرست کردن نویسندگان و هویت‌های ایمیج مربوط به امضاهای متصل به یک ایمیج کانتینر منفرد؛ در این صورت، آن‌ها «باید» خروجی چنین پردازشی را به گونه‌ای طراحی کنند که خطر اعتماد کاربران به خروجی یا استفاده از آن برای تصمیم‌گیری‌های خط‌مشی درباره ایمیج به حداقل برسد.)
 
-.SS OpenPGP signature verification
-When verifying a cryptographic signature in the OpenPGP format,
-the consumer MUST verify at least the following aspects of the signature
-(like the \fBgo.podman.io/image/v5/signature\fR package does):
+.SS "اعتبارسنجی امضای OpenPGP"
+هنگام اعتبارسنجی یک امضای رمزنگاری در قالب OpenPGP، مصرف‌کننده «الزاماً باید» (MUST) حداقل جنبه‌های زیر از امضا را تایید کند (مشابه آنچه بسته \fBgo.podman.io/image/v5/signature\fR انجام می‌دهد):
 .IP \(bu 2
-The blob MUST be a “Signed Message” as defined in RFC 4880 section 11.3.
-(e.g. it MUST NOT be an unsigned “Literal Message”,
-a “Cleartext Signature” as defined in RFC 4880 section 7,
-any other non-signature format, and MUST NOT use ASCII Armor as defined in RFC 4880 section 6).
+داده «الزاماً باید» یک «پیام امضاشده» (Signed Message) طبق تعریف RFC 4880 بخش 11.3 باشد (به عنوان مثال، «الزاماً نباید» یک «پیام متنی ساده» امضانشده، یک «امضای متنی واضح» (Cleartext Signature) طبق تعریف RFC 4880 بخش 7، یا هر قالب غیر امضایی دیگری باشد، و «الزاماً نباید» از زره اسکی (ASCII Armor) طبق تعریف RFC 4880 بخش 6 استفاده کند).
 .IP \(bu 2
-The blob MUST NOT contain more than one "Signature Packet" as defined in RFC 4880 section 5.2.
+داده «الزاماً نباید» حاوی بیش از یک «بسته امضا» (Signature Packet) طبق تعریف RFC 4880 بخش 5.2 باشد.
 .IP \(bu 2
-The signature MUST have been made by an expected key trusted for the purpose (and the specific container image).
+امضا «الزاماً باید» توسط یک کلید مورد انتظار و مورد اعتماد برای این منظور (و برای ایمیج کانتینر خاص) ایجاد شده باشد.
 .IP \(bu 2
-The signature MUST be correctly formed and pass the cryptographic validation.
+امضا «الزاماً باید» به درستی قالب‌بندی شده باشد و اعتبارسنجی رمزنگاری را با موفقیت پشت سر بگذارد.
 .IP \(bu 2
-The signature MUST correctly authenticate the included JSON payload
-(in particular, the parsing of the JSON payload MUST NOT start before the complete payload has been cryptographically authenticated).
+امضا «الزاماً باید» بار داده JSON موجود را به درستی احراز هویت کند (به‌ویژه تجزیه بار داده JSON «الزاماً نباید» پیش از احراز هویت کامل رمزنگاری بار داده آغاز شود).
 .IP \(bu 2
-The signature MUST NOT be expired.
+امضا «الزاماً نباید» منقضی شده باشد.
 
 .PP
-The consumer SHOULD have tests for its verification code which verify that signatures failing any of the above are rejected.
+مصرف‌کننده «باید» آزمون‌هایی برای کد اعتبارسنجی خود داشته باشد که تایید کند امضاهایی که در هر یک از موارد فوق مردود می‌شوند، رد خواهند شد.
 
-.SH JSON processing and forward compatibility
-The payload of the cryptographic signature is a JSON document (RFC 7159).
-Consumers SHOULD parse it very strictly,
-refusing any signature which violates the expected format (e.g. missing members, incorrect member types)
-or can be interpreted ambiguously (e.g. a duplicated member in a JSON object).
+.SH "پردازش JSON و سازگاری رو به جلو (JSON PROCESSING AND FORWARD COMPATIBILITY)"
+بار داده امضای رمزنگاری یک سند JSON است (RFC 7159).
+مصرف‌کنندگان «باید» (SHOULD) آن را بسیار سخت‌گیرانه تجزیه کنند و هر امضایی را که ناقض قالب مورد انتظار باشد (برای مثال، فیلدهای مفقود، انواع داده نامعتبر برای اعضا) یا بتواند به طور مبهم تفسیر شود (برای مثال، عضوی تکراری در یک شیء JSON) رد نمایند.
 
 .PP
-Any violations of the JSON format or of other requirements in this document MAY be accepted if the JSON document can be recognized
-to have been created by a known-incorrect implementation (see 
-\[la]#optionalcreator\[ra] below)
-and if the semantics of the invalid document, as created by such an implementation, is clear.
+هرگونه نقض قالب JSON یا سایر الزامات این سند در صورتی «می‌تواند» (MAY) پذیرفته شود که بتوان تشخیص داد سند JSON توسط یک پیاده‌سازی نادرستِ شناخته‌شده ایجاد شده است (به بخش
+\[la]#optionalcreator\[ra]
+در زیر مراجعه کنید) و معنای سند نامعتبر، همان‌گونه که توسط چنین پیاده‌سازی ایجاد شده، شفاف باشد.
 
 .PP
-The top-level value of the JSON document MUST be a JSON object with exactly two members, \fBcritical\fR and \fBoptional\fR,
-each a JSON object.
+مقدار سطح بالای سند JSON «الزاماً باید» (MUST) یک شیء JSON با دقیقاً دو عضو \fBcritical\fR و \fBoptional\fR باشد که هر یک خود یک شیء JSON هستند.
 
 .PP
-The \fBcritical\fR object MUST contain a \fBtype\fR member identifying the document as a container signature
-(as defined below
+شیء \fBcritical\fR «الزاماً باید» حاوی یک عضو \fBtype\fR باشد که سند را به عنوان امضای کانتینر شناسایی کند (مطابق تعریف زیر در
 \[la]#criticaltype\[ra])
-and signature consumers MUST reject signatures which do not have this member or in which this member does not have the expected value.
+و مصرف‌کنندگان امضا «الزاماً باید» امضاهایی را که فاقد این عضو هستند یا مقدار این عضو با مقدار مورد انتظار مطابقت ندارد، رد کنند.
 
 .PP
-To ensure forward compatibility (allowing older signature consumers to correctly
-accept or reject signatures created at a later date, with possible extensions to this format),
-consumers MUST reject the signature if the \fBcritical\fR object, or \fIany\fP of its subobjects,
-contain \fIany\fP member or data value which is unrecognized, unsupported, invalid, or in any other way unexpected.
-At a minimum, this includes unrecognized members in a JSON object, or incorrect types of expected members.
+جهت اطمینان از سازگاری رو به جلو (امکان پذیرش یا رد صحیح امضاهای ایجادشده در تاریخ‌های بعدی با پسوندهای احتمالی این قالب توسط مصرف‌کنندگان قدیمی‌تر امضا)، مصرف‌کنندگان «الزاماً باید» امضا را در صورتی که شیء \fBcritical\fR یا \fIهر یک\fP از زیر‌اشیای آن حاوی \fIهر\fP عضو یا مقدار داده ناشناخته، پشتیبانی‌نشده، نامعتبر، یا به هر نحو دیگری غیرمنتظره باشد، رد کنند. این مورد حداقل شامل اعضای ناشناخته در یک شیء JSON یا انواع نادرست اعضای مورد انتظار است.
 
 .PP
-For the same reason, consumers SHOULD accept any members with unrecognized names in the \fBoptional\fR object,
-and MAY accept signatures where the object member is recognized but unsupported, or the value of the member is unsupported.
-Consumers still SHOULD reject signatures where a member of an \fBoptional\fR object is supported but the value is recognized as invalid.
+به همین دلیل، مصرف‌کنندگان «باید» هر عضوی با نام ناشناخته در شیء \fBoptional\fR را بپذیرند، و «می‌توانند» امضاهایی را که در آن‌ها عضو شیء شناخته‌شده ولی پشتیبانی‌نشده است، یا مقدار عضو پشتیبانی‌نشده است، قبول کنند. با این حال مصرف‌کنندگان همچنان «باید» امضاهایی را که در آن‌ها عضوی از شیء \fBoptional\fR پشتیبانی می‌شود اما مقدار آن به عنوان نامعتبر شناخته شده است، رد کنند.
 
-.SH JSON data format
-An example of the full format follows, with detailed description below.
-To reiterate, consumers of the signature SHOULD perform successful cryptographic verification,
-and MUST reject unexpected data in the \fBcritical\fR object, or in the top-level object, as described above.
+.SH "قالب داده JSON (JSON DATA FORMAT)"
+یک نمونه از قالب کامل به شرح زیر است و توضیحات تفصیلی در ادامه می‌آید.
+جهت تاکید مجدد، مصرف‌کنندگان امضا «باید» اعتبارسنجی رمزنگاری موفقیت‌آمیز را انجام دهند، و همان‌طور که در بالا شرح داده شد، «الزاماً باید» داده‌های غیرمنتظره در شیء \fBcritical\fR یا در شیء سطح بالا را رد کنند.
 
 .EX
 {
@@ -150,128 +99,98 @@ and MUST reject unexpected data in the \fBcritical\fR object, or in the top-leve
 .EE
 
 .SS \fBcritical\fR
-This MUST be a JSON object which contains data critical to correctly evaluating the validity of a signature.
+این عضو «الزاماً باید» یک شیء JSON حاوی داده‌های حیاتی برای ارزیابی صحیح اعتبار یک امضا باشد.
 
 .PP
-Consumers MUST reject any signature where the \fBcritical\fR object contains any unrecognized, unsupported, invalid or in any other way unexpected member or data.
+مصرف‌کنندگان «الزاماً باید» هر امضایی را که در آن شیء \fBcritical\fR حاوی هرگونه عضو یا داده ناشناخته، پشتیبانی‌نشده، نامعتبر یا به هر شکل دیگر غیرمنتظره باشد، رد کنند.
 
 .SS \fBcritical.type\fR
-This MUST be a string with a string value exactly equal to \fBatomic container signature\fR (three words, including the spaces).
+این عضو «الزاماً باید» یک رشته با مقدار دقیقاً برابر با \fBatomic container signature\fR (سه کلمه، شامل فاصله‌ها) باشد.
 
 .PP
-Signature consumers MUST reject signatures which do not have this member or this member does not have exactly the expected value.
+مصرف‌کنندگان امضا «الزاماً باید» امضاهایی را که فاقد این عضو هستند یا این عضو دقیقاً مقدار مورد انتظار را ندارد، رد کنند.
 
 .PP
-(The consumers MAY support signatures with a different value of the \fBtype\fR member, if any is defined in the future;
-if so, the rest of the JSON document is interpreted according to rules defining that value of \fBcritical.type\fR,
-not by this document.)
+(مصرف‌کنندگان «می‌توانند» از امضاهایی با مقداری متفاوت برای عضو \fBtype\fR، در صورتی که در آینده تعریف شود، پشتیبانی کنند؛ در این صورت، باقی سند JSON بر اساس قواعد تعریف‌کننده آن مقدار خاص از \fBcritical.type\fR تفسیر می‌شود، نه بر اساس این سند.)
 
 .SS \fBcritical.image\fR
-This MUST be a JSON object which identifies the container image this signature applies to.
+این عضو «الزاماً باید» یک شیء JSON باشد که ایمیج کانتینر مربوط به این امضا را مشخص می‌کند.
 
 .PP
-Consumers MUST reject any signature where the \fBcritical.image\fR object contains any unrecognized, unsupported, invalid or in any other way unexpected member or data.
+مصرف‌کنندگان «الزاماً باید» هر امضایی را که در آن شیء \fBcritical.image\fR حاوی هرگونه عضو یا داده ناشناخته، پشتیبانی‌نشده، نامعتبر یا به هر نحو دیگر غیرمنتظره باشد، رد کنند.
 
 .PP
-(Currently only the \fBdocker-manifest-digest\fR way of identifying a container image is defined;
-alternatives to this may be defined in the future,
-but existing consumers are required to reject signatures which use formats they do not support.)
+(در حال حاضر تنها روش \fBdocker-manifest-digest\fR برای شناسایی یک ایمیج کانتینر تعریف شده است؛ ممکن است در آینده روش‌های جایگزینی برای آن تعریف شود، اما مصرف‌کنندگان موجود موظفند امضاهایی را که از قالب‌های پشتیبانی‌نشده استفاده می‌کنند، رد کنند.)
 
 .SS \fBcritical.image.docker-manifest-digest\fR
-This MUST be a JSON string, in the \fBgithub.com/opencontainers/go-digest.Digest\fR string format.
+این عضو «الزاماً باید» یک رشته JSON در قالب رشته‌ای \fBgithub.com/opencontainers/go-digest.Digest\fR باشد.
 
 .PP
-The value of this member MUST match the manifest of the signed container image, as implemented in the docker/distribution manifest addressing system.
+مقدار این عضو «الزاماً باید» با مانیفست ایمیج کانتینر امضاشده، همان‌گونه که در سامانه آدرس‌دهی مانیفست docker/distribution پیاده‌سازی شده، مطابقت داشته باشد.
 
 .PP
-The consumer of the signature SHOULD verify the manifest digest against a fully verified signature before processing the contents of the image manifest in any other way
-(e.g. parsing the manifest further or downloading layers of the image).
+مصرف‌کننده امضا «باید» هش مانیفست را پیش از هرگونه پردازش دیگر بر روی محتویات مانیفست ایمیج (مانند تجزیه بیشتر مانیفست یا بارگیری لایه‌های ایمیج)، در برابر یک امضای کاملاً تاییدشده اعتبارسنجی کند.
 
 .PP
-Implementation notes:
-* A single container image manifest may have several valid manifest digest values, using different algorithms.
-* For “signed” docker/distribution schema 1
-\[la]https://github.com/docker/distribution/blob/master/docs/spec/manifest\-v2\-1.md\[ra] manifests,
-the manifest digest applies to the payload of the JSON web signature, not to the raw manifest blob.
+نکات پیاده‌سازی:
+.IP \(bu 2
+مانیفست یک ایمیج کانتینر واحد ممکن است با استفاده از الگوریتم‌های مختلف دارای چندین مقدار معتبر هش مانیفست باشد.
+.IP \(bu 2
+برای مانیفست‌های نسخه 1 «امضاشده» در docker/distribution
+\[la]https://github.com/docker/distribution/blob/master/docs/spec/manifest\-v2\-1.md\[ra]،
+هش مانیفست به بار داده امضای وب JSON اعمال می‌شود، نه به داده خام مانیفست.
 
 .SS \fBcritical.identity\fR
-This MUST be a JSON object which identifies the claimed identity of the image (usually the purpose of the image, or the application, along with a version information),
-as asserted by the author of the signature.
+این عضو «الزاماً باید» یک شیء JSON باشد که هویت ادعاشده ایمیج (معمولاً کاربرد ایمیج یا برنامه، به همراه اطلاعات نسخه) را به گونه‌ای که توسط نویسنده امضا ادعا شده است، مشخص کند.
 
 .PP
-Consumers MUST reject any signature where the \fBcritical.identity\fR object contains any unrecognized, unsupported, invalid or in any other way unexpected member or data.
+مصرف‌کنندگان «الزاماً باید» هر امضایی را که در آن شیء \fBcritical.identity\fR حاوی هرگونه عضو یا داده ناشناخته، پشتیبانی‌نشده، نامعتبر یا به هر نحو دیگر غیرمنتظره باشد، رد کنند.
 
 .PP
-(Currently only the \fBdocker-reference\fR way of claiming an image identity/purpose is defined;
-alternatives to this may be defined in the future,
-but existing consumers are required to reject signatures which use formats they do not support.)
+(در حال حاضر تنها روش \fBdocker-reference\fR برای ادعای هویت/کاربرد ایمیج تعریف شده است؛ ممکن است در آینده روش‌های جایگزین تعریف شوند، اما مصرف‌کنندگان موجود موظفند امضاهایی را که از قالب‌های پشتیبانی‌نشده استفاده می‌کنند، رد نمایند.)
 
 .SS \fBcritical.identity.docker-reference\fR
-This MUST be a JSON string, in the \fBgithub.com/docker/distribution/reference\fR string format,
-and using the same normalization semantics (where e.g. \fBbusybox:latest\fR is equivalent to \fBdocker.io/library/busybox:latest\fR).
-If the normalization semantics allows multiple string representations of the claimed identity with equivalent meaning,
-the \fBcritical.identity.docker-reference\fR member SHOULD use the fully explicit form (including the full host name and namespaces).
+این عضو «الزاماً باید» یک رشته JSON در قالب رشته‌ای \fBgithub.com/docker/distribution/reference\fR و با استفاده از همان معناشناسی نرمال‌سازی (که در آن به عنوان مثال \fBbusybox:latest\fR معادل \fBdocker.io/library/busybox:latest\fR است) باشد.
+اگر معناشناسی نرمال‌سازی امکان بازنمایی‌های متنی متعددی از هویت ادعاشده با معنای معادل را بدهد، عضو \fBcritical.identity.docker-reference\fR «باید» از شکل کاملاً صریح (شامل نام کامل میزبان و فضاهای نام) استفاده کند.
 
 .PP
-The value of this member MUST match the image identity/purpose expected by the consumer of the image signature and the image
-(again, accounting for the \fBdocker/distribution/reference\fR normalization semantics).
+مقدار این عضو «الزاماً باید» با هویت/کاربرد ایمیج مورد انتظار مصرف‌کننده امضای ایمیج و خود ایمیج مطابقت داشته باشد (مجدداً با در نظر گرفتن معناشناسی نرمال‌سازی \fBdocker/distribution/reference\fR).
 
 .PP
-In the most common case, this means that the \fBcritical.identity.docker-reference\fR value must be equal to the docker/distribution reference used to refer to or download the image.
-However, depending on the specific application, users or system administrators may accept less specific matches
-(e.g. ignoring the tag value in the signature when pulling the \fB:latest\fR tag or when referencing an image by digest),
-or they may require \fBcritical.identity.docker-reference\fR values with a completely different namespace to the reference used to refer to/download the image
-(e.g. requiring a \fBcritical.identity.docker-reference\fR value which identifies the image as coming from a supplier when fetching it from a company-internal mirror of approved images).
-The software performing this verification SHOULD allow the users to define such a policy using the policy.json signature verification policy file format
-\[la]containers\-policy.json.5.md\[ra]\&.
+در متداول‌ترین حالت، این بدان معناست که مقدار \fBcritical.identity.docker-reference\fR باید برابر با ارجاع docker/distribution مورد استفاده برای اشاره به ایمیج یا دریافت آن باشد.
+با این حال، بسته به برنامه کاربردی خاص، کاربران یا مدیران سیستم ممکن است تطابق‌های عمومی‌تر را بپذیرند (برای مثال نادیده گرفتن مقدار تگ در امضا هنگام دریافت تگ \fB:latest\fR یا هنگام ارجاع به یک ایمیج از طریق هش مانیفست)، یا ممکن است به مقادیر \fBcritical.identity.docker-reference\fR با یک فضای نام کاملاً متفاوت نسبت به ارجاع استفاده‌شده برای اشاره/دریافت ایمیج نیاز داشته باشند (برای مثال نیاز به مقدار \fBcritical.identity.docker-reference\fR که نشان دهد ایمیج از یک تامین‌کننده مشخص آمده است، در حالی که ایمیج از یک آینه داخلی شرکتی برای ایمیج‌های تاییدشده دریافت می‌شود).
+نرم‌افزاری که این اعتبارسنجی را انجام می‌دهد «باید» به کاربران اجازه دهد چنین خط‌مشی‌هایی را با استفاده از قالب فایل خط‌مشی اعتبارسنجی امضای policy.json
+\[la]containers\-policy.json.5.md\[ra]
+تعریف نمایند.
 
 .PP
-The \fBcritical.identity.docker-reference\fR value SHOULD contain either a tag or digest;
-in most cases, it SHOULD use a tag rather than a digest.  (See also the default 
-\[la]containers\-policy.json.5.md#signedby\[ra]\&.)
+مقدار \fBcritical.identity.docker-reference\fR «باید» شامل یک تگ یا یک شناسه یکتای هش (digest) باشد؛ در اغلب موارد، «باید» ترجیحاً به جای هش از یک تگ استفاده شود (همچنین به مقدار پیش‌فرض در
+\[la]containers\-policy.json.5.md#signedby\[ra]
+مراجعه کنید).
 
 .SS \fBoptional\fR
-This MUST be a JSON object.
+این عضو «الزاماً باید» یک شیء JSON باشد.
 
 .PP
-Consumers SHOULD accept any members with unrecognized names in the \fBoptional\fR object,
-and MAY accept a signature where the object member is recognized but unsupported, or the value of the member is valid but unsupported.
-Consumers still SHOULD reject any signature where a member of an \fBoptional\fR object is supported but the value is recognized as invalid.
+مصرف‌کنندگان «باید» هر عضوی با نام ناشناخته در شیء \fBoptional\fR را بپذیرند، و «می‌توانند» امضایی را که در آن عضو شیء شناخته‌شده ولی پشتیبانی‌نشده است، یا مقدار عضو معتبر اما پشتیبانی‌نشده است، قبول کنند. با این حال مصرف‌کنندگان همچنان «باید» هر امضایی را که در آن عضوی از شیء \fBoptional\fR پشتیبانی می‌شود اما مقدار آن نامعتبر شناخته شده است، رد کنند.
 
 .SS \fBoptional.creator\fR
-If present, this MUST be a JSON string, identifying the name and version of the software which has created the signature
-(identifying the low-level software implementation; not the top-level caller).
+در صورت وجود، این عضو «الزاماً باید» یک رشته JSON باشد که نام و نسخه نرم‌افزاری را که امضا را ایجاد کرده است، مشخص کند (شناسایی پیاده‌سازی نرم‌افزاری سطح پایین؛ نه فراخواننده سطح بالا).
 
 .PP
-The contents of this string is not defined in detail; however each implementation creating container signatures:
+محتوای این رشته به طور دقیق تعریف نشده است؛ با این حال هر پیاده‌سازی ایجادکننده امضای کانتینر:
 .IP \(bu 2
-SHOULD define the contents to unambiguously define the software in practice (e.g. it SHOULD contain the name of the software, not only the version number)
+«باید» محتوا را به گونه‌ای تعریف کند که نرم‌افزار را در عمل به طور شفاف و بدون ابهام مشخص نماید (برای مثال «باید» شامل نام نرم‌افزار باشد، نه فقط شماره نسخه).
 .IP \(bu 2
-SHOULD use a build and versioning process which ensures that the contents of this string (e.g. an included version number)
-changes whenever the format or semantics of the generated signature changes in any way;
-it SHOULD not be possible for two implementations which use a different format or semantics to have the same \fBoptional.creator\fR value
+«باید» از فرآیند ساخت و نسخه‌گذاری استفاده کند که تضمین نماید هر زمان قالب یا معناشناسی امضای تولیدشده به هر نحوی تغییر کرد، محتوای این رشته (مانند شماره نسخه درج‌شده) نیز تغییر یابد؛ نباید این امکان وجود داشته باشد که دو پیاده‌سازی با قالب یا معناشناسی متفاوت، مقدار \fBoptional.creator\fR یکسانی داشته باشند.
 .IP \(bu 2
-SHOULD use a format which is reasonably easy to parse in software (perhaps using a regexp),
-and which makes it easy enough to recognize a range of versions of a specific implementation
-(e.g. the version of the implementation SHOULD NOT be only a git hash, because they don’t have an easily defined ordering;
-the string should contain a version number, or at least a date of the commit).
+«باید» از قالبی استفاده کند که تجزیه آن در نرم‌افزار نسبتاً آسان باشد (احتمالاً با استفاده از عبارت باقاعده یا regexp)، و شناسایی بازه‌ای از نسخه‌های یک پیاده‌سازی خاص را به اندازه کافی آسان نماید (برای مثال نسخه پیاده‌سازی «نباید» فقط یک هش گیت باشد، زیرا ترتیب مشخصی ندارند؛ رشته باید حاوی یک شماره نسخه یا حداقل تاریخ کامیت باشد).
 
 .PP
-Consumers of container signatures MAY recognize specific values or sets of values of \fBoptional.creator\fR
-(perhaps augmented with \fBoptional.timestamp\fR),
-and MAY change their processing of the signature based on these values
-(usually to accommodate violations of this specification in past versions of the signing software which cannot be fixed retroactively),
-as long as the semantics of the invalid document, as created by such an implementation, is clear.
+مصرف‌کنندگان امضای کانتینر «می‌توانند» مقادیر خاص یا مجموعه‌ای از مقادیر \fBoptional.creator\fR (احتمالاً همراه با \fBoptional.timestamp\fR) را شناسایی کنند، و «می‌توانند» پردازش امضا را بر اساس این مقادیر تغییر دهند (معمولاً برای سازگاری با موارد نقض این مشخصات در نسخه‌های قبلی نرم‌افزار امضاکننده که امکان رفع آن‌ها به گذشته وجود ندارد)، تا زمانی که معنای سند نامعتبر به وجود آمده توسط چنین پیاده‌سازی، روشن باشد.
 
 .PP
-If consumers of signatures do change their behavior based on the \fBoptional.creator\fR value,
-they SHOULD take care that the way they process the signatures is not inconsistent with
-strictly validating signature consumers.
-(I.e. it is acceptable for a consumer to accept a signature based on a specific \fBoptional.creator\fR value
-if other implementations would completely reject the signature,
-but it would be very undesirable for the two kinds of implementations to accept the signature in different
-and inconsistent situations.)
+اگر مصرف‌کنندگان امضا رفتار خود را بر اساس مقدار \fBoptional.creator\fR تغییر دهند، «باید» مراقب باشند که نحوه پردازش امضا با مصرف‌کنندگانی که اعتبارسنجی را به طور سخت‌گیرانه انجام می‌دهند، ناسازگار نباشد. (یعنی قابل قبول است که یک مصرف‌کننده امضایی را بر اساس مقدار خاصی از \fBoptional.creator\fR بپذیرد در حالی که سایر پیاده‌سازی‌ها آن را کاملاً رد می‌کنند، اما بسیار نامطلوب است که دو نوع پیاده‌سازی در شرایط متفاوت و متناقض امضا را قبول کنند.)
 
 .SS \fBoptional.timestamp\fR
-If present, this MUST be a JSON number, which is representable as a 64-bit integer, and identifies the time when the signature was created
-as the number of seconds since the UNIX epoch (Jan 1 1970 00:00 UTC).
+در صورت وجود، این عضو «الزاماً باید» یک عدد JSON باشد که به عنوان یک عدد صحیح ۶۴ بیتی قابل نمایش باشد، و زمان ایجاد امضا را بر حسب تعداد ثانیه‌های سپری‌شده از مبدأ یونیکس (۱ ژانویه ۱۹۷۰، 00:00 UTC) مشخص کند.

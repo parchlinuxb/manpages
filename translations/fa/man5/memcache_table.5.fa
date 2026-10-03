@@ -1,10 +1,8 @@
-.TH MEMCACHE_TABLE 5 
+.TH MEMCACHE_TABLE 5
 .ad
 .fi
 .SH "نام (NAME)"
-memcache_table
-\-
-Postfix memcache client configuration
+memcache_table \- پیکربندی کلاینت memcache در Postfix
 .SH "خلاصه دستور (SYNOPSIS)"
 .na
 .nf
@@ -14,248 +12,259 @@ Postfix memcache client configuration
 .SH "توضیحات (DESCRIPTION)"
 .ad
 .fi
-The Postfix mail system uses optional tables for address
-rewriting or mail routing. These tables are usually in
-\fBlmdb:\fR, \fBcdb:\fR, \fBhash:\fR, or \fBdbm:\fR format.
-
-Alternatively, lookup tables can be specified as memcache
-instances. To use memcache lookups, define a memcache
-source as a lookup table in main.cf, for example:
-
+سیستم ایمیل Postfix از جدول‌های اختیاری برای بازنویسی آدرس یا
+مسیریابی ایمیل استفاده می‌کند. این جدول‌ها معمولاً در قالب‌های
+\fBlmdb:\fR، \fBcdb:\fR، \fBhash:\fR یا \fBdbm:\fR هستند.
+.PP
+به عنوان جایگزین، جدول‌های جستجو می‌توانند به صورت نمونه‌های memcache
+مشخص شوند. برای استفاده از جستجوهای memcache، یک منبع memcache را
+به عنوان جدول جستجو در main.cf تعریف کنید؛ برای مثال:
 .nf
     virtual_alias_maps = memcache:/etc/postfix/memcache\-aliases.cf
 .fi
-
-The file /etc/postfix/memcache\-aliases.cf has the same
-format as the Postfix main.cf file, and specifies the
-parameters described below.
-
-The Postfix memcache client supports the lookup, update,
-delete and sequence (first/next) operations. The sequence
-operation requires a backup database that supports the
-operation.
-.SH "MEMCACHE MAIN PARAMETERS"
+.PP
+فایل /etc/postfix/memcache\-aliases.cf ساختاری مشابه با فایل main.cf در
+Postfix دارد و پارامترهای شرح داده‌شده در ادامه را مشخص می‌کند.
+.PP
+کلاینت memcache در Postfix از عملیات‌های جستجو (lookup)، به‌روزرسانی (update)،
+حذف (delete) و توالی (sequence یا first/next) پشتیبانی می‌کند.
+عملیات توالی نیازمند یک پایگاه‌داده پشتیبان است که از این عملیات پشتیبانی کند.
+.SH "پارامترهای اصلی MEMCACHE (MEMCACHE MAIN PARAMETERS)"
 .na
 .nf
 .ad
 .fi
-.IP "\fBmemcache (default: inet:localhost:11211)\fR"
-The memcache server (note: singular) that Postfix will try
-to connect to.  For a TCP server specify "inet:" followed by
-a hostname or address, ":", and a port name or number.
-Specify an IPv6 address inside "[]".
-For a UNIX\-domain server specify "unix:" followed by the
-socket pathname. Examples:
-
+.IP "\fBmemcache (پیش‌فرض: inet:localhost:11211)\fR"
+سرور memcache (توجه: به صورت مفرد) که Postfix تلاش می‌کند به آن متصل شود.
+برای یک سرور TCP، مقدار "inet:" و به دنبال آن یک نام میزبان یا آدرس، ":"، و نام یا شماره پورت را مشخص کنید.
+آدرس IPv6 را درون "[]" مشخص کنید.
+برای یک سرور در دامنه یونیکس (UNIX\-domain) مقدار "unix:" و به دنبال آن مسیر سوکت را مشخص کنید. مثال‌ها:
 .nf
     memcache = inet:memcache.example.com:11211
     memcache = inet:127.0.0.1:11211
     memcache = inet:[fc00:8d00:189::3]:11211
     memcache = unix:/path/to/socket
 .fi
-
-NOTE: to access a UNIX\-domain socket with the proxymap(8)
-server, the socket must be accessible by the unprivileged
-postfix user.
-.IP "\fBbackup (default: undefined)\fR"
-An optional Postfix database that provides persistent backup
-for the memcache database. The Postfix memcache client will
-update the memcache database whenever it looks up or changes
-information in the persistent database. Specify a Postfix
-"type:table" database. Examples:
-
+.PP
+نکته: برای دسترسی به یک سوکت UNIX\-domain با سرور
+.BR proxymap (8)،
+سوکت باید توسط کاربر غیرممتاز postfix قابل دسترسی باشد.
+.IP "\fBbackup (پیش‌فرض: تعریف‌نشده)\fR"
+یک پایگاه‌داده اختیاری در Postfix که پشتیبان پایداری برای پایگاه‌داده memcache فراهم می‌کند.
+کلاینت memcache در Postfix هر زمان که اطلاعاتی را در پایگاه‌داده پایدار جستجو کرده یا تغییر دهد،
+پایگاه‌داده memcache را نیز به‌روزرسانی می‌کند. یک پایگاه‌داده Postfix از نوع "type:table" را مشخص کنید. مثال‌ها:
 .nf
-    # Non\-shared postscreen cache.
+    # کش postscreen غیرمشترک.
     backup = btree:/var/lib/postfix/postscreen_cache_map
 
-    # Shared postscreen cache for processes on the same host.
+    # کش postscreen مشترک برای فرآیندهای روی همان میزبان.
     backup = proxy:btree:/var/lib/postfix/postscreen_cache_map
 .fi
-
-Access to remote proxymap servers is under development.
-
-NOTE 1: When sharing a persistent \fBpostscreen\fR(8) or
-\fBverify\fR(8) cache, disable automatic cache cleanup (set
-*_cache_cleanup_interval = 0) except with one Postfix
-instance that will be responsible for cache cleanup.
-
-NOTE 2: When multiple tables share the same memcache
-database, each table should use the \fBkey_format\fR feature
-(see below) to prepend its own unique string to the lookup
-key.  Otherwise, automatic \fBpostscreen\fR(8) or \fBverify\fR(8)
-cache cleanup may not work.
-
-NOTE 3: When the backup database is accessed with "proxy:"
-lookups, the full backup database name (including the
-"proxy:" prefix) must be specified in the proxymap server's
-proxy_read_maps or proxy_write_maps setting (depending on
-whether the access is read\-only or read\-write).
-.IP "\fBflags (default: 0)\fR"
-Optional flags that should be stored along with a memcache
-update. The flags are ignored when looking up information.
-.IP "\fBttl (default: 3600)\fR"
-The expiration time in seconds of memcache updates.
-
-NOTE 1: When using a memcache table as \fBpostscreen\fR(8)
-or \fBverify\fR(8) cache without persistent backup, specify
-a zero *_cache_cleanup_interval value with all Postfix
-instances that use the memcache, and specify the largest
-\fBpostscreen\fR(8) *_ttl value or \fBverify\fR(8) *_expire_time
-value as the memcache table's \fBttl\fR value.
-
-NOTE 2: According to memcache protocol documentation, a
-value greater than 30 days (2592000 seconds) specifies
-absolute UNIX
-time. Smaller values are relative to the time of the update.
-.SH "MEMCACHE KEY PARAMETERS"
+.PP
+دسترسی به سرورهای راه دور proxymap در حال توسعه است.
+.PP
+نکته ۱: هنگام به اشتراک گذاشتن کش پایدار
+.BR postscreen (8)
+یا
+.BR verify (8)،
+پاکسازی خودکار کش را غیرفعال کنید (تنظیم
+.B *_cache_cleanup_interval = 0
+را اعمال کنید)، مگر با یک نمونه از Postfix که مسئول پاکسازی کش خواهد بود.
+.PP
+نکته ۲: هنگامی که چندین جدول از یک پایگاه‌داده memcache مشترک استفاده می‌کنند، هر جدول باید از قابلیت
+.B key_format
+(در ادامه ببینید) برای افزودن رشته یکتای خود به ابتدای کلید جستجو استفاده کند.
+در غیر این صورت، پاکسازی خودکار کش
+.BR postscreen (8)
+یا
+.BR verify (8)
+ممکن است کار نکند.
+.PP
+نکته ۳: هنگامی که به پایگاه‌داده پشتیبان با جستجوهای "proxy:" دسترسی پیدا می‌شود،
+نام کامل پایگاه‌داده پشتیبان (شامل پیشوند "proxy:") باید در تنظیمات
+.B proxy_read_maps
+یا
+.B proxy_write_maps
+سرور proxymap مشخص شود (بسته به این‌که دسترسی فقط‌خواندنی است یا خواندنی\-نوشتنی).
+.IP "\fBflags (پیش‌فرض: 0)\fR"
+پرچم‌های اختیاری که باید همراه با به‌روزرسانی memcache ذخیره شوند.
+این پرچم‌ها هنگام جستجوی اطلاعات نادیده گرفته می‌شوند.
+.IP "\fBttl (پیش‌فرض: 3600)\fR"
+زمان انقضا بر حسب ثانیه برای به‌روزرسانی‌های memcache.
+.PP
+نکته ۱: هنگام استفاده از جدول memcache به عنوان کش
+.BR postscreen (8)
+یا
+.BR verify (8)
+بدون پشتیبان پایدار، مقدار صفر را برای
+.B *_cache_cleanup_interval
+در تمام نمونه‌های Postfix که از memcache استفاده می‌کنند مشخص کرده، و بزرگترین مقدار
+.B *_ttl
+در
+.BR postscreen (8)
+یا مقدار
+.B *_expire_time
+در
+.BR verify (8)
+را به عنوان مقدار
+.B ttl
+جدول memcache تعیین کنید.
+.PP
+نکته ۲: بر اساس مستندات پروتکل memcache، مقداری بزرگتر از ۳۰ روز (۲۵۹۲۰۰۰ ثانیه) بیانگر زمان مطلق یونیکس (UNIX time) است.
+مقادیر کوچکتر نسبت به زمان به‌روزرسانی سنجیده می‌شوند.
+.SH "پارامترهای کلید MEMCACHE (MEMCACHE KEY PARAMETERS)"
 .na
 .nf
 .ad
 .fi
-.IP "\fBkey_digest (default: empty)\fB"
-After processing the \fBkey_format\fR setting, and before sending
-a request to the memcache server, run the key through the named
-message digest algorithm and convert the result to lowercase
-hexadecimal characters. This prevents a database access error
-when keys may exceed the memcache server's key length limit
-(usually, 250 bytes). Specify the name of a message digest
-algorithm that is supported by OpenSSL, for example, \fBsha256\fR.
-
-This feature is available in Postfix 3.11 and later, and requires
-that Postfix is built with TLS support.
-.IP "\fBkey_format (default: %s)\fB"
-Format of the lookup and update keys that the Postfix
-memcache client sends to the memcache server.
-By default, these are the same as the lookup and update
-keys that the memcache client receives from Postfix
-applications.
-
-NOTE 1: The \fBkey_format\fR feature is not used for \fBbackup\fR
-database requests.
-
-NOTE 2: When multiple tables share the same memcache
-database, each table should prepend its own unique string
-to the lookup key.  Otherwise, automatic \fBpostscreen\fR(8)
-or \fBverify\fR(8) cache cleanup may not work.
-
-Examples:
-
+.IP "\fBkey_digest (پیش‌فرض: خالی)\fR"
+پس از پردازش تنظیمات
+.B key_format
+و پیش از ارسال درخواست به سرور memcache، کلید را از طریق الگوریتم خلاصه پیام (message digest) مشخص‌شده پردازش کرده
+و نتیجه را به حروف هگزادسیمال کوچک تبدیل می‌کند. این کار از خطای دسترسی به پایگاه‌داده در مواقعی که ممکن است طول کلیدها از
+محدودیت طول کلید در سرور memcache (معمولاً ۲۵۰ بایت) فراتر رود، جلوگیری می‌کند. نام الگوریتم خلاصه پیامی را که توسط OpenSSL
+پشتیبانی می‌شود، به عنوان مثال
+.BR sha256 ،
+مشخص کنید.
+.PP
+این قابلیت در Postfix نسخه 3.11 و بالاتر در دسترس است و مستلزم آن است که Postfix با پشتیبانی از TLS ساخته شده باشد.
+.IP "\fBkey_format (پیش‌فرض: %s)\fR"
+قالب کلیدهای جستجو و به‌روزرسانی که کلاینت memcache در Postfix به سرور memcache ارسال می‌کند.
+به طور پیش‌فرض، این کلیدها با کلیدهای جستجو و به‌روزرسانی که کلاینت memcache از برنامه‌های Postfix دریافت می‌کند یکسان هستند.
+.PP
+نکته ۱: قابلیت
+.B key_format
+برای درخواست‌های پایگاه‌داده
+.B backup
+استفاده نمی‌شود.
+.PP
+نکته ۲: هنگامی که چندین جدول از یک پایگاه‌داده memcache مشترک استفاده می‌کنند، هر جدول باید رشته یکتای خود را به ابتدای کلید جستجو اضافه کند.
+در غیر این صورت، پاکسازی خودکار کش
+.BR postscreen (8)
+یا
+.BR verify (8)
+ممکن است کار نکند.
+.PP
+مثال‌ها:
 .nf
     key_format = aliases:%s
     key_format = verify:%s
     key_format = postscreen:%s
 .fi
-
-The \fBkey_format\fR parameter supports the following '%'
-expansions:
+.PP
+پارامتر
+.B key_format
+از بسط‌های '%' زیر پشتیبانی می‌کند:
 .RS
 .IP "\fB%%\fR"
-This is replaced by a literal '%' character.
+با یک نویسه '%' واقعی جایگزین می‌شود.
 .IP "\fB%s\fR"
-This is replaced by the memcache client input key.
+با کلید ورودی کلاینت memcache جایگزین می‌شود.
 .IP "\fB%u\fR"
-When the input key is an address of the form user@domain,
-\fB%u\fR is replaced by the SQL quoted local part of the
-address.  Otherwise, \fB%u\fR is replaced by the entire
-search string.  If the localpart is empty, a lookup is
-silently suppressed and returns no results (an update is
-skipped with a warning).
+هنگامی که کلید ورودی آدرسی به فرم user@domain باشد،
+\fB%u\fR
+با بخش محلی (localpart) آدرس که طبق قواعد SQL نقل‌قول شده است جایگزین می‌شود. در غیر این صورت،
+\fB%u\fR
+با کل رشته جستجو جایگزین می‌شود. اگر بخش محلی خالی باشد، جستجو بدون هیچ پیامی نادیده گرفته شده و نتیجه‌ای برنمی‌گرداند (به‌روزرسانی با یک هشدار نادیده گرفته می‌شود).
 .IP "\fB%d\fR"
-When the input key is an address of the form user@domain,
-\fB%d\fR is replaced by the domain part of the address.
-Otherwise, a lookup is silently suppressed and returns no
-results (an update is skipped with a warning).
+هنگامی که کلید ورودی آدرسی به فرم user@domain باشد،
+\fB%d\fR
+با بخش دامنه آدرس جایگزین می‌شود. در غیر این صورت، جستجو بدون هیچ پیامی نادیده گرفته شده و نتیجه‌ای برنمی‌گرداند (به‌روزرسانی با یک هشدار نادیده گرفته می‌شود).
 .IP "\fB%[SUD]\fR"
-The upper\-case equivalents of the above expansions behave
-in the \fBkey_format\fR parameter identically to their
-lower\-case counter\-parts.
+معادل‌های حروف بزرگ بسط‌های فوق در پارامتر
+.B key_format
+رفتاری دقیقاً مشابه با همتایان حروف کوچک خود دارند.
 .IP "\fB%[1\-9]\fR"
-The patterns %1, %2, ... %9 are replaced by the corresponding
-most significant component of the input key's domain. If
-the input key is \fIuser@mail.example.com\fR, then %1 is
-\fBcom\fR, %2 is \fBexample\fR and %3 is \fBmail\fR. If the
-input key is unqualified or does not have enough domain
-components to satisfy all the specified patterns, a lookup
-is silently suppressed and returns no results (an update
-is skipped with a warning).
+الگوهای %1، %2، ... %9 با مؤلفه بااهمیت‌تر مربوطه از دامنه کلید ورودی جایگزین می‌شوند. اگر کلید ورودی
+\fIuser@mail.example.com\fR
+باشد، آن‌گاه %1 برابر با
+\fBcom\fR،
+%2 برابر با
+\fBexample\fR
+و %3 برابر با
+\fBmail\fR
+خواهد بود. اگر کلید ورودی فاقد صلاحیت باشد یا مؤلفه‌های دامنه کافی برای برآورده کردن تمام الگوهای مشخص‌شده نداشته باشد،
+جستجو بدون هیچ پیامی نادیده گرفته شده و نتیجه‌ای برنمی‌گرداند (به‌روزرسانی با یک هشدار نادیده گرفته می‌شود).
 .RE
-.IP "\fBdomain (default: no domain list)\fR"
-This feature can significantly reduce database server load.
-Specify a list of domain names, paths to files, or "type:table"
-databases.
-When specified, only fully qualified search keys with a
-*non\-empty* localpart and a matching domain are eligible
-for lookup or update: bare 'user' lookups, bare domain
-lookups and "@domain" lookups are silently skipped (updates
-are skipped with a warning).  Example:
-
+.IP "\fBdomain (پیش‌فرض: بدون فهرست دامنه)\fR"
+این قابلیت می‌تواند بار سرور پایگاه‌داده را به طور چشمگیری کاهش دهد.
+فهرستی از نام‌های دامنه، مسیر فایل‌ها یا پایگاه‌های داده "type:table" را مشخص کنید.
+در صورت تعیین، تنها کلیدهای جستجوی کاملاً واجد شرایط با یک بخش محلی *غیرخالی* و یک دامنه منطبق،
+واجد شرایط جستجو یا به‌روزرسانی خواهند بود: جستجوهای صرف 'user'، جستجوهای صرف دامنه و جستجوهای "@domain" بدون هیچ پیامی نادیده گرفته می‌شوند (به‌روزرسانی‌ها با یک هشدار نادیده گرفته می‌شوند). مثال:
 .nf
     domain = example.com, hash:/etc/postfix/searchdomains
 .fi
-.SH "MEMCACHE ERROR CONTROLS"
+.SH "کنترل‌های خطای MEMCACHE (MEMCACHE ERROR CONTROLS)"
 .na
 .nf
 .ad
 .fi
-.IP "\fBdata_size_limit (default: 10240)\fR"
-The maximal memcache reply data length in bytes.
-.IP "\fBline_size_limit (default: 1024)\fR"
-The maximal memcache reply line length in bytes.
-.IP "\fBmax_try (default: 2)\fR"
-The number of times to try a memcache command before giving
-up.  The memcache client does not retry a command when the
-memcache server accepts no connection.
-.IP "\fBretry_pause (default: 1)\fR"
-The time in seconds before retrying a failed memcache command.
-.IP "\fBtimeout (default: 2)\fR"
-The time limit for sending a memcache command and for
-receiving a memcache reply.
+.IP "\fBdata_size_limit (پیش‌فرض: 10240)\fR"
+حداکثر طول داده پاسخ memcache بر حسب بایت.
+.IP "\fBline_size_limit (پیش‌فرض: 1024)\fR"
+حداکثر طول خط پاسخ memcache بر حسب بایت.
+.IP "\fBmax_try (پیش‌فرض: 2)\fR"
+تعداد دفعات تلاش برای اجرای یک دستور memcache پیش از صرف‌نظر کردن.
+کلاینت memcache در صورتی که سرور memcache هیچ اتصالی را نپذیرد، دستور را مجدداً تکرار نمی‌کند.
+.IP "\fBretry_pause (پیش‌فرض: 1)\fR"
+زمان بر حسب ثانیه پیش از تلاش مجدد برای اجرای یک دستور ناموفق memcache.
+.IP "\fBtimeout (پیش‌فرض: 2)\fR"
+محدودیت زمانی برای ارسال یک دستور memcache و دریافت پاسخ memcache.
 .SH "اشکالات (BUGS)"
 .ad
 .fi
-The Postfix memcache client cannot be used for security\-sensitive
-tables such as \fBalias_maps\fR (these may contain
-"\fI|command\fR and "\fI/file/name\fR" destinations), or
-\fBvirtual_uid_maps\fR, \fBvirtual_gid_maps\fR and
-\fBvirtual_mailbox_maps\fR (these specify UNIX process
-privileges for "\fI/file/name\fR" destinations).  In a typical
-deployment a memcache database is writable by any process
-that can talk to the memcache server; in contrast,
-security\-sensitive tables must never be writable by the
-unprivileged Postfix user.
-
-The Postfix memcache client requires additional configuration
-when used as \fBpostscreen\fR(8) or \fBverify\fR(8) cache.
-For details see the \fBbackup\fR and \fBttl\fR parameter
-discussions in the MEMCACHE MAIN PARAMETERS section above.
+کلاینت memcache در Postfix نمی‌تواند برای جدول‌های حساس از نظر امنیتی مانند
+\fBalias_maps\fR
+(که ممکن است حاوی مقصدهای
+"\fI|command\fR"
+و
+"\fI/file/name\fR"
+باشند)، یا
+\fBvirtual_uid_maps\fR،
+\fBvirtual_gid_maps\fR
+و
+\fBvirtual_mailbox_maps\fR
+(که امتیازات فرآیند یونیکس را برای مقصدهای
+"\fI/file/name\fR"
+تعیین می‌کنند) استفاده شود. در یک پیاده‌سازی معمول، پایگاه‌داده memcache توسط هر فرآیندی که بتواند با سرور memcache ارتباط برقرار کند قابل نوشتن است؛
+در مقابل، جدول‌های حساس امنیتی هرگز نباید توسط کاربر غیرممتاز Postfix قابل نوشتن باشند.
+.PP
+کلاینت memcache در Postfix هنگام استفاده به عنوان کش
+.BR postscreen (8)
+یا
+.BR verify (8)
+به پیکربندی اضافی نیاز دارد. برای جزئیات بیشتر به توضیحات پارامترهای
+.B backup
+و
+.B ttl
+در بخش «پارامترهای اصلی MEMCACHE (MEMCACHE MAIN PARAMETERS)» در بالا مراجعه کنید.
 .SH "همچنین ببینید (SEE ALSO)"
 .na
 .nf
-postmap(1), Postfix lookup table manager
-postconf(5), configuration parameters
-.SH "README FILES"
+postmap(1)، مدیر جدول‌های جستجوی Postfix
+postconf(5)، پارامترهای پیکربندی
+.SH "فایل‌های راهنما (README FILES)"
 .na
 .nf
 .ad
 .fi
-Use "\fBpostconf readme_directory\fR" or
-"\fBpostconf html_directory\fR" to locate this information.
+برای یافتن این اطلاعات از "\fBpostconf readme_directory\fR" یا "\fBpostconf html_directory\fR" استفاده کنید.
 .na
 .nf
-DATABASE_README, Postfix lookup table overview
-MEMCACHE_README, Postfix memcache client guide
+DATABASE_README، بررسی اجمالی جدول‌های جستجوی Postfix
+MEMCACHE_README، راهنمای کلاینت memcache در Postfix
 .SH "مجوز (LICENSE)"
 .na
 .nf
 .ad
 .fi
-The Secure Mailer license must be distributed with this software.
+مجوز Secure Mailer باید همراه با این نرم‌افزار توزیع شود.
 .SH "تاریخچه (HISTORY)"
 .ad
 .fi
 .ad
 .fi
-Memcache support was introduced with Postfix version 2.9.
+پشتیبانی از memcache در نسخه 2.9 پُست‌فیکس (Postfix) معرفی شد.
 .SH "نویسندگان (AUTHORS)"
 .na
 .nf

@@ -17,7 +17,8 @@ WORKDIR /app
 
 COPY . /app/
 
-RUN python manage.py collectstatic --noinput
+RUN chmod +x /app/entrypoint.sh && \
+    python manage.py collectstatic --noinput
 
 EXPOSE 8000
 

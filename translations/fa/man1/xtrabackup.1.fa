@@ -2,7 +2,7 @@
 .
 .TH "XTRABACKUP" "1" "Jun 15, 2026" "8.0" "Percona XtraBackup"
 .SH "نام (NAME)"
-xtrabackup \- Percona XtraBackup 8.0 Documentation
+xtrabackup \- مستندات ابزار Percona XtraBackup 8.0
 .
 .nr rst2man-indent-level 0
 .
@@ -31,68 +31,64 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
 .sp
-The \fIxtrabackup\fP binary is a compiled C program that is linked with the \fIInnoDB\fP
-libraries and the standard \fIMySQL\fP client libraries.
+فایل اجرایی \fIxtrabackup\fP یک برنامهٔ کامپایل‌شده به زبان C است که با کتابخانه‌های
+\fIInnoDB\fP و کتابخانه‌های استاندارد کلاینت \fIMySQL\fP پیوند (link) خورده است.
 .sp
-\fIxtrabackup\fP enables point\-in\-time backups of \fIInnoDB\fP / \fIXtraDB\fP tables
-together with the schema definitions, \fIMyISAM\fP tables, and other portions of the
-server.
+ابزار \fIxtrabackup\fP امکان پشتیبان‌گیری در نقطهٔ زمانی مشخص (point\-in\-time) را برای جدول‌های \fIInnoDB\fP / \fIXtraDB\fP
+همراه با تعاریف ساختار (schema)، جدول‌های \fIMyISAM\fP و سایر بخش‌های
+سرور فراهم می‌کند.
 .sp
-The \fIInnoDB\fP libraries provide the functionality to apply a log to data
-files. The \fIMySQL\fP client libraries are used to parse command\-line options and
-configuration file.
+کتابخانه‌های \fIInnoDB\fP قابلیت اعمال لاگ (log) بر روی فایل‌های داده را فراهم می‌سازند.
+کتابخانه‌های کلاینت \fIMySQL\fP برای پردازش گزینه‌های خط فرمان و
+فایل پیکربندی استفاده می‌شوند.
 .sp
-The tool runs in either \fB\-\-backup\fP or \fB\-\-prepare\fP mode,
-corresponding to the two main functions it performs. There are several
-variations on these functions to accomplish different tasks, and there are two
-less commonly used modes, \fB\-\-stats\fP and \fB\-\-print\-param\fP\&.
-.SH OTHER TYPES OF BACKUPS
-.SS Incremental Backups
+این ابزار در یکی از دو حالت \fB\-\-backup\fP یا \fB\-\-prepare\fP اجرا می‌شود که
+متناظر با دو عملکرد اصلی آن است. برای انجام وظایف مختلف، چندین شیوهٔ متفاوت
+از این عملکردها وجود دارد و همچنین دو حالت کم‌کاربردتر با نام‌های \fB\-\-stats\fP و \fB\-\-print\-param\fP\& نیز در دسترس هستند.
+.SH "سایر انواع پشتیبان‌گیری (OTHER TYPES OF BACKUPS)"
+.SS "پشتیبان‌گیری‌های افزایشی (Incremental Backups)"
 .sp
-\fIxtrabackup\fP supports incremental backups. It copies only the data that has
-changed since the last full backup. You can perform many incremental backups
-between each full backup, so you can set up a backup process such as a full
-backup once a week and an incremental backup every day, or full backups every
-day and incremental backups every hour.
+ابزار \fIxtrabackup\fP از پشتیبان‌گیری‌های افزایشی پشتیبانی می‌کند. در این روش تنها داده‌هایی کپی می‌شوند
+که پس از آخرین پشتیبان‌گیری کامل تغییر یافته‌اند. شما می‌توانید میان هر نسخهٔ پشتیبان کامل، چندین
+پشتیبان‌گیری افزایشی انجام دهید؛ بنابراین می‌توانید فرایندی مانند یک بار پشتیبان‌گیری
+کامل در هفته و پشتیبان‌گیری افزایشی روزانه، یا پشتیبان‌گیری کاملِ روزانه و
+پشتیبان‌گیری افزایشی ساعتی را تنظیم نمایید.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-Incremental backups on the MyRocks storage engine do not determine if an earlier full backup or incremental backup contains the same files. \fBPercona XtraBackup\fP copies all of the MyRocks files each time it takes a backup.
+پشتیبان‌گیری‌های افزایشی روی موتور ذخیره‌سازی MyRocks بررسی نمی‌کنند که آیا نسخهٔ کامل یا افزایشی پیشین حاوی فایل‌های یکسان است یا خیر. \fBPercona XtraBackup\fP در هر بار پشتیبان‌گیری، تمامی فایل‌های MyRocks را کپی می‌کند.
 .UNINDENT
 .UNINDENT
 .sp
-Incremental backups work because each InnoDB page (usually 16kb in size)
-contains a log sequence number, or LSN\&. The LSN is the system
-version number for the entire database. Each page\(aqs LSN shows how
-recently it was changed. An incremental backup copies each page whose
-LSN is newer than the previous incremental or full backup\(aqs
-LSN\&. There are two algorithms in use to find the set of such pages to be
-copied. The first one, available with all the server types and versions, is to
-check the page LSN directly by reading all the data pages. The second
-one, available with \fIPercona Server for MySQL\fP, is to enable the \fI\%changed page tracking\fP
-feature on the server, which will note the pages as they are being changed. This
-information will be then written out in a compact separate so\-called bitmap
-file. The \fIxtrabackup\fP binary will use that file to read only the data pages it
-needs for the incremental backup, potentially saving many read requests. The
-latter algorithm is enabled by default if the \fIxtrabackup\fP binary finds the
-bitmap file. It is possible to specify \fB\-\-incremental\-force\-scan\fP to
-read all the pages even if the bitmap data is available.
+علت کارکرد پشتیبان‌گیری‌های افزایشی این است که هر صفحهٔ InnoDB (معمولاً با حجم ۱۶ کیلوبایت)
+شامل یک شمارهٔ توالی لاگ یا LSN\& است. مقدار LSN در واقع شمارهٔ نسخهٔ
+سیستمی کل پایگاه داده است. مقدار LSN هر صفحه مشخص می‌کند که تغییرات آن
+چقدر جدید است. یک پشتیبان‌گیری افزایشی، هر صفحه‌ای را که LSN آن جدیدتر از
+LSN آخرین پشتیبان‌گیری افزایشی یا کامل باشد کپی می‌کند. دو الگوریتم برای یافتن مجموعه‌ای از این
+صفحاتِ نیازمندِ کپی استفاده می‌شود. روش اول، که در تمامی نسخه‌ها و انواع سرورها در دسترس است،
+بررسی مستقیم LSN صفحات از طریق خواندن تمام صفحات داده است. روش دوم، که در
+\fIPercona Server for MySQL\fP در دسترس است، فعال‌سازی قابلیت \fI\%changed page tracking\fP
+روی سرور است که صفحات را در حین تغییر ثبت می‌کند. این اطلاعات سپس در یک فایل
+مجزا و فشرده موسوم به فایل bitmap ذخیره می‌شوند. باینری \fIxtrabackup\fP از این فایل استفاده خواهد کرد
+تا فقط صفحات داده‌ای را که برای پشتیبان افزایشی نیاز دارد بخواند، که این کار به‌طور بالقوه مانع از
+تعداد زیادی درخواست خواندن می‌شود. در صورتی که فایل باینری \fIxtrabackup\fP فایل bitmap را پیدا کند،
+الگوریتم دوم به طور پیش‌فرض فعال است. امکان تعیین گزینهٔ \fB\-\-incremental\-force\-scan\fP نیز
+وجود دارد تا حتی در صورت وجود داده‌های bitmap، تمامی صفحات خوانده شوند.
 .sp
-Incremental backups do not actually compare the data files to the previous
-backup\(aqs data files. In fact, you can use \fB\-\-incremental\-lsn\fP to perform
-an incremental backup without even having the previous backup, if you know its
-LSN\&. Incremental backups simply read the pages and compare their
-LSN to the last backup\(aqs LSN\&. You still need a full backup to
-recover the incremental changes, however; without a full backup to act as a
-base, the incremental backups are useless.
-.SS Creating an Incremental Backup
+پشتیبان‌گیری‌های افزایشی در واقع فایل‌های داده را با فایل‌های دادهٔ نسخهٔ پشتیبان
+قبلی مقایسه نمی‌کنند. در واقع، چنانچه LSN نسخهٔ قبلی را بدانید، می‌توانید با استفاده از \fB\-\-incremental\-lsn\fP
+بدون نیاز به داشتن نسخهٔ پشتیبان قبلی نیز عملیات پشتیبان‌گیری افزایشی را انجام دهید.
+پشتیبان‌گیری‌های افزایشی صرفاً صفحات را خوانده و LSN آن‌ها را با LSN آخرین نسخهٔ پشتیبان مقایسه می‌کنند.
+با این وجود، برای بازیابی تغییرات افزایشی همچنان به یک نسخهٔ پشتیبان کامل نیاز دارید؛
+بدون وجود یک نسخهٔ کامل به عنوان پایه، نسخه‌های پشتیبان افزایشی بی‌فایده خواهند بود.
+.SS "ایجاد یک پشتیبان‌گیری افزایشی (Creating an Incremental Backup)"
 .sp
-To make an incremental backup, begin with a full backup as usual. The
-\fIxtrabackup\fP binary writes a file called \fBxtrabackup_checkpoints\fP into the
-backup\(aqs target directory. This file contains a line showing the \fBto_lsn\fP,
-which is the database\(aqs LSN at the end of the backup. Create the
-full backup with a command such as the following:
+برای تهیهٔ یک پشتیبان‌گیری افزایشی، ابتدا طبق معمول با یک پشتیبان‌گیری کامل شروع کنید.
+باینری \fIxtrabackup\fP فایلی به نام \fBxtrabackup_checkpoints\fP را درون دایرکتوری مقصد
+پشتیبان می‌نویسد. این فایل حاوی خطی است که \fBto_lsn\fP را نمایش می‌دهد که همان
+LSN پایگاه داده در پایان عملیات پشتیبان‌گیری است. نسخهٔ پشتیبان کامل را با
+دستوری مانند نمونهٔ زیر ایجاد کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -104,8 +100,8 @@ $ xtrabackup \-\-backup \-\-target\-dir=/data/backups/base \-\-datadir=/var/lib/
 .UNINDENT
 .UNINDENT
 .sp
-If you look at the \fBxtrabackup_checkpoints\fP file, you should see contents
-similar to the following:
+اگر به فایل \fBxtrabackup_checkpoints\fP نگاه کنید، باید محتوایی
+مشابه مورد زیر مشاهده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -119,8 +115,8 @@ to_lsn = 1291135
 .UNINDENT
 .UNINDENT
 .sp
-Now that you have a full backup, you can make an incremental backup based on
-it. Use a command such as the following:
+اکنون که یک پشتیبان کامل دارید، می‌توانید یک پشتیبان‌گیری افزایشی بر پایهٔ آن ایجاد
+کنید. از دستوری مانند زیر استفاده نمایید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -133,11 +129,11 @@ $ xtrabackup \-\-backup \-\-target\-dir=/data/backups/inc1 \e
 .UNINDENT
 .UNINDENT
 .sp
-The \fB/data/backups/inc1/\fP directory should now contain delta files, such
-as \fBibdata1.delta\fP and \fBtest/table1.ibd.delta\fP\&. These represent the
-changes since the \fBLSN 1291135\fP\&. If you examine the
-\fBxtrabackup_checkpoints\fP file in this directory, you should see something
-similar to the following:
+دایرکتوری \fB/data/backups/inc1/\fP اکنون باید حاوی فایل‌های دلتا مانند
+\fBibdata1.delta\fP و \fBtest/table1.ibd.delta\fP\& باشد. این فایل‌ها نشان‌دهندهٔ
+تغییرات رخ‌داده از زمان \fBLSN 1291135\fP\& هستند. اگر فایل
+\fBxtrabackup_checkpoints\fP را در این دایرکتوری بررسی کنید، باید چیزی مشابه
+مورد زیر را مشاهده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -151,8 +147,8 @@ to_lsn = 1291340
 .UNINDENT
 .UNINDENT
 .sp
-The meaning should be self\-evident. It\(aqs now possible to use this directory as
-the base for yet another incremental backup:
+معنای آن کاملاً روشن است. اکنون می‌توان از این دایرکتوری به عنوان پایه
+برای یک پشتیبان‌گیری افزایشی دیگر استفاده کرد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -163,31 +159,18 @@ $ xtrabackup \-\-backup \-\-target\-dir=/data/backups/inc2 \e
 .ft P
 .fi
 .UNINDENT
-.UNINDENT
-.SS Preparing the Incremental Backups
+.UNINDENT.SS "آماده‌سازی پشتیبان‌های افزایشی (Preparing the Incremental Backups)"
 .sp
-The \fB\-\-prepare\fP step for incremental backups is not the same as for
-normal backups. In normal backups, two types of operations are performed to make
-the database consistent: committed transactions are replayed from the log file
-against the data files, and uncommitted transactions are rolled back. You must
-skip the rollback of uncommitted transactions when preparing a backup, because
-transactions that were uncommitted at the time of your backup may be in
-progress, and it is likely that they will be committed in the next incremental
-backup. You should use the \fB\-\-apply\-log\-only\fP option to prevent the
-rollback phase.
+مرحلهٔ \fB\-\-prepare\fP برای پشتیبان‌های افزایشی همانند پشتیبان‌های عادی نیست. در پشتیبان‌های عادی، دو نوع عملیات برای سازگار ساختن پایگاه داده انجام می‌شود: تراکنش‌های تثبیت‌شده (committed) از فایل گزارش (log file) روی فایل‌های داده بازپخش می‌شوند، و تراکنش‌های تثبیت‌نشده (uncommitted) واگردانی (roll back) می‌شوند. شما باید هنگام آماده‌سازی یک پشتیبان، از واگردانی تراکنش‌های تثبیت‌نشده صرف‌نظر کنید؛ زیرا تراکنش‌هایی که در زمان پشتیبان‌گیری شما تثبیت نشده بودند ممکن است هنوز در جریان باشند، و این احتمال وجود دارد که در پشتیبان افزایشی بعدی تثبیت شوند. برای جلوگیری از مرحلهٔ واگردانی، باید از گزینهٔ \fB\-\-apply\-log\-only\fP استفاده کنید.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-If you do not use the \fB\-\-apply\-log\-only\fP option to prevent the
-rollback phase, then your incremental backups will be useless. After
-transactions have been rolled back, further incremental backups cannot be
-applied.
+اگر برای جلوگیری از مرحلهٔ واگردانی از گزینهٔ \fB\-\-apply\-log\-only\fP استفاده نکنید، پشتیبان‌های افزایشی شما بلااستفاده خواهند شد. پس از اینکه تراکنش‌ها واگردانی شوند، پشتیبان‌های افزایشی بعدی دیگر قابل اعمال نخواهند بود.
 .UNINDENT
 .UNINDENT
 .sp
-Beginning with the full backup you created, you can prepare it, and then apply
-the incremental differences to it. Recall that you have the following backups:
+با شروع از پشتیبان کاملی که ایجاد کرده‌اید، می‌توانید آن را آماده کرده و سپس تفاوت‌های افزایشی را روی آن اعمال نمایید. به یاد آورید که این پشتیبان‌ها را در اختیار دارید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -201,8 +184,7 @@ the incremental differences to it. Recall that you have the following backups:
 .UNINDENT
 .UNINDENT
 .sp
-To prepare the base backup, you need to run \fB\-\-prepare\fP as usual, but
-prevent the rollback phase:
+برای آماده‌سازی پشتیبان پایه، باید \fB\-\-prepare\fP را مانند معمول اجرا کنید، اما از مرحلهٔ واگردانی جلوگیری نمایید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -214,7 +196,7 @@ xtrabackup \-\-prepare \-\-apply\-log\-only \-\-target\-dir=/data/backups/base
 .UNINDENT
 .UNINDENT
 .sp
-The output should end with some text such as the following:
+خروجی باید با متنی شبیه به عبارت زیر پایان یابد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -226,17 +208,11 @@ The output should end with some text such as the following:
 .UNINDENT
 .UNINDENT
 .sp
-The log sequence number should match the \fBto_lsn\fP of the base backup, which
-you saw previously.
+شمارهٔ ترتیبی گزارش (log sequence number) باید با مقدار \fBto_lsn\fP پشتیبان پایه که قبلاً دیدید مطابقت داشته باشد.
 .sp
-This backup is actually safe to restore as\-is now,
-even though the rollback phase has been skipped. If you restore it and start
-\fIMySQL\fP, \fIInnoDB\fP will detect that the rollback phase was not performed, and it
-will do that in the background, as it usually does for a crash recovery upon
-start. It will notify you that the database was not shut down normally.
+این پشتیبان در واقع اکنون به همین صورت برای بازیابی امن است، حتی با وجود اینکه از مرحلهٔ واگردانی صرف‌نظر شده است. اگر آن را بازیابی کرده و \fIMySQL\fP را راه‌اندازی کنید، \fIInnoDB\fP تشخیص می‌دهد که مرحلهٔ واگردانی انجام نشده است، و آن را در پس‌زمینه انجام خواهد داد؛ درست مانند روندی که معمولاً برای بازیابی پس از خرابی (crash recovery) در هنگام شروع به کار انجام می‌دهد. این سیستم به شما اعلان خواهد کرد که پایگاه داده به‌طور عادی متوقف (shut down) نشده بود.
 .sp
-To apply the first incremental backup to the full backup, you should use the
-following command:
+برای اعمال نخستین پشتیبان افزایشی روی پشتیبان کامل، باید از دستور زیر استفاده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -249,11 +225,7 @@ xtrabackup \-\-prepare \-\-apply\-log\-only \-\-target\-dir=/data/backups/base \
 .UNINDENT
 .UNINDENT
 .sp
-This applies the delta files to the files in \fB/data/backups/base\fP, which
-rolls them forward in time to the time of the incremental backup. It then
-applies the redo log as usual to the result. The final data is in
-\fB/data/backups/base\fP, not in the incremental directory. You should see
-some output such as the following:
+این دستور فایل‌های دلتا را بر روی فایل‌های موجود در \fB/data/backups/base\fP اعمال می‌کند، که زمان آن‌ها را به جلو (roll forward) و به زمان تهیهٔ پشتیبان افزایشی می‌برد. سپس redo log را طبق روال معمول روی نتیجه اعمال می‌کند. داده‌های نهایی در \fB/data/backups/base\fP قرار می‌گیرند، نه در پوشهٔ افزایشی. باید خروجی‌ای مشابه زیر را مشاهده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -272,14 +244,9 @@ Applying /data/backups/inc1/test/table1.ibd.delta ...
 .UNINDENT
 .UNINDENT
 .sp
-Again, the LSN should match what you saw from your earlier inspection of the
-first incremental backup. If you restore the files from
-\fB/data/backups/base\fP, you should see the state of the database as of the
-first incremental backup.
+مجدداً، LSN باید با آنچه در بررسی پیشین خود از نخستین پشتیبان افزایشی مشاهده کردید، مطابقت داشته باشد. اگر فایل‌ها را از \fB/data/backups/base\fP بازیابی کنید، وضعیت پایگاه داده را در لحظهٔ تهیهٔ نخستین پشتیبان افزایشی خواهید دید.
 .sp
-Preparing the second incremental backup is a similar process: apply the deltas
-to the (modified) base backup, and you will roll its data forward in time to the
-point of the second incremental backup:
+آماده‌سازی دومین پشتیبان افزایشی روندی مشابه دارد: فایل‌های دلتا را روی پشتیبان پایهٔ (اصلاح‌شده) اعمال کنید تا داده‌های آن را در زمان به نقطهٔ تهیهٔ دومین پشتیبان افزایشی به جلو ببرید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -292,34 +259,28 @@ xtrabackup \-\-prepare \-\-target\-dir=/data/backups/base \e
 .UNINDENT
 .UNINDENT
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-\fB\-\-apply\-log\-only\fP should be used when merging all incrementals
-except the last one. That\(aqs why the previous line doesn\(aqt contain the
-\fB\-\-apply\-log\-only\fP option. Even if the \fB\-\-apply\-log\-only\fP was
-used on the last step, backup would still be consistent but in that case
-server would perform the rollback phase.
+گزینهٔ \fB\-\-apply\-log\-only\fP باید هنگام ادغام تمام پشتیبان‌های افزایشی به جز آخرین مورد استفاده شود. به همین دلیل است که دستور قبلی شامل گزینهٔ \fB\-\-apply\-log\-only\fP نبود. حتی اگر \fB\-\-apply\-log\-only\fP در آخرین مرحله نیز استفاده می‌شد، پشتیبان همچنان سازگار باقی می‌ماند، اما در آن حالت سرور مرحلهٔ واگردانی را اجرا می‌کرد.
 .UNINDENT
 .UNINDENT
 .sp
-If you wish to avoid the notice that \fIInnoDB\fP was not shut down normally, when
-you applied the desired deltas to the base backup, you can run
-\fB\-\-prepare\fP again without disabling the rollback phase.
-.SS Restoring Incremental Backups
+اگر مایلید پس از اعمال دلتاهای مورد نظر به پشتیبان پایه، از دریافت اخطار مبنی بر خاموش نشدن عادی \fIInnoDB\fP جلوگیری کنید، می‌توانید \fB\-\-prepare\fP را یک بار دیگر بدون غیرفعال کردن مرحلهٔ واگردانی اجرا نمایید..SS بازیابی پشتیبان‌های افزایشی
 .sp
-After preparing the incremental backups, the base directory contains the same
-data as the full backup. To restoring this backup, you can use this command:
+پس از آماده‌سازی پشتیبان‌های افزایشی، دایرکتوری پایه شامل همان داده‌های
+پشتیبان کامل خواهد بود. برای بازگردانی این پشتیبان، می‌توانید از این دستور استفاده کنید:
 \fBxtrabackup \-\-copy\-back \-\-target\-dir=BASE\-DIR\fP
 .sp
-You may have to change the ownership as detailed on
-restoring_a_backup\&.
-.SS Incremental Streaming Backups Using xbstream
+ممکن است لازم باشد مالکیت را مطابق با جزئیات ارائه‌شده در
+restoring_a_backup\&
+تغییر دهید.
+.SS پشتیبان‌گیری جریانی افزایشی با استفاده از xbstream
 .sp
-Incremental streaming backups can be performed with the \fIxbstream\fP streaming
-option. Currently backups are packed in custom \fBxbstream\fP format. With this
-feature, you need to take a BASE backup as well.
-Making a base backup.INDENT 0.0
+پشتیبان‌گیری‌های جریانی افزایشی را می‌توان با گزینهٔ جریان‌سازی \fIxbstream\fP
+انجام داد. در حال حاضر پشتیبان‌ها در قالب سفارشی \fBxbstream\fP بسته‌بندی می‌شوند. با این
+قابلیت، باید یک پشتیبان BASE (پایه) نیز تهیه کنید.
+تهیهٔ یک پشتیبان پایه.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -329,7 +290,7 @@ $ xtrabackup \-\-backup \-\-target\-dir=/data/backups
 .fi
 .UNINDENT
 .UNINDENT
-Taking a local backup.INDENT 0.0
+تهیهٔ یک پشتیبان محلی.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -339,7 +300,7 @@ $ xtrabackup \-\-backup \-\-incremental\-lsn=LSN\-number \-\-stream=xbstream \-\
 .fi
 .UNINDENT
 .UNINDENT
-Unpacking the backup.INDENT 0.0
+استخراج پشتیبان.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -349,7 +310,7 @@ $ xbstream \-x < incremental.xbstream
 .fi
 .UNINDENT
 .UNINDENT
-Taking a local backup and streaming it to the remote server and unpacking it.INDENT 0.0
+تهیهٔ پشتیبان محلی، ارسال جریانی آن به سرور دوردست و استخراج آن.INDENT 0.0
 .INDENT 3.5
 .sp
 .nf
@@ -360,67 +321,66 @@ $ ssh user@hostname " cat \- | xbstream \-x \-C > /backup\-dir/"
 .fi
 .UNINDENT
 .UNINDENT
-.SS Partial Backups
+.SS پشتیبان‌های جزئی
 .sp
-\fIxtrabackup\fP supports taking partial backups when the
-innodb_file_per_table option is enabled. There are three ways to create
-partial backups:
+ابزار \fIxtrabackup\fP از تهیهٔ پشتیبان‌های جزئی در زمان فعال بودن گزینهٔ
+innodb_file_per_table پشتیبانی می‌کند. سه روش برای ایجاد
+پشتیبان‌های جزئی وجود دارد:
 .INDENT 0.0
 .IP 1. 3
-matching the tables names with a regular expression
+تطبیق نام جدول‌ها با یک عبارت باقاعده (regular expression)
 .IP 2. 3
-providing a list of table names in a file
+ارائهٔ فهرستی از نام‌های جدول در یک فایل
 .IP 3. 3
-providing a list of databases
+ارائهٔ فهرستی از پایگاه‌های داده
 .UNINDENT
 .sp
-\fBWARNING:\fP
+\fBهشدار:\fP
 .INDENT 0.0
 .INDENT 3.5
-Do not copy back the prepared backup.
+پشتیبان آماده‌شده را با copy back بازگردانی نکنید.
 .sp
-Restoring partial backups should be done by importing the tables,
-not by using the \fI\-\-copy\-back\fP option. It is not
-recommended to run incremental backups after running a partial
-backup.
+بازیابی پشتیبان‌های جزئی باید از طریق وارد کردن (import) جدول‌ها انجام شود،
+نه با استفاده از گزینهٔ \fI\-\-copy\-back\fP. اجرای پشتیبان‌گیری افزایشی
+پس از اجرای یک پشتیبان‌گیری جزئی توصیه نمی‌شود.
 .sp
-Although there are some scenarios where restoring can be done by
-copying back the files, this may lead to database
-inconsistencies in many cases and it is not a recommended way to
-do it.
+اگرچه سناریوهایی وجود دارد که در آن‌ها بازیابی می‌تواند با
+کپی کردن فایل‌ها به جای خود انجام شود، اما این کار در بسیاری از موارد ممکن است
+منجر به ناسازگاری پایگاه داده شود و روش توصیه‌شده‌ای برای
+انجام آن نیست.
 .UNINDENT
 .UNINDENT
 .sp
-For the purposes of this manual page, we will assume that there is a database
-named \fBtest\fP which contains tables named \fBt1\fP and \fBt2\fP\&.
+برای اهداف این صفحهٔ راهنما، فرض می‌کنیم پایگاه داده‌ای به
+نام \fBtest\fP وجود دارد که شامل جدول‌هایی به نام‌های \fBt1\fP و \fBt2\fP\& است.
 .sp
-\fBWARNING:\fP
+\fBهشدار:\fP
 .INDENT 0.0
 .INDENT 3.5
-If any of the matched or listed tables is deleted during the backup,
-\fIxtrabackup\fP will fail.
+اگر هر یک از جدول‌های مطابقت‌یافته یا فهرست‌شده در حین پشتیبان‌گیری حذف شوند،
+\fIxtrabackup\fP با خطا مواجه خواهد شد.
 .UNINDENT
 .UNINDENT
-.SS Creating Partial Backups
+.SS ایجاد پشتیبان‌های جزئی
 .sp
-There are multiple ways of specifying which part of the whole data is backed up:
+چندین روش برای تعیین این‌که کدام بخش از کل داده‌ها پشتیبان‌گیری شود وجود دارد:
 .INDENT 0.0
 .IP \(bu 2
-Use the \fB\-\-tables\fP option to list the table names
+استفاده از گزینهٔ \fB\-\-tables\fP برای فهرست کردن نام‌های جدول
 .IP \(bu 2
-Use the \fB\-\-tables\-file\fP option to list the tables in a file
+استفاده از گزینهٔ \fB\-\-tables\-file\fP برای فهرست کردن جدول‌ها در یک فایل
 .IP \(bu 2
-Use the \fB\-\-databases\fP option to list the databases
+استفاده از گزینهٔ \fB\-\-databases\fP برای فهرست کردن پایگاه‌های داده
 .IP \(bu 2
-Use the \fB\-\-databases\-file\fP option to list the databases
+استفاده از گزینهٔ \fB\-\-databases\-file\fP برای فهرست کردن پایگاه‌های داده
 .UNINDENT
-.SS The \fI\-\-tables\fP Option
+.SS گزینهٔ \fI\-\-tables\fP
 .sp
-The first method involves the xtrabackup \fI\-\-tables\fP option. The option\(aqs
-value is a regular expression that is matched against the fully\-qualified database name and table name using the \fBdatabasename.tablename\fP format.
+روش اول شامل استفاده از گزینهٔ \fI\-\-tables\fP در xtrabackup است. مقدار این
+گزینه یک عبارت باقاعده است که با نام کامل پایگاه داده و نام جدول با استفاده از قالب \fBdatabasename.tablename\fP مطابقت داده می‌شود.
 .sp
-To back up only tables in the \fBtest\fP database, use the following
-command:
+برای پشتیبان‌گیری تنها از جدول‌های موجود در پایگاه دادهٔ \fBtest\fP، از دستور
+زیر استفاده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -433,7 +393,7 @@ $ xtrabackup \-\-backup \-\-datadir=/var/lib/mysql \-\-target\-dir=/data/backups
 .UNINDENT
 .UNINDENT
 .sp
-To back up only the \fBtest.t1\fP table, use the following command:
+برای پشتیبان‌گیری تنها از جدول \fBtest.t1\fP، از دستور زیر استفاده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -444,14 +404,9 @@ $ xtrabackup \-\-backup \-\-datadir=/var/lib/mysql \-\-target\-dir=/data/backups
 .ft P
 .fi
 .UNINDENT
-.UNINDENT
-.SS The \fI\-\-tables\-file\fP Option
+.UNINDENT.SS گزینهٔ \fI\-\-tables\-file\fP
 .sp
-The \fB\-\-tables\-file\fP option specifies a file that can contain multiple table
-names, one table name per line in the file. Only the tables named in the file
-will be backed up. Names are matched exactly, case\-sensitive, with no pattern or
-regular expression matching. The table names must be fully\-qualified in
-\fBdatabasename.tablename\fP format.
+گزینهٔ \fB\-\-tables\-file\fP فایلی را مشخص می‌کند که می‌تواند شامل نام چندین جدول باشد، یک نام جدول در هر خط از فایل. تنها از جدول‌هایی که نام آن‌ها در فایل آمده است پشتیبان‌گیری خواهد شد. نام‌ها دقیقاً و با حساسیت به حروف بزرگ و کوچک (case\-sensitive)، بدون هیچ‌گونه تطبیق الگو یا عبارت باقاعده (regular expression) مطابقت داده می‌شوند. نام‌های جدول باید به‌صورت کامل (fully\-qualified) و در قالب \fBdatabasename.tablename\fP باشند.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -463,21 +418,16 @@ $ xtrabackup \-\-backup \-\-tables\-file=/tmp/tables.txt
 .fi
 .UNINDENT
 .UNINDENT
-.SS The \fI\-\-databases\fP and \fI\-\-databases\-file\fP options
+.SS گزینه‌های \fI\-\-databases\fP و \fI\-\-databases\-file\fP
 .sp
-The \(ga \-\-databases\(ga option accepts a space\-separated list of the databases
-and tables to backup in the \fBdatabasename[.tablename]\fP format. In addition to
-this list, make sure to specify the \fBmysql\fP, \fBsys\fP, and
+گزینهٔ \(ga \-\-databases\(ga فهرستی جداشده با فاصله از پایگاه‌های داده و جدول‌ها را برای پشتیبان‌گیری در قالب \fBdatabasename[.tablename]\fP می‌پذیرد. علاوه بر این فهرست، اطمینان حاصل کنید که پایگاه‌های دادهٔ \fBmysql\fP، \fBsys\fP، و
 .sp
-\fBperformance_schema\fP databases. These databases are required when restoring
-the databases using \fIxtrabackup \-\-copy\-back\fP\&.
+\fBperformance_schema\fP را مشخص کرده باشید. این پایگاه‌های داده هنگام بازیابی پایگاه‌های داده با استفاده از \fIxtrabackup \-\-copy\-back\fP\& مورد نیاز هستند.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-Tables processed during the \-\-prepare step may also be added to the backup
-even if they are not explicitly listed by the parameter if they were created
-after the backup started.
+جدول‌هایی که در طول مرحلهٔ \-\-prepare پردازش می‌شوند، حتی اگر صراحتاً توسط پارامتر فهرست نشده باشند، در صورتی که پس از شروع پشتیبان‌گیری ایجاد شده باشند، ممکن است به نسخهٔ پشتیبان افزوده شوند.
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
@@ -490,23 +440,19 @@ $ xtrabackup \-\-databases=\(aqmysql sys performance_schema test ...\(aq
 .fi
 .UNINDENT
 .UNINDENT
-.SS The \fB\-\-databases\-file\fP Option
+.SS گزینهٔ \fB\-\-databases\-file\fP
 .sp
-The \fI\-\-databases\-file\fP option specifies a file that can contain multiple
-databases and tables in the \fBdatabasename[.tablename]\fP format, one element name per line in the file. Names are matched exactly, case\-sensitive, with no pattern or regular expression matching.
+گزینهٔ \fI\-\-databases\-file\fP فایلی را مشخص می‌کند که می‌تواند شامل چندین پایگاه داده و جدول در قالب \fBdatabasename[.tablename]\fP باشد، یک نام عنصر در هر خط از فایل. نام‌ها به‌صورت دقیق و با حساسیت به حروف بزرگ و کوچک (case\-sensitive)، بدون هیچ‌گونه تطبیق الگو یا عبارت باقاعده مطابقت داده می‌شوند.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-Tables processed during the \-\-prepare step may also be added to the backup
-even if they are not explicitly listed by the parameter if they were created
-after the backup started.
+جدول‌هایی که در طول مرحلهٔ \-\-prepare پردازش می‌شوند، حتی اگر صراحتاً توسط پارامتر فهرست نشده باشند، در صورتی که پس از شروع پشتیبان‌گیری ایجاد شده باشند، ممکن است به نسخهٔ پشتیبان افزوده شوند.
 .UNINDENT
 .UNINDENT
-.SS Preparing Partial Backups
+.SS آماده‌سازی پشتیبان‌های جزئی
 .sp
-The procedure is analogous to restoring individual tables : apply the logs and use the
-\fI\-\-export\fP option:
+این رویه مشابه بازیابی جدول‌های مجزا است: لاگ‌ها را اعمال کرده و از گزینهٔ \fI\-\-export\fP استفاده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -518,13 +464,7 @@ $ xtrabackup \-\-prepare \-\-export \-\-target\-dir=/path/to/partial/backup
 .UNINDENT
 .UNINDENT
 .sp
-When you use the \fI\-\-prepare\fP option on a partial backup, you
-will see warnings about tables that don\(aqt exist. This is because these tables
-exist in the data dictionary inside InnoDB, but the corresponding \&.ibd
-files don\(aqt exist. They were not copied into the backup directory. These tables
-will be removed from the data dictionary, and when you restore the backup and
-start InnoDB, they will no longer exist and will not cause any errors or
-warnings to be printed to the log file.
+هنگامی که از گزینهٔ \fI\-\-prepare\fP روی یک پشتیبان جزئی استفاده می‌کنید، هشدارهایی مبنی بر عدم وجود جدول‌ها مشاهده خواهید کرد. این به این دلیل است که این جدول‌ها در data dictionary درون InnoDB وجود دارند، اما فایل‌های \&.ibd متناظر با آن‌ها موجود نیستند؛ زیرا در دایرکتوری پشتیبان کپی نشده بودند. این جدول‌ها از data dictionary حذف خواهند شد و هنگامی که نسخهٔ پشتیبان را بازیابی و InnoDB را راه‌اندازی کنید، دیگر وجود نخواهند داشت و باعث چاپ هیچ‌گونه خطا یا هشداری در فایل لاگ نخواهند شد.
 .INDENT 0.0
 .INDENT 3.5
 Could not find any file associated with the tablespace ID: 5
@@ -532,13 +472,11 @@ Could not find any file associated with the tablespace ID: 5
 Use \-\-innodb\-directories to find the tablespace files. If that fails then use \-\-innodb\-force\-recovery=1 to ignore this and to permanently lose all changes to the missing tablespace(s).
 .UNINDENT
 .UNINDENT
-.SS Restoring Partial Backups
+.SS بازیابی پشتیبان‌های جزئی
 .sp
-Restoring should be done by restoring individual tables in the partial backup to the server.
+بازیابی باید با بازگردانی جدول‌های مجزا در پشتیبان جزئی به کارساز انجام شود.
 .sp
-It can also be done by copying back the prepared backup to a "clean"
-datadir (in that case, make sure to include the \fBmysql\fP
-database) to the datadir you are moving the backup to. A system database can be created with the following:
+همچنین می‌توان این کار را با رونوشت (copy back) نسخهٔ پشتیبان آماده‌شده به یک datadir «پاک» (در این حالت، اطمینان حاصل کنید که پایگاه دادهٔ \fBmysql\fP گنجانده شده باشد) که پشتیبان را به آن منتقل می‌کنید، انجام داد. یک پایگاه دادهٔ سیستمی را می‌توان با دستور زیر ایجاد کرد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -550,7 +488,7 @@ $ sudo mysql \-\-initialize \-\-user=mysql
 .UNINDENT
 .UNINDENT
 .sp
-Once you start the server, you may see mysql complaining about missing tablespaces:
+پس از راه‌اندازی کارساز، ممکن است هشدارهایی از mysql دربارهٔ tablespaceهای مفقود مشاهده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -563,9 +501,9 @@ Once you start the server, you may see mysql complaining about missing tablespac
 .UNINDENT
 .UNINDENT
 .sp
-In order to clean the orphan database from the data dictionary, you must manually create the missing database directory and then \fBDROP\fP this database from the server.
+به منظور پاک‌سازی پایگاه دادهٔ یتیم از data dictionary، باید دایرکتوری پایگاه دادهٔ مفقود را به‌صورت دستی ایجاد کرده و سپس این پایگاه داده را با دستور \fBDROP\fP از کارساز حذف کنید.
 .sp
-Example of creating the missing database:
+نمونه‌ای از ایجاد پایگاه دادهٔ مفقود:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -577,7 +515,7 @@ $ mkdir /var/lib/mysql/test1/d2
 .UNINDENT
 .UNINDENT
 .sp
-Example of dropping the database from the server:
+نمونه‌ای از حذف پایگاه داده از کارساز:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -588,22 +526,14 @@ Query OK, 2 rows affected (0.5 sec)
 .ft P
 .fi
 .UNINDENT
-.UNINDENT
-.SH ADVANCED FEATURES
-.SS Analyzing Table Statistics
+.UNINDENT.SH "ویژگی‌های پیشرفته (ADVANCED FEATURES)"
+.SS "تحلیل آمارهای جدول (Analyzing Table Statistics)"
 .sp
-The \fIxtrabackup\fP binary can analyze InnoDB data files in read\-only mode to give
-statistics about them. To do this, you should use the \fB\-\-stats\fP
-option. You can combine this with the \fB\-\-tables\fP option to limit the
-files to examine. It also uses the \fB\-\-use\-memory\fP option.
+باینری \fIxtrabackup\fP می‌تواند فایل‌های دادهٔ InnoDB را در حالت فقط\-خواندنی (read\-only) تحلیل کند تا آمارهایی را دربارهٔ آن‌ها ارائه دهد. برای این کار، باید از گزینهٔ \fB\-\-stats\fP استفاده کنید. می‌توانید این گزینه را با گزینهٔ \fB\-\-tables\fP ترکیب کنید تا فایل‌های مورد بررسی را محدود نمایید. این ابزار همچنین از گزینهٔ \fB\-\-use\-memory\fP استفاده می‌کند.
 .sp
-You can perform the analysis on a running server, with some chance of errors due
-to the data being changed during analysis. Or, you can analyze a backup copy of
-the database. Either way, to use the statistics feature, you need a clean copy
-of the database including correctly sized log files, so you need to execute with
-\fB\-\-prepare\fP twice to use this functionality on a backup.
+می‌توانید تحلیل را روی یک کارساز (سرور) در حال اجرا انجام دهید، البته با مقداری احتمال بروز خطا به دلیل تغییر داده‌ها در حین تحلیل. یا می‌توانید یک نسخهٔ پشتیبان از پایگاه داده را تحلیل کنید. در هر صورت، برای استفاده از قابلیت آمارها، به یک نسخهٔ پاک از پایگاه داده شامل فایل‌های گزارش وقایع (log) با اندازهٔ درست نیاز دارید؛ بنابراین برای استفاده از این قابلیت روی یک نسخهٔ پشتیبان، باید آن را دو بار با \fB\-\-prepare\fP اجرا کنید.
 .sp
-The result of running on a backup might look like the following:
+نتیجهٔ اجرا روی یک نسخهٔ پشتیبان ممکن است مانند زیر باشد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -622,48 +552,34 @@ The result of running on a backup might look like the following:
 .UNINDENT
 .UNINDENT
 .sp
-This can be interpreted as follows:
+این خروجی را می‌توان به شرح زیر تفسیر کرد:
 .INDENT 0.0
 .IP \(bu 2
-The first line simply shows the table and index name and its internal
-identifiers. If you see an index named \fBGEN_CLUST_INDEX\fP, that is the
-table\(aqs clustered index, automatically created because you did not explicitly
-create a \fBPRIMARY KEY\fP\&.
+سطر نخست به‌سادگی نام جدول، شاخص (index) و شناسه‌های داخلی آن را نشان می‌دهد. اگر شاخصی با نام \fBGEN_CLUST_INDEX\fP مشاهده کردید، آن شاخص خوشه‌ای (clustered index) جدول است که به صورت خودکار ایجاد شده، زیرا شما صراحتاً یک \fBPRIMARY KEY\fP ایجاد نکرده‌اید\&.
 .IP \(bu 2
-The estimated statistics in dictionary information is similar to the data
-that\(aqs gathered through \fBANALYZE TABLE\fP inside of \fIInnoDB\fP to be stored as
-estimated cardinality statistics and passed to the query optimizer.
+آمارهای تخمینی در اطلاعات فرهنگ داده‌ها (dictionary)، مشابه داده‌هایی است که از طریق \fBANALYZE TABLE\fP در داخل \fIInnoDB\fP جمع‌آوری می‌شود تا به عنوان آمارهای تخمینی چندگانگی (cardinality) ذخیره شده و به بهینه‌ساز پرس‌وجو (query optimizer) تحویل داده شوند.
 .IP \(bu 2
-The real statistics information is the result of scanning the data pages and
-computing exact information about the index.
+اطلاعات آمارهای واقعی حاصل پویش صفحه‌های داده و محاسبهٔ اطلاعات دقیق دربارهٔ شاخص است.
 .IP \(bu 2
-\fBThe level <X> pages\fP: output means that the line shows information about
-pages at that level in the index tree. The larger \fB<X>\fP is, the farther it
-is from the leaf pages, which are level 0. The first line is the root page.
+خروجی \fBThe level <X> pages\fP: به این معنی است که آن سطر، اطلاعات مربوط به صفحات موجود در آن سطح از درخت شاخص را نمایش می‌دهد. هرچه \fB<X>\fP بزرگ‌تر باشد، فاصلهٔ آن از صفحات برگ (leaf pages) که در سطح ۰ هستند بیشتر است. سطر نخست، صفحهٔ ریشه (root page) است.
 .IP \(bu 2
-The \fBleaf pages\fP output shows the leaf pages, of course. This is where the
-table\(aqs data is stored.
+خروجی \fBleaf pages\fP مسلماً صفحات برگ را نشان می‌دهد. داده‌های جدول در این مکان ذخیره می‌شوند.
 .IP \(bu 2
-The \fBexternal pages\fP: output (not shown) shows large external pages that
-hold values too long to fit in the row itself, such as long \fBBLOB\fP and
-\fBTEXT\fP values.
+خروجی \fBexternal pages\fP: (نشان داده‌نشده) صفحات خارجی بزرگی را نشان می‌دهد که مقادیری را نگه می‌دارند که برای جا شدن در خود سطر بیش از حد طولانی هستند؛ مانند مقادیر طولانی \fBBLOB\fP و \fBTEXT\fP.
 .IP \(bu 2
-The \fBrecs\fP is the real number of records (rows) in leaf pages.
+مقدار \fBrecs\fP تعداد واقعی رکوردها (سطرها) در صفحات برگ است.
 .IP \(bu 2
-The \fBpages\fP is the page count.
+مقدار \fBpages\fP تعداد کل صفحات است.
 .IP \(bu 2
-The \fBdata\fP is the total size of the data in the pages, in bytes.
+مقدار \fBdata\fP اندازهٔ کل داده‌ها در صفحات، به بایت است.
 .IP \(bu 2
-The \fBdata/pages\fP is calculated as (\fBdata\fP / (\fBpages\fP * \fBPAGE_SIZE\fP)) *
-100%. It will never reach 100% because of space reserved for page headers and
-footers.
+مقدار \fBdata/pages\fP به صورت (\fBdata\fP / (\fBpages\fP * \fBPAGE_SIZE\fP)) * 100% محاسبه می‌شود. این مقدار به دلیل فضای رزرو شده برای سرصفحه‌ها و پانویس‌های صفحه (page headers و footers)، هرگز به ۱۰۰٪ نخواهد رسید.
 .UNINDENT
 .sp
-A more detailed example is posted as a MySQL Performance Blog \fI\%post\fP\&.
-.SS Script to Format Output
+یک نمونه با جزئیات بیشتر در یک \fI\%مطلب\fP وبلاگ MySQL Performance منتشر شده است\&.
+.SS "اسکریپت برای قالب‌بندی خروجی (Script to Format Output)"
 .sp
-The following script can be used to summarize and tabulate the output of the
-statistics information:
+می‌توان از اسکریپت زیر برای خلاصه‌سازی و جدول‌بندی خروجی اطلاعات آماری استفاده کرد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -726,10 +642,9 @@ foreach my $t ( sort keys %tbl_stats ) {
 .fi
 .UNINDENT
 .UNINDENT
-Sample Script Output
+نمونهٔ خروجی اسکریپت
 .sp
-The output of the above Perl script, when run against the sample shown in the
-previously mentioned blog post, will appear as follows:
+خروجی اسکریپت Perl بالا، هنگامی که بر روی نمونهٔ نشان‌داده‌شده در مطلب وبلاگ پیش‌تر ذکر شده اجرا شود، به صورت زیر خواهد بود:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -749,19 +664,14 @@ art.link_out104    site_message     36992       4651      83.4%
 .UNINDENT
 .UNINDENT
 .sp
-The columns are the table and index, followed by the total number of pages in
-that index, the number of pages not actually occupied by data, and the number of
-bytes of real data as a percentage of the total size of the pages of real
-data. The first line in the above output, in which the \fBINDEX\fP column is
-empty, is a summary of the entire table.
-.SS Working with Binary Logs
+ستون‌ها عبارتند از جدول و شاخص، و به دنبال آن‌ها تعداد کل صفحات در آن شاخص، تعداد صفحاتی که در عمل توسط داده‌ها اشغال نشده‌اند، و تعداد بایت‌های داده‌های واقعی به صورت درصدی از کل اندازهٔ صفحات داده‌های واقعی. سطر نخست در خروجی بالا که ستون \fBINDEX\fP در آن خالی است، خلاصه‌ای از کل جدول می‌باشد..SS کار با لاگ‌های باینری (Binary Logs)
 .sp
-The \fBxtrabackup\fP binary integrates with the \fBlog_status table\fP\&. This integration enables \fBxtrabackup\fP to print out the backup\(aqs corresponding binary log position, so that you can use this binary log position to provision a new replica or perform point\-in\-time recovery.
-.SS Finding the Binary Log Position
+فایل اجرایی \fBxtrabackup\fP با \fBlog_status table\fP یکپارچه می‌شود. این یکپارچگی به \fBxtrabackup\fP امکان می‌دهد موقعیت لاگ باینری متناظر با پشتیبان را چاپ کند، تا بتوانید از این موقعیت لاگ باینری برای راه‌اندازی یک نسخهٔ بدل (replica) جدید یا انجام بازیابی در نقطهٔ زمانی مشخص (point\-in\-time recovery) استفاده کنید.
+.SS یافتن موقعیت لاگ باینری (Binary Log Position)
 .sp
-You can find the binary log position corresponding to a backup after the backup has been taken. If your backup is from a server with binary logging enabled, \fBxtrabackup\fP creates a file named \fBxtrabackup_binlog_info\fP in the target directory. This file contains the binary log file name and position of the exact point when the backup was taken.
+شما می‌توانید پس از گرفته شدن پشتیبان، موقعیت لاگ باینری متناظر با آن را بیابید. اگر پشتیبان شما از سروری گرفته شده باشد که گزارش‌گیری باینری در آن فعال است، \fBxtrabackup\fP فایلی به نام \fBxtrabackup_binlog_info\fP را در دایرکتوری مقصد ایجاد می‌کند. این فایل حاوی نام فایل لاگ باینری و موقعیت دقیق نقطه‌ای است که پشتیبان در آن گرفته شده است.
 .sp
-The output is similar to the following during the backup stage:
+خروجی در طول مرحلهٔ پشتیبان‌گیری مشابه موارد زیر است:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -776,29 +686,29 @@ MySQL binlog position: filename \(aqbinlog.000002\(aq, position \(aq156\(aq
 .UNINDENT
 .UNINDENT
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-As of Percona XtraBackup 8.0.26\-18.0, xtrabackup no longer creates the \fBxtrabackup_binlog_pos_innodb\fP file. This change is because MySQL and Percona Server no longer update the binary log information on global transaction system section of \fBibdata\fP\&. You should rely on \fBxtrabackup_binlog_info\fP regardless of the storage engine in use.
+از نسخهٔ Percona XtraBackup 8.0.26\-18.0 به بعد، xtrabackup دیگر فایل \fBxtrabackup_binlog_pos_innodb\fP را ایجاد نمی‌کند. این تغییر به این دلیل است که MySQL و Percona Server دیگر اطلاعات لاگ باینری را در بخش سیستم تراکنش سراسری \fBibdata\fP به‌روزرسانی نمی‌کنند. شما باید بدون در نظر گرفتن موتور ذخیره‌سازیِ (storage engine) مورد استفاده، به \fBxtrabackup_binlog_info\fP اتکا کنید.
 .UNINDENT
 .UNINDENT
-.SS Point\-In\-Time Recovery
+.SS بازیابی در نقطهٔ زمانی مشخص (Point\-In\-Time Recovery)
 .sp
-To perform a point\-in\-time recovery from an \fBxtrabackup\fP backup, you should prepare and restore the backup, and then replay binary logs from the point shown in the \fBxtrabackup_binlog_info\fP file.
+برای انجام یک بازیابی در نقطهٔ زمانی مشخص از یک پشتیبان \fBxtrabackup\fP، باید پشتیبان را آماده‌سازی (prepare) و بازیابی (restore) کنید، و سپس لاگ‌های باینری را از نقطهٔ نشان داده‌شده در فایل \fBxtrabackup_binlog_info\fP بازپخش (replay) نمایید.
 .sp
-A more detailed procedure is found here\&.
-.SS Setting Up a New Replication Replica
+دستورالعمل دقیق‌تر در اینجا یافت می‌شود\&.
+.SS راه‌اندازی یک نسخهٔ بدل رپلیکیشن جدید (Replication Replica)
 .sp
-To set up a new replica, you should prepare the backup, and restore it to the data directory of your new replication replica. If you are using version 8.0.22 or earlier, in your \fBCHANGE MASTER TO\fP command, use the binary log filename and position shown in the \fBxtrabackup_binlog_info\fP file to start replication.
+برای راه‌اندازی یک replica جدید، باید پشتیبان را آماده‌سازی کرده و آن را در دایرکتوری داده‌های (data directory) نسخهٔ بدل رپلیکیشن جدید خود بازیابی کنید. اگر از نسخهٔ 8.0.22 یا قدیمی‌تر استفاده می‌کنید، در دستور \fBCHANGE MASTER TO\fP خود، از نام فایل لاگ باینری و موقعیت نشان‌داده‌شده در فایل \fBxtrabackup_binlog_info\fP برای آغاز رپلیکیشن استفاده کنید.
 .sp
-If you are using 8.0.23 or later, use the \fI\%CHANGE_REPLICATION_SOURCE_TO and the appropriate options\fP\&. \fBCHANGE_MASTER_TO\fP is deprecated.
+اگر از نسخهٔ 8.0.23 یا جدیدتر استفاده می‌کنید، از \fI\%CHANGE_REPLICATION_SOURCE_TO و گزینه‌های مناسب آن\fP استفاده کنید\&. دستور \fBCHANGE_MASTER_TO\fP منسوخ شده است.
 .sp
-A more detailed procedure is found in  \&../howtos/setting_up_replication\&.
-.SS Restoring Individual Tables
+دستورالعمل با جزئیات بیشتر در \&../howtos/setting_up_replication یافت می‌شود\&.
+.SS بازیابی جدول‌های تکی (Restoring Individual Tables)
 .sp
-\fIPercona XtraBackup\fP can export a table that is contained in its own \fI\&.ibd\fP file. With \fIPercona XtraBackup\fP, you can export individual tables from any \fIInnoDB\fP database, and import them into \fIPercona Server for MySQL\fP with \fIXtraDB\fP or \fIMySQL\fP 8.0. The source doesn\(aqt have to be \fIXtraDB\fP or \fIMySQL\fP 8.0, but the destination does. This method only works on individual \fI\&.ibd\fP files.
+نرم‌افزار \fIPercona XtraBackup\fP می‌تواند جدولی را که در فایل \fI\&.ibd\fP اختصاصی خودش قرار دارد صادر (export) کند. با \fIPercona XtraBackup\fP، می‌توانید جدول‌های جداگانه را از هر پایگاه‌دادهٔ \fIInnoDB\fP صادر کرده و آن‌ها را به \fIPercona Server for MySQL\fP دارای \fIXtraDB\fP یا \fIMySQL\fP 8.0 وارد (import) کنید. مبدأ لزوماً نیازی نیست \fIXtraDB\fP یا \fIMySQL\fP 8.0 باشد، اما مقصد باید چنین باشد. این روش فقط بر روی فایل‌های \fI\&.ibd\fP تکی کار می‌کند.
 .sp
-The following example exports and imports the following table:
+مثال زیر جدول زیر را صادر و وارد می‌کند:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -811,11 +721,9 @@ a int(11) DEFAULT NULL
 .fi
 .UNINDENT
 .UNINDENT
-.SS Exporting the Table
+.SS صادر کردن جدول (Exporting the Table)
 .sp
-Created the table in \fIinnodb_file_per_table\fP mode, so
-after taking a backup as usual with the \fI\-\-backup\fP option, the
-\fI\&.ibd\fP file exists in the target directory:
+جدول در حالت \fIinnodb_file_per_table\fP ایجاد شده است، بنابراین پس از گرفتن پشتیبان به شیوهٔ معمول با گزینهٔ \fI\-\-backup\fP، فایل \fI\&.ibd\fP در دایرکتوری مقصد وجود دارد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -828,8 +736,7 @@ $ find /data/backups/mysql/ \-name export_test.*
 .UNINDENT
 .UNINDENT
 .sp
-when you prepare the backup, add the \fI\-\-export\fP option to the
-command. Here is an example:
+هنگامی که پشتیبان را آماده‌سازی (prepare) می‌کنید، گزینهٔ \fI\-\-export\fP را به دستور اضافه نمایید. در اینجا یک مثال آورده شده است:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -841,11 +748,10 @@ $ xtrabackup \-\-prepare \-\-export \-\-target\-dir=/data/backups/mysql/
 .UNINDENT
 .UNINDENT
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-If you restore an encrypted InnoDB tablespace table, add the
-keyring file:
+اگر یک جدول فضای جدول (tablespace) رمزنگاری‌شدهٔ InnoDB را بازیابی می‌کنید، فایل دسته‌کلید (keyring) را اضافه نمایید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -860,7 +766,7 @@ $ xtrabackup \-\-prepare \-\-export \-\-target\-dir=/tmp/table \e
 .UNINDENT
 .UNINDENT
 .sp
-Now you should see an \fI\&.exp\fP file in the target directory:
+اکنون باید یک فایل \fI\&.exp\fP در دایرکتوری مقصد مشاهده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -875,81 +781,65 @@ $ find /data/backups/mysql/ \-name export_test.*
 .UNINDENT
 .UNINDENT
 .sp
-These three files are the only files required to import the table into a server running
-\fIPercona Server for MySQL\fP with \fIXtraDB\fP or \fIMySQL\fP 8.0. In case the server uses \fI\%InnoDB
-Tablespace Encryption\fP
-adds an additional \fI\&.cfp\fP file which contains the transfer key and an encrypted tablespace key.
+این سه فایل تنها فایل‌های لازم برای وارد کردن جدول به سروری هستند که \fIPercona Server for MySQL\fP همراه با \fIXtraDB\fP یا \fIMySQL\fP 8.0 را اجرا می‌کند. در صورتی که سرور از \fI\%InnoDB Tablespace Encryption\fP استفاده کند، یک فایل اضافی \fI\&.cfp\fP شامل کلید انتقال و کلید رمزنگاری‌شدهٔ tablespace نیز اضافه می‌شود.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-The \fI\&.cfg\fP metadata file contains an \fIInnoDB\fP dictionary dump in a special format. This format is different from the \fI\&.exp\fP one which is
-used in \fIXtraDB\fP for the same purpose. A \fI\&.cfg\(ga\fP file is not required to import a tablespace to \fIMySQL\fP 8.0 or Percona
-Server for MySQL 8.0.
+فایل فرادادهٔ (metadata) \fI\&.cfg\fP حاوی یک نسخهٔ تخلیه از دیکشنری (dictionary dump) \fIInnoDB\fP در قالبی ویژه است. این قالب با قالب \fI\&.exp\fP که در \fIXtraDB\fP برای همین منظور استفاده می‌شود متفاوت است. فایل \fI\&.cfg\(ga\fP برای وارد کردن یک tablespace به \fIMySQL\fP 8.0 یا Percona Server for MySQL 8.0 لازم نیست.
 .sp
-A tablespace is imported successfully even if the table is from
-another server, but \fIInnoDB\fP performs a schema validation if the corresponding \fI\&.cfg\fP file is located in the same directory.
+فضای جدول (tablespace) با موفقیت وارد می‌شود حتی اگر جدول متعلق به سرور دیگری باشد، اما در صورتی که فایل \fI\&.cfg\fP متناظر در همان دایرکتوری قرار داشته باشد، \fIInnoDB\fP یک اعتبارسنجی طرحواره (schema validation) انجام می‌دهد.
 .UNINDENT
-.UNINDENT
-.SS Importing the Table
+.UNINDENT.SS وارد کردن جدول (Importing the Table)
 .sp
-On the destination server running \fIPercona Server for MySQL\fP with \fIXtraDB\fP and
+در سرور مقصد که \fIPercona Server for MySQL\fP با \fIXtraDB\fP و گزینهٔ فعال‌شدهٔ
 \fI\%innodb_import_table_from_xtrabackup\fP
-option enabled, or \fIMySQL\fP 8.0, create a table with the same
-structure, and then perform the following steps:
+یا \fIMySQL\fP 8.0 را اجرا می‌کند، جدولی با همان ساختار ایجاد کرده و سپس مراحل زیر را انجام دهید:
 .INDENT 0.0
 .IP 1. 3
-Run the \fBALTER TABLE test\&.export_test DISCARD TABLESPACE;\fP
-command. If you see the following error, enable
-\fIinnodb_file_per_table\fP and create the table again.
+دستور \fBALTER TABLE test\&.export_test DISCARD TABLESPACE;\fP
+را اجرا کنید. اگر خطای زیر را مشاهده کردید، گزینهٔ
+\fIinnodb_file_per_table\fP را فعال کرده و جدول را دوباره ایجاد کنید.
 .INDENT 3.0
 .INDENT 3.5
-.IP "Error"
+.IP "خطا (Error)"
 .sp
 ERROR 1030 (HY000): Got error \-1 from storage engine
 .UNINDENT
 .UNINDENT
 .IP 2. 3
-Copy the exported files to the \fBtest/\fP subdirectory of the destination server\(aqs data directory
+فایل‌های برون‌ریزی‌شده را در زیردایرکتوری \fBtest/\fP دایرکتوری داده‌های (data directory) سرور مقصد کپی کنید
 .IP 3. 3
-Run \fBALTER TABLE test\&.export_test IMPORT TABLESPACE;\fP
+دستور \fBALTER TABLE test\&.export_test IMPORT TABLESPACE;\fP را اجرا کنید.
 .UNINDENT
 .sp
-The table is imported, and you can run a \fBSELECT\fP to see the imported data.
-.SS LRU dump backup
+جدول وارد شده است و می‌توانید برای دیدن داده‌های واردشده یک دستور \fBSELECT\fP اجرا کنید.
+.SS پشتیبان‌گیری دامپ LRU (LRU dump backup)
 .sp
-\fIPercona XtraBackup\fP includes a saved buffer pool dump into a backup to enable
-reducing the warm up time. It restores the buffer pool state from
-\fBib_buffer_pool\fP file after restart. \fIPercona XtraBackup\fP discovers
-\fBib_buffer_pool\fP and backs it up automatically.
-[image]
+ابزار \fIPercona XtraBackup\fP یک دامپ ذخیره‌شده از buffer pool را در نسخهٔ پشتیبان قرار می‌دهد تا زمان گرم‌شدن (warm up) را کاهش دهد. این ابزار وضعیت buffer pool را پس از راه‌اندازی مجدد از فایل
+\fBib_buffer_pool\fP بازیابی می‌کند. \fIPercona XtraBackup\fP فایل
+\fBib_buffer_pool\fP را شناسایی کرده و به‌طور خودکار از آن نسخهٔ پشتیبان تهیه می‌کند.
+[تصویر]
 .sp
-If the buffer restore option is enabled in \fBmy.cnf\fP buffer pool will be in
-the warm state after backup is restored.
+اگر گزینهٔ بازیابی بافر در \fBmy.cnf\fP فعال باشد، buffer pool پس از بازیابی نسخهٔ پشتیبان در وضعیت گرم (warm) خواهد بود.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید (SEE ALSO):\fP
 .INDENT 0.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B \fIMySQL\fP Documentation: Saving and Restoring the Buffer Pool State
+.B مستندات \fIMySQL\fP: ذخیره و بازیابی وضعیت Buffer Pool
 \fI\%https://dev.mysql.com/doc/refman/8.0/en/innodb\-preload\-buffer\-pool.html\fP
 .UNINDENT
 .UNINDENT
 .UNINDENT
-.SS Streaming Backups
+.SS پشتیبان‌گیری جریانی (Streaming Backups)
 .sp
-\fBPercona XtraBackup\fP supports streaming mode. Streaming mode sends a backup to \fBSTDOUT\fP in the \fIxbstream\fP format instead of copying the files to the backup directory.
+ابزار \fBPercona XtraBackup\fP از حالت جریانی (streaming) پشتیبانی می‌کند. حالت جریانی به‌جای کپی کردن فایل‌ها در دایرکتوری پشتیبان، نسخهٔ پشتیبان را با قالب \fIxbstream\fP به \fBSTDOUT\fP ارسال می‌کند.
 .sp
-This method allows you to use other programs to filter the output of the backup,
-providing greater flexibility for storage of the backup. For example,
-compression is achieved by piping the output to a compression utility. One of
-the benefits of streaming backups and using Unix pipes is that the backups can
-be automatically encrypted.
+این روش به شما امکان می‌دهد از برنامه‌های دیگر برای پالایش و فیلتر کردن خروجی نسخهٔ پشتیبان استفاده کنید که انعطاف‌پذیری بیشتری را برای ذخیره‌سازی پشتیبان فراهم می‌کند. برای مثال، فشرده‌سازی با هدایت خروجی (pipe کردن) به یک ابزار فشرده‌ساز انجام می‌شود. یکی از مزایای پشتیبان‌گیری جریانی و استفاده از pipeهای یونیکس این است که نسخه‌های پشتیبان را می‌توان به‌صورت خودکار رمزگذاری کرد.
 .sp
-To use the streaming feature, you must use the \fB\-\-stream\fP,
-providing the format of the stream (\fBxbstream\fP ) and where to store
-the temporary files:
+برای استفاده از ویژگی جریان، باید از گزینهٔ \fB\-\-stream\fP استفاده کنید که قالب جریان (\fBxbstream\fP) و محل ذخیرهٔ فایل‌های موقت را مشخص می‌کند:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -961,75 +851,68 @@ $ xtrabackup \-\-stream=xbstream \-\-target\-dir=/tmp
 .UNINDENT
 .UNINDENT
 .sp
-\fIxtrabackup\fP uses \fIxbstream\fP to stream all of the data files to \fBSTDOUT\fP, in a
-special \fBxbstream\fP format. After it finishes streaming all of the data files
-to \fBSTDOUT\fP, it stops xtrabackup and streams the saved log file too.
+ابزار \fIxtrabackup\fP از \fIxbstream\fP برای ارسال جریانی همهٔ فایل‌های داده به \fBSTDOUT\fP در قالب ویژهٔ \fBxbstream\fP استفاده می‌کند. پس از اتمام جریان همهٔ فایل‌های داده به \fBSTDOUT\fP، فرایند xtrabackup را متوقف کرده و فایل لاگ ذخیره‌شده را نیز به‌صورت جریانی ارسال می‌کند.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید (SEE ALSO):\fP
 .INDENT 0.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B More information about \fIxbstream\fP
+.B اطلاعات بیشتر دربارهٔ \fIxbstream\fP
 xbstream_binary
 .UNINDENT
 .UNINDENT
 .UNINDENT
 .sp
-When compression is enabled, \fIxtrabackup\fP compresses the output data, except for the meta and non\-InnoDB files which are not compressed, using the specified
-compression algorithm. The only currently supported algorithm is
-\fBquicklz\fP\&. The resulting files have the \fBqpress\fP archive format, i.e. every
-*.qp file produced by xtrabackup is essentially a one\-file qpress archive and
-can be extracted and uncompressed by the \fI\%qpress file archiver\fP which is available from Percona Software
-repositories\&.
+هنگامی که فشرده‌سازی فعال باشد، \fIxtrabackup\fP داده‌های خروجی را، به‌استثنای فایل‌های متا و فایل‌های غیر InnoDB که فشرده نمی‌شوند، با استفاده از الگوریتم فشرده‌سازی مشخص‌شده فشرده می‌کند. تنها الگوریتمی که در حال حاضر پشتیبانی می‌شود
+\fBquicklz\fP است. فایل‌های حاصل دارای قالب آرشیو \fBqpress\fP هستند؛ یعنی هر فایل
+*.qp تولیدشده توسط xtrabackup اساساً یک آرشیو تک‌فایلی qpress است و می‌تواند توسط ابزار بایگانی فایل \fI\%qpress file archiver\fP که در مخازن نرم‌افزاری Percona موجود است استخراج شده و از حالت فشرده خارج شود.
 .sp
-Using \fIxbstream\fP as a stream option, backups can be copied and compressed in
-parallel. This option can significantly improve the speed of the backup process. In case backups
-were both compressed and encrypted, they must be decrypted before they are uncompressed.
+با استفاده از \fIxbstream\fP به‌عنوان یک گزینهٔ جریان، می‌توان نسخه‌های پشتیبان را به‌صورت موازی کپی و فشرده کرد. این گزینه می‌تواند سرعت فرایند پشتیبان‌گیری را به‌میزان چشمگیری افزایش دهد. در صورتی که نسخه‌های پشتیبان هم فشرده و هم رمزگذاری شده باشند، باید پیش از خارج کردن از حالت فشرده، رمزگشایی شوند.
 .TS
 center;
 |l|l|.
 _
 T{
-Task
+عملیات
 T}	T{
-Command
+دستور
 T}
 _
 T{
-Stream the backup into an archive named \fBbackup.xbstream\fP
+ارسال جریانی نسخهٔ پشتیبان به یک آرشیو با نام \fBbackup.xbstream\fP
 T}	T{
 \fBxtrabackup \-\-backup \-\-stream=xbstream \-\-target\-dir=\&./ > backup.xbstream\fP
 T}
 _
 T{
-Stream the backup into a \fIcompressed\fP archive named \fBbackup.xbstream\fP
+ارسال جریانی نسخهٔ پشتیبان به یک آرشیو \fIفشرده‌شده\fP با نام \fBbackup.xbstream\fP
 T}	T{
 \fBxtrabackup \-\-backup \-\-stream=xbstream \-\-compress \-\-target\-dir=\&./ > backup.xbstream\fP
 T}
 _
 T{
-Encrypt the backup
+رمزگذاری نسخهٔ پشتیبان
 T}	T{
 $ xtrabackup \-\-backup \-\-stream=xbstream ./ > backup.xbstream gzip \-  | openssl des3 \-salt \-k "password" > backup.xbstream.gz.des3
 T}
 _
 T{
-Unpack the backup to the current directory
+استخراج نسخهٔ پشتیبان در دایرکتوری جاری
 T}	T{
 \fBxbstream \-x <  backup.xbstream\fP
 T}
 _
 T{
-Send the backup compressed directly to another host and unpack it
+ارسال مستقیم نسخهٔ پشتیبانِ فشرده‌شده به میزبان دیگر و استخراج آن
 T}	T{
 \fBxtrabackup \-\-backup \-\-compress \-\-stream=xbstream \-\-target\-dir=\&./ | ssh user@otherhost "xbstream \-x"\fP
 T}
 _
 T{
-Send the backup to another server using \fBnetcat\fP\&.
+ارسال نسخهٔ پشتیبان به سروری دیگر با استفاده از \fBnetcat\fP\&.
 T}	T{
-On the destination host:
+در میزبان مقصد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1041,7 +924,7 @@ $ nc \-l 9999 | cat \- > /data/backups/backup.xbstream
 .UNINDENT
 .UNINDENT
 .sp
-On the source host:
+در میزبان مبدأ:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1055,21 +938,21 @@ $ xtrabackup \-\-backup \-\-stream=xbstream ./ | nc desthost 9999
 T}
 _
 T{
-Send the backup to another server using a one\-liner:
+ارسال نسخهٔ پشتیبان به سروری دیگر با یک دستور یکپارچه (one\-liner):
 T}	T{
 $ ssh \fI\%user@desthost\fP "( nc \-l 9999 > /data/backups/backup.xbstream & )" && xtrabackup \-\-backup \-\-stream=xbstream ./ |  nc desthost 9999
 T}
 _
 T{
-Throttle the throughput to 10MB/sec using the \fBpipe viewer\fP tool [1]
+محدود کردن نرخ تبادل داده به 10MB/sec با استفاده از ابزار \fBpipe viewer\fP [1]
 T}	T{
 $ xtrabackup \-\-backup \-\-stream=xbstream ./ | pv \-q \-L10m ssh \fI\%user@desthost\fP "cat \- > /data/backups/backup.xbstream"
 T}
 _
 T{
-Checksumming the backup during the streaming:
+محاسبهٔ جمع کنترلی (checksum) نسخهٔ پشتیبان در حین ارسال جریانی:
 T}	T{
-On the destination host:
+در میزبان مقصد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1081,7 +964,7 @@ $ nc \-l 9999 | tee >(sha1sum > destination_checksum) > /data/backups/backup.xbs
 .UNINDENT
 .UNINDENT
 .sp
-On the source host:
+در میزبان مبدأ:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1093,7 +976,7 @@ $ xtrabackup \-\-backup \-\-stream=xbstream ./ | tee >(sha1sum > source_checksum
 .UNINDENT
 .UNINDENT
 .sp
-Compare the checksums on the source host:
+مقایسهٔ جمع‌های کنترلی در میزبان مبدأ:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1106,7 +989,7 @@ $ cat source_checksum
 .UNINDENT
 .UNINDENT
 .sp
-Compare the checksums on the destination host:
+مقایسهٔ جمع‌های کنترلی در میزبان مقصد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1121,28 +1004,22 @@ $ cat destination_checksum
 T}
 _
 T{
-Parallel compression with parallel copying backup
+فشرده‌سازی موازی همراه با کپی موازی نسخهٔ پشتیبان
 T}	T{
 \fBxtrabackup \-\-backup \-\-compress \-\-compress\-threads=8 \-\-stream=xbstream \-\-parallel=4 \-\-target\-dir=\&./ > backup.xbstream\fP
 T}
 _
-.TE
-.SH FOOTNOTES
+.TE.SH "پاورقی‌ها (FOOTNOTES)"
 .IP [1] 5
-Install from the \fI\%official site\fP or from the distribution package (\fBapt install pv\fP)
+نصب از \fI\%وبگاه رسمی\fP یا از بسته توزیع (\fBapt install pv\fP)
 .sp
-Note that the streamed backup will need to be prepared before
-restoration. Streaming mode does not prepare the backup.
-.SS Encrypting Backups
+توجه داشته باشید که نسخه پشتیبان جاری‌شده (streamed) پیش از بازیابی باید آماده‌سازی شود. حالت جاری‌سازی نسخه پشتیبان را آماده‌سازی نمی‌کند.
+.SS رمزنگاری نسخه‌های پشتیبان
 .sp
-\fIPercona XtraBackup\fP supports encrypting and decrypting local and streaming
-backups with \fIxbstream\fP option adding another layer of protection. The
-encryption is implemented using the \fBlibgcrypt\fP library from GnuPG.
-.SS Creating Encrypted Backups
+\fIPercona XtraBackup\fP از رمزنگاری و رمزگشایی نسخه‌های پشتیبان محلی و جاری با گزینه \fIxbstream\fP پشتیبانی می‌کند که لایه حفاظتی دیگری می‌افزاید. رمزنگاری با استفاده از کتابخانه \fBlibgcrypt\fP از GnuPG پیاده‌سازی شده است.
+.SS ایجاد نسخه‌های پشتیبان رمزنگاری‌شده
 .sp
-To make an encrypted backup the following options need to be specified (options
-\fB\-\-encrypt\-key\fP and \fB\-\-encrypt\-key\-file\fP are mutually exclusive,
-i.e. just one of them needs to be provided):
+برای ایجاد یک نسخه پشتیبان رمزنگاری‌شده، گزینه‌های زیر باید مشخص شوند (گزینه‌های \fB\-\-encrypt\-key\fP و \fB\-\-encrypt\-key\-file\fP ناسازگار با یکدیگرند، یعنی تنها یکی از آن‌ها باید مشخص شود):
 .INDENT 0.0
 .IP \(bu 2
 \fB\-\-encrypt\fP
@@ -1152,12 +1029,9 @@ i.e. just one of them needs to be provided):
 :option:\(ga \-\-encrypt\-key\-file\(ga
 .UNINDENT
 .sp
-Both the \fB\-\-encrypt\-key\fP option and
-\fB\-\-encrypt\-key\-file\fP option can be used to specify the
-encryption key. An encryption key can be generated with a command like
-\fBopenssl rand \-base64 32\fP
+هر دو گزینه \fB\-\-encrypt\-key\fP و \fB\-\-encrypt\-key\-file\fP می‌توانند برای مشخص کردن کلید رمزنگاری استفاده شوند. کلید رمزنگاری را می‌توان با دستوری مانند \fBopenssl rand \-base64 32\fP تولید کرد.
 .sp
-Example output of that command should look like this:
+نمونه خروجی این دستور باید شبیه به این باشد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1169,11 +1043,10 @@ U2FsdGVkX19VPN7VM+lwNI0fePhjgnhgqmDBqbF3Bvs=
 .UNINDENT
 .UNINDENT
 .sp
-This value then can be used as the encryption key
-.SS The \fB\-\-encrypt\-key\fP Option
+سپس از این مقدار می‌توان به عنوان کلید رمزنگاری استفاده کرد.
+.SS گزینه \fB\-\-encrypt\-key\fP
 .sp
-Example of the \fIxtrabackup\fP command using the \fB\-\-encrypt\-key\fP should
-look like this:
+نمونه دستور \fIxtrabackup\fP با استفاده از \fB\-\-encrypt\-key\fP باید شبیه به این باشد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1184,9 +1057,9 @@ $  xtrabackup \-\-backup \-\-encrypt=AES256 \-\-encrypt\-key="U2FsdGVkX19VPN7VM+
 .fi
 .UNINDENT
 .UNINDENT
-.SS The \fB\-\-encrypt\-key\-file\fP Option
+.SS گزینه \fB\-\-encrypt\-key\-file\fP
 .sp
-Use the \fB\-\-encrypt\-key\-file\fP option as follows:
+از گزینه \fB\-\-encrypt\-key\-file\fP به صورت زیر استفاده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1198,28 +1071,18 @@ $ xtrabackup \-\-backup \-\-encrypt=AES256 \-\-encrypt\-key\-file=/data/backups/
 .UNINDENT
 .UNINDENT
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-Depending on the text editor that you use to make the \fBKEYFILE\fP,
-the editor can automatically insert the CRLF (end of line)
-character. This will cause the key size to grow and thus making it
-invalid. The suggested way to create the file is by using the
-command line: \fBecho \-n "U2FsdGVkX19VPN7VM+lwNI0fePhjgnhgqmDBqbF3Bvs=" > /data/backups/keyfile\fP\&.
+بسته به ویرایشگر متنی که برای ساخت \fBKEYFILE\fP استفاده می‌کنید، ویرایشگر ممکن است نویسه CRLF (انتهای خط) را به طور خودکار درج کند. این امر موجب افزایش اندازه کلید شده و در نتیجه آن را نامعتبر می‌سازد. روش پیشنهادی برای ایجاد فایل استفاده از خط فرمان است: \fBecho \-n "U2FsdGVkX19VPN7VM+lwNI0fePhjgnhgqmDBqbF3Bvs=" > /data/backups/keyfile\fP\&.
 .UNINDENT
 .UNINDENT
-.SS Optimizing the encryption process
+.SS بهینه‌سازی فرایند رمزنگاری
 .sp
-Two new options are available for encrypted backups that can be used to speed up
-the encryption process. These are \fB\-\-encrypt\-threads\fP and
-\fB\-\-encrypt\-chunk\-size\fP\&. By using the \fB\-\-encrypt\-threads\fP option
-multiple threads can be specified to be used for encryption in parallel. Option
-\fB\-\-encrypt\-chunk\-size\fP can be used to specify the size (in bytes) of the
-working encryption buffer for each encryption thread (default is 64K).
-.SS Decrypting Encrypted Backups
+دو گزینه جدید برای نسخه‌های پشتیبان رمزنگاری‌شده در دسترس است که می‌توانند برای سرعت بخشیدن به فرایند رمزنگاری استفاده شوند. این گزینه‌ها \fB\-\-encrypt\-threads\fP و \fB\-\-encrypt\-chunk\-size\fP هستند\&. با استفاده از گزینه \fB\-\-encrypt\-threads\fP می‌توان چندین رشته (thread) را برای استفاده در رمزنگاری به صورت موازی مشخص کرد. از گزینه \fB\-\-encrypt\-chunk\-size\fP می‌توان برای مشخص کردن اندازه (به بایت) بافر کاری رمزنگاری برای هر رشته رمزنگاری استفاده کرد (پیش‌فرض 64K است).
+.SS رمزگشایی نسخه‌های پشتیبان رمزنگاری‌شده
 .sp
-Backups can be decrypted with xbcrypt\&. The following one\-liner can be
-used to encrypt the whole folder:
+نسخه‌های پشتیبان را می‌توان با xbcrypt رمزگشایی کرد\&. دستور تک‌خطی زیر می‌تواند برای رمزگشایی کل پوشه استفاده شود:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1231,8 +1094,7 @@ $ for i in \(gafind . \-iname "*\e.xbcrypt"\(ga; do xbcrypt \-d \-\-encrypt\-key
 .UNINDENT
 .UNINDENT
 .sp
-\fIPercona XtraBackup\fP \fB\-\-decrypt\fP option has been implemented that can be
-used to decrypt the backups:
+گزینه \fB\-\-decrypt\fP در \fIPercona XtraBackup\fP پیاده‌سازی شده است که می‌تواند برای رمزگشایی نسخه‌های پشتیبان استفاده شود:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1244,23 +1106,18 @@ $ xtrabackup \-\-decrypt=AES256 \-\-encrypt\-key="U2FsdGVkX19VPN7VM+lwNI0fePhjgn
 .UNINDENT
 .UNINDENT
 .sp
-\fIPercona XtraBackup\fP doesn\(aqt automatically remove the encrypted files. In order
-to clean up the backup directory users should remove the \fB*.xbcrypt\fP
-files.
+\fIPercona XtraBackup\fP فایل‌های رمزنگاری‌شده را به طور خودکار حذف نمی‌کند. برای پاکسازی دایرکتوری پشتیبان، کاربران باید فایل‌های \fB*.xbcrypt\fP را حذف کنند.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-\fB\-\-parallel\fP can be used with \fB\-\-decrypt\fP option to decrypt
-multiple files simultaneously.
+می‌توان از \fB\-\-parallel\fP همراه با گزینه \fB\-\-decrypt\fP برای رمزگشایی هم‌زمان چندین فایل استفاده کرد.
 .UNINDENT
 .UNINDENT
 .sp
-When the files are decrypted, the backup can be prepared.
-.SS Preparing Encrypted Backups
+هنگامی که فایل‌ها رمزگشایی شدند، نسخه پشتیبان را می‌توان آماده‌سازی کرد..SS آماده‌سازی پشتیبان‌های رمزنگاری‌شده
 .sp
-After the backups have been decrypted, they can be prepared in the same way as
-the standard full backups with the \fB\-\-prepare\fP option:
+پس از رمزگشایی نسخه‌های پشتیبان، می‌توان آن‌ها را همانند نسخه‌های پشتیبان کامل و استاندارد با گزینهٔ \fB\-\-prepare\fP آماده‌سازی کرد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1271,10 +1128,9 @@ $ xtrabackup \-\-prepare \-\-target\-dir=/data/backup/
 .fi
 .UNINDENT
 .UNINDENT
-.SS Restoring Encrypted Backups
+.SS بازگردانی پشتیبان‌های رمزنگاری‌شده
 .sp
-\fIxtrabackup\fP offers the \fB\-\-copy\-back\fP option to restore a backup to the
-server\(aqs datadir:
+\fIxtrabackup\fP گزینهٔ \fB\-\-copy\-back\fP را برای بازگردانی یک پشتیبان به datadir سرور ارائه می‌دهد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1286,9 +1142,7 @@ $ xtrabackup \-\-copy\-back \-\-target\-dir=/data/backup/
 .UNINDENT
 .UNINDENT
 .sp
-It will copy all the data\-related files back to the server\(aqs datadir,
-determined by the server\(aqs \fBmy.cnf\fP configuration file. You should check
-the last line of the output for a success message:
+این دستور تمام فایل‌های مرتبط با داده را به datadir سرور (که توسط فایل پیکربندی \fBmy.cnf\fP سرور تعیین می‌شود) بازمی‌گرداند. برای اطمینان از پیام موفقیت، آخرین خط خروجی را بررسی کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1300,122 +1154,82 @@ the last line of the output for a success message:
 .UNINDENT
 .UNINDENT
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 0.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B GnuPG Documentation: \fBlibgcrypt\fP library
-\fI\%http://www.gnupg.org/documentation/manuals/gcrypt/\fP
+.B مستندات GnuPG: کتابخانهٔ \fBlibgcrypt\fP
+\fI\%http://www.gnupg.org/documentation/manuals/gcrypt\fP
 .UNINDENT
 .UNINDENT
 .UNINDENT
-.SS \fBFLUSH TABLES WITH READ LOCK\fP option
+.SS گزینهٔ \fBFLUSH TABLES WITH READ LOCK\fP
 .sp
-The \fBFLUSH TABLES WITH READ LOCK\fP option does the following with a global read lock:
+گزینهٔ \fBFLUSH TABLES WITH READ LOCK\fP با اعمال یک قفل خواندن سراسری کارهای زیر را انجام می‌دهد:
 .INDENT 0.0
 .IP \(bu 2
-Closes all open tables
+بستن همهٔ جدول‌های باز
 .IP \(bu 2
-Locks all tables for all databases
+قفل کردن همهٔ جدول‌ها برای تمام پایگاه‌های داده
 .UNINDENT
 .sp
-Release the lock with \fBUNLOCK TABLES\fP\&.
+قفل را با \fBUNLOCK TABLES\fP آزاد کنید.
 .sp
-\fBNOTE:\fP
-.INDENT 0.0
-.INDENT 3.5
-\fBFLUSH TABLES WITH READ LOCK\fP does not prevent inserting rows into the log tables.
-.UNINDENT
-.UNINDENT
-.sp
-To ensure consistent backups, use the \fBFLUSH TABLES WITH READ LOCK\fP option before taking a non\-InnoDB file backup. The option does not affect long\-running queries.
-.sp
-Long\-running queries with \fBFLUSH TABLES WITH READ LOCK\fP enabled can leave the server in a read\-only mode until the queries finish. Killing the \fBFLUSH TABLES WITH READ LOCK\fP does not help if the database is in either the \fBWaiting for table flush\fP or \fBWaiting for master to send event\fP state. To return to normal operation, you must kill any long\-running queries.
-.sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-All described in this section has no effect when backup locks are
-used. \fIPercona XtraBackup\fP will use \fI\%Backup locks\fP
-where available as a lightweight alternative to \fBFLUSH TABLES WITH READ
-LOCK\fP\&. This feature is available in \fIPercona Server for MySQL\fP 5.6+.
-\fIPercona XtraBackup\fP uses this automatically to copy non\-InnoDB data to avoid blocking
-DML queries that modify InnoDB tables.
+\fBFLUSH TABLES WITH READ LOCK\fP مانع درج سطرها در جدول‌های گزارش نمی‌شود.
 .UNINDENT
 .UNINDENT
 .sp
-In order to prevent this from happening two things have been implemented:
+جهت اطمینان از سازگاری پشتیبان‌ها، قبل از تهیهٔ پشتیبان از فایل‌های غیر InnoDB از گزینهٔ \fBFLUSH TABLES WITH READ LOCK\fP استفاده کنید. این گزینه تأثیری بر پرس‌وجوهای طولانی‌مدت ندارد.
+.sp
+پرس‌وجوهای طولانی‌مدت در صورت فعال بودن \fBFLUSH TABLES WITH READ LOCK\fP می‌توانند سرور را تا پایان اجرای خود در حالت فقط‌خواندنی قرار دهند. پایان دادن اجباری به \fBFLUSH TABLES WITH READ LOCK\fP در صورتی که پایگاه داده در یکی از وضعیت‌های \fBWaiting for table flush\fP یا \fBWaiting for master to send event\fP باشد کمکی نمی‌کند. برای بازگشت به عملکرد عادی، باید هر پرس‌وجوی طولانی‌مدت را متوقف کنید.
+.sp
+\fBنکته:\fP
+.INDENT 0.0
+.INDENT 3.5
+تمامی موارد شرح داده شده در این بخش هنگام استفاده از قفل‌های پشتیبان‌گیری بی‌استفاده هستند. \fIPercona XtraBackup\fP در صورت وجود، از \fI\%Backup locks\fP به عنوان جایگزینی سبک برای \fBFLUSH TABLES WITH READ LOCK\fP استفاده خواهد کرد. این ویژگی در \fIPercona Server for MySQL\fP نسخهٔ 5.6 به بالا موجود است. \fIPercona XtraBackup\fP به‌طور خودکار از این قابلیت برای رونویسی داده‌های غیر InnoDB استفاده می‌کند تا از مسدود شدن پرس‌وجوهای DML که جدول‌های InnoDB را اصلاح می‌کنند، جلوگیری شود.
+.UNINDENT
+.UNINDENT
+.sp
+به منظور جلوگیری از رخ دادن این مسئله، دو راهکار پیاده‌سازی شده است:
 .INDENT 0.0
 .IP \(bu 2
-\fIxtrabackup\fP waits for a good moment to issue the global lock
+\fIxtrabackup\fP منتظر زمان مناسبی برای صدور قفل سراسری می‌ماند
 .IP \(bu 2
-\fIxtrabackup\fP kills all queries or only the SELECT queries which prevent the
-global lock from being acquired
+\fIxtrabackup\fP همهٔ پرس‌وجوها یا فقط پرس‌وجوهای SELECT را که مانع دریافت قفل سراسری می‌شوند، متوقف می‌کند
 .UNINDENT
-.SS Waiting for queries to finish
+.SS انتظار برای پایان پرس‌وجوها
 .sp
-You should issue a global lock when no long queries are running. Waiting to issue the global lock for extended period of time is not a good method. The wait can extend the time needed for
-backup to take place. The \fI\-\-ftwrl\-wait\-timeout\fP option can limit the
-waiting time. If it cannot issue the lock during this
-time, \fIxtrabackup\fP stops the option, exits with an error message, and backup is
-not be taken.
+شما باید زمانی قفل سراسری را صادر کنید که هیچ پرس‌وجوی طولانی‌ای در حال اجرا نباشد. منتظر ماندن برای صدور قفل سراسری برای مدت زمانی طولانی، روش مناسبی نیست. این انتظار می‌تواند زمان مورد نیاز برای انجام پشتیبان‌گیری را افزایش دهد. گزینهٔ \fI\-\-ftwrl\-wait\-timeout\fP می‌تواند زمان انتظار را محدود کند. اگر نتواند در این زمان قفل را صادر کند، \fIxtrabackup\fP گزینه را متوقف کرده، با یک پیام خطا خارج می‌شود و پشتیبان‌گیری انجام نخواهد شد.
 .sp
-The default value for this option is zero (0) value which turns off the option.
+مقدار پیش‌فرض این گزینه صفر (0) است که این گزینه را غیرفعال می‌کند.
 .sp
-Another possibility is to specify the type of query to wait on. In this case
-\fB\-\-ftwrl\-wait\-query\-type\fP\&. Possible values are \fBall\fP and
-\fBupdate\fP\&. When \fBall\fP is used \fIxtrabackup\fP will wait for all long running
-queries (execution time longer than allowed by \fB\-\-ftwrl\-wait\-threshold\fP)
-to finish before running the \fBFLUSH TABLES WITH READ LOCK\fP\&. When \fBupdate\fP is
-used \fIxtrabackup\fP will wait on \fBUPDATE/ALTER/REPLACE/INSERT\fP queries to
-finish.
+احتمال دیگر، تعیین نوع پرس‌وجویی است که باید منتظر آن ماند. در این حالت از \fB\-\-ftwrl\-wait\-query\-type\fP استفاده می‌شود. مقدارهای ممکن \fBall\fP و \fBupdate\fP هستند. زمانی که از \fBall\fP استفاده می‌شود، \fIxtrabackup\fP قبل از اجرای \fBFLUSH TABLES WITH READ LOCK\fP منتظر می‌ماند تا تمام پرس‌وجوهای طولانی‌مدت (با زمان اجرای بیشتر از مقدار تعیین‌شده توسط \fB\-\-ftwrl\-wait\-threshold\fP) پایان یابند. زمانی که از \fBupdate\fP استفاده می‌شود، \fIxtrabackup\fP منتظر پایان پرس‌وجوهای \fBUPDATE/ALTER/REPLACE/INSERT\fP می‌ماند.
 .sp
-The time needed for a specific query to complete is hard to predict. We assume that the long\-running queries will not finish in a timely manner. Other queries which run for a short time finish quickly. \fIxtrabackup\fP uses the value of
-\fI\-\-ftwrl\-wait\-threshold\fP option to specify the long\-running queries
-and will block a global lock. In order to use this option
-xtrabackup user should have \fBPROCESS\fP and \fBSUPER\fP privileges.
-.SS Killing the blocking queries
+پیش‌بینی زمان لازم برای تکمیل یک پرس‌وجوی خاص دشوار است. فرض بر این است که پرس‌وجوهای طولانی‌مدت در زمان مناسب به پایان نخواهند رسید. سایر پرس‌وجوها که زمان کوتاهی اجرا می‌شوند، سریع پایان می‌یابند. \fIxtrabackup\fP از مقدار گزینهٔ \fI\-\-ftwrl\-wait\-threshold\fP برای مشخص کردن پرس‌وجوهای طولانی‌مدت که قفل سراسری را مسدود می‌کنند، استفاده می‌کند. برای استفاده از این گزینه، کاربر xtrabackup باید دسترسی‌های \fBPROCESS\fP و \fBSUPER\fP را داشته باشد.
+.SS متوقف کردن پرس‌وجوهای مسدودکننده
 .sp
-The second option is to kill all the queries which prevent from acquiring the
-global lock. In this case, all queries which run longer than \fBFLUSH TABLES WITH
-READ LOCK\fP are potential blockers. Although all queries can be killed,
-additional time can be specified for the short running queries to finish using
-the \fB\-\-kill\-long\-queries\-timeout\fP option. This option
-specifies the time for queries to complete, after the value is reached, all the
-running queries will be killed. The default value is zero, which turns this
-feature off.
+راهکار دوم، متوقف کردن تمام پرس‌وجوهایی است که مانع دریافت قفل سراسری می‌شوند. در این حالت، تمام پرس‌وجوهایی که اجرای آن‌ها بیشتر از \fBFLUSH TABLES WITH READ LOCK\fP طول بکشد، مسدودکننده‌های بالقوه هستند. اگرچه می‌توان تمام پرس‌وجوها را متوقف کرد، اما با استفاده از گزینهٔ \fB\-\-kill\-long\-queries\-timeout\fP می‌توان زمان بیشتری را برای پایان یافتن پرس‌وجوهای کوتاه‌مدت تعیین نمود. این گزینه زمان تکمیل پرس‌وجوها را مشخص می‌کند؛ پس از رسیدن به این مقدار، تمام پرس‌وجوهای در حال اجرا متوقف خواهند شد. مقدار پیش‌فرض صفر است که این ویژگی را خاموش می‌کند.
 .sp
-The \fB\-\-kill\-long\-query\-type\fP option can be used to specify all or only
-\fBSELECT\fP queries that are preventing global lock from being acquired. In order
-to use this option xtrabackup user should have \fBPROCESS\fP and \fBSUPER\fP
-privileges.
-.SS Options summary
+گزینهٔ \fB\-\-kill\-long\-query\-type\fP می‌تواند برای مشخص کردن همه یا تنها پرس‌وجوهای \fBSELECT\fP که مانع دریافت قفل سراسری می‌شوند، استفاده شود. برای استفاده از این گزینه، کاربر xtrabackup باید از دسترسی‌های \fBPROCESS\fP و \fBSUPER\fP برخوردار باشد..SS خلاصه گزینه‌ها
 .INDENT 0.0
 .IP \(bu 2
-\fB\-\-ftwrl\-wait\-timeout\fP (seconds) \- how long to wait for a
-good moment. Default is 0, not to wait.
+\fB\-\-ftwrl\-wait\-timeout\fP (به ثانیه) \- چه مدت برای یک لحظه مناسب صبر شود. مقدار پیش‌فرض 0 است، یعنی صبر نشود.
 .IP \(bu 2
-\fB\-\-ftwrl\-wait\-query\-type\fP \- which long queries
-should be finished before \fBFLUSH TABLES WITH READ LOCK\fP is run. Default is
-all.
+\fB\-\-ftwrl\-wait\-query\-type\fP \- کدام پرس‌وجوهای طولانی‌مدت باید پیش از اجرای \fBFLUSH TABLES WITH READ LOCK\fP به پایان برسند. مقدار پیش‌فرض all است.
 .IP \(bu 2
-\fB\-\-ftwrl\-wait\-threshold\fP (seconds) \- how long query
-should be running before we consider it long running and potential blocker of
-global lock.
+\fB\-\-ftwrl\-wait\-threshold\fP (به ثانیه) \- یک پرس‌وجو چه مدت باید در حال اجرا باشد تا طولانی‌مدت و مسدودکننده احتمالی قفل سراسری در نظر گرفته شود.
 .IP \(bu 2
-\fB\-\-kill\-long\-queries\-timeout\fP (seconds) \- how many time
-we give for queries to complete after \fBFLUSH TABLES WITH READ LOCK\fP is
-issued before start to kill. Default if \fB0\fP, not to kill.
+\fB\-\-kill\-long\-queries\-timeout\fP (به ثانیه) \- پس از صدور دستور \fBFLUSH TABLES WITH READ LOCK\fP چه مقدار زمان پیش از شروع به بستن پرس‌وجوها، برای اتمام به آن‌ها داده شود. مقدار پیش‌فرض \fB0\fP است، یعنی بسته نشوند.
 .IP \(bu 2
-\fB\-\-kill\-long\-query\-type\fP \- which queries should be killed once
-\fBkill\-long\-queries\-timeout\fP has expired.
+\fB\-\-kill\-long\-query\-type\fP \- پس از اتمام زمان \fBkill\-long\-queries\-timeout\fP، کدام پرس‌وجوها باید کشته و متوقف شوند.
 .UNINDENT
-.SS Example
+.SS مثال
 .sp
-Running the \fIxtrabackup\fP with the following options will cause \fIxtrabackup\fP
-to spend no longer than 3 minutes waiting for all queries older than 40 seconds
-to complete.
+اجرای \fIxtrabackup\fP با گزینه‌های زیر باعث می‌شود \fIxtrabackup\fP بیش از ۳ دقیقه برای اتمام تمام پرس‌وجوهایی که بیش از ۴۰ ثانیه در حال اجرا بوده‌اند، منتظر نماند.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1430,34 +1244,20 @@ $  xtrabackup \-\-backup \-\-ftwrl\-wait\-threshold=40 \e
 .UNINDENT
 .UNINDENT
 .sp
-After \fBFLUSH TABLES WITH READ LOCK\fP is issued, \fIxtrabackup\fP will wait for 20
-seconds for lock to be acquired. If lock is still not acquired after 20 seconds,
-it will kill all queries which are running longer that the \fBFLUSH TABLES WITH
-READ LOCK\fP\&.
-.SS Accelerating the backup process
+پس از صدور \fBFLUSH TABLES WITH READ LOCK\fP، دستور \fIxtrabackup\fP به مدت ۲۰ ثانیه برای اخذ قفل منتظر می‌ماند. اگر پس از ۲۰ ثانیه قفل همچنان اخذ نشده باشد، تمام پرس‌وجوهایی را که طولانی‌تر از \fBFLUSH TABLES WITH READ LOCK\fP در حال اجرا بوده‌اند، متوقف خواهد کرد\&.
+.SS شتاب‌بخشی به فرآیند پشتیبان‌گیری
 .sp
-Copying with the \fB\-\-parallel\fP and \fI\-\-compress\-threads\fP Options
+کپی با گزینه‌های \fB\-\-parallel\fP و \fI\-\-compress\-threads\fP
 .sp
-When making a local or streaming backup with \fIxbstream\fP option, multiple files
-can be copied at the same time when using the \fB\-\-parallel\fP option. This
-option specifies the number of threads created by \fIxtrabackup\fP to copy data
-files.
+هنگام تهیه پشتیبان محلی یا جریانی با گزینه \fIxbstream\fP، با استفاده از گزینه \fB\-\-parallel\fP می‌توان چندین فایل را به طور هم‌زمان کپی کرد. این گزینه تعداد ریسه‌های (threads) ایجاد شده توسط \fIxtrabackup\fP را برای کپی فایل‌های داده تعیین می‌کند.
 .sp
-To take advantage of this option either the multiple tablespaces option must be
-enabled (innodb_file_per_table) or the shared tablespace must be stored
-in multiple ibdata files with the innodb_data_file_path option.
-Having multiple files for the database (or splitting one into many) doesn\(aqt have
-a measurable impact on performance.
+برای بهره‌گیری از این گزینه، یا باید گزینه فضاهای جدول چندگانه فعال باشد (innodb_file_per_table) یا اینکه فضای جدول مشترک با گزینه innodb_data_file_path در چندین فایل ibdata ذخیره شده باشد. داشتن چندین فایل برای پایگاه داده (یا تقسیم یکی به چند فایل) تأثیر قابل اندازه‌گیری بر کارایی ندارد.
 .sp
-As this feature is implemented \fBat the file level\fP, concurrent file transfer
-can sometimes increase I/O throughput when doing a backup on highly fragmented
-data files, due to the overlap of a greater number of random read requests. You
-should consider tuning the filesystem also to obtain the maximum performance
-(e.g. checking fragmentation).
+از آنجا که این ویژگی \fBدر سطح فایل\fP پیاده‌سازی شده است، انتقال هم‌زمان فایل‌ها گاهی اوقات به دلیل هم‌پوشانی تعداد بیشتری از درخواست‌های خواندن تصادفی هنگام پشتیبان‌گیری از فایل‌های داده‌ای به شدت تکه‌تکه‌شده (fragmented)، می‌تواند نرخ ورودی/خروجی (I/O throughput) را افزایش دهد. همچنین برای دستیابی به حداکثر کارایی، باید بهینه‌سازی سیستم‌فایل را نیز در نظر بگیرید (مانند بررسی تکه‌تکه‌شدگی فایل‌ها).
 .sp
-If the data is stored on a single file, this option will have no effect.
+اگر داده‌ها در یک تک‌فایل ذخیره شده باشند، این گزینه هیچ اثری نخواهد داشت.
 .sp
-To use this feature, simply add the option to a local backup, for example:
+برای استفاده از این ویژگی، کافی است این گزینه را به پشتیبان‌گیری محلی اضافه کنید؛ برای نمونه:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1469,12 +1269,9 @@ $ xtrabackup \-\-backup \-\-parallel=4 \-\-target\-dir=/path/to/backup
 .UNINDENT
 .UNINDENT
 .sp
-By using the \fIxbstream\fP in streaming backups, you can additionally speed up the
-compression process with the \fB\-\-compress\-threads\fP option. This option
-specifies the number of threads created by \fIxtrabackup\fP for for parallel data
-compression. The default value for this option is 1.
+با استفاده از \fIxbstream\fP در پشتیبان‌گیری‌های جریانی، می‌توانید علاوه بر این، فرآیند فشرده‌سازی را نیز با گزینه \fB\-\-compress\-threads\fP تسریع کنید. این گزینه تعداد ریسه‌های ایجاد شده توسط \fIxtrabackup\fP را برای فشرده‌سازی موازی داده‌ها مشخص می‌کند. مقدار پیش‌فرض این گزینه 1 است.
 .sp
-To use this feature, simply add the option to a local backup, for example:
+برای استفاده از این ویژگی، کافی است این گزینه را به پشتیبان‌گیری محلی اضافه کنید؛ برای نمونه:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1486,41 +1283,26 @@ $ xtrabackup \-\-backup \-\-stream=xbstream \-\-compress \-\-compress\-threads=4
 .UNINDENT
 .UNINDENT
 .sp
-Before applying logs, compressed files will need to be uncompressed.
+پیش از اعمال لاگ‌ها، فایل‌های فشرده‌شده باید از حالت فشرده خارج شوند.
 .sp
-The \fB\-\-rsync\fP Option
+گزینه \fB\-\-rsync\fP
 .sp
-In order to speed up the backup process and to minimize the time \fBFLUSH TABLES
-WITH READ LOCK\fP is blocking the writes, the option \fB\-\-rsync\fP should be
-used. When this option is specified, \fIxtrabackup\fP uses \fBrsync\fP to copy all
-non\-InnoDB files instead of spawning a separate \fBcp\fP for each file, which can
-be much faster for servers with a large number of databases or
-tables. \fIxtrabackup\fP will call the \fBrsync\fP twice, once before the \fBFLUSH
-TABLES WITH READ LOCK\fP and once during to minimize the time the read lock is
-being held. During the second \fBrsync\fP call, it will only synchronize the
-changes to non\-transactional data (if any) since the first call performed before
-the \fBFLUSH TABLES WITH READ LOCK\fP\&. Note that \fIPercona XtraBackup\fP will use
-\fI\%Backup locks\fP
-where available as a lightweight alternative to \fBFLUSH TABLES WITH READ
-LOCK\fP\&. This feature is available in \fIPercona Server for MySQL\fP 5.6+. \fIPercona XtraBackup\fP
-uses this automatically to copy non\-InnoDB data to avoid blocking DML queries
-that modify InnoDB tables.
+به منظور افزایش سرعت فرآیند پشتیبان‌گیری و به حداقل رساندن مدت زمانی که \fBFLUSH TABLES WITH READ LOCK\fP عملیات نوشتن را مسدود می‌کند، باید از گزینه \fB\-\-rsync\fP استفاده شود. هنگامی که این گزینه مشخص شود، \fIxtrabackup\fP برای کپی کردن تمام فایل‌های غیر InnoDB به جای اجرای یک \fBcp\fP جداگانه برای هر فایل، از \fBrsync\fP استفاده می‌کند که می‌تواند در سرورهایی با تعداد زیادی پایگاه داده یا جدول بسیار سریع‌تر باشد. \fIxtrabackup\fP دستور \fBrsync\fP را دو بار فراخوانی می‌کند؛ یک بار پیش از \fBFLUSH TABLES WITH READ LOCK\fP و یک بار در حین آن، تا مدت زمان نگه‌داشتن قفل خواندن به حداقل برسد. در طول دومین فراخوانی \fBrsync\fP، تنها تغییرات داده‌های غیرتراکنشی (در صورت وجود) از زمان اولین فراخوانی انجام‌شده پیش از \fBFLUSH TABLES WITH READ LOCK\fP همگام‌سازی می‌شوند\&. توجه داشته باشید که \fIPercona XtraBackup\fP در صورت وجود، از \fI\%Backup locks\fP به عنوان جایگزینی سبک برای \fBFLUSH TABLES WITH READ LOCK\fP استفاده خواهد کرد\&. این ویژگی در \fIPercona Server for MySQL\fP نگارش 5.6 به بالا موجود است. \fIPercona XtraBackup\fP به طور خودکار از این سازوکار برای کپی داده‌های غیر InnoDB استفاده می‌کند تا از مسدود شدن پرس‌وجوهای DML که جداول InnoDB را تغییر می‌دهند، جلوگیری شود.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-This option cannot be used together with the \fB\-\-stream\fP option.
+این گزینه نمی‌تواند همراه با گزینه \fB\-\-stream\fP استفاده شود.
 .UNINDENT
-.UNINDENT
-.SS Point\-In\-Time recovery
+.UNINDENT.SS بازیابی تا نقطه زمانی مشخص (Point\-In\-Time recovery)
 .sp
-Recovering up to particular moment in database\(aqs history can be done with
-\fIxtrabackup\fP and the binary logs of the server.
+بازیابی تا یک لحظه مشخص در تاریخچه پایگاه داده با استفاده از
+\fIxtrabackup\fP و لاگ‌های باینری سرور امکان‌پذیر است.
 .sp
-Note that the binary log contains the operations that modified the database from
-a point in the past. You need a full datadir as a base, and then you can
-apply a series of operations from the binary log to make the data match what it
-was at the point in time you want.
+توجه داشته باشید که لاگ باینری حاوی عملیاتی است که پایگاه داده را از
+نقطه‌ای در گذشته تغییر داده‌اند. شما به یک datadir کامل به عنوان پایه نیاز دارید،
+و سپس می‌توانید مجموعه‌ای از عملیات را از لاگ باینری اعمال کنید تا داده‌ها با وضعیت آن
+در نقطه زمانی مورد نظرتان تطابق یابند.
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1533,14 +1315,12 @@ $ xtrabackup \-\-prepare \-\-target\-dir=/path/to/backup
 .UNINDENT
 .UNINDENT
 .sp
-For more details on these procedures, see creating_a_backup and preparing_a_backup\&.
+برای جزئیات بیشتر درباره این مراحل، creating_a_backup و preparing_a_backup را ببینید.
 .sp
-Now, suppose that some time has passed, and you want to restore the database to a
-certain point in the past, having in mind that there is the constraint of the
-point where the snapshot was taken.
+اکنون فرض کنید مدتی گذشته است و می‌خواهید پایگاه داده را به یک نقطه زمانی خاص در گذشته بازیابی کنید،
+با در نظر گرفتن این محدودیت که تصویر لحظه‌ای (snapshot) در چه نقطه‌ای گرفته شده است.
 .sp
-To find out what is the situation of binary logging in the server, execute the
-following queries:
+برای آگاهی از وضعیت لاگ باینری در سرور، پرس‌وجوهای زیر را اجرا کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1560,7 +1340,7 @@ mysql> SHOW BINARY LOGS;
 .UNINDENT
 .UNINDENT
 .sp
-and
+و
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1577,14 +1357,13 @@ mysql> SHOW MASTER STATUS;
 .UNINDENT
 .UNINDENT
 .sp
-The first query will tell you which files contain the binary log and the second
-one which file is currently being used to record changes, and the current
-position within it. Those files are stored usually in the datadir
-(unless other location is specified when the server is started with the
-\fB\-\-log\-bin=\fP option).
+پرس‌وجوی نخست به شما می‌گوید چه فایل‌هایی حاوی لاگ باینری هستند و پرس‌وجوی دوم نشان می‌دهد
+در حال حاضر کدام فایل برای ثبت تغییرات استفاده می‌شود و موقعیت جاری درون آن کجاست.
+این فایل‌ها معمولاً در datadir ذخیره می‌شوند (مگر اینکه هنگام راه‌اندازی سرور،
+مسیر دیگری با گزینه \fB\-\-log\-bin=\fP مشخص شده باشد).
 .sp
-To find out the position of the snapshot taken, see the
-\fBxtrabackup_binlog_info\fP at the backup\(aqs directory:
+برای یافتن موقعیتِ تصویر لحظه‌ای گرفته‌شده، فایل
+\fBxtrabackup_binlog_info\fP را در دایرکتوری پشتیبان مشاهده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1597,9 +1376,9 @@ mysql\-bin.000003      57
 .UNINDENT
 .UNINDENT
 .sp
-This will tell you which file was used at moment of the backup for the binary
-log and its position. That position will be the effective one when you restore
-the backup:
+این فایل مشخص می‌کند که در لحظه تهیه پشتیبان، کدام فایل برای لاگ باینری
+استفاده می‌شده و در چه موقعیتی بوده است. هنگام بازیابی پشتیبان، آن موقعیت
+مبنای اثر خواهد بود:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1611,10 +1390,10 @@ $ xtrabackup \-\-copy\-back \-\-target\-dir=/path/to/backup
 .UNINDENT
 .UNINDENT
 .sp
-As the restoration will not affect the binary log files (you may need to adjust
-file permissions, see restoring_a_backup), the next step is
-extracting the queries from the binary log with \fBmysqlbinlog\fP starting
-from the position of the snapshot and redirecting it to a file
+از آنجا که فرایند بازیابی بر فایل‌های لاگ باینری تاثیری نمی‌گذارد (ممکن است نیاز باشد
+دسترسی‌های فایل را تنظیم کنید، به restoring_a_backup مراجعه کنید)، گام بعدی
+استخراج پرس‌وجوها از لاگ باینری با استفاده از \fBmysqlbinlog\fP با شروع از
+موقعیت تصویر لحظه‌ای و هدایت آن به یک فایل است:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1627,12 +1406,12 @@ $ mysqlbinlog /path/to/datadir/mysql\-bin.000003 /path/to/datadir/mysql\-bin.000
 .UNINDENT
 .UNINDENT
 .sp
-Note that if you have multiple files for the binary log, as in the example, you
-have to extract the queries with one process, as shown above.
+توجه داشته باشید که اگر مانند این مثال چندین فایل برای لاگ باینری دارید،
+باید پرس‌وجوها را مانند بالا در یک پردازش واحد استخراج کنید.
 .sp
-Inspect the file with the queries to determine which position or date
-corresponds to the point\-in\-time wanted. Once determined, pipe it to the
-server. Assuming the point is \fB11\-12\-25 01:00:00\fP:
+فایل حاوی پرس‌وجوها را بررسی کنید تا مشخص شود کدام موقعیت یا تاریخ
+با نقطه زمانی مورد نظرتان مطابقت دارد. پس از تعیین، آن را به سرور پایپ کنید.
+با فرض اینکه این نقطه \fB11\-12\-25 01:00:00\fP باشد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1645,252 +1424,194 @@ $ mysqlbinlog /path/to/datadir/mysql\-bin.000003 /path/to/datadir/mysql\-bin.000
 .UNINDENT
 .UNINDENT
 .sp
-and the database will be rolled forward up to that Point\-In\-Time.
-.SS Making Backups in Replication Environments
+و پایگاه داده تا همان نقطه زمانی به جلو اعمال خواهد شد (rolled forward)..SS پشتیبان‌گیری در محیط‌های همانندسازی (Replication)
 .sp
-There are options specific to back up from a replication replica.
-.SS The \fB\-\-slave\-info\fP Option
+گزینه‌های ویژه‌ای برای پشتیبان‌گیری از یک رپلیکای همانندسازی وجود دارد.
+.SS گزینهٔ \fB\-\-slave\-info\fP
 .sp
-This option is useful when backing up a replication replica server. It prints the
-binary log position and name of the source server. It also writes this
-information to the \fBxtrabackup_slave_info\fP file as a \fBCHANGE MASTER\fP
-statement.
+این گزینه هنگام پشتیبان‌گیری از یک کارگزار رپلیکا کاربرد دارد. این گزینه موقعیت binary log و نام کارگزار مبدأ (source) را چاپ می‌کند. همچنین این اطلاعات را در قالب یک عبارت \fBCHANGE MASTER\fP در فایل \fBxtrabackup_slave_info\fP می‌نویسد.
 .sp
-This option is useful for setting up a new replica for this source.
-You can start a replica server with this backup and issue the statement saved in the
-\fBxtrabackup_slave_info\fP file. More details of this procedure can be found
-in replication_howto\&.
-.SS The \fB\-\-safe\-slave\-backup\fP Option
+این گزینه برای راه‌اندازی یک رپلیکای جدید برای این مبدأ سودمند است. می‌توانید کارگزار رپلیکا را با این نسخهٔ پشتیبان آغاز کرده و دستور ذخیره‌شده در فایل \fBxtrabackup_slave_info\fP را اجرا کنید. جزئیات بیشتر دربارهٔ این روند در replication_howto\& یافت می‌شود.
+.SS گزینهٔ \fB\-\-safe\-slave\-backup\fP
 .sp
-In order to assure a consistent replication state, this option stops the replication
-SQL thread and waits to start backing up until \fBSlave_open_temp_tables\fP in
-\fBSHOW STATUS\fP is zero. If there are no open temporary tables, the backup will
-take place, otherwise the SQL thread will be started and stopped until there are
-no open temporary tables. The backup will fail if \fBSlave_open_temp_tables\fP
-does not become zero after \fB\-\-safe\-slave\-backup\-timeout\fP
-seconds (defaults to 300 seconds). The replication SQL thread will be restarted when
-the backup finishes.
+به منظور اطمینان از یک وضعیت همانندسازی سازگار، این گزینه ریسهٔ (thread) SQL همانندسازی را متوقف کرده و پیش از آغاز پشتیبان‌گیری منتظر می‌ماند تا مقدار \fBSlave_open_temp_tables\fP در دستور \fBSHOW STATUS\fP صفر شود. اگر هیچ جدول موقت بازی وجود نداشته باشد، پشتیبان‌گیری انجام می‌شود؛ در غیر این صورت ریسهٔ SQL راه‌اندازی و دوباره متوقف خواهد شد تا زمانی که هیچ جدول موقت بازی باقی نماند. چنانچه مقدار \fBSlave_open_temp_tables\fP پس از گذشت مدت‌زمان \fB\-\-safe\-slave\-backup\-timeout\fP ثانیه (پیش‌فرض ۳۰۰ ثانیه) صفر نشود، پشتیبان‌گیری با شکست مواجه خواهد شد. با پایان یافتن پشتیبان‌گیری، ریسهٔ SQL همانندسازی مجدداً راه‌اندازی می‌شود.
 .sp
-Using this option is always recommended when taking backups from a replica server.
+استفاده از این گزینه هنگام تهیهٔ نسخهٔ پشتیبان از یک کارگزار رپلیکا همواره توصیه می‌شود.
 .sp
-\fBWARNING:\fP
+\fBهشدار:\fP
 .INDENT 0.0
 .INDENT 3.5
-Make sure your replica is a true replica of the source before using it as a
-source for backup. A good tool to validate a replica is \fI\%pt\-table\-checksum\fP\&.
+پیش از استفاده از یک رپلیکا به عنوان مبدأ برای پشتیبان‌گیری، اطمینان حاصل کنید که رپلیکای شما یک رونوشت دقیق از مبدأ است. ابزاری مناسب برای اعتبارسنجی یک رپلیکا، \fI\%pt\-table\-checksum\fP\& است.
 .UNINDENT
 .UNINDENT
-.SS Store backup history on the server
+.SS ذخیرهٔ تاریخچهٔ پشتیبان‌گیری روی کارگزار
 .sp
-\fIPercona XtraBackup\fP supports storing the backups history on the server. This
-feature was implemented in \fIPercona XtraBackup\fP 2.2. Storing backup history on
-the server was implemented to provide users with additional information about
-backups that are being taken. Backup history information will be stored in the
-\fI\%PERCONA_SCHEMA.XTRABACKUP_HISTORY\fP table.
+\fIPercona XtraBackup\fP از ذخیرهٔ تاریخچهٔ نسخه‌های پشتیبان بر روی کارگزار پشتیبانی می‌کند. این قابلیت در \fIPercona XtraBackup\fP 2.2 پیاده‌سازی شده است. ذخیرهٔ تاریخچهٔ پشتیبان‌گیری روی کارگزار برای ارائهٔ اطلاعات بیشتر به کاربران دربارهٔ پشتیبان‌هایی که در حال تهیه هستند پیاده‌سازی شده است. اطلاعات تاریخچهٔ پشتیبان‌گیری در جدول \fI\%PERCONA_SCHEMA.XTRABACKUP_HISTORY\fP ذخیره خواهد شد.
 .sp
-To use this feature the following options are available:
+برای استفاده از این قابلیت، گزینه‌های زیر در دسترس هستند:
 .INDENT 0.0
 .IP \(bu 2
-\fB\-\-history\fP =<name> : This option enables the history
-feature and allows the user to specify a backup series name that will be
-placed within the history record.
+\fB\-\-history\fP =<name> : این گزینه قابلیت تاریخچه را فعال کرده و به کاربر امکان می‌دهد نامی برای سری پشتیبان مشخص کند که در رکورد تاریخچه ثبت خواهد شد.
 .IP \(bu 2
-\fB\-\-incremental\-history\-name\fP =<name> : This option allows an
-incremental backup to be made based on a specific history series by
-name. \fIxtrabackup\fP will search the history table looking for the most recent
-(highest \fBto_lsn\fP) backup in the series and take the \fBto_lsn\fP value to use
-as it\(aqs starting lsn. This is mutually exclusive with
-\fB\-\-incremental\-history\-uuid\fP, \fB\-\-incremental\-basedir\fP and
-\fB\-\-incremental\-lsn\fP options. If no valid LSN can be found
-(no series by that name) \fIxtrabackup\fP will return with an error.
+\fB\-\-incremental\-history\-name\fP =<name> : این گزینه امکان تهیهٔ پشتیبان افزایشی بر اساس نام یک سری مشخص در تاریخچه را فراهم می‌سازد. \fIxtrabackup\fP جدول تاریخچه را به دنبال جدیدترین نسخهٔ پشتیبان (با بیشترین مقدار \fBto_lsn\fP) در آن سری جستجو کرده و از مقدار \fBto_lsn\fP به عنوان LSN آغازین استفاده می‌کند. این گزینه با گزینه‌های \fB\-\-incremental\-history\-uuid\fP، \fB\-\-incremental\-basedir\fP و \fB\-\-incremental\-lsn\fP مانعة‌الجمع است. اگر LSN معتبری یافت نشود (سری با این نام وجود نداشته باشد)، \fIxtrabackup\fP با خطا مواجه خواهد شد.
 .IP \(bu 2
-\fB\-\-incremental\-history\-uuid\fP =<uuid> : Allows an incremental backup to
-be made based on a specific history record identified by UUID. \fIxtrabackup\fP
-will search the history table looking for the record matching UUID and take
-the \fBto_lsn\fP value to use as it\(aqs starting LSN. This options is mutually
-exclusive with \fB\-\-incremental\-basedir\fP, \fB\-\-incremental\-lsn\fP
-and \fB\-\-incremental\-history\-name\fP options. If no valid LSN can be found
-(no record by that UUID or missing \fBto_lsn\fP), \fIxtrabackup\fP will return
-with an error.
+\fB\-\-incremental\-history\-uuid\fP =<uuid> : امکان تهیهٔ پشتیبان افزایشی را بر اساس رکورد مشخصی از تاریخچه که با UUID شناسایی می‌شود فراهم می‌آورد. \fIxtrabackup\fP جدول تاریخچه را به دنبال رکوردی مطابق با این UUID جستجو کرده و از مقدار \fBto_lsn\fP به عنوان LSN آغازین استفاده می‌کند. این گزینه با گزینه‌های \fB\-\-incremental\-basedir\fP، \fB\-\-incremental\-lsn\fP و \fB\-\-incremental\-history\-name\fP مانعة‌الجمع است. اگر هیچ LSN معتبری یافت نشود (رکوردی با آن UUID وجود نداشته باشد یا مقدار \fBto_lsn\fP موجود نباشد)، \fIxtrabackup\fP با یک خطا خاتمه می‌یابد.
 .UNINDENT
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 0.0
 .INDENT 3.5
-Backup that\(aqs currently being performed will \fBNOT\fP exist in the
-xtrabackup_history table within the resulting backup set as the record will
-not be added to that table until after the backup has been taken.
+پشتیبانی که در حال حاضر در دست اقدام است، در جدول xtrabackup_history درون مجموعه پشتیبان حاصل وجود \fBنخواهد داشت\fP، زیرا رکورد مربوطه تا پس از تکمیل فرآیند پشتیبان‌گیری به آن جدول افزوده نخواهد شد.
 .UNINDENT
 .UNINDENT
 .sp
-If you want access to backup history outside of your backup set in the case of
-some catastrophic event, you will need to either perform a \fBmysqldump\fP,
-partial backup or \fBSELECT\fP * on the history table after \fIxtrabackup\fP
-completes and store the results with you backup set.
+اگر می‌خواهید در صورت بروز رویدادی فاجعه‌بار به تاریخچهٔ پشتیبان خارج از مجموعه پشتیبان خود دسترسی داشته باشید، باید پس از اتمام کار \fIxtrabackup\fP، یک \fBmysqldump\fP، پشتیبان جزئی یا دستور \fBSELECT\fP * روی جدول تاریخچه اجرا کرده و نتایج را همراه با مجموعه پشتیبان خود ذخیره نمایید.
 .sp
-For the necessary privileges, see pxb.privilege\&.
-PERCONA_SCHEMA.XTRABACKUP_HISTORY table
+برای مجوزهای لازم، pxb.privilege\& را ببینید.
+جدول PERCONA_SCHEMA.XTRABACKUP_HISTORY
 .sp
-This table contains the information about the previous server
-backups. Information about the backups will only be written if the backup was
-taken with \fB\-\-history\fP option.
+این جدول حاوی اطلاعات مربوط به نسخه‌های پشتیبان پیشین کارگزار است. اطلاعات پشتیبان‌ها تنها در صورتی در این جدول ثبت خواهد شد که پشتیبان‌گیری با گزینهٔ \fB\-\-history\fP انجام شده باشد.
 .TS
 center;
 |l|l|.
 _
 T{
-Column Name
+نام ستون
 T}	T{
-Description
+توضیحات
 T}
 _
 T{
 uuid
 T}	T{
-Unique backup id
+شناسهٔ یکتای نسخهٔ پشتیبان
 T}
 _
 T{
 name
 T}	T{
-User provided name of backup series. There may be multiple entries with the same name used to identify related backups in a series.
+نام ارائه‌شده توسط کاربر برای سری پشتیبان. ممکن است چندین مدخل با نام یکسان برای شناسایی پشتیبان‌های مرتبط در یک سری وجود داشته باشد.
 T}
 _
 T{
 tool_name
 T}	T{
-Name of tool used to take backup
+نام ابزار استفاده‌شده برای گرفتن نسخهٔ پشتیبان
 T}
 _
 T{
 tool_command
 T}	T{
-Exact command line given to the tool with \-\-password and \-\-encryption_key obfuscated
+خط فرمان دقیق داده‌شده به ابزار به طوری که \-\-password و \-\-encryption_key در آن مبهم‌سازی شده‌اند
 T}
 _
 T{
 tool_version
 T}	T{
-Version of tool used to take backup
+نسخهٔ ابزار استفاده‌شده برای گرفتن نسخهٔ پشتیبان
 T}
 _
 T{
 ibbackup_version
 T}	T{
-Version of the xtrabackup binary used to take backup
+نسخهٔ باینری xtrabackup استفاده‌شده برای گرفتن نسخهٔ پشتیبان
 T}
 _
 T{
 server_version
 T}	T{
-Server version on which backup was taken
+نسخهٔ کارگزاری که نسخهٔ پشتیبان روی آن گرفته شده است
 T}
 _
 T{
 start_time
 T}	T{
-Time at the start of the backup
+زمان در آغاز پشتیبان‌گیری
 T}
 _
 T{
 end_time
 T}	T{
-Time at the end of the backup
+زمان در پایان پشتیبان‌گیری
 T}
 _
 T{
 lock_time
 T}	T{
-Amount of time, in seconds, spent calling and holding locks for \fBFLUSH TABLES WITH READ LOCK\fP
+مدت‌زمان (به ثانیه) صرف‌شده برای فراخوانی و نگه‌داشتن قفل‌ها برای \fBFLUSH TABLES WITH READ LOCK\fP
 T}
 _
 T{
 binlog_pos
 T}	T{
-Binlog file and position at end of \fBFLUSH TABLES WITH READ LOCK\fP
+فایل binlog و موقعیت آن در پایان \fBFLUSH TABLES WITH READ LOCK\fP
 T}
 _
 T{
 innodb_from_lsn
 T}	T{
-LSN at beginning of backup which can be used to determine prior backups
+مقدار LSN در آغاز پشتیبان‌گیری که می‌تواند برای تعیین پشتیبان‌های قبلی استفاده شود
 T}
 _
 T{
 innodb_to_lsn
 T}	T{
-LSN at end of backup which can be used as the starting lsn for the next incremental
+مقدار LSN در پایان پشتیبان‌گیری که می‌تواند به عنوان LSN آغازین برای پشتیبان افزایشی بعدی استفاده شود
 T}
 _
 T{
 partial
 T}	T{
-Is this a partial backup, if \fBN\fP that means that it\(aqs the full backup
+آیا این یک پشتیبان جزئی است؛ اگر \fBN\fP باشد به این معناست که یک پشتیبان کامل است
 T}
 _
 T{
 incremental
 T}	T{
-Is this an incremental backup
+آیا این یک پشتیبان افزایشی است
 T}
 _
 T{
 format
 T}	T{
-Description of result format (\fBxbstream\fP)
+توضیح قالب نتیجه (\fBxbstream\fP)
 T}
 _
 T{
 compact
 T}	T{
-Is this a compact backup
+آیا این یک پشتیبان فشرده (compact) است
 T}
 _
 T{
 compressed
 T}	T{
-Is this a compressed backup
+آیا این یک پشتیبان فشرده‌شده (compressed) است
 T}
 _
 T{
 encrypted
 T}	T{
-Is this an encrypted backup
+آیا این یک پشتیبان رمزنگاری‌شده است
 T}
 _
 .TE
-Limitations.INDENT 0.0
+محدودیت‌ها
+.INDENT 0.0.IP \(bu 2
+گزینهٔ \fB\-\-history\fP برای مؤثر بودن باید تنها در خط فرمان مشخص شود و نه درون یک فایل پیکربندی.
 .IP \(bu 2
-\fB\-\-history\fP option must be specified only on the command
-line and not within a configuration file in order to be effective.
-.IP \(bu 2
-\fB\-\-incremental\-history\-name\fP and \fB\-\-incremental\-history\-uuid\fP
-options must be specified only on the command line and not within
-a configuration file in order to be effective.
+گزینه‌های \fB\-\-incremental\-history\-name\fP و \fB\-\-incremental\-history\-uuid\fP برای مؤثر بودن باید تنها در خط فرمان مشخص شوند و نه درون یک فایل پیکربندی.
 .UNINDENT
-.SH IMPLEMENTATION
-.SS Implementation Details
+.SH "پیاده‌سازی (IMPLEMENTATION)"
+.SS جزئیات پیاده‌سازی
 .sp
-This page contains notes on various internal aspects of the \fIxtrabackup\fP tool\(aqs
-operation.
-.SS File Permissions
+این صفحه شامل نکاتی دربارهٔ جنبه‌های داخلی گوناگون عملکرد ابزار \fIxtrabackup\fP است.
+.SS مجوزهای فایل
 .sp
-\fIxtrabackup\fP opens the source data files in read\-write mode, although it does
-not modify the files. This means that you must run \fIxtrabackup\fP as a user who
-has permission to write the data files. The reason for opening the files in
-read\-write mode is that \fIxtrabackup\fP uses the embedded \fIInnoDB\fP libraries to
-open and read the files, and \fIInnoDB\fP opens them in read\-write mode because it
-normally assumes it is going to write to them.
-.SS Tuning the OS Buffers
+ابزار \fIxtrabackup\fP فایل‌های دادهٔ مبدأ را در حالت خواندن-نوشتن (read\-write) باز می‌کند، هرچند که فایل‌ها را تغییر نمی‌دهد. این بدان معناست که باید \fIxtrabackup\fP را با کاربری اجرا کنید که مجوز نوشتن روی فایل‌های داده را دارد. دلیل باز کردن فایل‌ها در حالت خواندن-نوشتن این است که \fIxtrabackup\fP از کتابخانه‌های تعبیه‌شدهٔ \fIInnoDB\fP برای باز کردن و خواندن فایل‌ها استفاده می‌کند، و \fIInnoDB\fP آن‌ها را در حالت خواندن-نوشتن باز می‌کند زیرا معمولاً فرض را بر این می‌گذارد که قرار است در آن‌ها بنویسد.
+.SS تنظیم بافرهای سیستم‌عامل
 .sp
-Because \fIxtrabackup\fP reads large amounts of data from the filesystem, it uses
-\fBposix_fadvise()\fP where possible, to instruct the operating system not to try
-to cache the blocks it reads from disk. Without this hint, the operating system
-would prefer to cache the blocks, assuming that \fBxtrabackup\fP is likely to need
-them again, which is not the case. Caching such large files can place pressure
-on the operating system\(aqs virtual memory and cause other processes, such as the
-database server, to be swapped out. The \fBxtrabackup\fP tool avoids this with the
-following hint on both the source and destination files:
+از آنجا که \fIxtrabackup\fP حجم زیادی از داده‌ها را از سامانهٔ فایل می‌خواند، در صورت امکان از \fBposix_fadvise()\fP استفاده می‌کند تا به سیستم‌عامل دستور دهد بلوک‌هایی را که از دیسک می‌خواند در حافظهٔ موقت (کَش) ذخیره نکند. بدون این راهنمایی، سیستم‌عامل ترجیح می‌دهد بلوک‌ها را کَش کند، با این فرض که احتمالاً \fBxtrabackup\fP دوباره به آن‌ها نیاز خواهد داشت، در حالی که چنین نیست. کَش کردن فایل‌هایی با این حجم زیاد می‌تواند بر حافظهٔ مجازی سیستم‌عامل فشار وارد کند و باعث سوآپ (swap out) شدن سایر فرایندها، مانند کارساز پایگاه داده، شود. ابزار \fBxtrabackup\fP با ارائهٔ این راهنمایی روی هر دو فایل مبدأ و مقصد، از این مسئله جلوگیری می‌کند:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1902,8 +1623,7 @@ posix_fadvise(file, 0, 0, POSIX_FADV_DONTNEED)
 .UNINDENT
 .UNINDENT
 .sp
-In addition, xtrabackup asks the operating system to perform more aggressive
-read\-ahead optimizations on the source files:
+علاوه بر این، xtrabackup از سیستم‌عامل می‌خواهد تا بهینه‌سازی‌های پیش‌خوانی (read\-ahead) تهاجمی‌تری را روی فایل‌های مبدأ انجام دهد:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1914,47 +1634,35 @@ posix_fadvise(file, 0, 0, POSIX_FADV_SEQUENTIAL)
 .fi
 .UNINDENT
 .UNINDENT
-.SS Copying Data Files
+.SS رونویسی فایل‌های داده
 .sp
-When copying the data files to the target directory, \fIxtrabackup\fP reads and
-writes 1 MB of data at a time. This is not configurable. When copying the log
-file, \fIxtrabackup\fP reads and writes 512 bytes at a time. This is also not
-possible to configure, and matches InnoDB\(aqs behavior (workaround exists in
-\fIPercona Server for MySQL\fP because it has an option to tune
-\fBinnodb_log_block_size\fP for \fIXtraDB\fP, and in that case \fIPercona XtraBackup\fP will match the tuning).
+هنگام رونویسی فایل‌های داده به پوشهٔ مقصد، \fIxtrabackup\fP در هر نوبت ۱ مگابایت داده را می‌خواند و می‌نویسد. این مقدار قابل پیکربندی نیست. هنگام رونویسی فایل گزارش (log)، ابزار \fIxtrabackup\fP در هر نوبت ۵۱۲ بایت را می‌خواند و می‌نویسد. این مقدار نیز قابل پیکربندی نیست و با رفتار InnoDB مطابقت دارد (یک راهکار جایگزین در \fIPercona Server for MySQL\fP وجود دارد زیرا گزینه‌ای برای تنظیم \fBinnodb_log_block_size\fP در \fIXtraDB\fP دارد، و در آن صورت \fIPercona XtraBackup\fP با این تنظیم مطابقت خواهد داشت).
 .sp
-After reading from the files, \fBxtrabackup\fP iterates over the 1MB buffer a page
-at a time, and checks for page corruption on each page with InnoDB\(aqs
-\fBbuf_page_is_corrupted()\fP function. If the page is corrupt, it re\-reads and
-retries up to 10 times for each page. It skips this check on the doublewrite
-buffer.
-.SS \fIxtrabackup\fP Exit Codes
+پس از خواندن از فایل‌ها، \fBxtrabackup\fP روی بافر ۱ مگابایتی، صفحه به صفحه پیمایش می‌کند و خرابی صفحه را در هر صفحه با تابع \fBbuf_page_is_corrupted()\fP مربوط به InnoDB بررسی می‌کند. اگر صفحه خراب باشد، آن را دوباره می‌خواند و برای هر صفحه تا ۱۰ بار تلاش مجدد می‌کند. این بررسی را برای بافر doublewrite نادیده می‌گیرد.
+.SS کدهای خروج \fIxtrabackup\fP
 .sp
-The \fIxtrabackup\fP binary exits with the traditional success value of 0 after a backup when no error occurs. If an error occurs during the backup, the exit value is 1.
+باینری \fIxtrabackup\fP پس از پشتیبان‌گیری در صورتی که خطایی رخ نداده باشد، با مقدار سنتی موفقیت 0 خارج می‌شود. اگر در حین پشتیبان‌گیری خطایی رخ دهد، مقدار خروج 1 خواهد بود.
 .sp
-In certain cases, the exit value can be something other than 0 or 1, due to the command\-line option code included from the \fIMySQL\fP libraries. An unknown command\-line option, for example, will cause an exit code of 255.
-.SH REFERENCES
-.SS The \fBxtrabackup\fP Option Reference
+در موارد خاصی، مقدار خروج ممکن است چیزی به جز 0 یا 1 باشد که ناشی از کد مدیریت گزینه‌های خط فرمان گنجانده‌شده از کتابخانه‌های \fIMySQL\fP است. به عنوان مثال، یک گزینهٔ ناشناخته در خط فرمان باعث ایجاد کد خروج 255 خواهد شد.
+.SH "مراجع (REFERENCES)"
+.SS مرجع گزینه‌های \fBxtrabackup\fP
 .sp
-This page documents all of the command\-line options for the
-\fBxtrabackup\fP binary.
-.SS Modes of operation
+این صفحه تمام گزینه‌های خط فرمان باینری \fBxtrabackup\fP را مستند می‌کند.
+.SS حالت‌های عملکرد
 .sp
-You invoke \fIxtrabackup\fP in one of the following modes:
+شما \fIxtrabackup\fP را در یکی از حالت‌های زیر فراخوانی می‌کنید:
 .INDENT 0.0
 .IP \(bu 2
-\fI\%\-\-backup\fP mode to make a backup in a target directory
+حالت \fI\%\-\-backup\fP برای تهیهٔ نسخهٔ پشتیبان در یک پوشهٔ مقصد
 .IP \(bu 2
-\fI\%\-\-prepare\fP mode to restore data from a backup (created in \fI\%\-\-backup\fP mode)
+حالت \fI\%\-\-prepare\fP برای بازیابی داده‌ها از یک نسخهٔ پشتیبان (ایجادشده در حالت \fI\%\-\-backup\fP)
 .IP \(bu 2
-\fI\%\-\-copy\-back\fP to copy data from a backup to the location
-that contained the original data; to move data instead of copying use
-the alternate \fI\%\-\-move\-back\fP mode.
+حالت \fI\%\-\-copy\-back\fP برای رونویسی داده‌ها از نسخهٔ پشتیبان به مکانی که داده‌های اصلی را دربرداشت؛ برای انتقال داده‌ها به جای رونویسی، از حالت جایگزین \fI\%\-\-move\-back\fP استفاده کنید.
 .IP \(bu 2
-\fI\%\-\-stats\fP mode to scan the specified data files and print out index statistics.
+حالت \fI\%\-\-stats\fP برای پیمایش فایل‌های دادهٔ مشخص‌شده و چاپ آمار شاخص‌ها.
 .UNINDENT
 .sp
-When you intend to run \fIxtrabackup\fP in any of these modes, use the following syntax:
+هنگامی که قصد دارید \fIxtrabackup\fP را در هر یک از این حالت‌ها اجرا کنید، از نحو دستوری زیر استفاده کنید:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1966,7 +1674,7 @@ $ xtrabackup [\-\-defaults\-file=#] \-\-backup|\-\-prepare|\-\-copy\-back|\-\-st
 .UNINDENT
 .UNINDENT
 .sp
-For example, the \fI\%\-\-prepare\fP mode is applied as follows:
+برای مثال، حالت \fI\%\-\-prepare\fP به صورت زیر اعمال می‌شود:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -1978,8 +1686,7 @@ $ xtrabackup \-\-prepare \-\-target\-dir=/data/backup/mysql/
 .UNINDENT
 .UNINDENT
 .sp
-For all modes, the default options are read from the \fBxtrabackup\fP and
-\fBmysqld\fP configuration groups from the following files in the given order:
+برای همهٔ حالت‌ها، گزینه‌های پیش‌فرض از گروه‌های پیکربندی \fBxtrabackup\fP و \fBmysqld\fP از فایل‌های زیر و به ترتیب داده‌شده خوانده می‌شوند:
 .INDENT 0.0
 .IP 1. 3
 \fB/etc/my.cnf\fP
@@ -1991,72 +1698,58 @@ For all modes, the default options are read from the \fBxtrabackup\fP and
 \fB~/.my.cnf\fP\&.
 .UNINDENT
 .sp
-As the first parameter to \fIxtrabackup\fP (in place of the \fI\%\-\-defaults\-file\fP,
-you may supply one of the following:
+به عنوان نخستین پارامتر برای \fIxtrabackup\fP (به جای \fI\%\-\-defaults\-file\fP)، می‌توانید یکی از موارد زیر را ارائه دهید:
 .INDENT 0.0
 .IP \(bu 2
-\fI\%\-\-print\-defaults\fP to have \fIxtrabackup\fP print the argument list and exit.
+\fI\%\-\-print\-defaults\fP تا \fIxtrabackup\fP فهرست آرگومان‌ها را چاپ کرده و خارج شود.
 .IP \(bu 2
-\fI\%\-\-no\-defaults\fP to forbid reading options from any file but the login file.
+\fI\%\-\-no\-defaults\fP برای جلوگیری از خواندن گزینه‌ها از هر فایلی به جز فایل لاگین.
 .IP \(bu 2
-\fI\%\-\-defaults\-file\fP  to read the default options from the given file.
+\fI\%\-\-defaults\-file\fP برای خواندن گزینه‌های پیش‌فرض از فایل داده‌شده.
 .IP \(bu 2
-\fI\%\-\-defaults\-extra\-file\fP to read the specified additional file after
-the global files have been read.
+\fI\%\-\-defaults\-extra\-file\fP برای خواندن فایل اضافی مشخص‌شده پس از خوانده شدن فایل‌های سراسری.
 .IP \(bu 2
-\fI\%\-\-defaults\-group\-suffix\fP to read the configuration groups with the
-given suffix. The effective group name is constructed by concatenating the default
-configuration groups (\fBxtrabackup\fP and \fBmysqld\fP) with the given suffix.
+\fI\%\-\-defaults\-group\-suffix\fP برای خواندن گروه‌های پیکربندی با پسوند داده‌شده. نام گروه مؤثر از الحاق گروه‌های پیکربندی پیش‌فرض (\fBxtrabackup\fP و \fBmysqld\fP) به پسوند داده‌شده ساخته می‌شود.
 .IP \(bu 2
-\fI\%\-\-login\-path\fP to read the given path from the login file.
+\fI\%\-\-login\-path\fP برای خواندن مسیر داده‌شده از فایل لاگین.
 .UNINDENT
-InnoDB Options
+گزینه‌های InnoDB
 .sp
-There is a large group of InnoDB options that are normally read from the
-\fBmy.cnf\fP configuration file, so that \fIxtrabackup\fP boots up its embedded
-InnoDB in the same configuration as your current server. You normally do not
-need to specify them explicitly. These options have the same behavior in InnoDB
-and XtraDB. See \fI\%\-\-innodb\-miscellaneous\fP for more information.
-.SS Options
+گروه بزرگی از گزینه‌های InnoDB وجود دارند که معمولاً از فایل پیکربندی \fBmy.cnf\fP خوانده می‌شوند تا \fIxtrabackup\fP موتور تعبیه‌شدهٔ InnoDB خود را با همان پیکربندی کارساز فعلی شما راه‌اندازی کند. معمولاً نیازی نیست آن‌ها را به صراحت مشخص کنید. این گزینه‌ها در InnoDB و XtraDB رفتار یکسانی دارند. برای اطلاعات بیشتر \fI\%\-\-innodb\-miscellaneous\fP را ببینید..SS "گزینه‌ها (Options)"
 .INDENT 0.0
 .TP
 .B \-\-apply\-log\-only
-This option causes only the redo stage to be performed when preparing a
-backup. It is very important for incremental backups.
+این گزینه باعث می‌شود که هنگام آماده‌سازی پشتیبان، فقط مرحله redo انجام شود. این امر برای پشتیبان‌گیری‌های افزایشی بسیار مهم است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-backup
-Make a backup and place it in \fI\%\-\-target\-dir\fP\&. See
-Creating a backup\&.
+تهیه یک نسخه پشتیبان و قرار دادن آن در \fI\%\-\-target\-dir\fP\&. بخش ایجاد پشتیبان را ببینید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-backup\-lock\-timeout
-The timeout in seconds for attempts to acquire metadata locks.
+مدت زمان مهلت انتظار (timeout) به ثانیه برای تلاش‌های دریافت قفل‌های فراداده (metadata locks).
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-backup\-lock\-retry\-count
-The number of attempts to acquire metadata locks.
+تعداد دفعات تلاش برای دریافت قفل‌های فراداده (metadata locks).
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-backup\-locks
-This option controls if backup locks should be used instead of \fBFLUSH TABLES
-WITH READ LOCK\fP on the backup stage. The option has no effect when backup
-locks are not supported by the server. This option is enabled by default,
-disable with \fI\%\-\-no\-backup\-locks\fP\&.
+این گزینه کنترل می‌کند که آیا در مرحله پشتیبان‌گیری به جای \fBFLUSH TABLES WITH READ LOCK\fP باید از قفل‌های پشتیبان‌گیری استفاده شود یا خیر. این گزینه در صورتی که قفل‌های پشتیبان‌گیری توسط سرور پشتیبانی نشوند، هیچ تاثیری ندارد. این گزینه به طور پیش‌فرض فعال است؛ برای غیرفعال کردن از \fI\%\-\-no\-backup\-locks\fP استفاده کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-check\-privileges
-This option checks if \fIPercona XtraBackup\fP has all required privileges.
-If a missing privilege is required for the current operation,
-it will terminate and print out an error message.
-If a missing privilege is not required for the current operation,
-but may be necessary for some other XtraBackup operation,
-the process is not aborted and a warning is printed.
+این گزینه بررسی می‌کند که آیا \fIPercona XtraBackup\fP تمام دسترسی‌های لازم را دارد یا خیر.
+اگر دسترسی مفقود برای عملیات فعلی لازم باشد،
+برنامه خاتمه یافته و یک پیام خطا چاپ می‌کند.
+اگر دسترسی مفقود برای عملیات فعلی لازم نباشد،
+اما ممکن است برای برخی عملیات دیگر XtraBackup ضروری باشد،
+فرآیند متوقف نمی‌شود و یک هشدار چاپ می‌شود.
 .INDENT 7.0
 .INDENT 3.5
 .sp
@@ -2072,29 +1765,18 @@ xtrabackup: Warning: missing required privilege REPLICATION CLIENT on *.*
 .INDENT 0.0
 .TP
 .B \-\-close\-files
-Do not keep files opened. When \fIxtrabackup\fP opens tablespace it normally
-doesn\(aqt close its file handle in order to handle the DDL operations
-correctly. However, if the number of tablespaces is really huge and can not
-fit into any limit, there is an option to close file handles once they are
-no longer accessed. \fIPercona XtraBackup\fP can produce inconsistent backups
-with this option enabled. Use at your own risk.
+فایل‌ها را باز نگه ندارد. زمانی که \fIxtrabackup\fP یک tablespace را باز می‌کند، معمولاً دستگیره فایل (file handle) آن را باز نگه می‌دارد تا عملیات DDL را به درستی مدیریت کند. با این حال، اگر تعداد tablespaceها بسیار زیاد باشد و در هیچ محدودیتی نگنجد، این گزینه وجود دارد که دستگیره‌های فایل پس از اتمام دسترسی بسته شوند. \fIPercona XtraBackup\fP ممکن است با فعال بودن این گزینه نسخه‌های پشتیبان ناسازگار (inconsistent) تولید کند. با مسئولیت خودتان استفاده کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-compress
-This option tells \fIxtrabackup\fP to compress all output data, including the
-transaction log file and meta data files, using either the \fBquicklz\fP or
-\fBlz4\fP compression algorithm. \fBquicklz\fP is chosen by default.
+این گزینه به \fIxtrabackup\fP می‌گوید تا تمام داده‌های خروجی، از جمله فایل گزارش تراکنش (transaction log) و فایل‌های فراداده را با استفاده از الگوریتم فشرده‌سازی \fBquicklz\fP یا \fBlz4\fP فشرده کند. به طور پیش‌فرض \fBquicklz\fP انتخاب شده است.
 .sp
-When using \fB\-\-compress=quicklz\fP or \fB\-\-compress\fP, the resulting files have
-the qpress archive format, i.e. every \fB*.qp\fP file produced by \fIxtrabackup\fP is
-essentially a one\-file qpress archive and can be extracted and uncompressed
-by the \fI\%qpress\fP file archiver.
+هنگام استفاده از \fB\-\-compress=quicklz\fP یا \fB\-\-compress\fP، فایل‌های حاصل دارای قالب آرشیو qpress هستند؛ به این معنا که هر فایل \fB*.qp\fP تولید شده توسط \fIxtrabackup\fP اساساً یک آرشیو تک‌فایلی qpress است و می‌تواند توسط بایگان فایل \fI\%qpress\fP استخراج و از حالت فشرده خارج شود.
 .sp
-\fB\-\-compress=lz4\fP produces \fB*.lz4\fP files. You can extract the contents of
-these files by using a program such as \fBlz4\fP\&.
+گزینه \fB\-\-compress=lz4\fP فایل‌های \fB*.lz4\fP تولید می‌کند. می‌توانید محتویات این فایل‌ها را با استفاده از برنامه‌ای مانند \fBlz4\fP استخراج کنید.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
 .INDENT 0.0
@@ -2103,7 +1785,7 @@ these files by using a program such as \fBlz4\fP\&.
 \fI\%http://www.quicklz.com\fP
 .TP
 .B LZ4
-\fI\%https://lz4.github.io/lz4/\fP
+\fI\%https://lz4.github.io/lz4\fP
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -2111,151 +1793,101 @@ these files by using a program such as \fBlz4\fP\&.
 .INDENT 0.0
 .TP
 .B \-\-compress\-chunk\-size=#
-Size of working buffer(s) for compression threads in bytes. The default
-value is 64K.
+اندازه بافر(های) کاری برای ریسه‌های فشرده‌سازی بر حسب بایت. مقدار پیش‌فرض 64K است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-compress\-threads=#
-This option specifies the number of worker threads used by \fIxtrabackup\fP for
-parallel data compression. This option defaults to \fB1\fP\&. Parallel
-compression (\fI\%\-\-compress\-threads\fP) can be used together
-with parallel file copying (\fI\%\-\-parallel\fP). For example,
-\fB\-\-parallel=4 \-\-compress \-\-compress\-threads=2\fP will create 4 I/O threads
-that will read the data and pipe it to 2 compression threads.
+این گزینه تعداد ریسه‌های کاری (worker threads) مورد استفاده توسط \fIxtrabackup\fP را برای فشرده‌سازی موازی داده‌ها مشخص می‌کند. مقدار پیش‌فرض این گزینه \fB1\fP است. فشرده‌سازی موازی (\fI\%\-\-compress\-threads\fP) می‌تواند همراه با کپی موازی فایل‌ها (\fI\%\-\-parallel\fP) استفاده شود. برای مثال، \fB\-\-parallel=4 \-\-compress \-\-compress\-threads=2\fP تعداد ۴ ریسه I/O ایجاد می‌کند که داده‌ها را خوانده و به ۲ ریسه فشرده‌سازی هدایت (pipe) می‌کنند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-copy\-back
-Copy all the files in a previously made backup from the backup directory to
-their original locations. This option will not copy over existing files
-unless \fI\%\-\-force\-non\-empty\-directories\fP option is
-specified.
+کپی تمام فایل‌های یک نسخه پشتیبان قبلی از دایرکتوری پشتیبان به مکان‌های اصلی آن‌ها. این گزینه فایل‌های موجود را بازنویسی نخواهد کرد مگر اینکه گزینه \fI\%\-\-force\-non\-empty\-directories\fP مشخص شده باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-core\-file
-Write core on fatal signals.
+ایجاد فایل تخلیه حافظه (core dump) در صورت دریافت سیگنال‌های مهلک (fatal signals).
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-databases=#
-This option specifies a list of databases and tables that should be backed
-up. The option accepts the list of the form \fB"databasename1[.table_name1]
-databasename2[.table_name2] . . ."\fP\&.
+این گزینه فهرستی از پایگاه‌های داده و جدول‌هایی را که باید از آن‌ها پشتیبان‌گیری شود مشخص می‌کند. این گزینه فهرستی به صورت \fB"databasename1[.table_name1] databasename2[.table_name2] . . ."\fP می‌پذیرد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-databases\-exclude=name
-Excluding databases based on name, Operates the same way
-as \fI\%\-\-databases\fP, but matched names are excluded from
-backup. Note that this option has a higher priority than
-\fI\%\-\-databases\fP\&.
+مستثنی کردن پایگاه‌های داده بر اساس نام. عملکرد آن همانند \fI\%\-\-databases\fP است، اما نام‌های منطبق از پشتیبان‌گیری مستثنی می‌شوند. توجه داشته باشید که این گزینه نسبت به \fI\%\-\-databases\fP اولویت بالاتری دارد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-databases\-file=#
-This option specifies the path to the file containing the list of databases
-and tables that should be backed up. The file can contain the list elements
-of the form \fBdatabasename1[.table_name1]\fP, one element per line.
+این گزینه مسیر فایلی را مشخص می‌کند که حاوی فهرست پایگاه‌های داده و جدول‌های مورد نظر برای پشتیبان‌گیری است. این فایل می‌تواند شامل عناصر فهرست به صورت \fBdatabasename1[.table_name1]\fP، در هر سطر یک عنصر باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-datadir=DIRECTORY
-The source directory for the backup. This should be the same as the datadir
-for your \fIMySQL\fP server, so it should be read from \fBmy.cnf\fP if that
-exists; otherwise you must specify it on the command line.
+دایرکتوری مبدا برای پشتیبان‌گیری. این مقدار باید همان datadir سرور \fIMySQL\fP شما باشد، بنابراین در صورت وجود \fBmy.cnf\fP باید از آن خوانده شود؛ در غیر این صورت باید آن را در خط فرمان مشخص کنید.
 .sp
-When combined with the \fI\%\-\-copy\-back\fP or
-\fI\%\-\-move\-back\fP option, \fI\%\-\-datadir\fP
-refers to the destination directory.
+هنگامی که با گزینه \fI\%\-\-copy\-back\fP یا \fI\%\-\-move\-back\fP ترکیب شود، \fI\%\-\-datadir\fP به دایرکتوری مقصد اشاره دارد.
 .sp
-Once connected to the server, in order to perform a backup you will need
-\fBREAD\fP and \fBEXECUTE\fP permissions at a filesystem level in the
-server\(aqs datadir\&.
+پس از اتصال به سرور، جهت انجام پشتیبان‌گیری به دسترسی‌های \fBREAD\fP و \fBEXECUTE\fP در سطح سیستم‌فایل در datadir سرور نیاز خواهید داشت.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-debug\-sleep\-before\-unlock=#
-This is a debug\-only option used by the \fIxtrabackup\fP test suite.
+این یک گزینه مخصوص اشکال‌زدایی است که توسط مجموعه آزمون \fIxtrabackup\fP استفاده می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-debug\-sync=name
-The debug sync point. This option is only used by the \fIxtrabackup\fP test suite.
+نقطه همگام‌سازی اشکال‌زدایی (debug sync point). این گزینه فقط توسط مجموعه آزمون \fIxtrabackup\fP استفاده می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-decompress
-Decompresses all files with the \fB\&.qp\fP extension in a backup previously
-made with the \fI\%\-\-compress\fP option. The
-\fI\%\-\-parallel\fP option will allow multiple files to be
-decrypted simultaneously. In order to decompress, the qpress utility MUST be
-installed and accessible within the path. \fIPercona XtraBackup\fP does not
-automatically remove the compressed files. In order to clean up the backup
-directory users should use \fI\%\-\-remove\-original\fP option.
+تمام فایل‌های دارای پسوند \fB\&.qp\fP را در یک پشتیبان که قبلاً با گزینه \fI\%\-\-compress\fP تهیه شده است، از حالت فشرده خارج می‌کند. گزینه \fI\%\-\-parallel\fP اجازه می‌دهد چندین فایل به طور هم‌زمان فشرده‌زدایی شوند. برای خارج کردن از حالت فشرده، ابزار qpress حتماً باید نصب شده و در مسیر اجرایی (PATH) در دسترس باشد. \fIPercona XtraBackup\fP به طور خودکار فایل‌های فشرده را حذف نمی‌کند. برای پاک‌سازی دایرکتوری پشتیبان، کاربران باید از گزینه \fI\%\-\-remove\-original\fP استفاده کنند.
 .sp
-The \fI\%\-\-decompress\fP option may be used with \fIxbstream\fP to
-decompress individual qpress files.
+گزینه \fI\%\-\-decompress\fP ممکن است با \fIxbstream\fP برای خارج کردن تک‌تک فایل‌های qpress از حالت فشرده استفاده شود.
 .sp
-If you used the \fBlz4\fP compression algorithm to compress the files
-(\fB\-\-compress=lz4\fP), change the \fI\%\-\-decompress\fP parameter
-accordingly: \fB\-\-decompress=lz4\fP\&.
+اگر از الگوریتم فشرده‌سازی \fBlz4\fP برای فشرده‌سازی فایل‌ها استفاده کرده‌اید (\fB\-\-compress=lz4\fP)، پارامتر \fI\%\-\-decompress\fP را متناسب با آن تغییر دهید: \fB\-\-decompress=lz4\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-decompress\-threads=#
-Force \fIxbstream\fP to use the specified number of threads for
-decompressing.
+وادار کردن \fIxbstream\fP به استفاده از تعداد مشخص‌شده‌ای از ریسه‌ها برای خارج کردن از حالت فشرده.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-decrypt=ENCRYPTION\-ALGORITHM
-Decrypts all files with the \fB\&.xbcrypt\fP extension in a backup
-previously made with \fI\%\-\-encrypt\fP option. The
-\fI\%\-\-parallel\fP option will allow multiple files to be
-decrypted simultaneously. \fIPercona XtraBackup\fP doesn\(aqt
-automatically remove the encrypted files. In order to clean up the backup
-directory users should use \fI\%\-\-remove\-original\fP option.
+رمزگشایی تمام فایل‌های دارای پسوند \fB\&.xbcrypt\fP در یک پشتیبان که قبلاً با گزینه \fI\%\-\-encrypt\fP تهیه شده است. گزینه \fI\%\-\-parallel\fP اجازه می‌دهد چندین فایل به طور هم‌زمان رمزگشایی شوند. \fIPercona XtraBackup\fP فایل‌های رمزگذاری‌شده را به طور خودکار حذف نمی‌کند. برای پاک‌سازی دایرکتوری پشتیبان، کاربران باید از گزینه \fI\%\-\-remove\-original\fP استفاده کنند.
 .UNINDENT
-.INDENT 0.0
-.TP
+.INDENT 0.0.TP
 .B \-\-defaults\-extra\-file=[MY.CNF]
-Read this file after the global files are read. Must be given as the first
-option on the command\-line.
+این فایل پس از خواندن فایل‌های سراسری خوانده می‌شود. باید به عنوان نخستین گزینه در خط فرمان مشخص شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-defaults\-file=[MY.CNF]
-Only read default options from the given file. Must be given as the first
-option on the command\-line. Must be a real file; it cannot be a symbolic
-link.
+تنها گزینه‌های پیش‌فرض را از فایل مشخص‌شده بخواند. باید به عنوان نخستین گزینه در خط فرمان مشخص شود. باید یک فایل واقعی باشد؛ نمی‌تواند یک پیوند نمادین باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-defaults\-group=GROUP\-NAME
-This option is to set the group which should be read from the configuration
-file. This is used by \fIxtrabackup\fP if you use the
-\fI\%\-\-defaults\-group\fP option. It is needed for
-\fBmysqld_multi\fP deployments.
+این گزینه گروهی را که باید از فایل پیکربندی خوانده شود تعیین می‌کند. در صورت استفاده از گزینه \fI\%\-\-defaults\-group\fP، این مورد توسط \fIxtrabackup\fP استفاده می‌شود. برای استقرارهای \fBmysqld_multi\fP مورد نیاز است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-defaults\-group\-suffix=#
-Also reads groups with concat(group, suffix).
+گروه‌ها را همچنین با ترکیب concat(group, suffix) می‌خواند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-dump\-innodb\-buffer\-pool
-This option controls whether or not a new dump of buffer pool
-content should be done.
+این گزینه کنترل می‌کند که آیا تخلیه (dump) جدیدی از محتویات buffer pool انجام شود یا خیر.
 .sp
-With \fB\-\-dump\-innodb\-buffer\-pool\fP, \fIxtrabackup\fP
-makes a request to the server to start the buffer pool dump (it
-takes some time to complete and is done in background) at the
-beginning of a backup provided the status variable
-\fBinnodb_buffer_pool_dump_status\fP reports that the dump has been
-completed.
+با تعیین \fB\-\-dump\-innodb\-buffer\-pool\fP، ابزار \fIxtrabackup\fP در آغاز فرایند پشتیبان‌گیری درخواستی را به سرور ارسال می‌کند تا تخلیه buffer pool را آغاز کند (کامل شدن آن مدتی زمان می‌برد و در پس‌زمینه انجام می‌شود)، مشروط بر اینکه متغیر وضعیت \fBinnodb_buffer_pool_dump_status\fP گزارش دهد که تخلیه قبلی کامل شده است.
 .INDENT 7.0
 .INDENT 3.5
 .sp
@@ -2267,21 +1899,18 @@ $ xtrabackup \-\-backup \-\-dump\-innodb\-buffer\-pool \-\-target\-dir=/home/use
 .UNINDENT
 .UNINDENT
 .sp
-By default, this option is set to \fIOFF\fP\&.
+به‌طور پیش‌فرض، این گزینه روی \fIOFF\fP تنظیم شده است\&.
 .sp
-If \fBinnodb_buffer_pool_dump_status\fP reports that there is running
-dump of buffer pool, \fIxtrabackup\fP waits for the dump to complete
-using the value of \fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP
+اگر \fBinnodb_buffer_pool_dump_status\fP گزارش دهد که عملیات تخلیه buffer pool در حال اجرا است، \fIxtrabackup\fP با استفاده از مقدار تعیین‌شده در \fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP منتظر تکمیل آن می‌ماند.
 .sp
-The file \fBib_buffer_pool\fP stores tablespace ID and page ID
-data used to warm up the buffer pool sooner.
+فایل \fBib_buffer_pool\fP شناسه‌های tablespace ID و page ID را جهت بارگذاری و گرم کردن سریع‌تر buffer pool ذخیره می‌کند.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B \fIMySQL\fP Documentation: Saving and Restoring the Buffer Pool State
+.B مستندات \fIMySQL\fP: ذخیره و بازیابی وضعیت Buffer Pool
 \fI\%https://dev.mysql.com/doc/refman/5.7/en/innodb\-preload\-buffer\-pool.html\fP
 .UNINDENT
 .UNINDENT
@@ -2290,36 +1919,26 @@ data used to warm up the buffer pool sooner.
 .INDENT 0.0
 .TP
 .B \-\-dump\-innodb\-buffer\-pool\-timeout
-This option contains the number of seconds that \fIxtrabackup\fP should
-monitor the value of \fBinnodb_buffer_pool_dump_status\fP to
-determine if buffer pool dump has completed.
+این گزینه تعداد ثانیه‌هایی را مشخص می‌کند که \fIxtrabackup\fP باید مقدار \fBinnodb_buffer_pool_dump_status\fP را پایش کند تا مشخص شود آیا تخلیه buffer pool کامل شده است یا خیر.
 .sp
-This option is used in combination with
-\fI\%\-\-dump\-innodb\-buffer\-pool\fP\&. By default, it is set to \fI10\fP
-seconds.
+این گزینه در ترکیب با \fI\%\-\-dump\-innodb\-buffer\-pool\fP استفاده می‌شود\&. به‌طور پیش‌فرض، روی \fI10\fP ثانیه تنظیم شده است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-dump\-innodb\-buffer\-pool\-pct
-This option contains the percentage of the most recently used buffer pool
-pages to dump.
+این گزینه درصد صفحاتی از buffer pool را که اخیراً استفاده شده‌اند، برای تخلیه مشخص می‌کند.
 .sp
-This option is effective if \fI\%\-\-dump\-innodb\-buffer\-pool\fP option is set
-to \fION\fP\&. If this option contains a value, \fIxtrabackup\fP sets the \fIMySQL\fP
-system variable \fBinnodb_buffer_pool_dump_pct\fP\&. As soon as the buffer pool
-dump completes or it is stopped (see
-\fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP), the value of the \fIMySQL\fP system
-variable is restored.
+این گزینه در صورتی مؤثر است که گزینه \fI\%\-\-dump\-innodb\-buffer\-pool\fP روی \fION\fP تنظیم شده باشد\&. اگر این گزینه دارای مقدار باشد، \fIxtrabackup\fP متغیر سیستمی \fBinnodb_buffer_pool_dump_pct\fP در \fIMySQL\fP را تنظیم می‌کند\&. به محض کامل شدن تخلیه buffer pool یا متوقف شدن آن (ببینید: \fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP)، مقدار متغیر سیستمی \fIMySQL\fP به حالت اولیه بازیابی می‌شود.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B Changing the timeout for buffer pool dump
+.B تغییر مهلت زمانی (timeout) برای تخلیه buffer pool
 \fI\%\-\-dump\-innodb\-buffer\-pool\-timeout\fP
 .TP
-.B \fIMySQL\fP Documentation: innodb_buffer_pool_dump_pct system variable
+.B مستندات \fIMySQL\fP: متغیر سیستمی innodb_buffer_pool_dump_pct
 \fI\%https://dev.mysql.com/doc/refman/8.0/en/innodb\-parameters.html#sysvar_innodb_buffer_pool_dump_pct\fP
 .UNINDENT
 .UNINDENT
@@ -2328,127 +1947,85 @@ variable is restored.
 .INDENT 0.0
 .TP
 .B \-\-encrypt=ENCRYPTION_ALGORITHM
-This option instructs xtrabackup to encrypt backup copies of InnoDB data
-files using the algorithm specified in the ENCRYPTION_ALGORITHM. Currently
-supported algorithms are: \fBAES128\fP, \fBAES192\fP and \fBAES256\fP
+این گزینه به xtrabackup دستور می‌دهد تا نسخه‌های پشتیبان فایل‌های داده InnoDB را با استفاده از الگوریتم مشخص‌شده در ENCRYPTION_ALGORITHM رمزنگاری کند. الگوریتم‌های پشتیبانی‌شده کنونی عبارتند از: \fBAES128\fP، \fBAES192\fP و \fBAES256\fP
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-encrypt\-key=ENCRYPTION_KEY
-A proper length encryption key to use. It is not recommended to use this
-option where there is uncontrolled access to the machine as the command line
-and thus the key can be viewed as part of the process info.
+یک کلید رمزنگاری با طول مناسب برای استفاده. استفاده از این گزینه در شرایطی که دسترسی کنترل‌نشده به سیستم وجود دارد توصیه نمی‌شود، زیرا خط فرمان و در نتیجه کلید رمزنگاری ممکن است به عنوان بخشی از اطلاعات فرایند قابل مشاهده باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-encrypt\-key\-file=ENCRYPTION_KEY_FILE
-The name of a file where the raw key of the appropriate length can be read
-from. The file must be a simple binary (or text) file that contains exactly
-the key to be used.
+نام فایلی که کلید خام با طول مناسب می‌تواند از آن خوانده شود. این فایل باید یک فایل باینری (یا متنی) ساده باشد که دقیقاً حاوی کلید مورد استفاده است.
 .sp
-It is passed directly to the xtrabackup child process. See the
-\fBxtrabackup\fP documentation for more details.
+این مقدار مستقیماً به فرایند فرزند xtrabackup منتقل می‌شود. برای جزئیات بیشتر به مستندات \fBxtrabackup\fP مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-encrypt\-threads=#
-This option specifies the number of worker threads that will be used for
-parallel encryption/decryption.
-See the \fBxtrabackup\fP documentation for more details.
+این گزینه تعداد رشته‌های کاری (worker threads) را که برای رمزنگاری/رمزگشایی موازی استفاده خواهند شد مشخص می‌کند. برای جزئیات بیشتر به مستندات \fBxtrabackup\fP مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-encrypt\-chunk\-size=#
-This option specifies the size of the internal working buffer for each
-encryption thread, measured in bytes. It is passed directly to the
-xtrabackup child process. See the \fBxtrabackup\fP documentation for more details.
+این گزینه اندازه بافر کاری داخلی را برای هر رشته رمزنگاری، بر حسب بایت مشخص می‌کند. این مقدار مستقیماً به فرایند فرزند xtrabackup منتقل می‌شود. برای جزئیات بیشتر به مستندات \fBxtrabackup\fP مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-export
-Create files necessary for exporting tables. See Restoring Individual
-Tables\&.
+ایجاد فایل‌های لازم برای برون‌بری جدول‌ها. به بخش «بازیابی جدول‌های منفرد» مراجعه کنید\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-extra\-lsndir=DIRECTORY
-(for \-\-backup): save an extra copy of the \fBxtrabackup_checkpoints\fP
-and \fBxtrabackup_info\fP files in this directory.
+(برای \-\-backup): یک نسخه اضافی از فایل‌های \fBxtrabackup_checkpoints\fP و \fBxtrabackup_info\fP را در این دایرکتوری ذخیره می‌کند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-force\-non\-empty\-directories
-When specified, it makes \fI\%\-\-copy\-back\fP and
-\fI\%\-\-move\-back\fP option transfer files to non\-empty
-directories. No existing files will be overwritten. If files that need to
-be copied/moved from the backup directory already exist in the destination
-directory, it will still fail with an error.
+در صورت تعیین، گزینه‌های \fI\%\-\-copy\-back\fP و \fI\%\-\-move\-back\fP فایل‌ها را به دایرکتوری‌های غیرخالی انتقال می‌دهند. هیچ فایل موجودی رونویسی نخواهد شد. اگر فایل‌هایی که قرار است از دایرکتوری پشتیبان کپی/منتقل شوند از پیش در دایرکتوری مقصد وجود داشته باشند، عملیات همچنان با خطا مواجه خواهد شد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ftwrl\-wait\-timeout=SECONDS
-This option specifies time in seconds that xtrabackup should wait for
-queries that would block \fBFLUSH TABLES WITH READ LOCK\fP before running it.
-If there are still such queries when the timeout expires, xtrabackup
-terminates with an error. Default is \fB0\fP, in which case it does not wait
-for queries to complete and starts \fBFLUSH TABLES WITH READ LOCK\fP
-immediately. Where supported \fIxtrabackup\fP will
-automatically use \fI\%Backup Locks\fP
-as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
-non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.
+این گزینه مدت زمانی را بر حسب ثانیه مشخص می‌کند که xtrabackup باید پیش از اجرای \fBFLUSH TABLES WITH READ LOCK\fP، منتظر پرس‌وجوهایی بماند که ممکن است مانع اجرای آن شوند. اگر پس از پایان این مهلت همچنان چنین پرس‌وجوهایی وجود داشته باشند، xtrabackup با یک خطا خاتمه می‌یابد. مقدار پیش‌فرض \fB0\fP است که در این حالت، منتظر اتمام پرس‌وجوها نمانده و بلافاصله \fBFLUSH TABLES WITH READ LOCK\fP را آغاز می‌کند. در صورت پشتیبانی، \fIxtrabackup\fP به‌طور خودکار از \fI\%Backup Locks\fP به عنوان یک جایگزین سبک‌تر برای \fBFLUSH TABLES WITH READ LOCK\fP جهت کپی داده‌های غیر InnoDB استفاده می‌کند تا از مسدود شدن پرس‌وجوهای DML که جدول‌های InnoDB را تغییر می‌دهند، جلوگیری شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ftwrl\-wait\-threshold=SECONDS
-This option specifies the query run time threshold which is used by
-xtrabackup to detect long\-running queries with a non\-zero value of
-\fI\%\-\-ftwrl\-wait\-timeout\fP\&. \fBFLUSH TABLES WITH READ LOCK\fP
-is not started until such long\-running queries exist. This option has no
-effect if \fI\%\-\-ftwrl\-wait\-timeout\fP is \fB0\fP\&. Default value
-is \fB60\fP seconds. Where supported xtrabackup will
-automatically use \fI\%Backup Locks\fP
-as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
-non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.
+این گزینه آستانه زمان اجرای پرس‌وجو را مشخص می‌کند که توسط xtrabackup برای تشخیص پرس‌وجوهای طولانی‌مدت در صورت غیرصفر بودن مقدار \fI\%\-\-ftwrl\-wait\-timeout\fP به کار می‌رود\&. تا زمانی که چنین پرس‌وجوهای طولانی‌مدتی در حال اجرا باشند، دستور \fBFLUSH TABLES WITH READ LOCK\fP آغاز نخواهد شد. در صورتی که \fI\%\-\-ftwrl\-wait\-timeout\fP برابر با \fB0\fP باشد، این گزینه هیچ اثری ندارد\&. مقدار پیش‌فرض \fB60\fP ثانیه است. در صورت پشتیبانی، xtrabackup به‌طور خودکار از \fI\%Backup Locks\fP به عنوان یک جایگزین سبک‌تر به جای \fBFLUSH TABLES WITH READ LOCK\fP برای کپی داده‌های غیر InnoDB استفاده می‌کند تا از مسدود شدن پرس‌وجوهای DML که جدول‌های InnoDB را تغییر می‌دهند جلوگیری شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ftwrl\-wait\-query\-type=all|update
-This option specifies which types of queries are allowed to complete before
-xtrabackup will issue the global lock. Default is \fBall\fP\&.
+این گزینه مشخص می‌کند کدام نوع از پرس‌وجوها مجاز هستند پیش از اعمال قفل سراسری توسط xtrabackup کامل شوند. مقدار پیش‌فرض \fBall\fP است\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-galera\-info
-This option creates the \fBxtrabackup_galera_info\fP file which contains
-the local node state at the time of the backup. Option should be used when
-performing the backup of \fIPercona XtraDB Cluster\fP\&. It has no effect when
-backup locks are used to create the backup.
+این گزینه فایل \fBxtrabackup_galera_info\fP را ایجاد می‌کند که حاوی وضعیت گره محلی در زمان پشتیبان‌گیری است. این گزینه باید هنگام تهیه پشتیبان از \fIPercona XtraDB Cluster\fP استفاده شود\&. زمانی که از قفل‌های پشتیبان (backup locks) برای ایجاد نسخه پشتیبان استفاده شود، این گزینه هیچ اثری ندارد.
 .UNINDENT
-.INDENT 0.0
-.TP
+.INDENT 0.0.TP
 .B \-\-generate\-new\-master\-key
-Generate a new master key when doing a copy\-back.
+تولید یک کلید اصلی جدید هنگام انجام copy\-back.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-generate\-transition\-key
-\fIxtrabackup\fP needs to access the same keyring file or vault server
-during \fIprepare\fP and \fIcopy\-back\fP but it should not depend on whether the
-server keys have been purged.
+برنامهٔ \fIxtrabackup\fP در طول \fIprepare\fP و \fIcopy\-back\fP نیاز به دسترسی به همان فایل keyring یا سرور vault دارد، اما نباید به این که کلیدهای سرور پاک‌سازی شده‌اند یا خیر وابسته باشد.
 .sp
-\fI\%\-\-generate\-transition\-key\fP creates and adds to the keyring
-a transition key for \fIxtrabackup\fP to use if the master key used for
-encryption is not found because it has been rotated and purged.
+گزینهٔ \fI\%\-\-generate\-transition\-key\fP یک کلید گذار (transition key) ایجاد کرده و به keyring اضافه می‌کند تا در صورتی که کلید اصلی استفاده‌شده برای رمزنگاری به دلیل چرخش و پاک‌سازی یافت نشد، \fIxtrabackup\fP از آن استفاده کند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-get\-server\-public\-key
-Get the server public key
+دریافت کلید عمومی سرور
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
-\fIMySQL\fP Documentation: The \-\-get\-server\-public\-key Option
+مستندات \fIMySQL\fP: گزینهٔ \-\-get\-server\-public\-key
 .INDENT 0.0
 .INDENT 3.5
 \fI\%https://dev.mysql.com/doc/refman/5.7/en/connection\-options.html#option_general_get\-server\-public\-key\fP
@@ -2460,42 +2037,30 @@ Get the server public key
 .INDENT 0.0
 .TP
 .B \-\-help
-When run with this option or without any options \fIxtrabackup\fP displays
-information about how to run the program on the command line along with all
-supported options and variables with default values where appropriate.
+هنگام اجرا با این گزینه یا بدون هیچ گزینه‌ای، \fIxtrabackup\fP اطلاعاتی دربارهٔ نحوهٔ اجرای برنامه در خط فرمان به همراه تمامی گزینه‌ها و متغیرهای پشتیبانی‌شده و در صورت لزوم، مقادیر پیش‌فرض آن‌ها را نمایش می‌دهد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-history=NAME
-This option enables the tracking of backup history in the
-\fBPERCONA_SCHEMA.xtrabackup_history\fP table. An optional history series name
-may be specified that will be placed with the history record for the current
-backup being taken.
+این گزینه رهگیری تاریخچهٔ پشتیبان‌گیری را در جدول \fBPERCONA_SCHEMA.xtrabackup_history\fP فعال می‌کند. می‌توان یک نام اختیاری برای سری تاریخچه مشخص کرد که همراه با رکورد تاریخچه برای پشتیبان در حال تهیه، ثبت خواهد شد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-host=HOST
-This option accepts a string argument that specifies the host to use when
-connecting to the database server with TCP/IP. It is passed to the mysql
-child process without alteration. See \fBmysql \-\-help\fP for details.
+این گزینه یک آرگومان رشته‌ای می‌پذیرد که میزبان مورد استفاده هنگام اتصال به سرور پایگاه داده از طریق TCP/IP را مشخص می‌کند. این مقدار بدون تغییر به فرایند فرزند mysql ارسال می‌شود. برای جزئیات به \fBmysql \-\-help\fP مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-incremental
-This option tells \fIxtrabackup\fP to create an incremental backup. It is passed
-to the \fIxtrabackup\fP child process. When this option is specified, either
-\fI\%\-\-incremental\-lsn\fP or \fI\%\-\-incremental\-basedir\fP can also be
-given. If neither option is given, option \fI\%\-\-incremental\-basedir\fP is
-passed to \fBxtrabackup\fP by default, set to the first timestamped
-backup directory in the backup base directory.
+این گزینه به \fIxtrabackup\fP دستور می‌دهد تا یک پشتیبان افزایشی ایجاد کند. این گزینه به فرایند فرزند \fIxtrabackup\fP ارسال می‌شود. وقتی این گزینه مشخص شود، می‌توان یکی از گزینه‌های \fI\%\-\-incremental\-lsn\fP یا \fI\%\-\-incremental\-basedir\fP را نیز تعیین کرد. اگر هیچ‌یک از این گزینه‌ها داده نشود، گزینهٔ \fI\%\-\-incremental\-basedir\fP به‌طور پیش‌فرض به \fBxtrabackup\fP ارسال شده و روی اولین دایرکتوری دارای برچسب زمانی در دایرکتوری پایهٔ پشتیبان‌گیری تنظیم می‌شود.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B More information about incremental backups
-See section xb_incremental
+.B اطلاعات بیشتر دربارهٔ پشتیبان‌گیری‌های افزایشی
+بخش xb_incremental را ببینید
 .UNINDENT
 .UNINDENT
 .UNINDENT
@@ -2503,70 +2068,42 @@ See section xb_incremental
 .INDENT 0.0
 .TP
 .B \-\-incremental\-basedir=DIRECTORY
-When creating an incremental backup, this is the directory containing the
-full backup that is the base dataset for the incremental backups.
+هنگام ایجاد یک پشتیبان افزایشی، این همان دایرکتوری شامل پشتیبان کاملی است که مجموعه دادهٔ پایه برای پشتیبان‌های افزایشی محسوب می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-incremental\-dir=DIRECTORY
-When preparing an incremental backup, this is the directory where the
-incremental backup is combined with the full backup to make a new full
-backup.
+هنگام آماده‌سازی (prepare) یک پشتیبان افزایشی، این دایرکتوری محلی است که پشتیبان افزایشی با پشتیبان کامل در آن ترکیب می‌شود تا یک پشتیبان کامل جدید ساخته شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-incremental\-force\-scan
-When creating an incremental backup, force a full scan of the data pages in
-the instance being backuped even if the complete changed page bitmap data is
-available.
+هنگام ایجاد یک پشتیبان افزایشی، پویش کامل (full scan) صفحات داده در نمونه‌ای که از آن پشتیبان گرفته می‌شود را اجبار می‌کند، حتی اگر داده‌های بیت‌مپ صفحات تغییریافته به‌طور کامل در دسترس باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-incremental\-history\-name=name
-This option specifies the name of the backup series stored in the
-\fBPERCONA_SCHEMA.xtrabackup_history\fP history record to base an incremental
-backup on. \fIxtrabackup\fP will search the history table looking for the most
-recent (highest \fBinnodb_to_lsn\fP), successful backup in the series and take
-the to_lsn value to use as the starting \fBlsn\fP for the incremental
-backup. This will be mutually exclusive with
-\fI\%\-\-incremental\-history\-uuid\fP, \fI\%\-\-incremental\-basedir\fP and
-\fI\%\-\-incremental\-lsn\fP\&. If no valid lsn can be found (no series by that
-name, no successful backups by that name) \fIxtrabackup\fP will return with an
-error. It is used with the \fI\%\-\-incremental\fP option.
+این گزینه نام سریِ پشتیبان ذخیره‌شده در رکورد تاریخچهٔ \fBPERCONA_SCHEMA.xtrabackup_history\fP را برای پایه‌گذاری پشتیبان افزایشی بر روی آن مشخص می‌کند. \fIxtrabackup\fP در جدول تاریخچه به جستجوی تازه‌ترین (بالاترین \fBinnodb_to_lsn\fP) پشتیبان موفق در این سری می‌پردازد و مقدار to_lsn را به عنوان \fBlsn\fP شروع برای پشتیبان افزایشی استفاده می‌کند. این گزینه با \fI\%\-\-incremental\-history\-uuid\fP، \fI\%\-\-incremental\-basedir\fP و \fI\%\-\-incremental\-lsn\fP مانعة‌الجمع است. اگر هیچ lsn معتبری یافت نشود (سری با این نام وجود نداشته باشد، یا پشتیبان موفقی با این نام یافت نشود)، \fIxtrabackup\fP با خطا خارج می‌شود. این گزینه به همراه گزینهٔ \fI\%\-\-incremental\fP استفاده می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-incremental\-history\-uuid=name
-This option specifies the \fIUUID\fP of the specific history record stored in the
-\fBPERCONA_SCHEMA.xtrabackup_history\fP to base an incremental backup on.
-\fI\%\-\-incremental\-history\-name\fP, \fI\%\-\-incremental\-basedir\fP and
-\fI\%\-\-incremental\-lsn\fP\&. If no valid lsn can be found (no success record
-with that \fIUUID\fP) \fIxtrabackup\fP will return with an error. It is used with
-the \-\-incremental option.
+این گزینه \fIUUID\fP رکورد تاریخچهٔ خاص ذخیره‌شده در \fBPERCONA_SCHEMA.xtrabackup_history\fP را برای پایه‌گذاری پشتیبان افزایشی مشخص می‌کند. این گزینه با \fI\%\-\-incremental\-history\-name\fP، \fI\%\-\-incremental\-basedir\fP و \fI\%\-\-incremental\-lsn\fP مانعة‌الجمع است. اگر هیچ lsn معتبری یافت نشود (هیچ رکورد موفقی با آن \fIUUID\fP وجود نداشته باشد)، \fIxtrabackup\fP با خطا خارج می‌شود. این گزینه به همراه گزینهٔ \-\-incremental استفاده می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-incremental\-lsn=LSN
-When creating an incremental backup, you can specify the log sequence number
-(LSN) instead of specifying
-\fI\%\-\-incremental\-basedir\fP\&. For databases created in 5.1 and
-later, specify the LSN as a single 64\-bit integer. \fBATTENTION\fP: If
-a wrong LSN value is specified (a user  error which \fIPercona XtraBackup\fP is
-unable to detect), the backup will be unusable. Be careful!
+هنگام ایجاد یک پشتیبان افزایشی، می‌توانید به جای مشخص کردن \fI\%\-\-incremental\-basedir\fP، شماره توالی لاگ (LSN) را مشخص کنید. برای پایگاه‌های دادهٔ ایجاد شده در نسخهٔ 5.1 و بالاتر، LSN را به صورت یک عدد صحیح ۶۴ بیتی مشخص کنید. \fBتوجه\fP: اگر مقدار اشتباهی برای LSN مشخص شود (یک خطای کاربری که \fIPercona XtraBackup\fP قادر به تشخیص آن نیست)، پشتیبان غیرقابل استفاده خواهد شد. دقت کنید!
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-innodb[=name]
-This option is ignored for MySQL option compatibility.
+این گزینه برای سازگاری با گزینه‌های MySQL نادیده گرفته می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-innodb\-miscellaneous
-There is a large group of InnoDB options that are normally read from the
-\fBmy.cnf\fP configuration file, so that \fIxtrabackup\fP boots up its
-embedded InnoDB in the same configuration as your current server. You
-normally do not need to specify these explicitly. These options have the
-same behavior in InnoDB and XtraDB:
+گروه بزرگی از گزینه‌های InnoDB وجود دارد که معمولاً از فایل پیکربندی \fBmy.cnf\fP خوانده می‌شوند تا \fIxtrabackup\fP موتور درون‌سازی‌شدهٔ InnoDB خود را با همان پیکربندی سرور فعلی شما راه‌اندازی کند. معمولاً نیازی به مشخص کردن صریح این گزینه‌ها ندارید. این گزینه‌ها در InnoDB و XtraDB رفتار یکسانی دارند:
 .INDENT 7.0
 .INDENT 2.0
 .IP \(bu 2
@@ -2624,8 +2161,7 @@ same behavior in InnoDB and XtraDB:
 .IP \(bu 2
 \-\-innodb\-log\-group\-home\-dir
 .IP \(bu 2
-\-\-innodb\-max\-dirty\-pages\-pct
-.IP \(bu 2
+\-\-innodb\-max\-dirty\-pages\-pct.IP \(bu 2
 \-\-innodb\-open\-files
 .IP \(bu 2
 \-\-innodb\-page\-size
@@ -2649,322 +2185,289 @@ same behavior in InnoDB and XtraDB:
 .INDENT 0.0
 .TP
 .B \-\-keyring\-file\-data=FILENAME
-The path to the keyring file. Combine this option with
-\fI\%\-\-xtrabackup\-plugin\-dir\fP\&.
+مسیر فایل keyring. این گزینه را همراه با
+\fI\%\-\-xtrabackup\-plugin\-dir\fP\& به کار ببرید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-kill\-long\-queries\-timeout=SECONDS
-This option specifies the number of seconds \fIxtrabackup\fP waits between
-starting \fBFLUSH TABLES WITH READ LOCK\fP and killing those queries that block
-it. Default is 0 seconds, which means \fIxtrabackup\fP will not attempt to kill
-any queries. In order to use this option xtrabackup user should have the
-\fBPROCESS\fP and \fBSUPER\fP privileges. Where supported, \fIxtrabackup\fP
-automatically uses \fI\%Backup Locks\fP
-as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
-non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.
+این گزینه تعداد ثانیه‌هایی را مشخص می‌کند که \fIxtrabackup\fP بین
+آغاز \fBFLUSH TABLES WITH READ LOCK\fP و کُشتن آن پرس‌وجوهایی که آن را مسدود
+می‌کنند، منتظر می‌ماند. پیش‌فرض 0 ثانیه است، به این معنی که \fIxtrabackup\fP تلاشی
+برای متوقف ساختن هیچ پرس‌وجویی نخواهد کرد. جهت استفاده از این گزینه، کاربر xtrabackup
+باید دارای مجوزهای \fBPROCESS\fP و \fBSUPER\fP باشد. در صورت پشتیبانی، \fIxtrabackup\fP
+به‌طور خودکار از \fI\%Backup Locks\fP
+به‌عنوان جایگزینی سبک برای \fBFLUSH TABLES WITH READ LOCK\fP جهت کپی
+داده‌های غیر InnoDB استفاده می‌کند تا از مسدود شدن پرس‌وجوهای DML که جداول InnoDB را تغییر می‌دهند، جلوگیری شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-kill\-long\-query\-type=all|select
-This option specifies which types of queries should be killed to unblock the
-global lock. Default is "select".
+این گزینه مشخص می‌کند کدام نوع از پرس‌وجوها باید برای رفع انسداد
+قفل سراسری (global lock) کشته شوند. پیش‌فرض "select" است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-lock\-ddl
-Issue \fBLOCK TABLES FOR BACKUP\fP if it is supported by server (otherwise use
-\fBLOCK INSTANCE FOR BACKUP\fP) at the beginning of the backup to block all DDL
-operations.
+در صورت پشتیبانی توسط سرور، دستور \fBLOCK TABLES FOR BACKUP\fP (و در غیر این صورت
+\fBLOCK INSTANCE FOR BACKUP\fP) را در ابتدای پشتیبان‌گیری صادر می‌کند تا تمام عملیات‌های
+DDL مسدود شوند.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 7.0
 .INDENT 3.5
-Prior to \fIPercona XtraBackup\fP 8.0.22\-15.0, using a \fIsafe\-slave\-backup\fP stops the SQL replica thread
-after the InnoDB tables and before the non\-InnoDB tables are backed up.
+پیش از \fIPercona XtraBackup\fP 8.0.22\-15.0، استفاده از \fIsafe\-slave\-backup\fP رشته رونوشت SQL را
+پس از پشتیبان‌گیری از جداول InnoDB و پیش از پشتیبان‌گیری از جداول غیر InnoDB متوقف می‌کرد.
 .sp
-As of \fIPercona XtraBackup\fP 8.0.22\-15.0, using a \fIsafe\-slave\-backup\fP option stops the SQL
-replica thread before copying the InnoDB files.
+از نسخه \fIPercona XtraBackup\fP 8.0.22\-15.0 به بعد، استفاده از گزینه \fIsafe\-slave\-backup\fP
+رشته رونوشت SQL را پیش از کپی کردن فایل‌های InnoDB متوقف می‌کند.
 .UNINDENT
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-lock\-ddl\-per\-table
-Lock DDL for each table before xtrabackup starts to copy
-it and until the backup is completed.
+قفل کردن DDL برای هر جدول پیش از شروع کپی کردن آن توسط xtrabackup
+و تا زمان تکمیل پشتیبان‌گیری.
 .sp
-\fBNOTE:\fP
+\fBنکته:\fP
 .INDENT 7.0
 .INDENT 3.5
-As of \fIPercona XtraBackup\fP 8.0.15, the \fI\-\-lock\-ddl\-per\-table\fP option is deprecated. Use the \fI\-\-lock\-ddl\fP option instead.
+از نسخه \fIPercona XtraBackup\fP 8.0.15 به بعد، گزینه \fI\-\-lock\-ddl\-per\-table\fP منسوخ شده است. به جای آن از گزینه \fI\-\-lock\-ddl\fP استفاده کنید.
 .UNINDENT
 .UNINDENT
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-lock\-ddl\-timeout
-If \fBLOCK TABLES FOR BACKUP\fP or \fBLOCK INSTANCE FOR BACKUP\fP does not return
-within given timeout, abort the backup.
+اگر \fBLOCK TABLES FOR BACKUP\fP یا \fBLOCK INSTANCE FOR BACKUP\fP در
+مدت‌زمان تعیین‌شده پاسخ ندهد، فرایند پشتیبان‌گیری را متوقف می‌کند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-log
-This option is ignored for \fIMySQL\fP
+این گزینه برای \fIMySQL\fP نادیده گرفته می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-log\-bin
-The base name for the log sequence.
+نام پایه برای توالی لاگ‌ها.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-log\-bin\-index=name
-File that holds the names for binary log files.
+فایلی که نام فایل‌های گزارش باینری (binary log) را نگه می‌دارد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-log\-copy\-interval=#
-This option specifies the time interval between checks done by the log
-copying thread in milliseconds (default is 1 second).
+این گزینه بازه زمانی بین بررسی‌های انجام‌شده توسط رشته رونوشت لاگ را
+بر حسب میلی‌ثانیه مشخص می‌کند (پیش‌فرض ۱ ثانیه است).
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-login\-path
-Read the given path from the login file.
+مسیر مشخص‌شده را از فایل ورود (login file) می‌خواند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-move\-back
-Move all the files in a previously made backup from the backup directory to
-their original locations. As this option removes backup files, it must be
-used with caution.
+انتقال تمام فایل‌های موجود در یک پشتیبان از قبل ایجاد شده از دایرکتوری پشتیبان به
+مکان‌های اصلی‌شان. از آنجا که این گزینه فایل‌های پشتیبان را حذف می‌کند، باید
+با احتیاط کامل استفاده شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-no\-backup\-locks
-Explicity disables the \fI\%\-\-backup\-locks\fP option which is enabled by
-default.
+گزینه \fI\%\-\-backup\-locks\fP را که به‌طور پیش‌فرض فعال است،
+صراحتاً غیرفعال می‌کند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-no\-defaults
-The default options are only read from the login file.
+گزینه‌های پیش‌فرض فقط از فایل ورود (login file) خوانده می‌شوند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-no\-lock
-Use this option to disable table lock with \fBFLUSH TABLES WITH READ
-LOCK\fP\&. Use it only if ALL your tables are InnoDB and you \fBDO NOT CARE\fP
-about the binary log position of the backup. This option shouldn\(aqt be used if
-there are any \fBDDL\fP statements being executed or if any updates are
-happening on non\-InnoDB tables (this includes the system MyISAM tables in the
-\fImysql\fP database), otherwise it could lead to an inconsistent backup. Where
-supported \fIxtrabackup\fP will automatically use \fI\%Backup Locks\fP
-as a lightweight alternative to \fBFLUSH TABLES WITH READ LOCK\fP to copy
-non\-InnoDB data to avoid blocking DML queries that modify InnoDB tables.  If
-you are considering to use this because your backups are failing to acquire
-the lock, this could be because of incoming replication events are preventing
-the lock from succeeding. Please try using \fI\%\-\-safe\-slave\-backup\fP to
-momentarily stop the replication replica thread, this may help the backup to
-succeed and you do not need to use this option.
+از این گزینه برای غیرفعال کردن قفل جدول با \fBFLUSH TABLES WITH READ
+LOCK\fP\& استفاده کنید. تنها در صورتی از آن استفاده کنید که تمام جداول شما InnoDB باشند و شما
+به موقعیت لاگ باینری پشتیبان \fBاهمیتی ندهید\fP. در صورتی که هرگونه عبارت \fBDDL\fP
+در حال اجرا باشد یا هرگونه به‌روزرسانی روی جداول غیر InnoDB انجام شود (شامل جداول سیستمی
+MyISAM در پایگاه داده \fImysql\fP)، نباید از این گزینه استفاده کرد، زیرا در غیر این صورت
+می‌تواند منجر به یک پشتیبان ناسازگار شود. در صورت پشتیبانی، \fIxtrabackup\fP به‌طور
+خودکار از \fI\%Backup Locks\fP به‌عنوان جایگزینی سبک برای \fBFLUSH TABLES WITH READ LOCK\fP
+جهت کپی داده‌های غیر InnoDB استفاده می‌کند تا از مسدود شدن پرس‌وجوهای DML که جداول InnoDB را
+تغییر می‌دهند جلوگیری شود. اگر به این دلیل قصد استفاده از این گزینه را دارید که پشتیبان‌گیری‌هایتان
+در دریافت قفل شکست می‌خورند، ممکن است به دلیل این باشد که رویدادهای replication ورودی
+مانع از موفقیت قفل می‌شوند. لطفاً با استفاده از \fI\%\-\-safe\-slave\-backup\fP سعی کنید
+رشته replicaی replication را موقتاً متوقف کنید؛ این ممکن است به موفقیت پشتیبان‌گیری
+کمک کند و نیازی به استفاده از این گزینه نداشته باشید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-no\-server\-version\-check
-Implemented in \fIPercona XtraBackup\fP 8.0.21.
+در \fIPercona XtraBackup\fP 8.0.21 پیاده‌سازی شده است.
 .sp
-The \fB\-\-no\-server\-version\-check\fP option disables the server version check.
+گزینه \fB\-\-no\-server\-version\-check\fP بررسی نسخه سرور را غیرفعال می‌کند.
 .sp
-The default behavior runs a check that compares the source system version to the \fIPercona XtraBackup\fP version. If the source system version is higher than the XtraBackup version, the backup is aborted with a message.
+رفتار پیش‌فرض، بررسی‌ای را اجرا می‌کند که نسخه سیستم مبدأ را با نسخه \fIPercona XtraBackup\fP مقایسه می‌کند. اگر نسخه سیستم مبدأ بالاتر از نسخه XtraBackup باشد، پشتیبان‌گیری با پیامی لغو می‌شود.
 .sp
-Adding the option overrides this check, and the backup proceeds, but there may be issues with the backup.
+افزودن این گزینه این بررسی را لغو (override) می‌کند و پشتیبان‌گیری ادامه می‌یابد، اما ممکن است مشکلاتی در پشتیبان وجود داشته باشد.
 .sp
-See comparison for more information.
+برای اطلاعات بیشتر بخش مقایسه (comparison) را ببینید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-no\-version\-check
-This option disables the version check. If you do not pass this option, the
-automatic version check is enabled implicitly when \fIxtrabackup\fP runs
-in the \fB\-\-backup\fP mode. To disable the version check, you should pass
-explicitly the \fB\-\-no\-version\-check\fP option when invoking \fIxtrabackup\fP\&.
+این گزینه بررسی نسخه را غیرفعال می‌کند. اگر این گزینه را تعیین نکنید، هنگام اجرای
+\fIxtrabackup\fP در حالت \fB\-\-backup\fP، بررسی خودکار نسخه به‌طور ضمنی
+فعال خواهد شد. برای غیرفعال کردن بررسی نسخه، باید هنگام فراخوانی \fIxtrabackup\fP\&
+صراحتاً گزینه \fB\-\-no\-version\-check\fP را مشخص کنید.
 .sp
-When the automatic version check is enabled, \fIxtrabackup\fP performs a
-version check against the server on the backup stage after creating a server
-connection. \fIxtrabackup\fP sends the following information to the server:
+هنگامی که بررسی خودکار نسخه فعال است، \fIxtrabackup\fP در مرحله پشتیبان‌گیری
+پس از ایجاد اتصال به سرور، یک بررسی نسخه در برابر سرور انجام می‌دهد.
+\fIxtrabackup\fP اطلاعات زیر را به سرور ارسال می‌کند:
 .INDENT 7.0
 .IP \(bu 2
-MySQL flavour and version
+نوع و نسخه MySQL
 .IP \(bu 2
-Operating system name
+نام سیستم‌عامل
 .IP \(bu 2
-Percona Toolkit version
+نسخه Percona Toolkit
 .IP \(bu 2
-Perl version
+نسخه Perl
 .UNINDENT
 .sp
-Each piece of information has a unique identifier. This is a MD5 hash value
-that Percona Toolkit uses to obtain statistics about how it is used. This is
-a random UUID; no client information is either collected or stored.
+هر بخش از اطلاعات دارای یک شناسه یکتا است. این مقدار، یک درهم‌سازی (هش) MD5
+است که Percona Toolkit برای دریافت آمار درباره نحوه استفاده از آن بهره می‌برد. این شناسه
+یک UUID تصادفی است؛ هیچ اطلاعاتی از کلاینت جمع‌آوری یا ذخیره نمی‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-open\-files\-limit=#
-The maximum number of file descriptors to reserve with setrlimit().
+حداکثر تعداد توصیف‌کننده‌های فایل (file descriptors) برای رزرو با ()setrlimit.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-parallel=#
-This option specifies the number of threads to use to copy multiple data
-files concurrently when creating a backup. The default value is 1 (i.e., no
-concurrent transfer). In \fIPercona XtraBackup\fP 2.3.10 and newer, this option
-can be used with the \fI\%\-\-copy\-back\fP option to copy the user
-data files in parallel (redo logs and system tablespaces are copied in the
-main thread).
+این گزینه تعداد رشته‌ها (threads) را برای کپی هم‌زمان چندین فایل داده
+هنگام ایجاد پشتیبان مشخص می‌کند. مقدار پیش‌فرض 1 است (یعنی بدون انتقال هم‌زمان).
+در \fIPercona XtraBackup\fP 2.3.10 و جدیدتر، این گزینه را می‌توان همراه با گزینه
+\fI\%\-\-copy\-back\fP برای کپی موازی فایل‌های داده کاربر به کار برد
+(لاگ‌های redo و فضاهای جدول سیستمی در رشته اصلی کپی می‌شوند).
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-password=PASSWORD
-This option specifies the password to use when connecting to the database.
-It accepts a string argument. See \fBmysql \-\-help\fP for details.
+این گزینه گذرواژه مورد استفاده هنگام اتصال به پایگاه داده را مشخص می‌کند.
+یک آرگومان رشته‌ای می‌پذیرد. برای جزئیات به \fBmysql \-\-help\fP مراجعه کنید.
 .UNINDENT
-.INDENT 0.0
-.TP
+.INDENT 0.0.TP
 .B \-\-plugin\-load
-List of plugins to load.
+فهرست افزونه‌هایی که باید بارگذاری شوند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-port=PORT
-This option accepts a string argument that specifies the port to use when
-connecting to the database server with TCP/IP. It is passed to the
-\fBmysql\fP child process without alteration. See \fBmysql
-\-\-help\fP for details.
+این گزینه یک آرگومان رشته‌ای می‌پذیرد که درگاه مورد استفاده هنگام اتصال به سرور پایگاه داده از طریق TCP/IP را مشخص می‌کند. این مقدار بدون تغییر به فرآیند فرزند \fBmysql\fP منتقل می‌شود. برای جزئیات بیشتر به \fBmysql \-\-help\fP مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-prepare
-Makes \fBxtrabackup\fP perform a recovery on a backup created with
-\fI\%\-\-backup\fP, so that it is ready to use. See
-preparing a backup\&.
+باعث می‌شود \fBxtrabackup\fP روی پشتیبان ایجادشده با \fI\%\-\-backup\fP بازیابی (recovery) انجام دهد تا آماده استفاده شود. به بخش آماده‌سازی پشتیبان (preparing a backup)\& مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-print\-defaults
-Print the program argument list and exit. Must be given as the first option
-on the command\-line.
+فهرست آرگومان‌های برنامه را چاپ کرده و خارج می‌شود. باید به عنوان نخستین گزینه در خط فرمان مشخص شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-print\-param
-Makes \fBxtrabackup\fP print out parameters that can be used for
-copying the data files back to their original locations to restore them.
+باعث می‌شود \fBxtrabackup\fP پارامترهایی را چاپ کند که می‌توان از آن‌ها برای کپی کردن فایل‌های داده به مکان‌های اصلی‌شان به منظور بازیابی (restore) استفاده کرد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-read\-buffer\-size
-Set the datafile read buffer size, given value is scaled up to page size. Default
-is 10Mb.
+اندازه بافر خواندن فایل داده (datafile) را تنظیم می‌کند؛ مقدار ارائه‌شده با اندازه صفحه (page size) همگام و تنظیم می‌شود. مقدار پیش‌فرض 10Mb است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rebuild\-indexes
-Rebuilds indexes in a compact backup. This option only has effect when the
-\fI\%\-\-prepare\fP and \fI\%\-\-rebuild\-threads\fP options are provided.
+اندیس‌ها را در یک پشتیبان فشرده بازسازی می‌کند. این گزینه تنها زمانی اثر دارد که گزینه‌های \fI\%\-\-prepare\fP و \fI\%\-\-rebuild\-threads\fP مشخص شده باشند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rebuild\-threads=#
-Uses the given number of threads to rebuild indexes in a compact backup. This
-option only has effect with the \fI\%\-\-prepare\fP and
-\fI\%\-\-rebuild\-indexes\fP options.
+از تعداد مشخصی از نخ‌ها (threads) برای بازسازی اندیس‌ها در یک پشتیبان فشرده استفاده می‌کند. این گزینه تنها همراه با گزینه‌های \fI\%\-\-prepare\fP و \fI\%\-\-rebuild\-indexes\fP موثر است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-remove\-original
-Implemented in \fIPercona XtraBackup\fP 2.4.6, this option when specified will
-remove \fB\&.qp\fP, \fB\&.xbcrypt\fP and \fB\&.qp.xbcrypt\fP files after
-decryption and decompression.
+در \fIPercona XtraBackup\fP نسخه 2.4.6 پیاده‌سازی شده است؛ در صورت تعیین این گزینه، فایل‌های \fB\&.qp\fP، \fB\&.xbcrypt\fP و \fB\&.qp.xbcrypt\fP پس از رمزگشایی و خروج از حالت فشرده‌سازی حذف خواهند شد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rocksdb\-datadir
-RocksDB data directory
+دایرکتوری داده‌های RocksDB.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rocksdb\-wal\-dir
-RocksDB WAL directory.
+دایرکتوری WAL برای RocksDB.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rocksdb\-checkpoint\-max\-age
-The checkpoint cannot be older than this number of seconds when the backup
-completes.
+هنگام اتمام پشتیبان‌گیری، نقطه بازرسی (checkpoint) نباید بیش از این تعداد ثانیه قدیمی باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rocksdb\-checkpoint\-max\-count
-Complete the backup even if the checkpoint age requirement has not been met after
-this number of checkpoints.
+پشتیبان‌گیری را تکمیل می‌کند حتی اگر شرط طول عمر نقطه بازرسی پس از این تعداد checkpoint برآورده نشده باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rollback\-prepared\-trx
-Force rollback prepared InnoDB transactions.
+برگرداندن اجباری (rollback) تراکنش‌های آماده‌شده‌ی (prepared) در InnoDB.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-rsync
-Uses the \fBrsync\fP utility to optimize local file transfers. When this
-option is specified, \fIxtrabackup\fP uses \fBrsync\fP to copy
-all non\-InnoDB files instead of spawning a separate \fBcp\fP for each
-file, which can be much faster for servers with a large number of databases
-or tables.  This option cannot be used together with \fI\%\-\-stream\fP\&.
+از ابزار \fBrsync\fP برای بهینه‌سازی انتقال محلی فایل‌ها استفاده می‌کند. با تعیین این گزینه، \fIxtrabackup\fP به جای اجرای یک فرآیند جداگانه \fBcp\fP برای هر فایل، از \fBrsync\fP برای رونوشت تمامی فایل‌های غیر InnoDB استفاده می‌کند که برای سرورهایی با تعداد زیادی پایگاه داده یا جدول می‌تواند بسیار سریع‌تر باشد. این گزینه نمی‌تواند همراه با \fI\%\-\-stream\fP\& استفاده شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-safe\-slave\-backup
-When specified, xtrabackup will stop the replica SQL thread just before
-running \fBFLUSH TABLES WITH READ LOCK\fP and wait to start backup until
-\fBSlave_open_temp_tables\fP in \fBSHOW STATUS\fP is zero. If there are no open
-temporary tables, the backup will take place, otherwise the SQL thread will
-be started and stopped until there are no open temporary tables. The backup
-will fail if \fBSlave_open_temp_tables\fP does not become zero after
-\fI\%\-\-safe\-slave\-backup\-timeout\fP seconds. The replication SQL
-thread will be restarted when the backup finishes. This option is
-implemented in order to deal with \fI\%replicating temporary tables\fP
-and isn\(aqt neccessary with Row\-Based\-Replication.
+با تعیین این گزینه، xtrabackup دقیقاً پیش از اجرای \fBFLUSH TABLES WITH READ LOCK\fP نخ SQL رونوشت (replica) را متوقف کرده و برای شروع پشتیبان‌گیری منتظر می‌ماند تا \fBSlave_open_temp_tables\fP در دستور \fBSHOW STATUS\fP صفر شود. اگر هیچ جدول موقت بازی وجود نداشته باشد، پشتیبان‌گیری انجام می‌شود؛ در غیر این صورت نخ SQL به طور متناوب اجرا و متوقف می‌شود تا زمانی که هیچ جدول موقت بازی باقی نماند. چنانچه پس از گذشت \fI\%\-\-safe\-slave\-backup\-timeout\fP ثانیه مقدار \fBSlave_open_temp_tables\fP صفر نشود، پشتیبان‌گیری با شکست مواجه خواهد شد. با پایان پشتیبان‌گیری، نخ SQL همانندسازی مجدداً اجرا می‌شود. این گزینه به منظور مدیریت \fI\%همانندسازی جدول‌های موقت\fP پیاده‌سازی شده و در Row\-Based\-Replication نیازی به آن نیست.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-safe\-slave\-backup\-timeout=SECONDS
-How many seconds \fI\%\-\-safe\-slave\-backup\fP should wait for
-\fBSlave_open_temp_tables\fP to become zero. Defaults to 300 seconds.
+مدت زمانی بر حسب ثانیه که \fI\%\-\-safe\-slave\-backup\fP باید منتظر بماند تا مقدار \fBSlave_open_temp_tables\fP به صفر برسد. مقدار پیش‌فرض ۳۰۰ ثانیه است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-secure\-auth
-Refuse client connecting to server if it uses old (pre\-4.1.1) protocol.
-(Enabled by default; use \-\-skip\-secure\-auth to disable.)
+در صورت استفاده کلاینت از پروتکل قدیمی (پیش از 4.1.1)، اتصال آن را به سرور رد می‌کند. (به‌طور پیش‌فرض فعال است؛ برای غیرفعال کردن از \-\-skip\-secure\-auth استفاده کنید.)
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-server\-id=#
-The server instance being backed up.
+شناسه نمونه سروری که از آن پشتیبان‌گیری می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-server\-public\-key\-path
-The file path to the server public RSA key in the PEM format.
+مسیر فایل کلید عمومی RSA سرور در قالب PEM.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B \fIMySQL\fP Documentation: The \-\-server\-public\-key\-path Option
+.B مستندات \fIMySQL\fP: گزینه \-\-server\-public\-key\-path
 \fI\%https://dev.mysql.com/doc/refman/8.0/en/connection\-options.html#option_general_server\-public\-key\-path\fP
 .UNINDENT
 .UNINDENT
@@ -2973,182 +2476,162 @@ The file path to the server public RSA key in the PEM format.
 .INDENT 0.0
 .TP
 .B \-\-skip\-tables\-compatibility\-check
-See \fI\%\-\-tables\-compatibility\-check\fP\&.
+به \fI\%\-\-tables\-compatibility\-check\fP\& مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-slave\-info
-This option is useful when backing up a replication replica server. It prints
-the binary log position of the source server. It also writes the binary log
-coordinates to the \fBxtrabackup_slave_info\fP file as a \fBCHANGE MASTER\fP
-command. A new replica for this source can be set up by starting a replica server
-on this backup and issuing a \fBCHANGE MASTER\fP command with the binary log
-position saved in the \fBxtrabackup_slave_info\fP file.
+این گزینه هنگام پشتیبان‌گیری از یک سرور رونوشت (replica) در سازوکار همانندسازی کاربرد دارد. این گزینه موقعیت binary log سرور مبدا را چاپ می‌کند. همچنین مختصات binary log را در قالب یک دستور \fBCHANGE MASTER\fP در فایل \fBxtrabackup_slave_info\fP ذخیره می‌کند. با راه‌اندازی یک سرور رونوشت بر اساس این پشتیبان و اجرای دستور \fBCHANGE MASTER\fP با استفاده از موقعیت binary log ذخیره‌شده در فایل \fBxtrabackup_slave_info\fP، می‌توان یک نسخه رونوشت جدید برای این مبدا راه‌اندازی کرد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-socket
-This option accepts a string argument that specifies the socket to use when
-connecting to the local database server with a UNIX domain socket. It is
-passed to the mysql child process without alteration. See \fBmysql
-\-\-help\fP for details.
+این گزینه یک آرگومان رشته‌ای می‌پذیرد که سوکت مورد استفاده برای اتصال به سرور پایگاه داده محلی از طریق یک UNIX domain socket را مشخص می‌کند. این مقدار بدون تغییر به فرآیند فرزند mysql منتقل می‌شود. برای جزئیات بیشتر به \fBmysql \-\-help\fP مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl
-Enable secure connection. More information can be found in \fI\%\-\-ssl\fP
-MySQL server documentation.
+فعال‌سازی اتصال امن. اطلاعات بیشتر در مستندات سرور MySQL ذیل گزینه \fI\%\-\-ssl\fP در دسترس است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-ca
-Path of the file which contains list of trusted SSL CAs. More information
-can be found in \fI\%\-\-ssl\-ca\fP
-MySQL server documentation.
+مسیر فایلی که شامل فهرست CAهای معتبر SSL است. اطلاعات بیشتر در مستندات سرور MySQL ذیل گزینه \fI\%\-\-ssl\-ca\fP در دسترس است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-capath
-Directory path that contains trusted SSL CA certificates in PEM format. More
-information can be found in \fI\%\-\-ssl\-capath\fP
-MySQL server documentation.
+مسیر دایرکتوری حاوی گواهی‌های مرجع صدور گواهی (CA) معتبر SSL در قالب PEM. اطلاعات بیشتر در مستندات سرور MySQL ذیل گزینه \fI\%\-\-ssl\-capath\fP در دسترس است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-cert
-Path of the file which contains X509 certificate in PEM format. More
-information can be found in \fI\%\-\-ssl\-cert\fP
-MySQL server documentation.
+مسیر فایلی که شامل گواهی X509 در قالب PEM است. اطلاعات بیشتر در مستندات سرور MySQL ذیل گزینه \fI\%\-\-ssl\-cert\fP در دسترس است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-cipher
-List of permitted ciphers to use for connection encryption. More information
-can be found in \fI\%\-\-ssl\-cipher\fP
-MySQL server documentation.
+فهرست رمزنگاری‌های (ciphers) مجاز جهت استفاده برای رمزنگاری ارتباط. اطلاعات بیشتر در مستندات سرور MySQL ذیل گزینه \fI\%\-\-ssl\-cipher\fP در دسترس است.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-crl
-Path of the file that contains certificate revocation lists. More
-information can be found in \fI\%\-\-ssl\-crl\fP
-MySQL server documentation.
+مسیر فایلی که شامل فهرست‌های ابطال گواهی (CRL) است. اطلاعات بیشتر در مستندات سرور MySQL ذیل گزینه \fI\%\-\-ssl\-crl\fP در دسترس است.
 .UNINDENT
-.INDENT 0.0
-.TP
+.INDENT 0.0.TP
 .B \-\-ssl\-crlpath
-Path of directory that contains certificate revocation list files. More
-information can be found in \fI\%\-\-ssl\-crlpath\fP
-MySQL server documentation.
+مسیر دایرکتوری حاوی فایل‌های فهرست ابطال گواهی (certificate revocation list). اطلاعات
+بیشتر را می‌توان در مستندات سرور MySQL برای \fI\%\-\-ssl\-crlpath\fP
+یافت.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-fips\-mode
-SSL FIPS mode (applies only for OpenSSL); permitted values are: \fIOFF\fP, \fION\fP,
+حالت SSL FIPS (تنها برای OpenSSL اعمال می‌شود)؛ مقادیر مجاز عبارت‌اند از: \fIOFF\fP، \fION\fP و
 \fISTRICT\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-key
-Path of file that contains X509 key in PEM format. More information can be
-found in \fI\%\-\-ssl\-key\fP
-MySQL server documentation.
+مسیر فایلی که حاوی کلید X509 در قالب PEM است. اطلاعات بیشتر را می‌توان
+در مستندات سرور MySQL برای \fI\%\-\-ssl\-key\fP
+یافت.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-mode
-Security state of connection to server. More information can be found in
-\fI\%\-\-ssl\-mode\fP
-MySQL server documentation.
+وضعیت امنیتی اتصال به سرور. اطلاعات بیشتر را می‌توان در
+مستندات سرور MySQL برای \fI\%\-\-ssl\-mode\fP
+یافت.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-ssl\-verify\-server\-cert
-Verify server certificate Common Name value against host name used when
-connecting to server. More information can be found in
-\fI\%\-\-ssl\-verify\-server\-cert\fP
-MySQL server documentation.
+بررسی مقدار Common Name گواهی سرور در برابر نام میزبان (host name) استفاده‌شده هنگام
+اتصال به سرور. اطلاعات بیشتر را می‌توان در
+مستندات سرور MySQL برای \fI\%\-\-ssl\-verify\-server\-cert\fP
+یافت.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-stats
-Causes \fBxtrabackup\fP to scan the specified data files and print out
-index statistics.
+باعث می‌شود \fBxtrabackup\fP فایل‌های داده مشخص‌شده را پیمایش کرده و آمارهای
+نمایه (index statistics) را چاپ کند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-stream=FORMAT
-Stream all backup files to the standard output in the specified format.
-Currently, this option only supports the \fIxbstream\fP format.
+ارسال جریانی (stream) تمامی فایل‌های پشتیبان به خروجی استاندارد در قالب مشخص‌شده.
+در حال حاضر، این گزینه تنها از قالب \fIxbstream\fP پشتیبانی می‌کند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-strict
-If this option is specified, \fIxtrabackup\fP fails with an error when invalid
-parameters are passed.
+اگر این گزینه مشخص شود، در صورت ارسال پارامترهای نامعتبر، \fIxtrabackup\fP با خطا
+متوقف می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-tables=name
-A regular expression against which the full tablename, in
-\fBdatabasename.tablename\fP format, is matched. If the name matches, the
-table is backed up. See partial backups\&.
+یک عبارت باقاعده که نام کامل جدول در قالب
+\fBdatabasename.tablename\fP با آن مطابقت داده می‌شود. در صورت تطابق نام، از جدول
+پشتیبان‌گیری می‌شود. به بخش پشتیبان‌گیری‌های جزئی (partial backups) مراجعه کنید\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-tables\-compatibility\-check
-Enables the engine compatibility warning. The default value is
-ON. To disable the engine compatibility warning use
-\fI\%\-\-skip\-tables\-compatibility\-check\fP\&.
+هشدار سازگاری موتور را فعال می‌کند. مقدار پیش‌فرض
+ON است. برای غیرفعال کردن هشدار سازگاری موتور از
+\fI\%\-\-skip\-tables\-compatibility\-check\fP استفاده کنید\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-tables\-exclude=name
-Filtering by regexp for table names. Operates the same
-way as \fI\%\-\-tables\fP, but matched names are excluded from
-backup. Note that this option has a higher priority than
-\fI\%\-\-tables\fP\&.
+فیلتر کردن نام جدول‌ها با استفاده از عبارت باقاعده (regexp). عملکردی مشابه
+\fI\%\-\-tables\fP دارد، اما نام‌های منطبق از پشتیبان‌گیری
+استثنا می‌شوند. توجه داشته باشید که اولویت این گزینه بالاتر از
+\fI\%\-\-tables\fP است\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-tables\-file=name
-A file containing one table name per line, in databasename.tablename format.
-The backup will be limited to the specified tables.
+فایلی حاوی یک نام جدول در هر سطر، در قالب databasename.tablename.
+پشتیبان‌گیری به جدول‌های مشخص‌شده محدود خواهد شد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-target\-dir=DIRECTORY
-This option specifies the destination directory for the backup. If the
-directory does not exist, \fBxtrabackup\fP creates it. If the directory
-does exist and is empty, \fBxtrabackup\fP will succeed.
-\fBxtrabackup\fP will not overwrite existing files, however; it will
-fail with operating system error 17, \fBfile exists\fP\&.
+این گزینه دایرکتوری مقصد را برای پشتیبان‌گیری مشخص می‌کند. اگر
+دایرکتوری وجود نداشته باشد، \fBxtrabackup\fP آن را ایجاد می‌کند. اگر دایرکتوری
+وجود داشته و خالی باشد، \fBxtrabackup\fP با موفقیت انجام خواهد شد.
+با این حال، \fBxtrabackup\fP فایل‌های موجود را بازنویسی نخواهد کرد؛
+بلکه با خطای سیستم‌عامل ۱۷، \fBfile exists\fP با شکست مواجه می‌شود\&.
 .sp
-If this option is a relative path, it is interpreted as being relative to
-the current working directory from which \fBxtrabackup\fP is executed.
+اگر این گزینه یک مسیر نسبی باشد، نسبت به
+دایرکتوری کاری فعلی که \fBxtrabackup\fP از آن اجرا شده است تفسیر می‌شود.
 .sp
-In order to perform a backup, you need \fBREAD\fP, \fBWRITE\fP, and \fBEXECUTE\fP
-permissions at a filesystem level for the directory that you supply as the
-value of \fI\%\-\-target\-dir\fP\&.
+برای انجام پشتیبان‌گیری، در سطح سیستم‌فایل به مجوزهای \fBREAD\fP، \fBWRITE\fP و \fBEXECUTE\fP
+برای دایرکتوری تعیین‌شده به‌عنوان مقدار \fI\%\-\-target\-dir\fP
+نیاز دارید\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-innodb\-temp\-tablespaces\-dir=DIRECTORY
-Directory where temp tablespace files live, this path can be absolute.
+دایرکتوری محل قرارگیری فایل‌های tablespace موقت؛ این مسیر می‌تواند مطلق باشد.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-throttle=#
-This option limits the number of chunks copied per second. The chunk size is
-\fI10 MB\fP\&. To limit the bandwidth to \fI10 MB/s\fP, set the option to \fI1\fP:
+این گزینه تعداد تکه‌های (chunks) کپی‌شده در هر ثانیه را محدود می‌کند. اندازه هر تکه
+\fI10 MB\fP است\&. برای محدود کردن پهنای باند به \fI10 MB/s\fP، گزینه را روی \fI1\fP تنظیم کنید:
 \fI\-\-throttle=1\fP\&.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B More information about how to throttle a backup
+.B اطلاعات بیشتر درباره نحوه محدودسازی نرخ پشتیبان‌گیری
 throttling_backups
 .UNINDENT
 .UNINDENT
@@ -3157,83 +2640,82 @@ throttling_backups
 .INDENT 0.0
 .TP
 .B \-\-tls\-ciphersuites
-TLS v1.3 cipher to use.
+رمزنگار (cipher) مورد استفاده برای TLS v1.3.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-tls\-version
-TLS version to use, permitted values are: \fITLSv1\fP, \fITLSv1.1\fP,
-\fITLSv1.2\fP, \fITLSv1.3\fP\&.
+نسخه TLS مورد استفاده؛ مقادیر مجاز عبارت‌اند از: \fITLSv1\fP، \fITLSv1.1\fP،
+\fITLSv1.2\fP، \fITLSv1.3\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-tmpdir=name
-Specify the directory that will be used to store temporary files during the
-backup
+دایرکتوری مورد استفاده برای ذخیره فایل‌های موقت در طول
+پشتیبان‌گیری را مشخص می‌کند.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-transition\-key=name
-This option is used to enable processing the backup without accessing the
-keyring vault server. In this case, \fBxtrabackup\fP derives the AES
-encryption key from the specified passphrase and uses it to encrypt
-tablespace keys of tablespaces being backed up.
+این گزینه برای امکان‌پذیر ساختن پردازش پشتیبان‌گیری بدون دسترسی به
+سرور keyring vault استفاده می‌شود. در این حالت، \fBxtrabackup\fP کلید
+رمزگذاری AES را از عبارت عبور مشخص‌شده مشتق کرده و از آن برای رمزگذاری
+کلیدهای tablespaceهای در حال پشتیبان‌گیری استفاده می‌کند.
 .sp
-If \fI\%\-\-transition\-key\fP does not have any
-value, \fBxtrabackup\fP will ask for it. The same passphrase should be
-specified for the \fI\%\-\-prepare\fP command.
+اگر \fI\%\-\-transition\-key\fP فاقد هرگونه
+مقداری باشد، \fBxtrabackup\fP آن را درخواست خواهد کرد. همان عبارت عبور باید
+برای دستور \fI\%\-\-prepare\fP نیز مشخص شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-use\-memory
-This option affects how much memory is allocated for preparing a backup with
-\fI\%\-\-prepare\fP, or analyzing statistics with
-\fI\%\-\-stats\fP\&. Its purpose is similar
-to innodb_buffer_pool_size\&. It does not do the same thing as the
-similarly named option in Oracle\(aqs InnoDB Hot Backup tool.
-The default value is 100MB, and if you have enough available memory, 1GB to
-2GB is a good recommended value. Multiples are supported providing the unit
-(e.g. 1MB, 1M, 1GB, 1G).
+این گزینه بر میزان حافظه اختصاص‌یافته برای آماده‌سازی پشتیبان با
+\fI\%\-\-prepare\fP، یا تحلیل آمارها با
+\fI\%\-\-stats\fP تأثیر می‌گذارد\&. هدف آن مشابه
+innodb_buffer_pool_size است\&. این گزینه کارکرد مشابه گزینه
+هم‌نام در ابزار InnoDB Hot Backup شرکت Oracle ندارد.
+مقدار پیش‌فرض 100MB است، و در صورت داشتن حافظه در دسترس کافی، مقدار 1GB تا
+2GB مقدار توصیه‌شده مناسبی است. مضارب با ذکر واحد پشتیبانی می‌شوند
+(مانند 1MB، 1M، 1GB، 1G).
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-user=USERNAME
-This option specifies the MySQL username used when connecting to the server,
-if that\(aqs not the current user. The option accepts a string argument. See
-mysql \-\-help for details.
+این گزینه نام‌کاربری MySQL مورد استفاده هنگام اتصال به سرور را، در صورتی که
+کاربر فعلی نباشد، مشخص می‌کند. این گزینه یک آرگومان رشته‌ای می‌پذیرد. برای
+جزئیات به mysql \-\-help مراجعه کنید.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-v
-See \fI\%\-\-version\fP
+نگاه کنید به \fI\%\-\-version\fP
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-version
-This option prints \fIxtrabackup\fP version and exits.
+این گزینه نسخه \fIxtrabackup\fP را چاپ کرده و خارج می‌شود.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-\-xtrabackup\-plugin\-dir=DIRNAME
-The absolute path to the directory that contains the \fBkeyring\fP plugin.
+مسیر مطلق به دایرکتوری حاوی پلاگین \fBkeyring\fP.
 .sp
-\fBSEE ALSO:\fP
+\fBهمچنین ببینید:\fP
 .INDENT 7.0
 .INDENT 3.5
 .INDENT 0.0
 .TP
-.B \fIPercona Server for MySQL\fP Documentation: keyring_vault plugin with Data at Rest Encryption
+.B مستندات \fIPercona Server for MySQL\fP: پلاگین keyring_vault با Data at Rest Encryption
 \fI\%https://www.percona.com/doc/percona\-server/LATEST/management/data_at_rest_encryption.html#keyring\-vault\-plugin\fP
 .TP
-.B \fIMySQL\fP Documentation: Using the keyring_file File\-Based Plugin
+.B مستندات \fIMySQL\fP: استفاده از پلاگین مبتنی بر فایل keyring_file
 \fI\%https://dev.mysql.com/doc/refman/5.7/en/keyring\-file\-plugin.html\fP
 .UNINDENT
 .UNINDENT
 .UNINDENT
-.UNINDENT
-.SH "نویسنده (AUTHOR)"
-Percona LLC and/or its affiliates
-.SH "حق نشر (COPYRIGHT)"
-2009-2022, Percona LLC and/or its affiliates
+.UNINDENT.SH "نویسندگان (AUTHORS)"
+Percona LLC و/یا شرکت‌های وابسته به آن
+.SH "کپی‌رایت و تکثیر (COPYRIGHT)"
+2009-2022، Percona LLC و/یا شرکت‌های وابسته به آن
 .\" Generated by docutils manpage writer.
 .

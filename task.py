@@ -62,6 +62,8 @@ def unlock_task_file(cmd, sec, user):
     full_path = os.path.join(BASE_DIR, rel_path)
 
     if os.path.exists(full_path):
+        if os.access(full_path, os.W_OK):
+            return True
         try:
             uid = pwd.getpwnam(user).pw_uid
             os.chown(full_path, uid, -1)

@@ -78,7 +78,7 @@ def call_llm(prompt, max_retries=3):
                     "anthropic-version": "2023-06-01"
                 }
             )
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=180) as resp:
                 text_parts = []
                 for line in resp:
                     line_str = line.decode("utf-8", errors="replace").strip()
@@ -117,12 +117,46 @@ def call_llm(prompt, max_retries=3):
             time.sleep(2 * attempt)
     return ""
 
+def chunk_roff_content(content, max_chunk_lines=350):
+    lines = content.splitlines(keepends=True)
+    if len(lines) <= max_chunk_lines and len(content.encode("utf-8")) <= 25000:
+        return [content]
+
+    chunks = []
+    curr = []
+    for line in lines:
+        is_boundary = line.startswith(".SH") or line.startswith(".SS") or (
+            len(curr) >= 200 and (line.startswith(".TP") or line.startswith(".IP") or line.startswith(".PP"))
+        )
+        if is_boundary and len(curr) >= 120:
+            chunks.append("".join(curr))
+            curr = [line]
+        else:
+            curr.append(line)
+    if curr:
+        chunks.append("".join(curr))
+    return chunks
+
+def translate_chunk(chunk):
+    prompt = f"Translate the following Linux man page roff source code to fluent technical Persian:\n\n{chunk}"
+    return call_llm(prompt)
+
 def translate_file(file_path):
     with open(file_path, "r", encoding="utf-8") as f:
         content = f.read()
 
-    prompt = f"Translate the following Linux man page roff source code to fluent technical Persian:\n\n{content}"
-    translated = call_llm(prompt)
+    # If it's a .so alias link, no translation needed
+    if content.strip().startswith(".so "):
+        return True
+
+    chunks = chunk_roff_content(content, max_chunk_lines=350)
+    if len(chunks) == 1:
+        translated = translate_chunk(chunks[0])
+    else:
+        # Multiple chunks: translate concurrently
+        with ThreadPoolExecutor(max_workers=min(len(chunks), 8)) as ex:
+            translated_chunks = list(ex.map(translate_chunk, chunks))
+        translated = "".join(translated_chunks)
 
     # Post-process: ensure name line has \-
     lines = translated.splitlines(keepends=True)
@@ -253,7 +287,7 @@ def process_batch(batch_num, total_batches):
     return len(completed_in_batch)
 
 def main():
-    total_batches = 20
+    total_batches = int(sys.argv[1]) if len(sys.argv) > 1 else 10
     total_completed = 0
     start_all = time.time()
 
@@ -267,7 +301,7 @@ def main():
         rate = total_completed / (elapsed / 60.0) if elapsed > 0 else 0
         rem_batches = total_batches - b
         eta_min = (rem_batches * 7) / rate if rate > 0 else 0
-        print(f"📊 Progress: {total_completed}/133 completed | Rate: {rate:.1f} pages/min | ETA: {eta_min:.1f} min")
+        print(f"📊 Progress: {total_completed}/{total_batches * 7} completed | Rate: {rate:.1f} pages/min | ETA: {eta_min:.1f} min")
 
     print("\n" + "="*75)
     print(f"🎉 ALL BATCHES COMPLETE! Total translated: {total_completed} pages.")

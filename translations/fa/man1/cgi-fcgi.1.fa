@@ -1,113 +1,162 @@
-NAME
-     cgi-fcgi   - bridge from CGI to FastCGI
-
-SYNOPSIS
-     cgi-fcgi -f cmdPath
-     cgi-fcgi -bind  -connect connName
-     cgi-fcgi -start -connect connName appPath [nServers]
-     cgi-fcgi -connect connName appPath [nServers]
-
-DESCRIPTION
-     cgi-fcgi is a CGI/1.1 program that communicates with an
-     already-running FastCGI application in order to respond to an
-     HTTP request.  cgi-fcgi is also capable of starting a FastCGI
-     application.
-
-     When you invoke cgi-fcgi as
-
-         cgi-fcgi -f cmdPath
-
-     then cgi-fcgi opens the file at cmdPath and reads its
-     arguments from that file.  cgi-fcgi will skip lines
-     that begin with the comment character #.  The first
-     non-comment line should contain valid arguments in
-     one of the other three forms.
-
-     The -f form of cgi-fcgi is designed for Unix systems
-     whose exec(2) family of system calls supports the execution of
-     command interpreter files.  For instance, if a file with
-     execute permission contains the text
-
-         #! /bin/cgi-fcgi -f
-         -connect /httpd/root/sock/app /httpd/root/bin/app
-
-     the effect is the same as executing
-
-         /bin/cgi-fcgi -connect /httpd/root/sock/app /httpd/root/bin/app
-
-     When you invoke cgi-fcgi as
-
-         cgi-fcgi -bind -connect connName
-
-     the connName argument is either the path name of a Unix domain
-     listening socket or a host:port pair.  If connName contains
-     a colon, it is assumed to be host:port.  cgi-fcgi performs
-     a connect(2) using connName.  If the connect succeeds, cgi-fcgi
-     forwards the CGI environment variables and stdin data to the
-     FastCGI application, and forwards the stdout and stderr data from
-     the application to cgi-fcgi's stdout (most likely connected to
-     a Web server).  When the FastCGI application signals the end of
-     its response, cgi-fcgi flushes its buffers and
-     exits, and the Web server completes the http response.
-
-     When you invoke cgi-fcgi as
-
-         cgi-fcgi -start -connect connName appPath [nServers]
-
-     then cgi-fcgi performs the function of starting one or more
-     FastCGI application processes.  The connName argument specifies
-     either the path name of the Unix domain listening socket that
-     cgi-fcgi will create, or is "localhost:NNN" where NNN is the port
-     number of the TCP/IP listening socket that cgi-fcgi will create
-     on the local machine.  (cgi-fcgi will not create processes
-     on remote machines.)  After cgi-fcgi creates the listening socket,
-     it forks nServers copies of a process running the executable file
-     appPath.  If nServers is omitted, the effect is as if the value "1"
-     had been specified.  The processes share the single listening socket.
-
-     When you invoke cgi-fcgi as
-
-         cgi-fcgi -connect connName appPath [nServers]
-    
-     cgi-fcgi performs -bind and then, if necssary, performs -start
-     and repeats the -bind.  That is, cgi-fcgi first operates as if
-     the command had been
-
-         cgi-fcgi -bind -connect connName
-
-     If the connect fails, cgi-fcgi tries
-
-         cgi-fcgi -start -connect connName appPath [nServers]
-
-     and finally retries
-
-         cgi-fcgi -bind -connect connName
-
-     In this form, cgi-fcgi does not support TCP/IP connections.
-     
-ENVIRONMENT VARIABLES
-     The usual CGI ones, but they are not interpreted by cgi-fcgi.
-
-SEE ALSO
-     FGCI_accept(3)
-
-BUGS
-     cgi-fcgi doesn't generate useful HTTP responses in case of error,
-     and it generates no response at all when run as start-fcgi.
-
-     On Digital UNIX 3.0 systems the implementation of Unix Domain
-     sockets does not work when such sockets are stored on NFS file
-     systems.  Symptom: cgi-fcgi may core dump or may exit with
-     status 38.  Work-around: store sockets in local file systems
-     (/tmp often works) or use TCP/IP.
-
-     On AIX systems the implementation of listening sockets
-     does not support socket sharing, and the standard FastCGI
-     application libraries can't synchronize access to AIX listening
-     sockets.  Work-around: Don't use the nServers argument on AIX.
-
-HISTORY
-     Copyright (c) 1996 Open Market, Inc.
-     See the file "LICENSE" for information on usage and redistribution
-     of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-     $Id: cgi-fcgi.1,v 1.1.1.1 1997/09/16 15:36:26 stanleyg Exp $
+.TH CGI-FCGI 1 "September 1997" "FastCGI" "User Commands"
+.SH "نام (NAME)"
+cgi-fcgi \- پل ارتباطی میان CGI و FastCGI
+.SH "خلاصه دستور (SYNOPSIS)"
+.B cgi-fcgi
+.B \-f
+\fIcmdPath\fR
+.br
+.B cgi-fcgi
+.B \-bind
+.B \-connect
+\fIconnName\fR
+.br
+.B cgi-fcgi
+.B \-start
+.B \-connect
+\fIconnName\fR
+\fIappPath\fR
+[\fInServers\fR]
+.br
+.B cgi-fcgi
+.B \-connect
+\fIconnName\fR
+\fIappPath\fR
+[\fInServers\fR]
+.SH "توضیحات (DESCRIPTION)"
+دستور
+.B cgi-fcgi
+یک برنامه CGI/1.1 است که با یک برنامه FastCGI از پیش در حال اجرا ارتباط برقرار می‌کند تا به یک درخواست HTTP پاسخ دهد. همچنین
+.B cgi-fcgi
+می‌تواند یک برنامه FastCGI را راه‌اندازی نماید.
+.PP
+هنگامی که
+.B cgi-fcgi
+را به صورت زیر فراخوانی می‌کنید:
+.PP
+.RS 4
+.B cgi-fcgi \-f \fIcmdPath\fR
+.RE
+.PP
+دستور
+.B cgi-fcgi
+فایل موجود در \fIcmdPath\fR را باز کرده و آرگومان‌های خود را از آن فایل می‌خواند.
+.B cgi-fcgi
+خطوطی را که با نویسه توضیح # آغاز می‌شوند نادیده می‌گیرد. اولین خط غیرتوضیحی باید شامل آرگومان‌های معتبر در یکی از سه حالت دیگر باشد.
+.PP
+حالت
+.B \-f
+از
+.B cgi-fcgi
+برای سیستم‌های یونیکس طراحی شده است که خانواده فراخوانی‌های سیستمی exec(2) در آن‌ها از اجرای فایل‌های مفسر دستور پشتیبانی می‌کند. برای نمونه، اگر فایلی با دسترسی اجرا شامل متن زیر باشد:
+.PP
+.RS 4
+.nf
+#! /bin/cgi-fcgi -f
+-connect /httpd/root/sock/app /httpd/root/bin/app
+.fi
+.RE
+.PP
+نتیجه همانند اجرای دستور زیر خواهد بود:
+.PP
+.RS 4
+.nf
+/bin/cgi-fcgi -connect /httpd/root/sock/app /httpd/root/bin/app
+.fi
+.RE
+.PP
+هنگامی که
+.B cgi-fcgi
+را به صورت زیر فراخوانی می‌کنید:
+.PP
+.RS 4
+.B cgi-fcgi \-bind \-connect \fIconnName\fR
+.RE
+.PP
+آرگومان \fIconnName\fR یا مسیر یک سوکت شنود دامنه یونیکس (Unix domain listening socket) است یا یک زوج host:port. اگر \fIconnName\fR شامل دونقطه (:) باشد، به عنوان host:port در نظر گرفته می‌شود.
+.B cgi-fcgi
+با استفاده از \fIconnName\fR یک فراخوانی connect(2) انجام می‌دهد. اگر اتصال با موفقیت برقرار شود،
+.B cgi-fcgi
+متغیرهای محیطی CGI و داده‌های ورودی استاندارد (stdin) را به برنامه FastCGI ارسال می‌کند، و داده‌های خروجی استاندارد (stdout) و خروجی خطای استاندارد (stderr) را از برنامه به stdout دستور cgi-fcgi (که به احتمال زیاد به یک وب‌سرور متصل است) هدایت می‌نماید. هنگامی که برنامه FastCGI پایان پاسخ خود را اعلام کند،
+.B cgi-fcgi
+بافرهای خود را تخلیه کرده و خارج می‌شود، و سپس وب‌سرور پاسخ HTTP را کامل می‌نماید.
+.PP
+هنگامی که
+.B cgi-fcgi
+را به صورت زیر فراخوانی می‌کنید:
+.PP
+.RS 4
+.B cgi-fcgi \-start \-connect \fIconnName appPath\fR [\fInServers\fR]
+.RE
+.PP
+دستور
+.B cgi-fcgi
+وظیفه راه‌اندازی یک یا چند فرایند از برنامه FastCGI را بر عهده می‌گیرد. آرگومان \fIconnName\fR یا مسیر سوکت شنود دامنه یونیکس را مشخص می‌کند که
+.B cgi-fcgi
+ایجاد خواهد کرد، یا به صورت "localhost:NNN" است که در آن NNN شماره پورت سوکت شنود TCP/IP است که
+.B cgi-fcgi
+روی ماشین محلی ایجاد خواهد نمود. (دستور cgi-fcgi فرایندی روی ماشین‌های راه دور ایجاد نمی‌کند.) پس از اینکه
+.B cgi-fcgi
+سوکت شنود را ایجاد کرد، به تعداد \fInServers\fR کپی از فرایندی که فایل اجرایی \fIappPath\fR را اجرا می‌کند با fork منشعب می‌سازد. اگر \fInServers\fR حذف شود، رفتار آن به گونه‌ای است که گویی مقدار "1" تعیین شده است. فرایندها در همان سوکت شنود واحد سهیم هستند.
+.PP
+هنگامی که
+.B cgi-fcgi
+را به صورت زیر فراخوانی می‌کنید:
+.PP
+.RS 4
+.B cgi-fcgi \-connect \fIconnName appPath\fR [\fInServers\fR]
+.RE
+.PP
+دستور
+.B cgi-fcgi
+ابتدا
+.B \-bind
+را انجام می‌دهد و سپس در صورت نیاز،
+.B \-start
+را اجرا کرده و عملیات
+.B \-bind
+را تکرار می‌کند. یعنی
+.B cgi-fcgi
+ابتدا به گونه‌ای عمل می‌کند که گویی دستور به صورت زیر بوده است:
+.PP
+.RS 4
+.B cgi-fcgi \-bind \-connect \fIconnName\fR
+.RE
+.PP
+اگر اتصال با شکست روبرو شود،
+.B cgi-fcgi
+دستور زیر را امتحان می‌کند:
+.PP
+.RS 4
+.B cgi-fcgi \-start \-connect \fIconnName appPath\fR [\fInServers\fR]
+.RE
+.PP
+و سرانجام دوباره تلاش می‌کند:
+.PP
+.RS 4
+.B cgi-fcgi \-bind \-connect \fIconnName\fR
+.RE
+.PP
+در این حالت،
+.B cgi-fcgi
+از اتصالات TCP/IP پشتیبانی نمی‌کند.
+.SH "متغیرهای محیطی (ENVIRONMENT VARIABLES)"
+متغیرهای محیطی متداول CGI، اما این متغیرها توسط
+.B cgi-fcgi
+تفسیر نمی‌شوند.
+.SH "همچنین ببینید (SEE ALSO)"
+.BR FCGI_accept (3)
+.SH "اشکالات (BUGS)"
+دستور
+.B cgi-fcgi
+در صورت بروز خطا پاسخ‌های HTTP مفیدی تولید نمی‌کند، و هنگامی که به صورت start-fcgi اجرا شود هیچ پاسخی تولید نمی‌نماید.
+.PP
+در سیستم‌های Digital UNIX 3.0، پیاده‌سازی سوکت‌های دامنه یونیکس زمانی که این سوکت‌ها روی سیستم فایل NFS ذخیره شوند کار نمی‌کند. نشانه: ممکن است
+.B cgi-fcgi
+دچار اشکال core dump شود یا با وضعیت ۳۸ خارج گردد. راه‌حل جایگزین: سوکت‌ها را در سیستم‌های فایل محلی (مانند /tmp) ذخیره کنید یا از TCP/IP بهره بگیرید.
+.PP
+در سیستم‌های AIX پیاده‌سازی سوکت‌های شنود از اشتراک‌گذاری سوکت پشتیبانی نمی‌کند، و کتابخانه‌های استاندارد برنامه FastCGI نمی‌توانند دسترسی به سوکت‌های شنود AIX را همگام‌سازی کنند. راه‌حل جایگزین: در AIX از آرگومان nServers استفاده نکنید.
+.SH "تاریخچه (HISTORY)"
+حق نشر (c) 1996 متعلق به Open Market, Inc.
+.PP
+برای اطلاعات درباره نحوه استفاده و توزیع مجدد این فایل و سلب مسئولیت تمام ضمانت‌ها، به فایل "LICENSE" مراجعه کنید.

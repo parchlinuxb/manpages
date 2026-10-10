@@ -1,190 +1,117 @@
 .TH include_server 1 "9 June 2008"
 .SH "نام (NAME)"
-include_server.py \- conservative approximation of include dependencies for C/C++
+include_server.py \- تخمین محافظه‌کارانه وابستگی‌های include برای C/C++
 .SH "خلاصه دستور (SYNOPSIS)"
 .B include_server
 --port
 .I INCLUDE_SERVER_PORT [OPTIONS]
 .SH "توضیحات (DESCRIPTION)"
 .P 
-include_server.py starts an include server process.  This process answers
-queries from 
+اسکریپت include_server.py یک فرایند کارساز include را راه‌اندازی می‌کند. این فرایند به پرس‌وجوهای کلاینت‌های
 \fBdistcc\fR(1)
-clients about what files to include in C/C++ compilations. The include_server.py
-command itself terminates as soon as the include server has been spawned.
+درباره اینکه چه فایل‌هایی باید در کامپایل‌های C/C++ گنجانده (include) شوند، پاسخ می‌دهد. خود دستور include_server.py به محض ایجاد فرایند کارساز include خاتمه می‌یابد.
 .PP
-The INCLUDE_SERVER_PORT argument is the name of a socket used for all
-communication between distcc clients and the include server.  The \fBpump\fR(1)
-command is responsible for creating the socket location, for passing it to this
-script, and for passing it to all distcc clients via the environment variable
-named INCLUDE_SERVER_PORT. 
+آرگومان INCLUDE_SERVER_PORT نام سوکتی است که برای تمامی ارتباطات میان کلاینت‌های distcc و کارساز include استفاده می‌شود. دستور \fBpump\fR(1) مسئول ایجاد محل سوکت، ارسال آن به این اسکریپت و فرستادن آن به تمامی کلاینت‌های distcc از طریق متغیر محیطی با نام INCLUDE_SERVER_PORT است. 
 .PP
-The protocol used by the include server uses distcc's RPC implementation. Each
-distcc request consists of (1) the current directory and (2) the list of
-arguments of the compilation command.  
+پروتکل مورد استفاده کارساز include از پیاده‌سازی RPC در distcc بهره می‌برد. هر درخواست distcc شامل (۱) پوشه جاری و (۲) فهرست آرگومان‌های دستور کامپایل است.  
 .PP
-If the include server is able to process the request, then it answers the distcc
-client by sending a list of filepaths.  The filepaths are those of the
-compressed source and header files found to be necessary for compilation through
-include analysis.  The list also comprises symbolic links and even dummy files
-needed for the compilation server to construct an accurate replica of the parts of
-the filesystem needed for compilation.  In this way, a needed header file like
-/path/foo.h is compressed, renamed, and stored in a temporary location, such as
-/dev/shm/tmpiAvfGv.include_server-9368-1/path/foo.h.lzo.  The distcc client will
-pass these files on to a compilation server, where they will be uncompressed and
-mounted temporarily.
+اگر کارساز include قادر به پردازش درخواست باشد، با ارسال فهرستی از مسیرهای فایل به کلاینت distcc پاسخ می‌دهد. این مسیرها مربوط به فایل‌های سورس و سرآیند (header) فشرده‌شده‌ای هستند که از طریق تحلیل include برای کامپایل ضروری تشخیص داده شده‌اند. این فهرست همچنین شامل پیوندهای نمادین و حتی فایل‌های ساختگی (dummy) مورد نیاز کارساز کامپایل است تا نسخه‌ای دقیق از بخش‌های مورد نیاز سیستم‌فایل برای کامپایل ایجاد کند. بدین ترتیب، یک فایل سرآیند مورد نیاز مانند /path/foo.h فشرده شده، تغییر نام یافته و در یک مکان موقت مانند /dev/shm/tmpiAvfGv.include_server-9368-1/path/foo.h.lzo ذخیره می‌شود. کلاینت distcc این فایل‌ها را به کارساز کامپایل منتقل می‌کند، جایی که آن‌ها از حالت فشرده خارج شده و به‌طور موقت سوار (mount) می‌شوند.
 .PP
-If the include server is not able to process the request, then it returns the
-empty list to the distcc client.
+اگر کارساز include قادر به پردازش درخواست نباشد، یک فهرست خالی به کلاینت distcc بازمی‌گرداند.
 .PP
-There are two kinds of failures that relate to the include server. The include
-server may fail to compute the includes or fail in other ways, see section
-\fBINCLUDE SERVER SYMPTOMS\fR.  Also, the compilation on the remove server may
-fail due to inadequacy of the calculated include closure, but then succeed when
-locally retried, see section \fBDISTCC DISCREPANCY SYMPTOMS\fR.
+دو نوع شکست در رابطه با کارساز include وجود دارد. ممکن است کارساز include در محاسبه includeها ناموفق باشد یا به روش‌های دیگری با خطا مواجه شود، بخش
+\fBنشانه‌ها و مشکلات کارساز INCLUDE (INCLUDE SERVER SYMPTOMS AND ISSUES)\fR
+را ببینید. همچنین ممکن است کامپایل در کارساز دوردست به دلیل ناکافی بودن بستار include محاسبه‌شده با شکست مواجه شود، اما با تلاش مجدد محلی موفقیت‌آمیز باشد، بخش
+\fBنشانه‌های مغایرت DISTCC (DISTCC DISCREPANCY SYMPTOMS)\fR
+را ببینید.
 
-.SH "OPTION SUMMARY"
-The following options are understood by include_server.py.
+.SH "خلاصه گزینه‌ها (OPTION SUMMARY)"
+گزینه‌های زیر توسط include_server.py پشتیبانی می‌شوند.
 .TP
 .B -dPAT, --debug_pattern=PAT 
-Bit vector for turning on warnings and debugging
-    1 = warnings
-    2 = trace some functions
- other powers of two: see include_server/basics.py.
+بردار بیتی برای فعال‌سازی هشدارها و اشکال‌زدایی
+    1 = هشدارها
+    2 = ردیابی برخی توابع
+ سایر توان‌های ۲: به include_server/basics.py مراجعه کنید.
 .TP
 .B -e, --email
-Send email to 'distcc-pump-errors' or if defined, the value of environment
-variable DISTCC_EMAILLOG_WHOM_TO_BLAME, when include server gets in trouble.
-The default is to not send email.
+ارسال ایمیل به 'distcc-pump-errors' یا در صورت تعریف، به مقدار متغیر محیطی DISTCC_EMAILLOG_WHOM_TO_BLAME، هنگامی که کارساز include با مشکل مواجه می‌شود. پیش‌فرض عدم ارسال ایمیل است.
 .TP
 .B --email_bound NUMBER
-Maximal number of emails to send (in addition to a final email). Default: 3.
+حداکثر تعداد ایمیل‌های ارسالی (علاوه بر ایمیل نهایی). پیش‌فرض: ۳.
 .TP
 .B --no-email
-Do not send email. This is the default.
+عدم ارسال ایمیل. این حالت پیش‌فرض است.
 .TP
 .B --path_observation_re=RE 
-Issue warning message whenever a filename is resolved to a realpath that is
-matched by RE, which is a regular expression in Python syntax.  This is useful
-for finding out where files included actually come from. Use RE="" to find them
-all.  Note: warnings must be enabled with at least -d1.
+صادر کردن پیام هشدار هر زمان که نام یک فایل به یک realpath تطبیق‌یافته با RE (که یک عبارت منظم با نحو پایتون است) تحلیل شود. این گزینه برای پی بردن به اینکه فایل‌های include واقعاً از کجا آمده‌اند مفید است. برای یافتن همه آن‌ها از RE="" استفاده کنید. توجه: هشدارها باید حداقل با -d1 فعال شده باشند.
 .TP
 .B --pid_file FILEPATH
-The pid of the include server is written to file FILEPATH. This allows a script
-such a \fBpump\fR to tear down the include server.
+شناسه فرایند (PID) کارساز include در فایل FILEPATH نوشته می‌شود. این امر به اسکریپتی مانند \fBpump\fR اجازه می‌دهد کارساز include را متوقف کند.
 .TP                             
 .B -s, --statistics
-Print information to stdout about include analysis.
+چاپ اطلاعات مربوط به تحلیل include در خروجی استاندارد (stdout).
 .TP
 .B --stat_reset_triggers=LIST  
-Flush stat caches when the timestamp of any filepath in LIST changes or the
-filepath comes in or out of existence.  LIST is a colon separated string of
-filepaths, possibly containing simple globs (as allowed by Python's glob
-module). Print a warning whenever such a change happens (if warnings are
-enabled). This option allows limited exceptions to distcc_pump's normal
-assumption that source files are not modified during the build.
+پاک‌سازی حافظه پنهان stat زمانی که برچسب زمانی (timestamp) هر مسیر فایل در LIST تغییر کند یا مسیر فایل ایجاد یا حذف شود. LIST رشته‌ای از مسیرهای فایل است که با دونقطه از هم جدا شده‌اند و احتمالاً شامل الگوهای تطبیق ساده (مطابق با ماژول glob پایتون) است. هر زمان که چنین تغییری رخ دهد، یک هشدار چاپ می‌شود (در صورت فعال بودن هشدارها). این گزینه امکان استثنائات محدودی را برای فرض معمول distcc_pump مبنی بر عدم تغییر فایل‌های سورس در طول ساخت فراهم می‌کند.
 .TP
 .B -t, --time  
-Print elapsed, user, and system time to stderr.
+چاپ زمان سپری‌شده، زمان کاربر و زمان سیستم در خروجی خطای استاندارد (stderr).
 .TP
 .B --unsafe_absolute_includes  
-Do preprocessing on the compilation server even if includes of absolute
-filepaths are encountered.  Normally the include-server will fall back on local
-preprocessing if it detects any absolute includes.  Thus, this flag is useful
-for preventing such fallbacks when the absolute includes are a false alarm,
-either because the absolute include is discarded during preprocessing or because
-the absolutely included file exists on the compilation servers.  
+انجام پیش‌پردازش روی کارساز کامپایل، حتی اگر includeهایی با مسیرهای مطلق مشاهده شوند. به طور معمول کارساز include در صورت شناسایی هرگونه include مطلق، به پیش‌پردازش محلی بازمی‌گردد. بنابراین، این پرچم برای جلوگیری از چنین بازگشت‌هایی در مواردی که includeهای مطلق یک هشدار کاذب هستند، مفید است؛ چه به این دلیل که include مطلق در حین پیش‌پردازش کنار گذاشته می‌شود یا به این دلیل که فایل با مسیر مطلق روی کارسازهای کامپایل وجود دارد.
 .IP
-More precisely, with --unsafe_absolute_includes absolute includes are ignored
-for the purposes of gathering the include closure.  Using this option may lead
-to incorrect results because (1) the header may actually be included on the
-compilation server and it may not be the same as on the client, (2) the include
-directives of the header are not further analyzed.  
+به بیان دقیق‌تر، با --unsafe_absolute_includes مسیرهای مطلق به منظور گردآوری بستار include نادیده گرفته می‌شوند. استفاده از این گزینه ممکن است به نتایج نادرست منجر شود زیرا (۱) ممکن است فایل سرآیند واقعاً در کارساز کامپایل include شود و با نسخه کلاینت متفاوت باشد، (۲) دستورات include آن سرآیند بیشتر تحلیل نمی‌شوند.
 .IP
-The option is useful for compiling code that has such hardcoded absolute
-locations of header files inside conditional directives (e.g. "#ifdef") that
-render the includes irrelevant.  More precisely, these includes must be
-eliminated during preprocessing for the actual configuration. Then the question
-of existence of the header file is moot and the remote compilation is sound.
-This is often the case if such includes are meant for unusual configurations
-different from the actual configuration.
+این گزینه برای کامپایل کدی مفید است که در آن چنین مکان‌های مطلق و ثابت‌شده‌ای از فایل‌های سرآیند درون دستورات شرطی (مانند "#ifdef") قرار دارند که includeها را بی‌اثر می‌کنند. به بیان دقیق‌تر، این includeها باید در طول پیش‌پردازش برای پیکربندی فعلی حذف شوند. در این حالت مسئله وجود فایل سرآیند منتفی است و کامپایل از راه دور معتبر خواهد بود. این وضعیت اغلب در مواردی رخ می‌دهد که چنین includeهایی برای پیکربندی‌های غیرمعمول و متفاوت از پیکربندی فعلی در نظر گرفته شده‌اند.
 .TP
 .B --no_force_dirs
-Do not force the creation of all directories used
-in an include path.  May improve performance for
-some cases, but will break builds which use
-include structures like "<foo/../file.h>" without
-including other files in foo/.
+ایجاد تمامی پوشه‌های استفاده‌شده در یک مسیر include را اجباری نکن. ممکن است در برخی موارد کارایی را بهبود بخشد، اما ساخت‌هایی را که از ساختارهای include مانند "<foo/../file.h>" بدون گنجاندن سایر فایل‌ها در foo/ استفاده می‌کنند، با شکست مواجه خواهد کرد.
 .TP
 .B -v, --verify
-Verify that files in CPP closure are contained in
-closure calculated by include processor.
+بررسی اینکه آیا فایل‌های موجود در بستار CPP در بستار محاسبه‌شده توسط پردازشگر include گنجانده شده‌اند یا خیر.
 .TP
 .B -w, --write_include_closure 
-Write a .d_approx file which lists all the included files calculated by the
-include server; with -x, additionally write the included files as calculated by
-CPP to a .d_exact file.
+نوشتن یک فایل .d_approx که تمام فایل‌های include محاسبه‌شده توسط کارساز include را فهرست می‌کند؛ با گزینه -x، علاوه بر آن فایل‌های include محاسبه‌شده توسط CPP را در یک فایل .d_exact می‌نویسد.
 .TP
 .B -x, --exact_analysis
-Use CPP instead, do not omit system headers files.
+استفاده از CPP به جای آن، فایل‌های سرآیند سیستم را حذف نکن.
 
-.SH "INCLUDE SERVER SYMPTOMS AND ISSUES"
+.SH "نشانه‌ها و مشکلات کارساز INCLUDE (INCLUDE SERVER SYMPTOMS AND ISSUES)"
 
 
-The most likely messages and warnings to come from the include processor are
-listed below.
+محتمل‌ترین پیام‌ها و هشدارهایی که ممکن است از پردازشگر include صادر شوند در زیر آورده شده‌اند.
 .PP
 .TP
 .B "Preprocessing locally. Include server not covering: Couldn't determine default system include directories"
-To determine the default system header directories, the include server runs the
-compiler once for each language needed during its session. This message
-indicates that the compiler specified to distcc is not present on the client.
+برای تعیین پوشه‌های سرآیند پیش‌فرض سیستم، کارساز include برای هر زبان مورد نیاز در طول نشست خود یک بار کامپایلر را اجرا می‌کند. این پیام نشان می‌دهد که کامپایلر مشخص‌شده برای distcc روی کلاینت وجود ندارد.
 .PP
 .TP
 .B Preprocessing locally. Include server not covering: Bailing out because include server spent more than ...s user time handling request
-In uncommon situations, the include server fails to analyze very complicated
-macro expressions. The distcc client will use plain distcc mode.
+در شرایط غیرمعمول، کارساز include در تحلیل عبارت‌های ماکروی بسیار پیچیده ناموفق است. کلاینت distcc از حالت ساده distcc استفاده خواهد کرد.
 .PP
 .TP
 .B Warning: Filepath must be relative but isn't
-The include server does not accept absolute filepaths, such as
-/usr/include/stdio.h, in include directives, because there is no guarantee that
-this header on the compilation server machine will be the same as that on the
-client.  The include server gives up analyzing the include closure. The distcc
-client cannot use pump-mode.
+کارساز include مسیرهای مطلق مانند /usr/include/stdio.h را در دستورات include نمی‌پذیرد، زیرا هیچ تضمینی وجود ندارد که این فایل سرآیند روی رایانه کارساز کامپایل مشابه رایانه کلاینت باشد. کارساز include از تحلیل بستار include منصرف می‌شود. کلاینت distcc نمی‌تواند از حالت pump استفاده کند.
 .IP
-To overcome this problem in a not always reliable way, set the environment
-variable INCLUDE_SERVER_ARGS='--unsafe_absolute_includes' when invoking the pump
-script to pass the --unsafe_absolute_includes option to the include server.
+برای رفع این مشکل به روشی که البته همیشه قابل اعتماد نیست، هنگام فراخوانی اسکریپت pump متغیر محیطی INCLUDE_SERVER_ARGS='--unsafe_absolute_includes' را تنظیم کنید تا گزینه --unsafe_absolute_includes به کارساز include ارسال شود.
 .PP
 .TP
 .B Warning: Absolute filepath ... was IGNORED
-The --unsafe_absolute_includes is in use.  This situation happens under the same
-circumstances as when "Filepath must be relative but isn't" is issued, but in
-this case the include will provide an answer to the distcc client.
+گزینه --unsafe_absolute_includes در حال استفاده است. این وضعیت تحت همان شرایطی رخ می‌دهد که پیام "Filepath must be relative but isn't" صادر می‌شود، اما در این حالت پردازشگر include پاسخی به کلاینت distcc ارائه خواهد داد.
 .PP
 .TP
 .B Warning: Path '/PATH/FILE' changed/came into existence/no longer exists
-These warnings are issued when using stat reset triggers.  Because /PATH/FILE
-changed, the include server clears its caches; the new version of the file (or
-the lack of it) renders the include analysis invalid. This message can usually
-be ignored; it does signify a somewhat precarious use of files by the build
-system.  It is recommended to fix the build system so that files are not
-rewritten.
+این هشدارها هنگام استفاده از محرک‌های بازنشانی stat صادر می‌شوند. به دلیل تغییر /PATH/FILE، کارساز include حافظه پنهان خود را پاک می‌کند؛ نسخه جدید فایل (یا عدم وجود آن) تحلیل include را نامعتبر می‌سازد. این پیام معمولاً قابل چشم‌پوشی است؛ اما نشان‌دهنده استفاده تا حدی ناامن از فایل‌ها توسط سیستم ساخت است. توصیه می‌شود سیستم ساخت به گونه‌ای اصلاح شود که فایل‌ها بازنویسی نشوند.
 .PP
 .TP
 .B Warning: For translation unit ..., lookup of file ... resolved to ... whose realpath is ...
-This warning occurs with --path_observation_re when a new realpath matching
-a source or header file is observed.
+این هشدار همراه با --path_observation_re زمانی رخ می‌دهد که یک realpath جدید منطبق با یک فایل سورس یا سرآیند مشاهده شود.
 
-.SH "DISTCC DISCREPANCY SYMPTOMS"
+.SH "نشانه‌های مغایرت DISTCC (DISTCC DISCREPANCY SYMPTOMS)"
 
 
-The interactions between the build system, distcc, and the include server is
-somewhat complex. When a distcc commands receives a failing compilation from the
-remote server it retries the compilation locally.  This section discusses the
-causes of discrepancies between remote and local compilation.  These are flagged
-by the demotion message:
+تعاملات بین سیستم ساخت، distcc و کارساز include تا حدودی پیچیده است. هنگامی که دستورات distcc یک خطای کامپایل از کارساز دوردست دریافت می‌کنند، کامپایل را به صورت محلی دوباره امتحان می‌کنند. این بخش دلایل مغایرت بین کامپایل از راه دور و محلی را مورد بحث قرار می‌دهد. این موارد با پیام تنزل رتبه مشخص می‌شوند:
 .PP
 .B __________Warning: ... pump-mode compilation(s) failed on server,
 .B but succeeded locally.
@@ -193,114 +120,79 @@ by the demotion message:
 .B See the Distcc Discrepancy Symptoms section in the include_server(1) man
 .B page.
 .PP
-The pump script issues this message at the end of the build. This means that for
-at least one distcc invocation a local compilation succeeded after the remote
-compilation failed. Each distcc invocation for which such a discrepancy occurred
-in turn also issues a message such as:
+اسکریپت pump این پیام را در پایان فرایند ساخت صادر می‌کند. این بدان معناست که حداقل در یک مورد فراخوانی distcc، پس از شکست کامپایل از راه دور، کامپایل محلی با موفقیت انجام شده است. هر فراخوانی distcc که چنین مغایرتی برای آن رخ داده باشد نیز به نوبه خود پیامی شبیه به این صادر می‌کند:
 .PP
 .B Warning: remote compilation of '...' failed,
 .B retried locally and got a different result.
 .PP
-The demotion makes subsequent distcc invocations use plain distcc mode.  Thus
-preprocessing will take place on the local machine for the remainder of the
-build.  This technique prevents very slow builds where all compilations end up
-on the local machine after failing remotely.
+این تنزل درجه باعث می‌شود که فراخوانی‌های بعدی distcc از حالت ساده distcc استفاده کنند. بنابراین پیش‌پردازش برای ادامه ساخت روی رایانه محلی انجام خواهد شد. این روش از ساخت‌های بسیار کند که در آن‌ها تمامی کامپایل‌ها پس از شکست از راه دور در نهایت روی رایانه محلی انجام می‌شوند، جلوگیری می‌کند.
 .PP
-Of course, if the local compilations fails after the remote failures, then the
-distcc invocation exits with the non-zero status of the local compilation. The
-error messages printed are also those of the local compilation.
+البته اگر کامپایل محلی نیز پس از شکست‌های از راه دور با خطا مواجه شود، فراخوانی distcc با وضعیت غیرصفر کامپایل محلی خارج می‌شود. پیام‌های خطای چاپ‌شده نیز همان پیام‌های کامپایل محلی هستند.
 .PP
-The fallback behavior for distcc-pump mode to local compilation can be disabled
-by setting the environment variable DISTCC_FALLBACK to 0, which makes the distcc
-command fail as soon as the remote compilation has failed. This setting is very
-useful for debugging why the remote compilation went wrong, because now the
-output from the server will be printed.
+رفتار بازگشت به کامپایل محلی برای حالت distcc-pump را می‌توان با تنظیم متغیر محیطی DISTCC_FALLBACK بر روی ۰ غیرفعال کرد، که باعث می‌شود دستور distcc به محض شکست کامپایل از راه دور ناموفق شود. این تنظیم برای اشکال‌زدایی دلیل بروز خطا در کامپایل از راه دور بسیار مفید است، زیرا در این حالت خروجی کارساز چاپ خواهد شد.
 .PP
-Next we discuss the possible causes of discrepancies.
+در ادامه دلایل احتمالی بروز مغایرت‌ها را بررسی می‌کنیم.
 .PP
 .TP
-.B The user changed a source or header file during the build.
-This yields inconsistent results of course.
+.B کاربر در حین ساخت، یک فایل سورس یا سرآیند را تغییر داده است.
+این کار مسلماً نتایج متناقضی به همراه خواهد داشت.
 .PP
 .TP
-.B A source or header file changed during the build.
-The build system rewrites a file.  For Linux kernel 2.6, this happens
-for 'include/linux/compile.h' and 'include/asm/asm-offsets.h'. This condition is
-fixed by letting the include server know that it must reset its caches when a
-stat of any of the files changes. Practically, this is done by gathering the
-files in a colon-separated list and then setting the INCLUDE_SERVER_ARGS
-environment variable when invoking the pump script, so that it passes
-the
+.B یک فایل سورس یا سرآیند در طول ساخت تغییر کرده است.
+سیستم ساخت یک فایل را بازنویسی می‌کند. برای هسته لینوکس ۲.۶، این اتفاق برای 'include/linux/compile.h' و 'include/asm/asm-offsets.h' رخ می‌دهد. این وضعیت با آگاه کردن کارساز include از این موضوع که باید حافظه پنهان خود را هنگام تغییر stat هر یک از فایل‌ها پاک کند، برطرف می‌شود. از نظر عملی، این کار با گردآوری فایل‌ها در یک فهرست با جداکننده دونقطه و سپس تنظیم متغیر محیطی INCLUDE_SERVER_ARGS هنگام اجرای اسکریپت pump انجام می‌شود تا گزینه
 .B --stat_reset_triggers
-option; for example,
-
+ارسال شود؛ برای مثال:
+.PP
+.nf
    INCLUDE_SERVER_ARGS="--stat_reset_triggers=include/linux/compile.h:include/asm/asm-offsets.h"
+.fi
 .PP
 .TP
-.B A header file is potentially included, but does not exist, and is then later included.
-This occurs when some header foo.h includes another header file trick.h, but the
-trick.h file has not yet been generated and the inclusion is actually ignored
-because of preprocessing directives. The include server will probe for the
-existence of trick.h, because it overapproximates all possible ways directives
-actually evaluate. The file trick.h is determined not to exist. If it is later
-generated, and then really included, then the include server will falsely
-believe that the file still does not exist.  The solution to this problem is to
-make the build system generate trick.h before the first time any header file
-is included that makes a syntactic reference to trick.h
+.B یک فایل سرآیند بالقوه include شده است، اما وجود ندارد و سپس بعداً include می‌شود.
+این حالت زمانی رخ می‌دهد که یک سرآیند foo.h فایل سرآیند دیگری به نام trick.h را شامل شود، اما فایل trick.h هنوز تولید نشده باشد و عمل include به دلیل دستورات پیش‌پردازنده عملاً نادیده گرفته شود. کارساز include وجود trick.h را بررسی می‌کند، زیرا تمام حالت‌های ممکن برای ارزیابی دستورات را بیش از حد تخمین می‌زند. مشخص می‌شود که فایل trick.h وجود ندارد. اگر بعداً این فایل تولید شود و واقعاً include گردد، کارساز include به اشتباه تصور می‌کند که فایل هنوز وجود ندارد. راه‌حل این مشکل این است که سیستم ساخت طوری تنظیم شود که trick.h را پیش از نخستین باری که هر فایل سرآیندی ارجاعی به trick.h دارد تولید کند.
 .PP
 .TP
-.B The include server was started with \fB--unsafe_absolute_includes\fR.
-This is a problem if there are header files locally that do not exist remotely
-and that are actually used.  Such includes are often protected by conditional
-directives that evaluate so that are actually used on only specific and often
-uncommon platforms. If you are not compiling for such a platform, then it may be
-correct to use \fB--unsafe_absolute_include\fR.
+.B کارساز include با \fB--unsafe_absolute_includes\fR راه‌اندازی شده است.
+این مورد زمانی مشکل‌ساز است که فایل‌های سرآیندی به صورت محلی وجود داشته باشند که در کارساز دوردست وجود ندارند و در عمل مورد استفاده قرار می‌گیرند. چنین includeهایی اغلب توسط دستورات شرطی محافظت می‌شوند که طوری ارزیابی می‌شوند که فقط در پلتفرم‌های خاص و معمولاً غیرمعمول استفاده شوند. اگر برای چنین پلتفرمی کامپایل نمی‌کنید، استفاده از \fB--unsafe_absolute_includes\fR می‌تواند مناسب باشد.
 .PP
 .TP
-.B The include server has calculated the wrong includes.
-We do not know of such a situation.
+.B کارساز include فایل‌های include را اشتباه محاسبه کرده است.
+ما تاکنون از چنین وضعیتی مطلع نشده‌ایم.
 
 
-.SH "EXIT CODES"
-The exit code of include_server.py is usually 0. That the include server has
-been started properly is communicated through the existence of the pid_file.
+.SH "کدهای خروج (EXIT CODES)"
+کد خروج include_server.py معمولاً ۰ است. راه‌اندازی صحیح کارساز include از طریق وجود فایل pid_file اطلاع داده می‌شود.
 
-.SH "ENVIRONMENT VARIABLES"
-
+.SH "متغیرهای محیطی (ENVIRONMENT VARIABLES)"
+.TP
 .B DISTCC_EMAILLOG_WHOM_TO_BLAME
-The email address to use for include server automated emails. The default
-is 'distcc-pump-errors' (which is an email address that probably will not
-exist in your domain).
+نشانی ایمیل مورد استفاده برای ایمیل‌های خودکار کارساز include. پیش‌فرض 'distcc-pump-errors' است (که نشانی ایمیلی است که احتمالاً در دامنه شما وجود نخواهد داشت).
 .PP
-Additionally, the invocation of the compiler may use additional environment
-variables.
+علاوه بر این، فراخوانی کامپایلر ممکن است از متغیرهای محیطی دیگری نیز استفاده کند.
 
 
-.SH "اشکالات (BUGS)"
-If you think you have found a distcc bug, please see the file
+.SH "گزارش باگ‌ها (BUGS)"
+اگر فکر می‌کنید باگی در distcc یافته‌اید، لطفاً فایل
 .I reporting-bugs.txt
-in the documentation directory for information on how to report it.
+در پوشه مستندات را برای اطلاعات در مورد نحوه گزارش آن بررسی کنید.
 
 .PP
-In distcc-pump mode, the include server is unable to handle certain very
-complicated computed includes as found in parts of the Boost library. The
-include server will time out and distcc will revert to plain mode.
+در حالت distcc-pump، کارساز include قادر به مدیریت برخی includeهای محاسباتی بسیار پیچیده مانند موارد موجود در بخش‌هایی از کتابخانه Boost نیست. مهلت زمانی کارساز include به پایان می‌رسد و distcc به حالت ساده بازمی‌گردد.
 .PP
-Other known bugs may be documented on
-.I http://code.google.com/p/distcc/
+سایر باگ‌های شناخته‌شده ممکن است در
+.I http://code.google.com/p/distcc
+مستند شده باشند.
 
 .SH "نویسنده (AUTHOR)"
-The include server was written by Nils Klarlund, with assistance from Fergus
-Henderson, Manos Renieris, and Craig Silverstein. Please report bugs to
-<distcc@lists.samba.org>.
+کارساز include توسط Nils Klarlund با همکاری Fergus Henderson، Manos Renieris و Craig Silverstein نوشته شده است. لطفاً باگ‌ها را به
+<distcc@lists.samba.org>
+گزارش دهید.
 
-.SH "LICENCE"
-You are free to use distcc.  distcc (including this manual) may be
-copied, modified or distributed only under the terms of the GNU
-General Public Licence version 2 or later.  distcc comes with
-absolutely no warrany.  A copy of the GPL is included in the file
-COPYING.
+.SH "مجوز (LICENCE)"
+استفاده از distcc برای شما آزاد است. distcc (شامل این راهنما) تنها تحت شرایط مجوز عمومی همگانی گنو (GNU GPL) نسخه ۲ یا بالاتر می‌تواند رونوشت، اصلاح یا توزیع شود. distcc مطلقاً بدون هیچ‌گونه ضمانتی ارائه می‌شود. یک نسخه از GPL در فایل COPYING گنجانده شده است.
 
 .SH "همچنین ببینید (SEE ALSO)"
-\fBdistcc\fR(1), \fBdistccd\fR(1), \fBinclude_server\fR(1), and \fBgcc\fR(1).
-http://code.google.com/p/distcc/ https://ccache.dev/
+\fBdistcc\fR(1), \fBdistccd\fR(1), \fBinclude_server\fR(1), \fBgcc\fR(1)
+.PP
+http://code.google.com/p/distcc https://ccache.dev
+
